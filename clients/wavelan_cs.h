@@ -328,6 +328,14 @@
  *	- Add ESSID & "AP current address" ioctl stubs
  *	- General cleanup of the code
  *
+ * Changes made for release in 3.0.13 :
+ * ----------------------------------
+ *	- Re-enable compilation of roaming code by default, but with
+ *	  do_roaming = 0
+ *	- Nuke `nwid=nwid^ntohs(beacon->domain_id)' in wl_roam_gather
+ *	  at the demand of John Carol Langford <jcl@gs176.sp.cs.cmu.edu>
+ *	- Introduced WAVELAN_ROAMING_EXT for incomplete ESSID stuff.
+ *
  * Wishes & dreams:
  * ----------------
  *	- Cleanup and integrate the roaming code
@@ -382,7 +390,8 @@
  * `#define' or `#undef' the following constant to change the behaviour
  * of the driver...
  */
-#undef WAVELAN_ROAMING		/* Include experimental roaming code */
+#define WAVELAN_ROAMING		/* Include experimental roaming code */
+#undef WAVELAN_ROAMING_EXT	/* Enable roaming wireless extensions */
 #undef SET_PSA_CRC		/* Set the CRC in PSA (slower) */
 #define USE_PSA_CONFIG		/* Use info from the PSA */
 #undef STRUCT_CHECK		/* Verify padding of structures */
@@ -429,7 +438,7 @@
 /************************ CONSTANTS & MACROS ************************/
 
 #ifdef DEBUG_VERSION_SHOW
-static const char *version = "wavelan_cs.c : v19 (wireless extensions) 14/5/99\n";
+static const char *version = "wavelan_cs.c : v20 (wireless extensions) 11/6/99\n";
 #endif
 
 /* Watchdog temporisation */
@@ -742,8 +751,8 @@ MODULE_PARM(irq_list, "1-4i");
 MODULE_PARM(mem_speed, "i");
 
 #ifdef WAVELAN_ROAMING		/* Conditional compile, see above in options */
-/* Enable roaming mode? */
-static int	do_roaming=1;
+/* Enable roaming mode ? No ! Please keep this to 0 */
+static int	do_roaming = 0;
 MODULE_PARM(do_roaming, "i");
 #endif	/* WAVELAN_ROAMING */
 

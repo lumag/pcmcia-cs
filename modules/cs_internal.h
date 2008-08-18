@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.37 1999/06/01 17:27:06
+ * cs_internal.h 1.38 1999/06/24 16:14:12
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -126,7 +126,7 @@ typedef struct config_t {
 #define MAX_CIS_DATA	512
 
 typedef struct socket_info_t {
-#if defined(CONFIG_SMP) && defined(SPIN_LOCK_UNLOCKED)
+#ifdef USE_SPIN_LOCKS
     spinlock_t			lock;
 #endif
     ss_entry_t			ss_entry;

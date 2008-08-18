@@ -1615,6 +1615,9 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 		skb->dev = dev;
 		netif_rx(skb);
 		lp->stats.rx_packets++;
+#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
+		lp->stats.rx_bytes += pktlen;
+#endif
 		if( !(rsr & PhyPkt) )
 		    lp->stats.multicast++;
 	    }
@@ -1832,6 +1835,9 @@ do_start_xmit(struct sk_buff *skb, struct device *dev)
     DEV_KFREE_SKB (skb);
     dev->trans_start = jiffies;
     dev->tbusy = 0;
+#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
+    lp->stats.tx_bytes += pktlen;
+#endif
     return 0;
 }
 

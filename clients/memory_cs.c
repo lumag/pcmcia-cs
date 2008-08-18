@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.53 1998/11/18 08:01:13
+    memory_cs.c 1.55 1999/06/12 07:02:44
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -42,6 +42,10 @@
 #include <asm/segment.h>
 #include <stdarg.h>
 
+#if (LINUX_VERSION_CODE >= VERSION(2,3,3))
+#include <linux/blkpg.h>
+#endif
+
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -75,7 +79,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.53 1998/11/18 08:01:13 (David Hinds)";
+"memory_cs.c 1.55 1999/06/12 07:02:44 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -791,7 +795,7 @@ static int memory_erase(int minor, u_long f_pos, U_FS_SIZE_T count)
     }
 
     /* Wait for request to complete */
-    init_waitqueue_head((wait_queue_head_t *)&dev->eraseq[i].Optional);
+    init_waitqueue((wait_queue_head_t *)&dev->eraseq[i].Optional);
     if (ERASE_IN_PROGRESS(dev->eraseq[i].State))
 	sleep_on((wait_queue_head_t *)&dev->eraseq[i].Optional);
     if (dev->eraseq[i].State != ERASE_PASSED)
@@ -947,12 +951,6 @@ static int memory_ioctl(struct inode *inode, struct file *file,
 	    put_user(minor_dev->region.RegionSize/SECTOR_SIZE,
 		     (long *)arg);
 	break;
-    case BLKFLSBUF:
-	if (!suser()) return -EACCES;
-	if (!(inode->i_rdev)) return -EINVAL;
-	fsync_dev(inode->i_rdev);
-	invalidate_buffers(inode->i_rdev);
-	break;
     case MEMGETINFO:
 	if (!IS_DIRECT(minor)) {
 	    copy_to_user((region_info_t *)arg, &minor_dev->region,
@@ -966,6 +964,20 @@ static int memory_ioctl(struct inode *inode, struct file *file,
 	    ret = memory_erase(minor, erase.Offset, erase.Size);
 	} else ret = -EINVAL;
 	break;
+#if (LINUX_VERSION_CODE < VERSION(2,3,3))
+    case BLKFLSBUF:
+	if (!suser()) return -EACCES;
+	if (!(inode->i_rdev)) return -EINVAL;
+	fsync_dev(inode->i_rdev);
+	invalidate_buffers(inode->i_rdev);
+	break;
+#else
+    case BLKROSET:
+    case BLKROGET:
+    case BLKFLSBUF:
+	ret = blk_ioctl(inode->i_rdev, cmd, arg);
+	break;
+#endif
     default:
 	ret = -EINVAL;
     }

@@ -1,5 +1,5 @@
 #
-# etc/Makefile 1.44 1999/05/18 05:29:14 (David Hinds)
+# etc/Makefile 1.45 1999/06/09 17:23:51 (David Hinds)
 #
 
 # Include site dependent options
@@ -82,14 +82,18 @@ install-sysv: $(RC_DIRS)
 
 install-clients:
 	for f in $(CLIENTS) ; do				\
-	    cmp -s $$f $(ETC)/$$f || cp -b -Vt $$f $(ETC)/$$f ; \
-	    DEST=$(ETC)/$$f.opts ;				\
-	    test -r $$DEST || cp $$f.opts $$DEST ;		\
+	    cmp -s $$f $(ETC)/$$f && continue ;			\
+	    [ -r $(ETC)/$$f ] && mv $(ETC)/$$f $(ETC)/$$f.O ;	\
+	    cp $$f $(ETC)/$$f ;					\
+	    OPTS=$(ETC)/$$f.opts ;				\
+	    test -r $$OPTS || cp $$f.opts $$OPTS ;		\
 	done
 
 install-extra: $(EXTRA)
 	for f in $(EXTRA) ; do					\
-	    cmp -s $$f $(ETC)/$$f || cp -b -Vt $$f $(ETC)/$$f ; \
+	    cmp -s $$f $(ETC)/$$f && continue ;			\
+	    [ -r $(ETC)/$$f ] && mv $(ETC)/$$f $(ETC)/$$f.O ;	\
+	    cp $$f $(ETC)/$$f ;					\
 	done
 
 install-depmod:

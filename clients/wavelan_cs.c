@@ -533,7 +533,15 @@ unsigned char WAVELAN_BEACON_ADDRESS[]= {0x09,0x00,0x0e,0x20,0x03,0x00};
 void wv_roam_init(struct device *dev)
 {
   net_local  *lp= (net_local *)dev->priv;
-  
+
+  /* Do not remove this unless you have a good reason */
+  printk(KERN_NOTICE "%s: Warning, you have enabled roaming on"
+	 " device %s !\n", dev->name, dev->name);
+  printk(KERN_NOTICE "Roaming is currently an experimental unsuported feature"
+	 " of the Wavelan driver.\n");
+  printk(KERN_NOTICE "It may work, but may also make the driver behave in"
+	 " erratic ways or crash.\n");
+
   lp->wavepoint_table.head=NULL;           /* Initialise WavePoint table */
   lp->wavepoint_table.num_wavepoints=0;
   lp->wavepoint_table.locked=0;
@@ -786,7 +794,10 @@ static inline void wl_roam_gather(device *  dev,
   wavepoint_history *wavepoint=NULL;                /* WavePoint table entry */
   net_local *lp=(net_local *)dev->priv;              /* Device info */
 
+#if 0
+  /* Some people don't need this, some other may need it */
   nwid=nwid^ntohs(beacon->domain_id);
+#endif
 
 #if WAVELAN_ROAMING_DEBUG > 1
   printk(KERN_DEBUG "WaveLAN: beacon, dev %s:\n",dev->name);
@@ -2087,7 +2098,7 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 	 }
        break;
 
-#ifdef WAVELAN_ROAMING
+#ifdef WAVELAN_ROAMING_EXT
 #if WIRELESS_EXT > 5
     case SIOCSIWESSID:
       /* Check if disable */
@@ -2184,7 +2195,7 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
       ret = -EOPNOTSUPP;	/* Not supported yet */
       break;
 #endif	/* WIRELESS_EXT > 5 */
-#endif	/* WAVELAN_ROAMING */
+#endif	/* WAVELAN_ROAMING_EXT */
 
     case SIOCGIWRANGE:
       /* Basic checking... */

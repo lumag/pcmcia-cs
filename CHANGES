@@ -1,3 +1,30 @@
+[24-Jun-99] Version 3.0.13
+-- Updated spin lock code to deal with 2.3.7 kernel update.
+-- Updated resource management code to fit with new kernel resource
+   handling code that I'm working on.
+-- Changed "make config" to silently do a "make clean".
+-- Changed smc91c92_cs driver to report memory size, and to do a
+   better job of selecting between 8-bit and 16-bit accesses.
+-- Improved the 3c589 transceiver detection logic, to avoid a problem
+   where XJack cards could get stuck on 10base2.
+-- Added back support for 3.3V 16-bit cards with ToPIC97 bridges.
+-- Updated Configure script for 2.3.6 and Alan Cox's large-memory
+   kernel updates.
+-- Added CIS fix for Advantech COMpad-32/85.
+-- Changed serial script to be smarter about choosing between cua* and
+   ttyS* devices with newer kernels.
+-- Updated network script to cleanly handle recent versions of dhcpcd.
+-- Updated memory_cs and ftl_cs for 2.3.3 kernel changes.
+-- Some config tweaks from David Parsons: fixed handling of multiword
+   options in Configure script.
+-- Fixed xirc2ps_cs driver to count bytes received and transmitted.
+-- Fixed parport_cs driver breakage and added support for EPP mode.
+-- Fixed ISA interrupt routing problem for card status interrupts with
+   TI 1250A controllers.
+-- Fixed i82365 module to disable write posting on TI1130 revision 4
+   bridges by default, since it seems flaky.  This was reported to
+   cause trouble with various cards for PCMCIA releases 3.0.6 onwards.
+
 [06-Jun-99] Version 3.0.12
 -- Fixed suspend/resume bug in transceiver monitoring code in 3c589_cs
    and 3c574_cs drivers.

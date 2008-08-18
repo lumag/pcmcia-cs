@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.61 1999/06/03 06:52:06
+    rsrc_mgr.c 1.64 1999/06/24 16:14:12
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -89,7 +89,7 @@ static irq_info_t irq_table[NR_IRQS] = { { 0, 0, 0 }, /* etc */ };
 
 #endif
 
-#if defined(CONFIG_SMP) && defined(SPIN_LOCK_UNLOCKED)
+#ifdef USE_SPIN_LOCKS
 static spinlock_t rsrc_lock = SPIN_LOCK_UNLOCKED;
 #endif
 
@@ -100,7 +100,7 @@ static spinlock_t rsrc_lock = SPIN_LOCK_UNLOCKED;
     
 ======================================================================*/
 
-#ifdef __LINUX__
+#if defined(__LINUX__) && !defined(HAVE_MEMRESERVE)
 
 typedef struct resource_entry_t {
     u_long			base, num;
@@ -154,8 +154,8 @@ static int register_resource(resource_entry_t *list,
     return 0;
 }
 
-static int release_resource(resource_entry_t *list,
-			    u_long base, u_long num)
+static void release_resource(resource_entry_t *list,
+			     u_long base, u_long num)
 {
     u_long flags;
     resource_entry_t *p, *q;
@@ -168,11 +168,11 @@ static int release_resource(resource_entry_t *list,
 	    p->next = q->next;
 	    kfree_s(q, sizeof(resource_entry_t));
 	    spin_unlock_irqrestore(&rsrc_lock, flags);
-	    return 0;
+	    return;
 	}
     }
     spin_unlock_irqrestore(&rsrc_lock, flags);
-    return -EINVAL;
+    return;
 }
 
 static int check_resource(resource_entry_t *list,
@@ -188,16 +188,16 @@ int check_mem_region(u_long base, u_long num)
 {
     return check_resource(&mem_list, base, num);
 }
-int register_mem_region(u_long base, u_long num, char *name)
+void request_mem_region(u_long base, u_long num, char *name)
 {
-    return register_resource(&mem_list, base, num, name);
+    register_resource(&mem_list, base, num, name);
 }
-int release_mem_region(u_long base, u_long num)
+void release_mem_region(u_long base, u_long num)
 {
-    return release_resource(&mem_list, base, num);
+    release_resource(&mem_list, base, num);
 }
 
-#endif /* __LINUX__ */
+#endif /* __LINUX__ && !HAVE_MEMRESOURCE */
 
 /*======================================================================
 
@@ -267,7 +267,7 @@ int check_resource(int type, u_long base, u_long num)
 
 /*====================================================================*/
 
-#ifdef HAS_PROC_BUS
+#if defined(HAS_PROC_BUS) && !defined(HAVE_MEMRESERVE)
 int proc_read_mem(char *buf, char **start, off_t pos,
 		  int count, int *eof, void *data)
 {
@@ -578,7 +578,10 @@ int find_mem_region(u_long *base, u_long num, char *name,
     if (*base != 0) {
 	for (m = mem_db.next; m != &mem_db; m = m->next) {
 	    if ((*base >= m->base) && (*base+num <= m->base+m->num))
-		return register_mem_region(*base, num, name);
+		if (check_mem_region(*base, num) == 0) {
+		    request_mem_region(*base, num, name);
+		    return 0;
+		}
 	}
 	return -1;
     }
@@ -590,7 +593,8 @@ int find_mem_region(u_long *base, u_long num, char *name,
 	    if ((force_low != 0) ^ (m->base < 0x100000)) continue;
 	    for (*base = (m->base + align - 1) & (~(align-1));
 		 *base+num <= m->base+m->num; *base += align)
-		if (register_mem_region(*base, num, name) == 0) {
+		if (check_mem_region(*base, num) == 0) {
+		    request_mem_region(*base, num, name);
 		    RELEASE_RESOURCE_LOCK;
 		    return 0;
 		}

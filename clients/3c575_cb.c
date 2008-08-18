@@ -893,8 +893,8 @@ static struct device *vortex_probe1(int pci_bus, int pci_devfn,
 								  &fn_st_addr);
 		if (fn_st_addr)
 			vp->cb_fn_base = ioremap(fn_st_addr & ~3, 128);
-		printk("%s: CardBus functions mapped %8.8x->%p (PCMCIA committee"
-			   " brain-damage).\n", dev->name, fn_st_addr, vp->cb_fn_base);
+		printk(KERN_INFO "%s: CardBus functions mapped %8.8x->%p\n",
+			   dev->name, fn_st_addr, vp->cb_fn_base);
 		EL3WINDOW(2);
 		outw(0x10 | inw(ioaddr + Wn2_ResetOptions), ioaddr + Wn2_ResetOptions);
 	}

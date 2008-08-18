@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/06/07 05:59:09
+		Last updated: 1999/06/23 17:57:48
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -98,6 +98,7 @@ Ethernet cards:
 	Macnica ME-1 Ethernet
 	Maxtech PCN2000 Ethernet
 	Melco LPC-TJ, LPC-TS, LPC-T, LPC2-T
+	Microdyne NE4200 Ethernet
 	Midori LANNER LT-PCMT
 	NDC Instant-Link
 	Network General "Sniffer"
@@ -166,6 +167,7 @@ Fast Ethernet (10/100baseT) adapters:
 	[smc91c92_cs driver]
 	Argosy EN220
 	Dynalink L100C
+	Lantech FastNet/TX
 	Melco/SMC LPC-TX
 	WiseCom WC-PC400
 	
@@ -220,6 +222,8 @@ Modem and serial cards:
 	Advantech COMpad-32/85 dual serial
 	Argosy dual serial
 	Black Box I114A RS-422/485
+	National Instruments PCMCIA-232, PCMCIA-232/2, PCMCIA-232/4
+	National Instruments PCMCIA-485, PCMCIA-485/2
 	Omega Engineering QSP-100
 	Quatech, IOTech dual RS-232 cards
 	Quatech quad RS-232 card
@@ -230,6 +234,7 @@ Parallel port cards:
 
 	 [parport_cs driver: requires a 2.2 or later kernel]
 	 Quatech SPP-100
+	 IOtech DBK35, WBK20A
 
 Memory cards:
 
@@ -252,7 +257,7 @@ SCSI adapters:
 	use the sym53c500_cs driver, distributed separately. ]
 
 	[aha152x_cs driver]
-	Adaptec APA-1460, APA-1450A, APA-1460A, APA-1460B SlimSCSI
+	Adaptec APA-1460, APA-1450A, APA-1460A/B/C SlimSCSI
 	Iomega Zip and Jaz Cards
 	New Media Bus Toaster SCSI	[ older cards ]
 	New Media Toast 'n Jam		[ SCSI only ]
@@ -305,6 +310,7 @@ Multifunction ethernet/modem cards:
 	ActionTec ComNet 33.6
 	AnyCom Fast Ethernet + 56K Combo
 	Asus combo card
+	Billionton LM5LT-10B
 	Dayna Communicard
 	D-Link DME336T, DMF560TX
 	Grey Cell GCS3400

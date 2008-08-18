@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" i82365.4 1.23 1999/06/02 07:03:27
+.\" i82365.4 1.24 1999/06/14 04:32:18
 .\"
-.TH I82365 4 "1999/06/02 07:03:27" "pcmcia-cs"
+.TH I82365 4 "1999/06/14 04:32:18" "pcmcia-cs"
 .SH NAME
 i82365 \- Intel i82365sl PCMCIA controller driver
 .SH SYNOPSIS
@@ -30,6 +30,8 @@ i82365 \- Intel i82365sl PCMCIA controller driver
 .RB [ cb_bus_base=\c
 .IR n ]
 .RB [ cb_bus_step=\c
+.IR n ]
+.RB [ cb_write_post=\c
 .IR n ]
 .RB [ pci_csc=\c
 .IR n ]
@@ -167,6 +169,10 @@ Specifies the number of bus slots to reserve for secondary PCI
 busses, for each CardBus socket, when busses are renumbered.  The
 default is 2.
 .TP
+.BI cb_write_post= n
+A flag indicating if write posting (a performance feature) should be
+enabled.  The default is 1 (true), except on TI 1130 bridges.
+.TP
 .BI pci_csc= n
 Specifies that card status change interrupts should be routed to PCI
 interrupts, for CardBus controllers.  The default is 0 (false).
@@ -178,8 +184,7 @@ PCI interrupts, for CardBus controllers.  The default is 0 (false).
 .SH Options specific for Cirrus controllers
 .TP
 .BI has_dma= n
-A flag (zero is false, non-zero is true) indicating if the controller
-has DMA support.
+A flag indicating if the controller has DMA support.
 .TP
 .BI has_led= n
 A flag indicating if the controller is wired for a disk status LED.

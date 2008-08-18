@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.50 1999/06/01 17:26:52
+    cardbus.c 1.51 1999/06/18 17:48:02
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -232,7 +232,7 @@ void cb_release_cis_mem(socket_info_t *s)
 	s->ss_entry(s->sock, SS_SetBridge, m);
 	pci_writeb(s->cap.cardbus, 0, PCI_COMMAND, 0);
 	pci_writel(s->cap.cardbus, 0, br, 0);
-	release_mem_region(m->start, m->stop - m->start + 1);
+	vacate_mem_region(m->start, m->stop - m->start + 1);
 	m->start = 0;
     }
 }
@@ -468,11 +468,11 @@ void cb_release(socket_info_t *s)
     DEBUG(0, ("cs: cb_release(bus %d)\n", s->cap.cardbus));
     
     if (s->win[0].size > 0)
-	release_mem_region(s->win[0].base, s->win[0].size);
+	vacate_mem_region(s->win[0].base, s->win[0].size);
     if (s->win[1].size > 0)
-	release_mem_region(s->win[1].base, s->win[1].size);
+	vacate_mem_region(s->win[1].base, s->win[1].size);
     if (s->io[0].NumPorts > 0)
-	release_region(s->io[0].BasePort, s->io[0].NumPorts);
+	vacate_region(s->io[0].BasePort, s->io[0].NumPorts);
     s->io[0].NumPorts = 0;
 #ifdef CONFIG_ISA
     if ((c[0].dev.irq != 0) && (c[0].dev.irq != s->cap.pci_irq))

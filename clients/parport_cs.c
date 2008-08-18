@@ -2,7 +2,10 @@
 
     A driver for PCMCIA parallel port adapters
 
-    parport_cs.c 1.2 1999/05/28 06:11:14
+    (specifically, for the Quatech SPP-100 EPP card: other cards will
+    probably require driver tweaks)
+    
+    parport_cs.c 1.6 1999/06/15 20:00:13
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -47,7 +50,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.2 1999/05/28 06:11:14 (David Hinds)";
+"ide_cs.c 1.6 1999/06/15 20:00:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -59,24 +62,15 @@ static char *version =
 /* Bit map of interrupts to choose from */
 static u_int irq_mask = 0xdeb8;
 static int irq_list[4] = { -1 };
+static int epp_mode = 1;
 
 MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
+MODULE_PARM(epp_mode, "i");
 
 /*====================================================================*/
 
-#if 0
-typedef struct {
-    u_short		manfid;
-    u_short		prodid;
-    u_int		modes;
-} card_id_t;
-
-static card_id_t card_id[] = {
-    { MANFID_QUATECH, PRODID_QUATECH_SPP100,
-      PARPORT_MODE_PCPS2 | PARPORT_MODE_PCEPP | PARPORT_MODE_PCECPPS2 }
-};
-#endif
+#define FORCE_EPP_MODE	0x08
 
 typedef struct parport_info_t {
     int			ndev;
@@ -90,10 +84,12 @@ static void parport_config(dev_link_t *link);
 static void parport_cs_release(u_long arg);
 static int parport_event(event_t event, int priority,
 			 event_callback_args_t *args);
-struct parport_operations parport_pc_ops;
 
 static dev_info_t dev_info = "parport_cs";
 static dev_link_t *dev_list = NULL;
+
+extern struct parport_operations parport_pc_ops;
+static struct parport_operations parport_cs_ops;
 
 /*====================================================================*/
 
@@ -268,7 +264,6 @@ void parport_config(dev_link_t *link)
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
     CS_CHECK(GetFirstTuple, handle, &tuple);
-    CS_CHECK(GetNextTuple, handle, &tuple);
     while (1) {
 	CFG_CHECK(GetTupleData, handle, &tuple);
 	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
@@ -276,6 +271,8 @@ void parport_config(dev_link_t *link)
 	if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
 	    cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
 	    link->conf.ConfigIndex = cfg->index;
+	    if (epp_mode)
+		link->conf.ConfigIndex |= FORCE_EPP_MODE;
 	    link->io.BasePort1 = io->win[0].base;
 	    link->io.NumPorts1 = io->win[0].len;
 	    if (io->nwin == 2) {
@@ -297,7 +294,7 @@ void parport_config(dev_link_t *link)
 
     p = parport_register_port(link->io.BasePort1,
 			      link->irq.AssignedIRQ, PARPORT_DMA_NONE,
-			      &parport_pc_ops);
+			      &parport_cs_ops);
     if (p == NULL) {
 	printk(KERN_NOTICE "parport_cs: parport_register_port() at "
 	       "0x%3x, irq %u failed\n", link->io.BasePort1,
@@ -305,23 +302,35 @@ void parport_config(dev_link_t *link)
 	goto failed;
     }
 
+#if (LINUX_VERSION_CODE >= VERSION(2,2,8))
+    p->private_data = kmalloc(sizeof(struct parport_pc_private),
+			      GFP_KERNEL);
+    ((struct parport_pc_private *)(p->private_data))->ctr = 0x0c;
+#endif
+    parport_proc_register(p);
+    p->flags |= PARPORT_FLAG_COMA;
+    parport_pc_write_econtrol(p, 0x00);
+    parport_pc_write_control(p, 0x0c);
+    parport_pc_write_data(p, 0x00);
+    
     p->modes |= PARPORT_MODE_PCSPP;
+    if (epp_mode)
+	p->modes |= PARPORT_MODE_PCPS2 | PARPORT_MODE_PCEPP;
     if (link->io.NumPorts2)
 	p->modes |= PARPORT_MODE_PCECR;
-    MOD_INC_USE_COUNT;
     info->ndev = 1;
     info->node.major = LP_MAJOR;
     info->node.minor = p->number;
     info->port = p;
     strcpy(info->node.dev_name, p->name);
     link->dev = &info->node;
-    printk(KERN_INFO "%s: PC-style at %#x", "dummy1",
+    printk(KERN_INFO "%s: PC-style PCMCIA at %#x", p->name,
 	   link->io.BasePort1);
     if (link->io.NumPorts2)
 	printk(" & %#x", link->io.BasePort2);
     printk(", irq %u [SPP", link->irq.AssignedIRQ);
     for (i = 0; i < 5; i++)
-	if (p->modes & mode[i].flag) printk(":%s", mode[i].name);
+	if (p->modes & mode[i].flag) printk(",%s", mode[i].name);
     printk("]\n");
     
     link->state &= ~DEV_CONFIG_PENDING;
@@ -350,8 +359,14 @@ void parport_cs_release(u_long arg)
     DEBUG(0, "parport_release(0x%p)\n", link);
 
     if (info->ndev) {
-	parport_unregister_port(info->port);
-	MOD_DEC_USE_COUNT;
+	struct parport *p = info->port;
+	if (!(p->flags & PARPORT_FLAG_COMA))
+	    parport_quiesce(p);
+	parport_proc_unregister(p);
+#if (LINUX_VERSION_CODE >= VERSION(2,2,8))
+	kfree(p->private_data);
+#endif
+	parport_unregister_port(p);
     }
     info->ndev = 0;
     link->dev = NULL;
@@ -411,6 +426,20 @@ int parport_event(event_t event, int priority,
 
 /*====================================================================*/
 
+static void inc_use_count(void)
+{
+    MOD_INC_USE_COUNT;
+    parport_pc_ops.inc_use_count();
+}
+
+static void dec_use_count(void)
+{
+    MOD_DEC_USE_COUNT;
+    parport_pc_ops.dec_use_count();
+}
+
+/*====================================================================*/
+
 int init_module(void)
 {
     servinfo_t serv;
@@ -421,6 +450,12 @@ int init_module(void)
 	       "does not match!\n");
 	return -1;
     }
+
+    /* This is to protect against unloading modules out of order */
+    parport_cs_ops = parport_pc_ops;
+    parport_cs_ops.inc_use_count = &inc_use_count;
+    parport_cs_ops.dec_use_count = &dec_use_count;
+    
     register_pcmcia_driver(&dev_info, &parport_attach, &parport_detach);
     return 0;
 }

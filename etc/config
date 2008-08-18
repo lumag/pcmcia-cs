@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.90 1999/06/07 05:59:03 (David Hinds)
+# config 1.92 1999/06/23 17:53:05 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -437,6 +437,10 @@ card "Melco LPC2-T Ethernet"
   manfid 0x01bf, 0x2216
   bind "pcnet_cs"
 
+card "Microdyne NE4200 Ethernet"
+  version "Microdyne", "NE4200"
+  bind "pcnet_cs"
+
 card "Midori LT-PCMT Ethernet"
   version "MIDORI ELEC.", "LT-PCMT"
   bind "pcnet_cs"
@@ -784,6 +788,26 @@ card "MultiTech V.34 Modem"
   version "Multi-Tech", "MT2834LT"
   bind "serial_cs"
 
+card "National Instruments PCMCIA-232"
+  manfid 0x10b, 0x0d50
+  bind "serial_cs"
+
+card "National Instruments PCMCIA-232/2"
+  manfid 0x10b, 0x0d51
+  bind "serial_cs"
+
+card "National Instruments PCMCIA-485"
+  manfid 0x10b, 0x0d52
+  bind "serial_cs"
+
+card "National Instruments PCMCIA-485/2"
+  manfid 0x10b, 0x0d53
+  bind "serial_cs"
+
+card "National Instruments PCMCIA-232/4"
+  manfid 0x10b, 0xd180
+  bind "serial_cs"
+
 card "Toshiba T144PF Modem"
   version "TOSHIBA", "T144PF", "*", "PCMCIA MODEM"
   bind "serial_cs"
@@ -797,7 +821,8 @@ card "Fujitsu FMV-JMD711"
   bind "serial_cs"
 
 card "Advantech COMpad-32/85"
-  version "ADVANTECH", "COMpad-32/85"
+  version "ADVANTECH", "COMpad-32/85", "1.0"
+  cis "cis/COMpad.dat"
   bind "serial_cs"
 
 card "Advantech COMpad-32/85"
@@ -879,6 +904,10 @@ card "IO DATA 2MB SRAM"
 card "Maxtor MobileMax Flash"
   version "Maxtor", "MAXFL MobileMax Flash Memory Card"
   bind "memory_cs", "ftl_cs"
+
+card "Seiko/Epson WWB101EN20"
+  version "SEIKO EPSON", "WWB101EN20"
+  bind "memory_cs"
 
 card "Seiko/Epson WWB513EN20"
   version "SEIKO EPSON", "WWB513EN20"
@@ -1053,6 +1082,10 @@ card "Apex MultiCard Ethernet/Modem"
   version "APEX DATA", "MULTICARD", "ETHERNET-MODEM"
   bind "pcnet_cs" to 0, "serial_cs" to 1
 
+card "Billionton LM5LT-10B Ethernet/Modem"
+  manfid 0x021b, 0x0101
+  bind "pcnet_cs"
+
 card "Compaq Microcom CPQ550 Ethernet/Modem"
   manfid 0x0138, 0x110a
   bind "xirc2ps_cs", "serial_cs"
@@ -1150,6 +1183,10 @@ card "Ositech Jack of Diamonds Ethernet/Modem"
 
 card "Ositech Jack of Hearts Ethernet/Modem"
   version "Ositech", "Trumpcard:Jack of Hearts Modem+Ethernet"
+  bind "smc91c92_cs", "serial_cs"
+
+card "Ositech Jack of Hearts Ethernet/Modem"
+  manfid 0x0140, 0x000a
   bind "smc91c92_cs", "serial_cs"
 
 card "Psion Gold Card V34 Ethernet"
@@ -1284,6 +1321,10 @@ card "Innovative Communications CyberRom CD"
 card "IBM Smart Capture Card"
   version "IBM Corp.", "Video Capture"
   bind "iscc_cs"
+
+card "Parallel Port Card"
+  function parallel
+  bind "parport_cs"
 
 card "Quatech SPP-100 Parallel Port Card"
   manfid 0x0137, 0x0003

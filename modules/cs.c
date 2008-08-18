@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.220 1999/06/05 16:11:54
+    cs.c 1.221 1999/06/18 17:48:02
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -60,7 +60,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.220 1999/06/05 16:11:54 (David Hinds)";
+"cs.c 1.221 1999/06/18 17:48:02 (David Hinds)";
 #endif
 
 #ifdef __BEOS__
@@ -300,7 +300,7 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 	s->shutdown.data = sockets;
 	s->shutdown.function = &shutdown_socket;
 	/* base address = 0, map = 0 */
-	s->cis_mem.flags = MAP_ACTIVE;
+	s->cis_mem.flags = 0;
 	s->cis_mem.speed = cis_speed;
 	s->erase_busy.next = s->erase_busy.prev = &s->erase_busy;
 	
@@ -733,7 +733,7 @@ static void release_io_space(socket_info_t *s, ioaddr_t base,
 			     ioaddr_t num)
 {
     int i;
-    release_region(base, num);
+    vacate_region(base, num);
     for (i = 0; i < MAX_IO_WIN; i++) {
 	if ((s->io[i].BasePort <= base) &&
 	    (s->io[i].BasePort+s->io[i].NumPorts >= base+num)) {
@@ -1449,7 +1449,7 @@ static int release_window(window_handle_t win)
     s->state &= ~SOCKET_WIN_REQ(win->index);
 
     /* Release system memory */
-    release_mem_region(win->base, win->size);
+    vacate_mem_region(win->base, win->size);
     win->handle->state &= ~CLIENT_WIN_REQ(win->index);
 
     win->magic = 0;
@@ -2144,8 +2144,10 @@ static struct symbol_table cs_symtab = {
     X(unregister_ss_entry),
     X(CardServices),
     X(MTDHelperEntry),
-    X(register_mem_region),
+#ifndef HAVE_MEMRESERVE
+    X(request_mem_region),
     X(release_mem_region),
+#endif
 #include <linux/symtab_end.h>
 };
 
@@ -2156,8 +2158,10 @@ EXPORT_SYMBOL(register_ss_entry);
 EXPORT_SYMBOL(unregister_ss_entry);
 EXPORT_SYMBOL(CardServices);
 EXPORT_SYMBOL(MTDHelperEntry);
-EXPORT_SYMBOL(register_mem_region);
+#ifndef HAVE_MEMRESERVE
+EXPORT_SYMBOL(request_mem_region);
 EXPORT_SYMBOL(release_mem_region);
+#endif
 
 #endif
 
@@ -2173,11 +2177,13 @@ int init_module(void)
     register_symtab(&cs_symtab);
 #ifdef HAS_PROC_BUS
     proc_pccard = create_proc_entry("pccard", S_IFDIR, proc_bus);
+#ifndef HAVE_MEMRESERVE
     if (proc_pccard) {
 	struct proc_dir_entry *ent;
 	ent = create_proc_entry("memory", 0, proc_pccard);
 	ent->read_proc = proc_read_mem;
     }
+#endif
 #endif
     return 0;
 }

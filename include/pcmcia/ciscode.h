@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.33 1999/05/18 05:47:49
+ * ciscode.h 1.35 1999/06/18 18:23:35
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -61,6 +61,9 @@
 
 #define MANFID_MOTOROLA			0x0109
 #define PRODID_MOTOROLA_MARINER		0x0501
+
+#define MANFID_NATINST			0x010b
+#define PRODID_NATINST_QUAD_RS232	0xd180
 
 #define MANFID_NEW_MEDIA		0x0057
 

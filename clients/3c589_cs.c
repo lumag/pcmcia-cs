@@ -4,7 +4,7 @@
     
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    3c589_cs.c 1.125 1999/06/07 06:44:10
+    3c589_cs.c 1.126 1999/06/14 17:35:34
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -115,7 +115,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.125 1999/06/07 06:44:10 (David Hinds)";
+"3c589_cs.c 1.126 1999/06/14 17:35:34 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -894,7 +894,7 @@ static void media_check(u_long arg)
     struct device *dev = (struct device *)(arg);
     struct el3_private *lp = (struct el3_private *)dev->priv;
     int ioaddr = dev->base_addr;
-    u_short media;
+    u_short media, errs;
     u_long flags;
 
     if (dev->start == 0) goto reschedule;
@@ -922,8 +922,17 @@ static void media_check(u_long arg)
     media = inw(ioaddr+WN4_MEDIA) & 0xc810;
 
     /* Ignore collisions unless we've had no irq's recently */
-    if (jiffies - lp->last_irq < HZ)
+    if (jiffies - lp->last_irq < HZ) {
 	media &= ~0x0010;
+    } else {
+	/* Try harder to detect carrier errors */
+	EL3WINDOW(6);
+	outw(StatsDisable, ioaddr + EL3_CMD);
+	errs = inb(ioaddr + 0);
+	outw(StatsEnable, ioaddr + EL3_CMD);
+	lp->stats.tx_carrier_errors += errs;
+	if (errs) media |= 0x0010;
+    }
     if (media != lp->media_status) {
 	if ((media & lp->media_status & 0x8000) &&
 	    ((lp->media_status ^ media) & 0x0800))

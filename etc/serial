@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.29 1998/10/08 19:44:28 (David Hinds)
+# serial 1.30 1999/06/09 17:11:12 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -23,24 +23,28 @@ get_info $DEVICE
 ADDRESS="$SCHEME,$SOCKET,$INSTANCE"
 . $0.opts
 
-# Newer kernels do not have "cua" devices
+# Newer kernels deprecate use of "cua" devices, but we need to
+# keep track of them anyway, if the device files are present
 if [ -c /dev/cua1 ] ; then
     NR=`expr $MINOR - 64`
-    DIALOUT=cua$NR
+    CALLOUT=cua$NR
 else
-    DIALOUT=$DEVICE
+    CALLOUT=$DEVICE
 fi
 
 case "$ACTION" in
 
 'start')
-    if [ ! -c /dev/$DEVICE -o ! -c /dev/$DIALOUT ] ; then
-	cd /dev
-	./MAKEDEV $DEVICE
+    if [ ! -c /dev/$DEVICE ] ; then
+	cd /dev ; ./MAKEDEV $DEVICE
     fi
     if [ "$LINK" ] ; then
 	mv -f $LINK $LINK.O 2>/dev/null
-	ln -s /dev/$DIALOUT $LINK
+	if uname -r | grep -q '^2\.[2345]' ; then
+	    ln -s /dev/$DEVICE $LINK
+	else
+	    ln -s /dev/$CALLOUT $LINK
+	fi
     fi
     if [ "$SERIAL_OPTS" ] ; then
 	setserial /dev/$DEVICE $SERIAL_OPTS
@@ -52,7 +56,7 @@ case "$ACTION" in
     ;;
 
 'check')
-    fuser -s /dev/$DEVICE /dev/$DIALOUT $LINK && exit 1
+    fuser -s /dev/$DEVICE /dev/$CALLOUT $LINK && exit 1
     ;;
 
 'cksum')
@@ -65,19 +69,19 @@ case "$ACTION" in
 	mv /etc/inittab.new /etc/inittab
 	telinit q
     fi
-    fuser -s -k /dev/$DEVICE /dev/$DIALOUT $LINK
+    fuser -s -k /dev/$DEVICE /dev/$CALLOUT $LINK
     rm -f $LINK ; mv -f $LINK.O $LINK 2>/dev/null
     ;;
 
 'suspend')
-    fuser -s -k -STOP /dev/$DEVICE /dev/$DIALOUT
+    fuser -s -k -STOP /dev/$DEVICE /dev/$CALLOUT
     ;;
 
 'resume')
     if [ "$SERIAL_OPTS" ] ; then
 	setserial /dev/$DEVICE $SERIAL_OPTS
     fi
-    fuser -s -k -CONT /dev/$DEVICE /dev/$DIALOUT $LINK
+    fuser -s -k -CONT /dev/$DEVICE /dev/$CALLOUT $LINK
     ;;
 
 *)

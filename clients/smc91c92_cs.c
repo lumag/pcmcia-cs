@@ -8,7 +8,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    smc91c92_cs.c 1.65 1999/06/05 16:24:10
+    smc91c92_cs.c 1.66 1999/06/23 17:51:56
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -157,6 +157,8 @@ struct smc_private {
 #define	 TCR_NORMAL TCR_ENABLE | TCR_PAD_EN
 
 #define EPH		2	/* Ethernet Protocol Handler report. */
+#define MEMINFO		8	/* Memory Information Register */
+#define MEMCFG		10	/* Memory Configuration Register */
 
 /* Bank 1 registers. */
 #define CONFIG			0
@@ -825,6 +827,7 @@ static int check_sig(dev_link_t *link)
 {
     struct device *dev = link->priv;
     ioaddr_t ioaddr = dev->base_addr;
+    int width;
     u_short s;
 
     SMC_SELECT_BANK(1);
@@ -833,6 +836,16 @@ static int check_sig(dev_link_t *link)
 	outw(0, ioaddr + CONTROL);
 	mdelay(55);
     }
+
+    /* Try setting bus width */
+    width = (link->io.Attributes1 == IO_DATA_PATH_WIDTH_AUTO);
+    s = inb(ioaddr + CONFIG);
+    if (width)
+	s |= CFG_16BIT;
+    else
+	s &= ~CFG_16BIT;
+    outb(s, ioaddr + CONFIG);
+    
     /* Check Base Address Register to make sure bus width is OK */
     s = inw(ioaddr + BASE_ADDR);
     if ((inw(ioaddr + BANK_SELECT) >> 8 == 0x33) &&
@@ -842,7 +855,7 @@ static int check_sig(dev_link_t *link)
 	return (s & 0xff);
     }
 
-    if (link->io.Attributes1 == IO_DATA_PATH_WIDTH_AUTO) {
+    if (width) {
 	event_callback_args_t args;
 	printk(KERN_INFO "smc91c92_cs: using 8-bit IO window.\n");
 	args.client_data = link;
@@ -962,16 +975,30 @@ static void smc91c92_config(dev_link_t *link)
     if (rev > 0)
 	switch (rev >> 4) {
 	case 3: name = "92"; break;
-	case 4: name = "94"; break;
+	case 4: name = ((rev & 15) > 6) ? "96" : "94"; break;
 	case 5: name = "95"; break;
 	case 7: name = "100"; break;
-	case 8: name = "100fd"; break;
+	case 8: name = "100-FD"; break;
 	}
-    printk(KERN_INFO "%s: smc91c%s: io %#3lx, irq %d, %s port, "
-	   "hw_addr ", dev->name, name, dev->base_addr, dev->irq,
-	   if_names[dev->if_port]); 
+    printk(KERN_INFO "%s: smc91c%s rev %d: io %#3lx, irq %d, %s port,"
+	   " hw_addr ", dev->name, name, (rev & 0x0f), dev->base_addr,
+	   dev->irq, if_names[dev->if_port]);
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+    if (rev > 0) {
+	u_long mir, mcr;
+	u_short ioaddr = dev->base_addr;
+	SMC_SELECT_BANK(0);
+	mir = inw(ioaddr + MEMINFO) & 0xff;
+	if (mir == 0xff) mir++;
+	/* Get scale factor for memory size */
+	mcr = ((rev >> 4) > 3) ? inw(ioaddr + MEMCFG) : 0x0200;
+	mir *= 128 * (1<<((mcr >> 9) & 7));
+	if (mir & 0x3ff)
+	    printk(KERN_INFO "  %lu byte buffer\n", mir);
+	else
+	    printk(KERN_INFO "  %lu kb buffer\n", mir>>10);
+    }
     
     return;
     

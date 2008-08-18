@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.64 1999/05/31 05:11:04
+    cistpl.c 1.66 1999/06/18 17:48:02
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -34,6 +34,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
+#include <linux/ioport.h>
 #include <asm/io.h>
 #endif
 
@@ -204,6 +205,7 @@ int setup_cis_mem(socket_info_t *s)
 	    return CS_OUT_OF_RESOURCE;
 	}
 	s->cis_mem.sys_stop = s->cis_mem.sys_start+s->cap.map_size-1;
+	s->cis_mem.flags |= MAP_ACTIVE;
 	s->cis_virt = bus_ioremap(s->cap.bus, s->cis_mem.sys_start,
 				  s->cap.map_size);
     }
@@ -213,7 +215,9 @@ int setup_cis_mem(socket_info_t *s)
 void release_cis_mem(socket_info_t *s)
 {
     if (s->cis_mem.sys_start != 0) {
-	release_mem_region(s->cis_mem.sys_start, s->cap.map_size);
+	s->cis_mem.flags &= ~MAP_ACTIVE;
+	s->ss_entry(s->sock, SS_SetMemMap, &s->cis_mem);
+	vacate_mem_region(s->cis_mem.sys_start, s->cap.map_size);
 	bus_iounmap(s->cap.bus, s->cis_virt);
 	s->cis_mem.sys_start = 0;
     }

@@ -1,6 +1,6 @@
 		Linux PCMCIA Maintainers List
 
-		Last updated: 1999/05/28 05:59:56
+		Last updated: 1999/06/11 04:08:34
 
 The following PCMCIA driver components have active maintainers.  Bug
 reports and questions are often best addressed to the maintainer of
@@ -29,10 +29,13 @@ Justin Seger <jseger@media.mit.edu>
 http://www.media.mit.edu/~jseger
 
 [xirc2ps_cs]
-Werner Koch <werner.koch@guug.de>
+Werner Koch <werner.koch@guug.de> developed this driver but no longer
+maintains it.  Some additional information is available at:
 http://www.d.shuttle.de/isil/xircom/xirc2ps.html
 
-The following PCMCIA sub-projects could really use maintainers:
+The following PCMCIA sub-projects need maintainers.  If you would be
+interested in helping out, let me know.
 
+o xirc2ps_cs driver
 o PCMCIA on PowerPC
 o PCMCIA on Alpha

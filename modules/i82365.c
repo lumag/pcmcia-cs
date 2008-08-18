@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.239 1999/06/04 17:10:58
+    i82365.c 1.244 1999/06/24 16:14:12
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -72,7 +72,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static const char *version =
-"i82365.c 1.239 1999/06/04 17:10:58 (David Hinds)";
+"i82365.c 1.244 1999/06/24 16:14:12 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
@@ -179,6 +179,7 @@ static int pci_latency = -1;
 static int cb_latency = -1;
 static int cb_bus_base = 0;
 static int cb_bus_step = 2;
+static int cb_write_post = -1;
 MODULE_PARM(do_pci_probe, "i");
 MODULE_PARM(cb_mem_base, "i");
 MODULE_PARM(fast_pci, "i");
@@ -190,6 +191,7 @@ MODULE_PARM(pci_latency, "i");
 MODULE_PARM(cb_latency, "i");
 MODULE_PARM(cb_bus_base, "i");
 MODULE_PARM(cb_bus_step, "i");
+MODULE_PARM(cb_write_post, "i");
 #endif
 
 #ifdef CONFIG_ISA
@@ -226,7 +228,7 @@ typedef struct vg46x_state_t {
 
 typedef struct ti113x_state_t {
     u_int		sysctl;
-    u_char		cardctl, devctl;
+    u_char		cardctl, devctl, diag;
 } ti113x_state_t;
 
 typedef struct rl5c4xx_state_t {
@@ -256,7 +258,7 @@ typedef struct socket_info_t {
 #endif
 #ifdef CONFIG_PCI
     u_short		vendor, device;
-    u_char		bus, devfn;
+    u_char		revision, bus, devfn;
     u_short		bcr;
     u_char		pci_lat, cb_lat, sub_bus;
     u_char		cache, pmcs;
@@ -294,7 +296,7 @@ static void pcic_proc_remove(u_short sock);
 
 #ifdef CONFIG_ISA
 static int grab_irq;
-#if defined(CONFIG_SMP) && defined(SPIN_LOCK_UNLOCKED)
+#ifdef USE_SPIN_LOCKS
 static spinlock_t isa_lock = SPIN_LOCK_UNLOCKED;
 #endif
 #endif
@@ -720,6 +722,7 @@ static void ti113x_get_state(u_short s)
     pci_readl(t->bus, t->devfn, TI113X_SYSTEM_CONTROL, &p->sysctl);
     pci_readb(t->bus, t->devfn, TI113X_CARD_CONTROL, &p->cardctl);
     pci_readb(t->bus, t->devfn, TI113X_DEVICE_CONTROL, &p->devctl);
+    pci_readb(t->bus, t->devfn, TI1250_DIAGNOSTIC, &p->diag);
 }
 
 static void ti113x_set_state(u_short s)
@@ -730,6 +733,7 @@ static void ti113x_set_state(u_short s)
     pci_writeb(t->bus, t->devfn, TI113X_CARD_CONTROL, p->cardctl);
     pci_writeb(t->bus, t->devfn, TI113X_DEVICE_CONTROL, p->devctl);
     pci_writeb(t->bus, t->devfn, TI1250_MULTIMEDIA_CTL, 0);
+    pci_writeb(t->bus, t->devfn, TI1250_DIAGNOSTIC, p->diag);
     i365_set_pair(s, TI113X_IO_OFFSET(0), 0);
     i365_set_pair(s, TI113X_IO_OFFSET(1), 0);
 }
@@ -746,6 +750,12 @@ static int ti113x_set_irq_mode(u_short s, int pcsc, int pint)
 	    p->cardctl |= TI113X_CCR_PCI_IRQ_ENA | TI113X_CCR_PCI_CSC;
 	if (pint)
 	    p->cardctl |= TI113X_CCR_PCI_IRQ_ENA | TI113X_CCR_PCI_IREQ;
+    } else if (t->type == IS_TI1250A) {
+	p->diag &= TI1250_DIAG_PCI_CSC | TI1250_DIAG_PCI_IREQ;
+	if (pcsc)
+	    p->diag |= TI1250_DIAG_PCI_CSC;
+	if (pint)
+	    p->diag |= TI1250_DIAG_PCI_IREQ;
     }
     return 0;
 }
@@ -1095,6 +1105,10 @@ static void cb_set_opts(u_short s, char *buf)
 {
     socket_info_t *t = &socket[s];
     t->bcr |= CB_BCR_WRITE_POST;
+    /* some TI1130's seem to exhibit problems with write posting */
+    if (((t->type == IS_TI1130) && (t->revision == 4) &&
+	 (cb_write_post < 0)) || (cb_write_post == 0))
+	t->bcr &= ~CB_BCR_WRITE_POST;
     if (t->cache == 0) t->cache = 8;
     if (pci_latency >= 0) t->pci_lat = pci_latency;
     if (t->pci_lat == 0) t->pci_lat = 0xa8;
@@ -1663,7 +1677,7 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
 {
     socket_info_t *s = &socket[sockets];
     u_short d, ns;
-    u_char a, b, max;
+    u_char a, b, r, max;
     
     /* PCI bus enumeration is broken on some systems */
     for (ns = 0; ns < sockets; ns++)
@@ -1672,12 +1686,13 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
     
     if (type == PCIC_COUNT) type = IS_UNK_CARDBUS;
     pci_readb(bus, devfn, PCI_HEADER_TYPE, &a);
+    pci_readb(bus, devfn, PCI_CLASS_REVISION, &r);
     max = (a & 0x80) ? 8 : 1;
     for (ns = 0; ns < max; ns++, s++, devfn++) {
 	if (pci_readw(bus, devfn, PCI_DEVICE_ID, &d) || (d != d0))
 	    break;
 	s->bus = bus; s->devfn = devfn;
-	s->vendor = v; s->device = d;
+	s->vendor = v; s->device = d; s->revision = r;
 	
 	/* Check for power management capabilities */
 	pci_readb(bus, devfn, PCI_STATUS, &a);
@@ -2075,7 +2090,8 @@ static int i365_get_socket(u_short sock, socket_state_t *state)
     vcc = reg & I365_VCC_MASK; vpp = reg & I365_VPP1_MASK;
     state->Vcc = state->Vpp = 0;
 #ifdef CONFIG_PCI
-    if ((t->flags & IS_CARDBUS) && !(t->flags & IS_TOPIC)) {
+    if ((t->flags & IS_CARDBUS) &&
+	(!(t->flags & IS_TOPIC) || (t->type == IS_TOPIC97))) {
 	cb_get_power(sock, state);
     } else
 #endif
@@ -2176,7 +2192,8 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
     if (state->flags & SS_OUTPUT_ENA) reg |= I365_PWR_OUT;
 
 #ifdef CONFIG_PCI
-    if ((t->flags & IS_CARDBUS) && !(t->flags & IS_TOPIC)) {
+    if ((t->flags & IS_CARDBUS) &&
+	(!(t->flags & IS_TOPIC) || (t->type == IS_TOPIC97))) {
 	cb_set_power(sock, state);
 	reg |= i365_get(sock, I365_POWER) &
 	    (I365_VCC_MASK|I365_VPP1_MASK);

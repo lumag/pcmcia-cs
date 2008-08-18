@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.11 1999/03/14 06:35:11
+ * ti113x.h 1.12 1999/06/11 06:55:39
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -138,12 +138,19 @@
 #define  TI12XX_DCR_IMODE_PCI_ONLY	0x00
 #define  TI12XX_DCR_IMODE_ALL_SERIAL	0x06
 
-/* Buffer Control Regiser */
+/* Buffer Control Register */
 #define TI113X_BUFFER_CONTROL		0x0093	/* 8 bit */
 #define  TI113X_BCR_CB_READ_DEPTH	0x08
 #define  TI113X_BCR_CB_WRITE_DEPTH	0x04
 #define  TI113X_BCR_PCI_READ_DEPTH	0x02
 #define  TI113X_BCR_PCI_WRITE_DEPTH	0x01
+
+/* Diagnostic Register */
+#define TI1250_DIAGNOSTIC		0x0093	/* 8 bit */
+#define  TI1250_DIAG_TRUE_VALUE		0x80
+#define  TI1250_DIAG_PCI_IREQ		0x40
+#define  TI1250_DIAG_PCI_CSC		0x20
+#define  TI1250_DIAG_ASYNC_CSC		0x01
 
 /* DMA Registers */
 #define TI113X_DMA_0			0x0094	/* 32 bit */

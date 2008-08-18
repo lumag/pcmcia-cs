@@ -1,4 +1,4 @@
-Known problems with the 3.0.12 PCMCIA release
+Known problems with the 3.0.13 PCMCIA release
 =============================================
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
@@ -32,8 +32,8 @@ o None of the CardBus drivers or SCSI drivers implement suspend/resume
   to be fixed since we're more dependent on kernel code.
 
 o The apa1480_cb driver only works for 2.1.90-2.1.124, or 2.1.132 and
-  later kernels.  And actually, in later kernels, it still seems
-  broken for some device types.
+  later kernels.  In 2.2.* and 2.3.*, it still seems to be broken for
+  some device types, due to instabilities in the kernel aic7xxx code.
   
   Prognosis: should be fixed in the near future, but we're dependent
   on updates of the kernel aic7xxx driver.
@@ -60,12 +60,13 @@ o Newer Ositech Jack of Diamonds cards don't work.
 
   Prognosis: It would be helpful for someone with a not-working card
   to send me the output of "dump_cis".
-  
+
 o Newer Xircom CE3 cards appear to not work.
 
-o The 2.2.* serial driver has a bug that interferes with interrupt
-  sharing for multifunction cards.  The effect is that opening a
-  serial port on a multifunction card fails, giving an IO error.
+o The 2.2.*/2.3.* serial driver has a bug that interferes with
+  interrupt sharing for multifunction cards.  The effect is that
+  opening a serial port on a multifunction card fails, giving an IO
+  error.
 
   The bug can be fixed by editing linux/drivers/char/serial.c and
   changing each use of IRQ_T(info) to IRQ_T(state).
@@ -74,3 +75,9 @@ o The kernel aha152x driver, used for Adaptec 16-bit SCSI adapters,
   has a PCMCIA compatibility problem that was fixed in 2.2.9.  The
   effect is that interrupts are ignored, unless the card happens to be
   configured for irq 9..12.
+
+o The kernel IDE driver has a bug that causes shutdown of some PCMCIA
+  IDE cards to cause a kernel trap.  It was introduced in 2.2.9/2.3.1
+  and fixed in 2.3.4.
+
+o The 2.3.6 kernel update broke the PCMCIA parport_cs driver.

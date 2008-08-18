@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.103 1999/06/04 16:42:51
+# Configure 1.110 1999/06/24 17:37:36
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -22,15 +22,11 @@ fail ()
 {
     echo ""
     echo "Configuration failed."
+    echo ""
     exit 1
 }
 
 # Minimal requirements for sanity
-if /bin/echo --version | grep -q -- -version ; then
-    echo "Ack!  Your shell utilities are too old for this script!"
-    echo "    Upgrade to GNU shell utilities version 1.16 or later."
-    fail
-fi
 if [ ! -L include/linux/config.h ] ; then
     echo "Ack!  The PCMCIA distribution is incomplete/damaged!"
     echo "    Unpack again -- and try using a Linux filesystem this time."
@@ -52,7 +48,8 @@ fi
 PROMPT=y
 
 arg () {
-    eval $1=`echo $2 | sed -e 's/^--[a-zA-Z_]*=//'`
+    VALUE="`echo X"$2" | sed -e 's/^X--[a-zA-Z_]*=//'`"
+    eval $1=\"$VALUE\"
 }
 
 usage () {
@@ -63,14 +60,14 @@ usage () {
 }
 
 while [ $# -gt 0 ] ; do
-    case $1 in
+    case "$1" in
     -n|--noprompt)	PROMPT=n		;;
     --kernel=*)		arg LINUX $1 		;;
     --target=*)		arg PREFIX $1		;;
     --moddir=*)		arg MODDIR $1		;;
-    --cc=*)		arg CC $1		;;
-    --ld=*)		arg LD $1		;;
-    --debug=*)		arg PCDEBUG $1		;;
+    --cc=*)		arg CC "$1"		;;
+    --ld=*)		arg LD "$1"		;;
+    --debug=*)		arg PCDEBUG "$1"	;;
     --trust)		UNSAFE_TOOLS=y		;;
     --notrust)		UNSAFE_TOOLS=n		;;
     --cardbus)		CONFIG_CARDBUS=y	;;
@@ -129,11 +126,11 @@ write_str () {
 }
 
 prompt () {
-    eval $3="$2"
+    eval $3=\"$2\"
     if [ "$PROMPT" = "y" ] ; then
 	/bin/echo "$1 [$2]: \c"
 	read tmp
-	if [ -n "$tmp" ] ; then eval $3="$tmp" ; fi
+	if [ -n "$tmp" ] ; then eval $3=\"$tmp\" ; fi
     else
 	/bin/echo "$1 [$2]"
     fi
@@ -141,9 +138,9 @@ prompt () {
 
 ask_bool () {
     default=`eval echo '$'$2`
-    if [ "$default" = "" ] ; then default=n ; fi
+    if [ ! "$default" ] ; then default=n ; fi
     answer=""
-    while [ "$answer" != n -a "$answer" != y ] ; do
+    while [ "$answer" != "n" -a "$answer" != "y" ] ; do
 	prompt "$1 (y/n)" "$default" answer
     done
     eval "$2=$answer"
@@ -152,15 +149,15 @@ ask_bool () {
 
 ask_str () {
     default=`eval echo '$'$2`
-    prompt "$1" "$default" answer
-    eval "$2='$answer'"
+    prompt "$1" "`echo $default`" answer
+    eval $2=\"$answer\"
     write_str $2
 }
 
 #=======================================================================
 
 echo ""
-echo "Linux PCMCIA Configuration Script"
+echo "    -------- Linux PCMCIA Configuration Script --------"
 echo ""
 echo "The default responses for each question are correct for most users."
 echo "Consult the PCMCIA-HOWTO for additional info about each option."
@@ -200,6 +197,7 @@ CUR_RELEASE=`uname -r`
 if [ "$SRC_RELEASE" != "$CUR_RELEASE" ] ; then
     echo "WARNING: the current kernel is actually version $CUR_RELEASE."
 fi
+ARCH=`uname -m | sed -e 's/i.86/i386/'`
 
 # Check for consistent kernel build dates
 
@@ -327,13 +325,30 @@ printconfig () {
     if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
     fi
-    printflag "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
+    if [ $ARCH = "alpha" ] ; then
+	printflag "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
+    fi
     printflag "/proc filesystem support" CONFIG_PROC_FS
+    if [ "$BIGMEM" ] ; then
+	if [ "$CONFIG_3GB" = "y" ] ; then MEMMAX=3GB
+	elif [ "$CONFIG_2GB" = "y" ] ; then MEMMAX=2GB
+	else MEMMAX=1GB ; fi
+	echo "    Maximum physical memory: $MEMMAX"
+	echo "MEMMAX=$MEMMAX" >> $CONFIG
+	write_bool CONFIG_1GB
+	write_bool CONFIG_2GB
+	write_bool CONFIG_3GB
+    fi
 }
 
 echo "" >> $CONFIG
 echo "" >> $CONFIG_MK
 echo "" >> $CONFIG_H
+
+if [ $ARCH = "i386" ] && \
+    grep -qs CONFIG_1GB $LINUX/include/asm-i386/page_offset.h ; then
+    BIGMEM=y
+fi
 
 case $CONF_SRC in
     1)
@@ -355,6 +370,7 @@ case $CONF_SRC in
 	modcheck scsi_mod CONFIG_SCSI
 	modcheck serial CONFIG_SERIAL
 	modcheck parport CONFIG_PARPORT
+	modcheck parport_pc CONFIG_PARPORT_PC
 	symcheck register_netdev CONFIG_INET
 	if [ -r /proc/net/wireless ] ; then
 	    CONFIG_NET_RADIO=y
@@ -366,7 +382,14 @@ case $CONF_SRC in
 	    symcheck ide_register CONFIG_BLK_DEV_IDE_PCMCIA
 	fi
 	symcheck tr_setup CONFIG_TR
-	symcheck hwrpb CONFIG_ALPHA_LCA
+	if [ $ARCH = "alpha" ] ; then
+	    symcheck hwrpb CONFIG_ALPHA_LCA
+	fi
+	if [ "$BIGMEM" ] ; then
+	    symcheck ^c01 CONFIG_1GB
+	    symcheck ^801 CONFIG_2GB
+	    symcheck ^401 CONFIG_3GB
+	fi
 	symcheck proc_root CONFIG_PROC_FS
 	echo "Extracting kernel symbol versions..."
 	echo "#ifndef __LINUX_MODVERSIONS_H" > $MODVER
@@ -399,10 +422,17 @@ case $CONF_SRC in
 	fi
 	for C in CONFIG_PCI CONFIG_APM CONFIG_SCSI \
 	    CONFIG_INET CONFIG_NET_RADIO CONFIG_TR \
-	    CONFIG_MODVERSIONS CONFIG_ALPHA_LCA CONFIG_PROC_FS \
-	    CONFIG_SERIAL ; do
+	    CONFIG_MODVERSIONS CONFIG_PROC_FS CONFIG_SERIAL ; do
 	    configcheck $C
 	done
+	if [ $ARCH = "alpha" ] ; then
+	    configcheck CONFIG_ALPHA_LCA
+	fi
+	if [ "$BIGMEM" ] ; then
+	    configcheck CONFIG_1GB
+	    configcheck CONFIG_2GB
+	    configcheck CONFIG_3GB
+	fi
 	printconfig
 	;;
     3)
@@ -423,7 +453,25 @@ case $CONF_SRC in
 	    ask_bool "Include PCMCIA IDE device support" \
 		CONFIG_BLK_DEV_IDE_PCMCIA
 	fi
-	ask_bool "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
+	if [ $ARCH = "alpha" ] ; then
+	    ask_bool "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
+	fi
+	if [ "$BIGMEM" ] ; then
+	    if [ ! "$MEMMAX" ] ; then MEMMAX=1GB ; fi
+	    ans=""
+	    while [ "$ans" != "1GB" -a "$ans" != "2GB" ] ; do
+		prompt "Maximum physical memory (1GB, 2GB)" "$MEMMAX" ans
+	    done
+	    echo "MEMMAX=$MEMMAX" >> $CONFIG
+	    if [ "$MEMMAX" = "1GB" ] ; then
+		CONFIG_1GB=y ; CONFIG_2GB=n ; CONFIG_3GB=n
+	    elif [ "$MEMMAX" = "2GB" ] ; then
+		CONFIG_1GB=n ; CONFIG_2GB=y ; CONFIG_3GB=n
+	    fi
+	    write_bool CONFIG_1GB
+	    write_bool CONFIG_2GB
+	    write_bool CONFIG_3GB
+	fi
 	ask_bool "/proc filesystem support" CONFIG_PROC_FS
 	;;
 esac
@@ -434,9 +482,10 @@ if [ "$CONFIG_PCI" != "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
     fail
 fi
 
-ARCH=`uname -m`
 AFLAGS=
+CONFIG_ISA=y
 if [ $ARCH = "ppc" ] ; then
+    CONFIG_ISA=n
     AFLAGS="-fno-builtin -msoft-float"
     if [ $VERSION_CODE -ge `version 2 1 26` ] ; then
 	AFLAGS="$AFLAGS -ffixed-r2"
@@ -449,8 +498,6 @@ elif [ $ARCH = "alpha" ] ; then
 fi
 echo "ARCH=$ARCH" >> $CONFIG_MK
 echo "AFLAGS=$AFLAGS" >> $CONFIG_MK
-
-if [ $ARCH = "ppc" ] ; then CONFIG_ISA=n ; else CONFIG_ISA=y ; fi
 write_bool CONFIG_ISA
 
 if [ $CONF_SRC != "1" -a "$CONFIG_MODVERSIONS" = "y" ] ; then
@@ -530,7 +577,8 @@ if [ $VERSION_CODE -ge `version 2 1 7` -o \
     echo "DO_IDE=y" >> $CONFIG_MK
 fi
 
-if [ $VERSION_CODE -ge `version 2 2 0` ] ; then
+if [ $VERSION_CODE -ge `version 2 2 0` -a \
+     $VERSION_CODE -lt `version 2 3 6` ] ; then
     echo "DO_PARPORT=y" >> $CONFIG_MK
 fi
 
@@ -653,6 +701,7 @@ else
 	ask_str "Top-level directory for RC scripts" RC_DIR
     fi
 fi
+if [ ! -x /sbin/depmod ] ; then INSTALL_DEPMOD=n ; fi
 write_bool INSTALL_DEPMOD
 
 echo ""
@@ -668,7 +717,7 @@ if [ -r /usr/include/X11/Xlib.h -o \
     for f in /usr/{X11/,X11R6/,local/,}lib/libforms.{so,a} ; do
 	if [ -r $f ] ; then break ; fi
     done
-    for g in /usr/{X11/,X11R6/,local/,}include/forms.h ; do
+    for g in /usr/{X11/,X11R6/,local/,}include/{,X11/}forms.h ; do
 	if [ -r $g ] ; then break ; fi
     done
     if [ -r $f -a -r $g ] ; then
@@ -709,3 +758,4 @@ touch .prereq.ok
 
 echo ""
 echo "Configuration successful."
+echo ""

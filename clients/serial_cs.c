@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.104 1999/05/28 02:50:45
+    serial_cs.c 1.105 1999/06/18 18:22:50
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -48,7 +48,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.104 1999/05/28 02:50:45 (David Hinds)";
+"serial_cs.c 1.105 1999/06/18 18:22:50 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -84,7 +84,8 @@ static multi_id_t multi_id[] = {
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D1, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_QUAD_RS232, 4 },
     { MANFID_SOCKET, PRODID_SOCKET_DUAL_RS232, 2 },
-    { MANFID_INTEL, PRODID_INTEL_DUAL_RS232, 2 }
+    { MANFID_INTEL, PRODID_INTEL_DUAL_RS232, 2 },
+    { MANFID_NATINST, PRODID_NATINST_QUAD_RS232, 4 }
 };
 #define MULTI_COUNT (sizeof(multi_id)/sizeof(multi_id_t))
 

@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.46 1999/06/03 20:43:03
+    ftl_cs.c 1.47 1999/06/10 17:44:34
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -60,6 +60,9 @@
 #if (LINUX_VERSION_CODE >= VERSION(2,1,0))
 #include <linux/vmalloc.h>
 #endif
+#if (LINUX_VERSION_CODE >= VERSION(2,3,3))
+#include <linux/blkpg.h>
+#endif
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -102,7 +105,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.46 1999/06/03 20:43:03 (David Hinds)";
+"ftl_cs.c 1.47 1999/06/10 17:44:34 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -189,7 +192,7 @@ static struct hd_struct ftl_hd[MINOR_NR(MAX_DEV, 0, 0)];
 static int ftl_sizes[MINOR_NR(MAX_DEV, 0, 0)];
 static int ftl_blocksizes[MINOR_NR(MAX_DEV, 0, 0)];
 
-static wait_queue_head_t ftl_wait_open = NULL;
+static wait_queue_head_t ftl_wait_open;
 
 static struct gendisk ftl_gendisk = {
     0,			/* Major device number */
@@ -1383,15 +1386,23 @@ static int ftl_ioctl(struct inode *inode, struct file *file,
 	put_user(part->header.FormattedSize/SECTOR_SIZE,
 		 (long *)arg);
 	break;
+    case BLKRRPART:
+	ret = ftl_reread_partitions(minor);
+	break;
+#if (LINUX_VERSION_CODE < VERSION(2,3,3))
     case BLKFLSBUF:
 	if (!suser()) return -EACCES;
 	fsync_dev(inode->i_rdev);
 	invalidate_buffers(inode->i_rdev);
 	break;
-    case BLKRRPART:
-	ret = ftl_reread_partitions(minor);
-	break;
     RO_IOCTLS(inode->i_rdev, arg);
+#else
+    case BLKROSET:
+    case BLKROGET:
+    case BLKFLSBUF:
+	ret = blk_ioctl(inode->i_rdev, cmd, arg);
+	break;
+#endif
     default:
 	ret = -EINVAL;
     }

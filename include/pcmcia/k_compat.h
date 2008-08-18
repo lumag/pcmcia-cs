@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.76 1999/05/31 04:06:12
+ * k_compat.h 1.80 1999/06/24 16:12:36
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -137,7 +137,11 @@ typedef struct wait_queue *wait_queue_head_t;
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,60))
+#ifdef CONFIG_INET
 #define IRQ_MAP(irq, dev)	irq2dev_map[irq] = dev
+#else
+#define IRQ_MAP(irq, dev)	while (0)
+#endif
 #define FOPS(i,f,b,c,p)		(i,f,b,c)
 #define FPOS			(file->f_pos)
 #else
@@ -177,6 +181,9 @@ typedef struct wait_queue *wait_queue_head_t;
 #define spin_unlock_irqrestore(l,f) do { restore_flags(f); } while (0)
 #else
 #include <asm/spinlock.h>
+#if defined(CONFIG_SMP) || (LINUX_VERSION_CODE > VERSION(2,3,6))
+#define USE_SPIN_LOCKS
+#endif
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,104))
@@ -254,5 +261,11 @@ typedef struct wait_queue *wait_queue_head_t;
 typedef unsigned long k_time_t;
 #define ACQUIRE_RESOURCE_LOCK do {} while (0)
 #define RELEASE_RESOURCE_LOCK do {} while (0)
+
+#include <linux/ioport.h>
+#ifndef vacate_region
+#define vacate_region		release_region
+#define vacate_mem_region	release_mem_region
+#endif
 
 #endif /* _LINUX_K_COMPAT_H */

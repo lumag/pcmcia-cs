@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.51 1999/04/27 15:28:00 (David Hinds)
+# network 1.52 1999/06/09 16:54:24 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -52,18 +52,23 @@ case "$ACTION" in
     if is_true $DHCP ; then
 	/sbin/ifconfig $DEVICE up 0.0.0.0
 	/sbin/route add default dev $DEVICE
-	L=/var/run/dhcp-lock-$DEVICE
-	/bin/echo "#!/bin/sh\nrm $L" > $L ; chmod +x $L
-	/sbin/dhcpcd -c $L $DEVICE >/dev/null 2>&1
-	for t in 0 1 2 3 4 5 6 7 8 9 ; do
-	    sleep 2 ; if [ ! -e $L ] ; then break ; fi
-	done
-	rm -f $L
-	if [ -e /etc/dhcpc/resolv.conf ] ; then
-	    echo "# $DEVICE begin" > $RESOLV.N
-	    cat /etc/dhcpc/resolv.conf >> $RESOLV.N
-	    echo "# $DEVICE end" >> $RESOLV.N
-	    cat $RESOLV >> $RESOLV.N ; mv $RESOLV.N $RESOLV
+	if /sbin/dhcpcd -V 2>&1 | grep -q DHCP ; then
+	    /sbin/dhcpcd $DEVICE >/dev/null 2>&1
+	else
+	    # Jump through hoops for lame 0.70-era dhcpcd
+	    L=/var/run/dhcp-lock-$DEVICE
+	    /bin/echo "#!/bin/sh\nrm $L" > $L ; chmod +x $L
+	    /sbin/dhcpcd -c $L $DEVICE >/dev/null 2>&1
+	    for t in 0 1 2 3 4 5 6 7 8 9 ; do
+		sleep 2 ; if [ ! -e $L ] ; then break ; fi
+	    done
+	    rm -f $L
+	    if [ -e /etc/dhcpc/resolv.conf ] ; then
+		echo "# $DEVICE begin" > $RESOLV.N
+		cat /etc/dhcpc/resolv.conf >> $RESOLV.N
+		echo "# $DEVICE end" >> $RESOLV.N
+		cat $RESOLV >> $RESOLV.N ; mv $RESOLV.N $RESOLV
+	    fi
 	fi
     fi
     
@@ -139,7 +144,8 @@ case "$ACTION" in
 
 	if is_true $DHCP ; then
 	    kill -TERM `cat /var/run/dhcpcd-$DEVICE.pid`
-	    rm -f /var/run/dhcpcd-$DEVICE.pid
+	    /sbin/dhcpcd -V 2>&1 | grep -q DHCP || \
+		rm -f /var/run/dhcpcd-$DEVICE.pid
 	fi
     fi
     /sbin/ifconfig $DEVICE down
