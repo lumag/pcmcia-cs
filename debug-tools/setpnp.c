@@ -2,7 +2,7 @@
 
     A utility for reconfiguring PnP BIOS devices
 
-    setpnp.c 1.8 2001/08/24 12:16:45
+    setpnp.c 1.10 2001/10/10 02:58:12
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -133,14 +133,16 @@ static char *update_chain(u_char *buf, int nr, struct rsrc_list *res)
 	    switch (tag) {
 	    case PNP_RES_SMTAG_IRQ:
 		if (res->nr[R_IRQ] > nu[R_IRQ]) {
-		    base = res->base[R_IRQ][nu[R_IRQ]++];
-		    r->irq.mask = base ? flip16(1<<base) : 0;
+		    base = res->base[R_IRQ][nu[R_IRQ]];
+		    len = res->len[R_IRQ][nu[R_IRQ]++];
+		    r->irq.mask = len ? flip16(1<<base) : 0;
 		}
 		break;
 	    case PNP_RES_SMTAG_DMA:
 		if (res->nr[R_DMA] > nu[R_DMA]) {
-		    base = res->base[R_DMA][nu[R_DMA]++];
-		    r->dma.mask = base ? flip16(1<<base) : 0;
+		    base = res->base[R_DMA][nu[R_DMA]];
+		    len = res->len[R_DMA][nu[R_DMA]++];
+		    r->dma.mask = len ? flip16(1<<base) : 0;
 		}
 		break;
 	    case PNP_RES_SMTAG_IO:
@@ -242,8 +244,13 @@ static int parse_resources(char *argv[], int argc,
 	}
 	s = strtok(argv[i+1], ", \t");
 	while (s) {
-	    base = strtoul(s, &t, 0);
-	    len = ((*t == '-') ? strtoul(t+1, &t, 0)-base+1 : 1);
+	    if (strcmp(s, "off") == 0) {
+		base = len = 0;
+		t = s + strlen(s);
+	    } else {
+		base = strtoul(s, &t, 0);
+		len = ((*t == '-') ? strtoul(t+1, &t, 0)-base+1 : 1);
+	    }
 	    if ((*s == '\0') || (*t != '\0')) {
 		fprintf(stderr, "bad resource argument: '%s'\n", t);
 		return EXIT_FAILURE;

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.38 2001/08/23 00:43:17 (David Hinds)
+# rc.pcmcia 1.39 2001/10/04 12:30:05 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -93,11 +93,16 @@ for x in "1" ; do
 	    else
 		PC=/lib/modules/`uname -r`/pcmcia
 	    fi
+	    KD=/lib/modules/`uname -r`/kernel/drivers/pcmcia
 	    if [ -d $PC ] ; then
 		echo -n " modules"
 		/sbin/insmod $PC/pcmcia_core.o $CORE_OPTS
 		/sbin/insmod $PC/$PCIC.o $PCIC_OPTS
 		/sbin/insmod $PC/ds.o
+	    elif [ -d $KD ] ; then
+		/sbin/modprobe pcmcia_core
+		/sbin/modprobe $PCIC
+		/sbin/modprobe ds
 	    else
 		echo " module directory $PC not found."
 		break

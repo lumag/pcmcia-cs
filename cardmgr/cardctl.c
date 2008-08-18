@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.61 2001/08/24 12:19:19
+    cardctl.c 1.65 2001/11/14 01:24:36
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -30,10 +30,6 @@
     file under either the MPL or the GPL.
 
 ======================================================================*/
-
-#ifndef __linux__
-#include <pcmcia/u_compat.h>
-#endif
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -68,8 +64,6 @@ static char *scheme, *stabfile;
 
 /*====================================================================*/
 
-#ifdef __linux__
-
 static int major = 0;
 
 static int lookup_dev(char *name)
@@ -93,13 +87,10 @@ static int lookup_dev(char *name)
 	return -ENODEV;
 } /* lookup_dev */
 
-#endif /* __linux__ */
-
 /*====================================================================*/
 
 static int open_sock(int sock)
 {
-#ifdef __linux__
     static char *paths[] = {
 	"/var/lib/pcmcia", "/var/run", "/dev", "/tmp", NULL
     };
@@ -109,20 +100,14 @@ static int open_sock(int sock)
 
     for (p = paths; *p; p++) {
 	sprintf(fn, "%s/cc-%d", *p, getpid());
-	if (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) == 0)
-	    break;
+	if (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) == 0) {
+	    fd = open(fn, O_RDONLY);
+	    unlink(fn);
+	    if (fd >= 0)
+		return fd;
+	}
     }
-    if (!*p)
-	return -1;
-    fd = open(fn, O_RDONLY);
-    unlink(fn);
-    return fd;
-#endif
-#ifdef __BEOS__
-    char fn[B_OS_NAME_LENGTH];
-    sprintf(fn, "/dev/pcmcia/sock%d", sock);
-    return open(fn, O_RDONLY);
-#endif
+    return -1;
 } /* open_sock */
 
 /*====================================================================*/
@@ -653,7 +638,6 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
-#ifdef __linux__
     major = lookup_dev("pcmcia");
     if (major < 0) {
 	if (major == -ENODEV)
@@ -662,7 +646,6 @@ int main(int argc, char *argv[])
 	    perror("could not open /proc/devices");
 	exit(EXIT_FAILURE);
     }
-#endif
 
     if (strcmp(argv[optind], "scheme") == 0) {
 #ifndef UNSAFE_TOOLS

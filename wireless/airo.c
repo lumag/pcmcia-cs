@@ -227,6 +227,7 @@ MODULE_AUTHOR("Benjamin Reed");
 MODULE_DESCRIPTION("Support for Cisco/Aironet 802.11 wireless ethernet \
                    cards.  Direct support for ISA/PCI cards and support \
 		   for PCMCIA when used with airo_cs.");
+MODULE_LICENSE("MPL");
 MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340");
 MODULE_PARM(io,"1-4i");
 MODULE_PARM(irq,"1-4i");

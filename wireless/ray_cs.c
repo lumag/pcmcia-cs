@@ -229,6 +229,7 @@ static dev_link_t *dev_list = NULL;
 static unsigned int ray_mem_speed = 500;
 MODULE_AUTHOR("Corey Thomas <corey@world.std.com>");
 MODULE_DESCRIPTION("Raylink/WebGear wireless LAN driver");
+MODULE_LICENSE("GPL");
 MODULE_PARM(irq_mask,"i");
 MODULE_PARM(net_type,"i");
 MODULE_PARM(hop_dwell,"i");
@@ -318,7 +319,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.26 2001/08/24 13:59:15 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.29 2001/11/17 15:50:26 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -427,6 +428,7 @@ static dev_link_t *ray_attach(void)
 
     DEBUG(2,"ray_cs ray_attach calling ether_setup.)\n");
     ether_setup(dev);
+    /*    dev->mtu = 1468; */
     init_dev_name(dev, local->node);
     dev->init = &ray_dev_init;
     dev->open = &ray_open;
@@ -1240,9 +1242,9 @@ static int translate_frame(ray_dev_t *local, struct tx_msg *ptx, unsigned char *
         /* Copy LLC header to card buffer */
         memcpy_toio((UCHAR *)&ptx->var, eth2_llc, sizeof(eth2_llc));
         memcpy_toio( ((UCHAR *)&ptx->var) + sizeof(eth2_llc), (UCHAR *)&proto, 2);
-        if ((proto == 0xf380) || (proto == 0x3781)) {
+	if ((proto == APPLEARP_TYPE) || (proto == RAY_IPX_TYPE)) {
             /* This is the selective translation table, only 2 entries */
-            writeb(0xf8, (UCHAR *) &((struct snaphdr_t *)ptx->var)->org[3]);
+            writeb(0xf8, (UCHAR *) &((struct snaphdr_t *)ptx->var)->org[2]);
         }
         /* Copy body of ethernet packet without ethernet header */
         memcpy_toio((UCHAR *)&ptx->var + sizeof(struct snaphdr_t), \
@@ -1251,13 +1253,9 @@ static int translate_frame(ray_dev_t *local, struct tx_msg *ptx, unsigned char *
     }
     else { /* already  802 type, and proto is length */
         DEBUG(3,"ray_cs translate_frame 802\n");
-        if (proto == 0xffff) { /* evil netware IPX 802.3 without LLC */
-        DEBUG(3,"ray_cs translate_frame evil IPX\n");
             memcpy_toio((UCHAR *)&ptx->var, data + ETH_HLEN,  len - ETH_HLEN);
             return 0 - ETH_HLEN;
-        }
-        memcpy_toio((UCHAR *)&ptx->var, data + ETH_HLEN,  len - ETH_HLEN);
-        return 0 - ETH_HLEN;
+
     }
     /* TBD do other frame types */
 } /* end translate_frame */
@@ -1646,9 +1644,12 @@ static int ray_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 #endif	/* WIRELESS_SPY */
 
       /* ------------------ PRIVATE IOCTL ------------------ */
-#define SIOCSIPFRAMING	SIOCDEVPRIVATE		/* Set framing mode */
-#define SIOCGIPFRAMING	SIOCDEVPRIVATE + 1	/* Get framing mode */
-#define SIOCGIPCOUNTRY	SIOCDEVPRIVATE + 3	/* Get country code */
+#ifndef SIOCIWFIRSTPRIV
+#define SIOCIWFIRSTPRIV	SIOCDEVPRIVATE
+#endif /* SIOCIWFIRSTPRIV */
+#define SIOCSIPFRAMING	SIOCIWFIRSTPRIV		/* Set framing mode */
+#define SIOCGIPFRAMING	SIOCIWFIRSTPRIV + 1	/* Get framing mode */
+#define SIOCGIPCOUNTRY	SIOCIWFIRSTPRIV + 3	/* Get country code */
     case SIOCSIPFRAMING:
       if(!suser())	/* For private IOCTLs, we need to check permissions */
 	{
@@ -2370,23 +2371,12 @@ static void rx_data(struct net_device *dev, struct rcs *prcs, unsigned int pkt_a
 #endif
 
     if (!sniffer) {
-        if (translate) {
-/* TBD length needs fixing for translated header */
-            if (rx_len < (ETH_HLEN + RX_MAC_HEADER_LENGTH) ||
-                rx_len > (dev->mtu + RX_MAC_HEADER_LENGTH + ETH_HLEN + FCS_LEN)) 
+        if (rx_len > (dev->mtu + RX_MAC_HEADER_LENGTH + ETH_HLEN + FCS_LEN)) {
             {
                 DEBUG(0,"ray_cs invalid packet length %d received \n",rx_len);
                 return;
-            }
-        }
-        else /* encapsulated ethernet */ {
-            if (rx_len < (ETH_HLEN + RX_MAC_HEADER_LENGTH) ||
-                rx_len > (dev->mtu + RX_MAC_HEADER_LENGTH + ETH_HLEN + FCS_LEN))
-            {
-                DEBUG(0,"ray_cs invalid packet length %d received \n",rx_len);
-                return;
-            }
-        }
+	    }
+	}
     }
     DEBUG(4,"ray_cs rx_data packet\n");
     /* If fragmented packet, verify sizes of fragments add up */
@@ -2520,9 +2510,9 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 {
     snaphdr_t *psnap = (snaphdr_t *)(skb->data + RX_MAC_HEADER_LENGTH);
     struct mac_header *pmac = (struct mac_header *)skb->data;
-    unsigned short type = *(unsigned short *)psnap->ethertype;
-    unsigned int xsap = *(unsigned int *)psnap & 0x00ffffff;
-    unsigned int org = (*(unsigned int *)psnap->org) & 0x00ffffff;
+    unsigned short type = ntohs(*(unsigned short *)psnap->ethertype);
+    unsigned int xsap = ntohl(*(unsigned int *)psnap) & 0xffffff00;
+    unsigned int org = ntohl((*(unsigned int *)psnap->org)) & 0xffffff00;
     int delta;
     struct ethhdr *peth;
     UCHAR srcaddr[ADDRLEN];
@@ -2572,7 +2562,6 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
             delta = RX_MAC_HEADER_LENGTH 
                 + sizeof(struct snaphdr_t) - ETH_HLEN;
             peth = (struct ethhdr *)(skb->data + delta);
-            peth->h_proto = type;
         }
         else {
             if (org == RFC1042_ENCAP) {
@@ -2589,17 +2578,21 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
                     delta = RX_MAC_HEADER_LENGTH + 
                         sizeof(struct snaphdr_t) - ETH_HLEN;
                     peth = (struct ethhdr *)(skb->data + delta);
-                    peth->h_proto = type;
                     break;
                 }
             }
             else {
-                printk("ray_cs untranslate very confused by packet\n");
-                delta = RX_MAC_HEADER_LENGTH - ETH_HLEN;
-                peth = (struct ethhdr *)(skb->data + delta);
-                peth->h_proto = type;
-            }
-        }
+		delta = RX_MAC_HEADER_LENGTH - ETH_HLEN;
+		peth = (struct ethhdr *)(skb->data + delta);
+		if (org == APPLETALK_ORG) {
+		    DEBUG(3,"ray_cs untranslate appletalk snap\n");
+		    peth->h_proto = htons(len - RX_MAC_HEADER_LENGTH);
+		} else {
+                    printk("ray_cs untranslate very confused by packet\n");
+		    peth->h_proto = type;
+		}
+	    }
+	}
     }
 /* TBD reserve  skb_reserve(skb, delta); */
     skb_pull(skb, delta);

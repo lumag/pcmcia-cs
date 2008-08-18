@@ -2,7 +2,7 @@
 
     A driver for the Adaptec APA1480 CardBus SCSI Host Adapter
 
-    apa1480_cb.c 1.27 2001/08/24 12:13:13
+    apa1480_cb.c 1.29 2001/10/13 14:04:06
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -56,22 +56,27 @@
 
 #include <pcmcia/driver_ops.h>
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"apa1480_cb.c 1.27 2001/08/24 12:13:13 (David Hinds)";
-#else
-#define DEBUG(n, args...)
-#endif
-
 /*====================================================================*/
 
-/* Parameters that can be set with 'insmod' */
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("Adaptec APA1480 CardBus SCSI driver");
+MODULE_LICENSE("Dual MPL/GPL");
 
 static char *aic7xxx = NULL;	/* see kernel's README.aic7xxx */
 MODULE_PARM(aic7xxx, "s");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+static char *version =
+"apa1480_cb.c 1.29 2001/10/13 14:04:06 (David Hinds)";
+#else
+#define DEBUG(n, args...)
+#endif
 
 /*====================================================================*/
 

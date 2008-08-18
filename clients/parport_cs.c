@@ -5,7 +5,7 @@
     (specifically, for the Quatech SPP-100 EPP card: other cards will
     probably require driver tweaks)
     
-    parport_cs.c 1.22 2001/08/24 12:13:15
+    parport_cs.c 1.24 2001/10/13 14:04:05
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -58,28 +58,31 @@
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
 
+/*====================================================================*/
+
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("PCMCIA parallel port card driver");
+MODULE_LICENSE("Dual MPL/GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+/* Bit map of interrupts to choose from */
+INT_MODULE_PARM(irq_mask, 0xdeb8);
+static int irq_list[4] = { -1 };
+MODULE_PARM(irq_list, "1-4i");
+
+INT_MODULE_PARM(epp_mode, 1);
+
 #ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"parport_cs.c 1.22 2001/08/24 12:13:15 (David Hinds)";
+"parport_cs.c 1.24 2001/10/13 14:04:05 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
-
-/* Bit map of interrupts to choose from */
-static u_int irq_mask = 0xdeb8;
-static int irq_list[4] = { -1 };
-static int epp_mode = 1;
-
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-4i");
-MODULE_PARM(epp_mode, "i");
 
 /*====================================================================*/
 

@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.175 2001/08/27 00:26:02 (David Hinds)
+# config 1.186 2001/11/21 02:03:56 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -189,6 +189,10 @@ card "Billionton LNT-10TN"
   version "PCMCIA", "LNT-10TN"
   bind "pcnet_cs"
 
+card "Buffalo LPC2-CLT Ethernet"
+  manfid 0x026f, 0x0300
+  bind "pcnet_cs"
+
 card "California Access Ethernet"
   version "PCMCIAs", "ComboCard"
   bind "pcnet_cs"
@@ -275,10 +279,6 @@ card "Digital PCP78-AC Ethernet"
 
 card "D-Link DE-650 Ethernet"
   version "D-Link", "DE-650"
-  bind "pcnet_cs"
-
-card "D-Link DFE-650 Ethernet"
-  version "D-Link", "DFE-650"
   bind "pcnet_cs"
 
 card "D-Link DE-660 Ethernet"
@@ -446,6 +446,11 @@ card "Kingston KNE-PC2 Ethernet"
   version "Kingston", "KNE-PC2"
   bind "pcnet_cs"
 
+card "Kingston CIO10T Ethernet"
+  #version "kingston", "Ethernet CIO10T"
+  manfid 0x0186, 0x0110
+  bind "pcnet_cs"
+
 card "KTI PE-520 Plus Ethernet"
   version "KTI", "PE520 PLUS"
   cis "cis/PE520.dat"
@@ -466,6 +471,11 @@ card "Linksys Ethernet"
 
 card "Linksys Ethernet"
   version "Linksys", "Combo PCMCIA EthernetCard (EC2T)"
+  bind "pcnet_cs"
+
+card "Linksys NP10T Ethernet"
+  version "Network Everywhere", "Ethernet 10BaseT PC Card"
+  manfid 0x0149, 0xc1ab
   bind "pcnet_cs"
 
 card "Longshine ShineNet LCS-8534 Ethernet"
@@ -556,11 +566,6 @@ card "NE2000 Compatible Ethernet"
 card "NE2000 Compatible Ethernet"
   version "PCMCIA", "PCMCIA-ETHERNET-CARD", "UE2620"
   bind "pcnet_cs"
-
-card "Asix AX88190 Fast Ethernet"
-  version "Fast Ethernet", "16-bit PC Card", "*", "AX88190"
-  #manfid 0x0149, 0xc1ab
-  bind "axnet_cs"
 
 card "NDC Instant-Link Ethernet"
   version "NDC", "Ethernet"
@@ -735,13 +740,43 @@ card "Argosy EN220 Fast Ethernet"
   version "ARGOSY", "Fast Ethernet PCCard"
   bind "smc91c92_cs"
 
-card "Ark Sky Link Express PA2600"
-  manfid 0xffff, 0x1090
-  bind "pcnet_cs"
+# this is not specific enough:
+#card "Ark Sky Link Express PA2600"
+#  manfid 0xffff, 0x1090
+#  bind "pcnet_cs"
+
+card "Asix AX88190 Fast Ethernet"
+  version "Fast Ethernet", "16-bit PC Card", "*", "AX88190"
+  #manfid 0x0149, 0xc1ab
+  bind "axnet_cs"
+
+card "Asix AX88190 Fast Ethernet"
+  version "ASIX", "AX88190"
+  #manfid 0xffff, 0x1090
+  bind "axnet_cs"
+
+card "Asix AX88190 Fast Ethernet"
+  version "PCMCIA", "FastEtherCard"
+  #manfid 0xffff, 0x1090
+  bind "axnet_cs"
+
+card "Asix AX88190 Fast Ethernet"
+  version "PCMCIA", "100BASE"
+  #manfid 0xffff, 0x1090
+  bind "axnet_cs"
+
+card "Billionton LNA-100B"
+  version "Billionton", "LNA-100B"
+  bind "axnet_cs"
 
 card "Buffalo LPC3-CLX Fast Ethernet"
   manfid 0x026f, 0x0301
-  bind "pcnet_cs"
+  bind "axnet_cs"
+
+card "CNet CNF301 Fast Ethernet"
+  version "CNet", "CNF301"
+  #manfid 0xffff, 0x1090
+  bind "axnet_cs"
 
 card "COMPU-SHACK FASTline 10/100 Fast Ethernet"
   version "COMPU-SHACK", "FASTline PCMCIA 10/100 Fast-Ethernet"
@@ -760,12 +795,24 @@ card "Corega FEther PCC-TXF"
   version "corega", "FEther PCC-TXF"
   bind "pcnet_cs"
 
+card "Digicom Palladio 10/100"
+  version "Digicom", "Palladio LAN 10/100"
+  bind "pcnet_cs"
+
 card "dit Co., Ltd., PC Card-10/100BTX"
   version "dit Co., Ltd.", "PC Card-10/100BTX"
   bind "smc91c92_cs"
 
 card "D-Link Fast Ethernet"
   version "ETHER-C16"
+  bind "pcnet_cs"
+
+card "D-Link DFE-650 Fast Ethernet"
+  version "D-Link", "DFE-650"
+  bind "pcnet_cs"
+
+card "D-Link DFE-670-TXD Fast Ethernet"
+  manfid 0x0149, 0x4530
   bind "pcnet_cs"
 
 card "Dynalink L100C Fast Ethernet"
@@ -779,6 +826,10 @@ card "EXP ThinLan-110 Fast Ethernet"
 card "Farallon Enet"
   version "Farallon", "Farallon Enet"
   bind "smc91c92_cs"
+
+card "FEP501 Fast Ethernet"
+  version "PCMCIA", "FEP501"
+  bind "axnet_cs"
 
 card "Intel EtherExpress PRO/100"
   version "Intel", "EtherExpress(TM) PRO/100 PC Card Mobile Adapter16"
@@ -802,6 +853,11 @@ card "Level One 10/100 Fast Ethernet"
 
 card "Linksys EtherFast 10/100 Fast Ethernet"
   version "Linksys", "EtherFast 10/100 PC Card (PCMPC100)"
+  bind "pcnet_cs"
+
+card "Linksys EtherFast 10/100 Fast Ethernet"
+  version "Linksys", "EtherFast 10/100 Integrated PC Card (PCM100)"
+  #manfid 0x0149, 0xc1ab
   bind "pcnet_cs"
 
 card "Linksys EtherFast PCMPC100 V3 Fast Ethernet"
@@ -844,6 +900,11 @@ card "NetGear FA411 Fast Ethernet"
 
 card "NE2000 Compatible Fast Ethernet"
   manfid 0x0149, 0x0230
+  bind "pcnet_cs"
+
+card "NE2000 Compatible Fast Ethernet"
+  #manfid 0x0149, 0xc1ab
+  version "Dual Speed", "10/100 Port Attached PC Card"
   bind "pcnet_cs"
 
 card "Asix AX88190 Fast Ethernet"
@@ -1074,9 +1135,15 @@ card "Argosy Dual Serial I/O"
   cis "cis/RS-COM-2P.dat"
   bind "serial_cs"
 
-card "Brain Boxes 2-Port RS-232"
-  manfid 0x0160, 0x0002
-  bind "serial_cs" to 0, "serial_cs" to 1
+# too generic
+#card "Brain Boxes 2-Port RS-232"
+#  manfid 0x0160, 0x0002
+#  bind "serial_cs" to 0, "serial_cs" to 1
+
+card "Brain Boxes BL-500 Bluetooth Adapter"
+  #manfid 0x0160, 0x0002
+  version "Brain Boxes", "Bluetooth PC Card"
+  bind "serial_cs"
 
 card "Computerboards PCM-COM422"
   version "Computerboards, Inc.", "PCM-COM422"
@@ -1120,6 +1187,14 @@ card "Quatech Dual RS-232"
 
 card "Quatech Quad RS-232"
   manfid 0x0137, 0x001b
+  bind "serial_cs"
+
+card "Quatech Dual RS-422"
+  manfid 0x0137, 0x000e
+  bind "serial_cs"
+
+card "Quatech Quad RS-422"
+  manfid 0x0137, 0x0045
   bind "serial_cs"
 
 card "Silicom 2S100 Dual Serial"
@@ -1354,12 +1429,20 @@ card "Cherri IEEE-1394"
   pci 0x104c, 0x8019
   bind "ohci1394_cb"
 
+card "Belkin F5U512 FireWire Adapter"
+  pci 0x1033, 0x00cd
+  bind "ohci1394_cb"
+
+card "Margi 1394-to-Go OHCI Adapter"
+  pci 0x1033, 0x0063
+  bind "ohci1394_cb"
+
 card "Newer Technology FireWire 2 Go"
   pci 0x104c, 0x8000
   bind "pcilynx_cb"
 
-card "Margi 1394-to-Go OHCI Adapter"
-  pci 0x1033, 0x0063
+card "Orange Micro OrangeLink Firewire Adapter"
+  pci 0x12ee, 0x8010
   bind "ohci1394_cb"
 
 card "Western Digital 1394 Adapter"
@@ -1506,7 +1589,7 @@ card "NSC DP83903-based Ethernet/Modem"
   bind "pcnet_cs" to 0, "serial_cs" to 1
 
 card "NSC DP83903-based Ethernet/Modem"
-  #version "Multifunction Card", "LAN and Modem 336", "Multifunction"
+  version "Multifunction Card", "LAN and Modem 336", "Multifunction"
   manfid 0x0175, 0x0000
   cis "cis/DP83903.dat"
   bind "pcnet_cs" to 0, "serial_cs" to 1
@@ -1682,6 +1765,10 @@ card "PCMCIA PnPIDE"
 
 card "Simple Tech Compact Flash"
   version "STI Flash"
+  bind "ide_cs"
+
+card "Toshiba MK2001MPL Drive"
+  version "TOSHIBA", "MK2001MPL"
   bind "ide_cs"
 
 card "Toshiba CD-ROM"

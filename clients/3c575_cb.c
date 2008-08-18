@@ -148,6 +148,7 @@ typedef long spinlock_t;
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("3Com EtherLink XL (3c590/3c900 series) driver");
+MODULE_LICENSE("GPL");
 MODULE_PARM(debug, "i");
 MODULE_PARM(options, "1-" __MODULE_STRING(MAX_UNITS) "i");
 MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");

@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.136 2001/08/24 13:59:23
+ * k_compat.h 1.138 2001/10/25 01:40:31
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -55,18 +55,6 @@
 #define DEV_ID			dev_id
 #define IRQ_MAP(irq, dev)	do { } while (0)
 
-#if (LINUX_VERSION_CODE < VERSION(2,2,18))
-#include <linux/wait.h>
-#ifndef init_waitqueue_head
-#if (LINUX_VERSION_CODE < VERSION(2,0,16))
-#define init_waitqueue_head(p)	(*(p) = NULL)
-#else
-#define init_waitqueue_head(p)	init_waitqueue(p)
-#endif
-typedef struct wait_queue *wait_queue_head_t;
-#endif
-#endif
-
 #define FS_SIZE_T		ssize_t
 #define U_FS_SIZE_T		size_t
 
@@ -113,10 +101,6 @@ typedef struct wait_queue *wait_queue_head_t;
 #define FPOS			(*ppos)
 #endif
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,68))
-#define signal_pending(cur)	((cur)->signal & ~(cur)->blocked)
-#endif
-
 #if (LINUX_VERSION_CODE < VERSION(2,1,89))
 #define POLL_WAIT(f, q, w)	poll_wait(q, w)
 #else
@@ -127,39 +111,15 @@ typedef struct wait_queue *wait_queue_head_t;
 #define mdelay(x) { int i; for (i=0;i<x;i++) udelay(1000); }
 #endif
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,0))
-#define __set_current_state(n) \
-    do { current->state = TASK_INTERRUPTIBLE; } while (0)
-#elif (LINUX_VERSION_CODE < VERSION(2,2,18))
-#include <linux/sched.h>
-#ifndef __set_current_state
-#define __set_current_state(n)	do { current->state = (n); } while (0)
-#endif
-#endif
-
-#define wacquire(w)		do { } while (0)
-#define wrelease(w)		do { } while (0)
-#define wsleep(w)		interruptible_sleep_on(w)
-#define wakeup(w)		wake_up_interruptible(w)
-#define wsleeptimeout(w,t)	interruptible_sleep_on_timeout(w,t)
-#if (LINUX_VERSION_CODE < VERSION(2,1,127))
-#define interruptible_sleep_on_timeout(w,t) \
-    ({(current->timeout=jiffies+(t));wsleep(w);current->timeout;})
-#define schedule_timeout(t) \
-    do { current->timeout = jiffies+(t); schedule(); } while (0)
-#endif
-
 #if (LINUX_VERSION_CODE < VERSION(2,1,126))
 #define SCSI_DISK0_MAJOR	SCSI_DISK_MAJOR
 #endif
 
-typedef unsigned long k_time_t;
-#define ACQUIRE_RESOURCE_LOCK	do {} while (0)
-#define RELEASE_RESOURCE_LOCK	do {} while (0)
-
 /* Only for backwards compatibility */
 #include <asm/uaccess.h>
 #include <linux/ioport.h>
+#include <linux/wait.h>
+#include <linux/sched.h>
 
 #if (LINUX_VERSION_CODE < VERSION(2,2,0))
 #define in_interrupt()		(intr_count)
@@ -172,11 +132,6 @@ typedef unsigned long k_time_t;
 #define request_arg_t		void
 #else
 #define request_arg_t		request_queue_t *q
-#endif
-
-#include <linux/sched.h>
-#ifndef CAP_SYS_ADMIN
-#define capable(x)		(suser())
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,3,38))

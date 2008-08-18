@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.277 2001/08/24 13:58:52
+    cs.c 1.279 2001/10/13 00:08:28
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -64,14 +64,6 @@
 #include <pcmcia/cisreg.h>
 #include <pcmcia/bus_ops.h>
 #include "cs_internal.h"
-#include "rsrc_mgr.h"
-
-#ifdef PCMCIA_DEBUG
-int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-static const char *version =
-"cs.c 1.277 2001/08/24 13:58:52 (David Hinds)";
-#endif
 
 #ifdef CONFIG_PCI
 #define PCI_OPT " [pci]"
@@ -106,13 +98,14 @@ static const char *kernel = "kernel build: " UTS_RELEASE " " UTS_VERSION;
 #endif
 static const char *options = "options: " OPTIONS;
 
+/*====================================================================*/
+
+/* Module parameters */
+
 MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
 MODULE_DESCRIPTION("Linux PCMCIA Card Services " CS_RELEASE
 		   "\n  options:" OPTIONS);
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
+MODULE_LICENSE("Dual MPL/GPL");
 
 #define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
@@ -137,6 +130,12 @@ INT_MODULE_PARM(do_apm, 1);
 #endif
 #ifdef CONFIG_PNP_BIOS
 INT_MODULE_PARM(do_pnp, 1);
+#endif
+
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+static const char *version =
+"cs.c 1.279 2001/10/13 00:08:28 (David Hinds)";
 #endif
 
 /*====================================================================*/

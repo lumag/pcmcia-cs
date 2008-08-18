@@ -2,7 +2,7 @@
 
     Device driver for Databook TCIC-2 PCMCIA controller
 
-    tcic.c 1.120 2001/08/24 12:14:39
+    tcic.c 1.121 2001/10/13 00:08:33
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -59,57 +59,35 @@
 #include <pcmcia/ss.h>
 #include "tcic.h"
 
+/*====================================================================*/
+
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("Databook TCIC-2 PCMCIA socket driver");
+MODULE_LICENSE("Dual MPL/GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+INT_MODULE_PARM(tcic_base, TCIC_BASE);	/* base IO port */
+INT_MODULE_PARM(ignore, -1);		/* socket to ignore */
+INT_MODULE_PARM(do_scan, 1);		/* probe irq's? */
+INT_MODULE_PARM(irq_mask, 0xffff);	/* bit map of irq's to use */
+static int irq_list[16] = { -1 };
+MODULE_PARM(irq_list, "1-16i");
+INT_MODULE_PARM(cs_irq, 0);		/* card status irq */
+INT_MODULE_PARM(poll_interval, 0);	/* in ticks, 0 means never */
+INT_MODULE_PARM(poll_quick, HZ/20);
+INT_MODULE_PARM(cycle_time, 70);	/* in ns, 70 = 14.31818 MHz */
+
 #ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 static const char *version =
-"tcic.c 1.120 2001/08/24 12:14:39 (David Hinds)";
+"tcic.c 1.121 2001/10/13 00:08:33 (David Hinds)";
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 #else
 #define DEBUG(n, args...)
 #endif
-
-MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
-MODULE_DESCRIPTION("Databook TCIC-2 PCMCIA socket driver");
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
-
-/* The base port address of the TCIC-2 chip */
-static int tcic_base = TCIC_BASE;
-
-/* Specify a socket number to ignore */
-static int ignore = -1;
-
-/* Probe for safe interrupts? */
-static int do_scan = 1;
-
-/* Bit map of interrupts to choose from */
-static u_int irq_mask = 0xffff;
-static int irq_list[16] = { -1 };
-
-/* The card status change interrupt -- 0 means autoselect */
-static int cs_irq = 0;
-
-/* Poll status interval -- 0 means default to interrupt */
-static int poll_interval = 0;
-
-/* Delay for card status double-checking */
-static int poll_quick = HZ/20;
-
-/* CCLK external clock time, in nanoseconds.  70 ns = 14.31818 MHz */
-static int cycle_time = 70;
-
-MODULE_PARM(tcic_base, "i");
-MODULE_PARM(ignore, "i");
-MODULE_PARM(do_scan, "i");
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-16i");
-MODULE_PARM(cs_irq, "i");
-MODULE_PARM(poll_interval, "i");
-MODULE_PARM(poll_quick, "i");
-MODULE_PARM(cycle_time, "i");
 
 /*====================================================================*/
 

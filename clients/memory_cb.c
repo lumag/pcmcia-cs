@@ -2,7 +2,7 @@
 
     A direct memory interface driver for CardBus cards
 
-    memory_cb.c 1.18 2001/08/24 12:13:14
+    memory_cb.c 1.21 2001/10/13 00:08:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -48,19 +48,24 @@
 #include <pcmcia/driver_ops.h>
 #include <pcmcia/mem_op.h>
 
+/*====================================================================*/
+
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("CardBus memory card driver");
+MODULE_LICENSE("Dual MPL/GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
 #ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cb.c 1.18 2001/08/24 12:13:14 (David Hinds)";
+"memory_cb.c 1.21 2001/10/13 00:08:52 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
 
 /*====================================================================*/
 
@@ -200,38 +205,45 @@ static ssize_t memory_read FOPS(struct inode *inode,
 
     if (space == 0) {
 
-	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    pci_read_config_dword(dev->pdev, pos, (u32 *)buf);
+	for (i = 0; i < count; i += 4, pos += 4, buf += 4) {
+	    u32 n;
+	    pci_read_config_dword(dev->pdev, pos, &n);
+	    put_user(n, (u32 *)buf);
+	}
 	if (odd & 2) {
-	    pci_read_config_word(dev->pdev, pos, (u16 *)buf);
+	    u16 n;
+	    pci_read_config_word(dev->pdev, pos, &n);
+	    put_user(n, (u16 *)buf);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
-	    pci_read_config_byte(dev->pdev, pos, buf);
+	    u8 n;
+	    pci_read_config_byte(dev->pdev, pos, &n);
+	    put_user(n, buf);
 	}
 
     } else if (dev->virt[space] != NULL) {
 
 	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    *(u32 *)buf = readl_ns(dev->virt[space]+pos);
+	    put_user(readl_ns(dev->virt[space]+pos), (u32 *)buf);
 	if (odd & 2) {
-	    *(u16 *)buf = readw_ns(dev->virt[space]+pos);
+	    put_user(readw_ns(dev->virt[space]+pos), (u16 *)buf);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
-	    *buf = readb(dev->virt[space]+pos);
+	    put_user(readb(dev->virt[space]+pos), buf);
 	}
 
     } else {
 
 	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    *(u32 *)buf = inl(dev->base[space]+pos);
+	    put_user(inl(dev->base[space]+pos), (u32 *)buf);
 	if (odd & 2) {
-	    *(u16 *)buf = inw(dev->base[space]+pos);
+	    put_user(inw(dev->base[space]+pos), (u16 *)buf);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
-	    *buf = inb(dev->base[space]+pos);
+	    put_user(inb(dev->base[space]+pos), buf);
 	}
 
     }
@@ -248,8 +260,9 @@ static ssize_t memory_write FOPS(struct inode *inode,
     memory_dev_t *dev = dev_table[minor>>3];
     int space = minor & 7;
     size_t i, odd, pos = FPOS;
+    u32 l; u16 w; u8 c;
     
-    DEBUG(2, "memory_read(%d, 0x%lx, 0x%lx)\n", minor,
+    DEBUG(2, "memory_write(%d, 0x%lx, 0x%lx)\n", minor,
 	  (u_long)pos, (u_long)count);
     
     if (dev->stopped)
@@ -263,38 +276,50 @@ static ssize_t memory_write FOPS(struct inode *inode,
 
     if (space == 0) {
 
-	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    pci_write_config_dword(dev->pdev, pos, *(u32 *)buf);
+	for (i = 0; i < count; i += 4, pos += 4, buf += 4) {
+	    get_user(l, (u32 *)buf);
+	    pci_write_config_dword(dev->pdev, pos, l);
+	}
 	if (odd & 2) {
-	    pci_write_config_word(dev->pdev, pos, *(u16 *)buf);
+	    get_user(w, (u16 *)buf);
+	    pci_write_config_word(dev->pdev, pos, w);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
-	    pci_write_config_byte(dev->pdev, pos, *buf);
+	    get_user(c, buf);
+	    pci_write_config_byte(dev->pdev, pos, c);
 	}
 
     } else if (dev->virt[space] != NULL) {
 
-	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    writel_ns(*(u32 *)buf, dev->virt[space]+pos);
+	for (i = 0; i < count; i += 4, pos += 4, buf += 4) {
+	    get_user(l, (u32 *)buf);
+	    writel_ns(l, dev->virt[space]+pos);
+	}
 	if (odd & 2) {
-	    writew_ns(*(u16 *)buf, dev->virt[space]+pos);
+	    get_user(w, (u16 *)buf);
+	    writew_ns(w, dev->virt[space]+pos);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
-	    writeb(*buf, dev->virt[space]+pos);
+	    get_user(c, buf);
+	    writeb(c, dev->virt[space]+pos);
 	}
 
     } else {
 
-	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    outl(*(u32 *)buf, dev->base[space]+pos);
+	for (i = 0; i < count; i += 4, pos += 4, buf += 4) {
+	    get_user(l, (u32 *)buf);
+	    outl(l, dev->base[space]+pos);
+	}
 	if (odd & 2) {
-	    outw(*(u16 *)buf, dev->base[space]+pos);
+	    get_user(w, (u16 *)buf);
+	    outw(w, dev->base[space]+pos);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
-	    outb(*buf, dev->base[space]+pos);
+	    get_user(c, buf);
+	    outb(c, dev->base[space]+pos);
 	}
 
     }

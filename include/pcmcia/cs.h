@@ -1,5 +1,5 @@
 /*
- * cs.h 1.73 2001/08/24 12:16:12
+ * cs.h 1.74 2001/10/04 03:15:22
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -434,30 +434,6 @@ enum service {
 extern int CardServices(int func, void *a1, void *a2, void *a3);
 #else
 extern int CardServices(int func, ...);
-#endif
-
-#ifdef __BEOS__
-#define SS_MODULE_NAME(s)	("busses/pcmcia/" s "/v1")
-#define MTD_MODULE_NAME(s)	("busses/pcmcia/" s "/v1")
-#define CS_CLIENT_MODULE_NAME	"bus_managers/pcmcia_cs/client/v1"
-typedef struct cs_client_module_info {
-    bus_manager_info	binfo;
-    int (*_CardServices)(int, ...);
-    int (*_MTDHelperEntry)(int, ...);
-    void (*_add_timer)(struct timer_list *);
-    void (*_del_timer)(struct timer_list *);
-} cs_client_module_info;
-#define CS_SOCKET_MODULE_NAME "bus_managers/pcmcia_cs/socket/v1"
-typedef struct cs_socket_module_info {
-    bus_manager_info	binfo;
-    int (*_register_ss_entry)(int, ss_entry_t);
-    void (*_unregister_ss_entry)(ss_entry_t);
-    void (*_add_timer)(struct timer_list *);
-    void (*_del_timer)(struct timer_list *);
-    int (*register_resource)(int, u_long, u_long);
-    int (*release_resource)(int, u_long, u_long);
-    int (*check_resource)(int, u_long, u_long);
-} cs_socket_module_info;
 #endif
 
 #endif /* __KERNEL__ */

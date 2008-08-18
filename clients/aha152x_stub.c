@@ -5,7 +5,7 @@
     This driver supports the Adaptec AHA-1460, the New Media Bus
     Toaster, and the New Media Toast & Jam.
     
-    aha152x_cs.c 1.57 2001/08/24 12:13:13
+    aha152x_cs.c 1.58 2001/10/13 00:08:51
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -66,19 +66,13 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"aha152x_cs.c 1.57 2001/08/24 12:13:13 (David Hinds)";
-#else
-#define DEBUG(n, args...)
-#endif
-
 /*====================================================================*/
 
-/* Parameters that can be set with 'insmod' */
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("Adaptec AHA152x-compatible PCMCIA SCSI driver");
+MODULE_LICENSE("Dual MPL/GPL");
 
 static int irq_list[4] = { -1 };
 MODULE_PARM(irq_list, "1-4i");
@@ -95,6 +89,15 @@ INT_MODULE_PARM(ext_trans,	0);
 
 #ifdef AHA152X_DEBUG
 INT_MODULE_PARM(debug,		0);
+#endif
+
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+static char *version =
+"aha152x_cs.c 1.58 2001/10/13 00:08:51 (David Hinds)";
+#else
+#define DEBUG(n, args...)
 #endif
 
 /*====================================================================*/

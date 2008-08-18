@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.340 2001/08/24 13:58:51
+    i82365.c 1.343 2001/10/13 00:08:33
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -75,42 +75,13 @@
 #include "topic.h"
 #include "ene.h"
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static const char *version =
-"i82365.c 1.340 2001/08/24 13:58:51 (David Hinds)";
-#else
-#define DEBUG(n, args...) do { } while (0)
-#endif
+/*====================================================================*/
 
-#ifdef __BEOS__
-typedef int32 irq_ret_t;
-#define _request_irq(i, h, f, n) \
-    install_io_interrupt_handler(i, h, irq_list+i, 0)
-#define _free_irq(i, h) remove_io_interrupt_handler(i, h, irq_list+i)
-#define _check_irq(i, f) check_irq(i)
-static cs_socket_module_info *cs;
-static isa_module_info *isa;
-static pci_module_info *pci;
-#define RSRC_MGR cs->
-#define register_ss_entry	cs->_register_ss_entry
-#define unregister_ss_entry	cs->_unregister_ss_entry
-#define add_timer		cs->_add_timer
-#define del_timer		cs->_del_timer
-#else
-typedef void irq_ret_t;
-#define _request_irq(i, h, f, n) request_irq(i, h, f, n, socket)
-#define _free_irq(i, h) free_irq(i, socket)
-#endif
+/* Module parameters */
 
 MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
 MODULE_DESCRIPTION("Intel ExCA/Yenta PCMCIA socket driver");
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
+MODULE_LICENSE("Dual MPL/GPL");
 
 #define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
@@ -164,6 +135,15 @@ INT_MODULE_PARM(pci_int, 1);		/* PCI IO card irqs? */
 #define pci_int		1		/* We must use PCI irq's */
 #else
 #error "No bus architectures defined!"
+#endif
+
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+static const char *version =
+"i82365.c 1.343 2001/10/13 00:08:33 (David Hinds)";
+#else
+#define DEBUG(n, args...) do { } while (0)
 #endif
 
 /*====================================================================*/
@@ -381,11 +361,7 @@ static void i365_set_pair(socket_info_t *s, u_short reg, u_short data)
 static int __init get_pci_irq(socket_info_t *s)
 {
     u8 irq;
-#ifdef __BEOS__
-    pci_readb(s, PCI_INTERRUPT_LINE, &irq);
-#else
     irq = pci_find_slot(s->bus, s->devfn)->irq;
-#endif
     if ((irq == 0) && (pci_csc || pci_int))
 	irq = pci_irq_list[s - socket];
     if (irq >= NR_IRQS) irq = 0;
@@ -1154,16 +1130,14 @@ static u_int __init set_bridge_opts(socket_info_t *s, u_short ns)
 static volatile u_int irq_hits, irq_shared;
 static volatile socket_info_t *irq_sock;
 
-static irq_ret_t irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
+static void irq_count(int irq, void *dev, struct pt_regs *regs)
 {
     irq_hits++;
-#ifndef __BEOS__
     DEBUG(2, "-> hit on irq %d\n", irq);
-#endif
     if (!irq_shared && (irq_hits > 100)) {
 	printk(KERN_INFO "    PCI irq %d seems to be wedged!\n", irq);
 	disable_irq(irq);
-	return (irq_ret_t)0;
+	return;
     }
 #ifdef CONFIG_PCI
     if (irq_sock->flags & IS_CARDBUS) {
@@ -1171,7 +1145,7 @@ static irq_ret_t irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
     } else
 #endif
     i365_get((socket_info_t *)irq_sock, I365_CSC);
-    return (irq_ret_t)1;
+    return;
 }
 
 static u_int __init test_irq(socket_info_t *s, int irq, int pci)
@@ -1185,16 +1159,16 @@ static u_int __init test_irq(socket_info_t *s, int irq, int pci)
 
     DEBUG(2, "  testing %s irq %d\n", pci ? "PCI" : "ISA", irq);
     irq_sock = s; irq_shared = irq_hits = 0;
-    if (_request_irq(irq, irq_count, 0, "scan")) {
+    if (request_irq(irq, irq_count, 0, "scan", socket)) {
 	irq_shared++;
-	if (!pci || _request_irq(irq, irq_count, SA_SHIRQ, "scan"))
+	if (!pci || request_irq(irq, irq_count, SA_SHIRQ, "scan", socket))
 	    return 1;
     }
     irq_hits = 0;
     __set_current_state(TASK_UNINTERRUPTIBLE);
     schedule_timeout(HZ/100);
     if (irq_hits && !irq_shared) {
-	_free_irq(irq, irq_count);
+	free_irq(irq, socket);
 	DEBUG(2, "    spurious hit!\n");
 	return 1;
     }
@@ -1218,7 +1192,7 @@ static u_int __init test_irq(socket_info_t *s, int irq, int pci)
 	mdelay(1);
     }
 
-    _free_irq(irq, irq_count);
+    free_irq(irq, socket);
 
     /* mask all interrupts */
     i365_set(s, I365_CSCINT, 0);
@@ -1291,10 +1265,10 @@ static int __init pci_scan(socket_info_t *s)
     if ((s->flags & IS_RICOH) || !(s->flags & IS_CARDBUS) || !do_scan) {
 	/* for PCI-to-PCMCIA bridges, just check for wedged irq */
 	irq_sock = s; irq_hits = 0;
-	if (_request_irq(s->cap.pci_irq, irq_count, 0, "scan"))
+	if (request_irq(s->cap.pci_irq, irq_count, 0, "scan", socket))
 	    return 1;
 	udelay(50);
-	_free_irq(s->cap.pci_irq, irq_count);
+	free_irq(s->cap.pci_irq, socket);
 	return (!irq_hits);
     }
     cb_set_irq_mode(s, 1, 0);
@@ -1524,24 +1498,7 @@ static void __init add_pcic(int ns, int type)
 
 #ifdef CONFIG_PCI
 
-#ifdef __BEOS__
-typedef u_short pci_id_t;
-static int pci_lookup(u_int class, pci_id_t *id,
-		      u_char *bus, u_char *devfn)
-{
-    pci_info info;
-    while (pci->get_nth_pci_info((*id)++, &info) == 0) {
-	if (((info.class_base<<8) + info.class_sub) == class) {
-	    *bus = info.bus;
-	    *devfn = PCI_DEVFN(info.device, info.function);
-	    return 0;
-	}
-    }
-    return -1;
-}
-#else
-typedef struct pci_dev *pci_id_t;
-static int __init pci_lookup(u_int class, pci_id_t *id,
+static int __init pci_lookup(u_int class, struct pci_dev **id,
 			     u_char *bus, u_char *devfn)
 {
     if ((*id = pci_find_class(class<<8, *id)) != NULL) {
@@ -1550,7 +1507,6 @@ static int __init pci_lookup(u_int class, pci_id_t *id,
 	return 0;
     } else return -1;
 }
-#endif
 
 static void __init add_pci_bridge(int type, u_short v, u_short d)
 {
@@ -1649,7 +1605,7 @@ static void __init pci_probe(u_int class)
 {
     socket_info_t *s = &socket[sockets];
     u_short i, v, d;
-    pci_id_t id;
+    struct pci_dev *id;
     
     id = 0;
     while (pci_lookup(class, &id, &s->bus, &s->devfn) == 0) {
@@ -1681,13 +1637,11 @@ static void __init isa_probe(ioaddr_t base)
     int i, j, sock, k, ns, id;
     ioaddr_t port;
 
-#ifndef __BEOS__
     if (check_region(base, 2) != 0) {
 	if (sockets == 0)
 	    printk("port conflict at %#x\n", i365_base);
 	return;
     }
-#endif
 
     id = isa_identify(base, 0);
     if ((id == IS_I82365DF) && (isa_identify(base, 1) != id)) {
@@ -1737,12 +1691,8 @@ static void __init isa_probe(ioaddr_t base)
     
 ======================================================================*/
 
-static irq_ret_t pcic_interrupt IRQ(int irq, void *dev,
-				    struct pt_regs *regs)
+static void pcic_interrupt(int irq, void *dev, struct pt_regs *regs)
 {
-#ifdef __BEOS__
-    int irq = (int *)dev - irq_list;
-#endif
     int i, j, csc;
     u_int events, active;
 #ifdef CONFIG_ISA
@@ -1792,16 +1742,11 @@ static irq_ret_t pcic_interrupt IRQ(int irq, void *dev,
 	       "handler: active = 0x%04x\n", active);
 
     DEBUG(2, "i82365: interrupt done\n");
-    return (irq_ret_t)1;
 } /* pcic_interrupt */
 
 static void pcic_interrupt_wrapper(u_long data)
 {
-#ifdef __BEOS__
-    pcic_interrupt IRQ(0, irq_list, NULL);
-#else
     pcic_interrupt(0, NULL, NULL);
-#endif
     poll_timer.expires = jiffies + poll_interval;
     add_timer(&poll_timer);
 }
@@ -2514,8 +2459,6 @@ static int __init init_i82365(void)
     printk(KERN_INFO "Intel ISA/PCI/CardBus PCIC probe:\n");
     sockets = 0;
 
-    ACQUIRE_RESOURCE_LOCK;
-
 #ifdef CONFIG_PCI
     if (do_pci_probe && pcibios_present()) {
 	pci_probe(PCI_CLASS_BRIDGE_CARDBUS);
@@ -2529,8 +2472,6 @@ static int __init init_i82365(void)
 	isa_probe(i365_base+2);
 #endif
 
-    RELEASE_RESOURCE_LOCK;
-
     if (sockets == 0) {
 	printk(KERN_INFO "  no bridges found.\n");
 	return -ENODEV;
@@ -2539,7 +2480,7 @@ static int __init init_i82365(void)
     /* Set up interrupt handler(s) */
 #ifdef CONFIG_ISA
     if (grab_irq != 0)
-	_request_irq(cs_irq, pcic_interrupt, 0, "i82365");
+	request_irq(cs_irq, pcic_interrupt, 0, "i82365", socket);
 #endif
 #ifdef CONFIG_PCI
     if (pci_csc) {
@@ -2547,7 +2488,7 @@ static int __init init_i82365(void)
 	for (i = 0; i < sockets; i++) {
 	    irq = socket[i].cap.pci_irq;
 	    if (irq && !(mask & (1<<irq)))
-		_request_irq(irq, pcic_interrupt, SA_SHIRQ, "i82365");
+		request_irq(irq, pcic_interrupt, SA_SHIRQ, "i82365", socket);
 	    mask |= (1<<irq);
 	}
     }
@@ -2578,7 +2519,7 @@ static void __exit exit_i82365(void)
 	del_timer(&poll_timer);
 #ifdef CONFIG_ISA
     if (grab_irq != 0)
-	_free_irq(cs_irq, pcic_interrupt);
+	free_irq(cs_irq, socket);
 #endif
 #ifdef CONFIG_PCI
     if (pci_csc) {
@@ -2586,7 +2527,7 @@ static void __exit exit_i82365(void)
 	for (i = 0; i < sockets; i++) {
 	    irq = socket[i].cap.pci_irq;
 	    if (irq && !(mask & (1<<irq)))
-		_free_irq(irq, pcic_interrupt);
+		free_irq(irq, socket);
 	    mask |= (1<<irq);
 	}
     }

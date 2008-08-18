@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.112 2001/08/24 11:43:45
+    smc91c92_cs.c 1.113 2001/10/13 00:08:53
     
     This driver contains code written by Donald Becker
     (becker@scyld.com), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -59,19 +59,14 @@
 
 /*====================================================================*/
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-static const char *version =
-"smc91c92_cs.c 0.09 1996/8/4 Donald Becker, becker@scyld.com.\n";
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-#else
-#define DEBUG(n, args...)
-#endif
-
 static char *if_names[] = { "auto", "10baseT", "10base2"};
 
-/* Parameters that can be set with 'insmod' */
+/* Module parameters */
+
+MODULE_DESCRIPTION("SMC 91c92 series PCMCIA ethernet driver");
+MODULE_LICENSE("GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
 /*
   Transceiver/media type.
@@ -79,15 +74,23 @@ static char *if_names[] = { "auto", "10baseT", "10base2"};
    1 = 10baseT (and autoselect if #define AUTOSELECT),
    2 = AUI/10base2,
 */
-static int if_port = 0;
+INT_MODULE_PARM(if_port, 0);
 
 /* Bit map of interrupts to choose from. */
-static u_int irq_mask = 0xdeb8;
+INT_MODULE_PARM(irq_mask, 0xdeb8);
 static int irq_list[4] = { -1 };
-
-MODULE_PARM(if_port, "i");
-MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
+
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+static const char *version =
+"smc91c92_cs.c 0.09 1996/8/4 Donald Becker, becker@scyld.com.\n";
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+#else
+#define DEBUG(n, args...)
+#endif
+
+/*====================================================================*/
 
 /* Operational parameter that usually are not changed. */
 

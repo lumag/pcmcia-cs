@@ -1,47 +1,32 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" pcnet_cs.4 1.17 2001/08/17 12:51:58
+.\" pcnet_cs.4 1.18 2001/11/04 22:57:46
 .\"
-.TH PCNET_CS 4 "2001/08/17 12:51:58" "pcmcia-cs"
+.TH PCNET_CS 4 "2001/11/04 22:57:46" "pcmcia-cs"
 
 .SH NAME
 pcnet_cs \- generic NS8390-based PCMCIA Ethernet Driver
 
 .SH SYNOPSIS
 .B insmod pcnet_cs.o
-.RB [ pc_debug=\c
-.IR n ]
-.RB [ irq_list=\c
-.IR i,j,... ]
-.RB [ if_port=\c
-.IR n ]
-.RB [ use_big_buf=\c
-.IR n ]
-.RB [ use_shmem=\c
-.IR n ]
-.RB [ mem_speed=\c
-.IR n ]
-.RB [ delay_output=\c
-.IR n ]
-.RB [ delay_time=\c
-.IR n ]
-.RB [ hw_addr=\c
-.IR n,n,n,n,n,n ]
+[\fBpc_debug=\fIn\fR]
+[\fBirq_list=\fIi,j,...\fR]
+[\fBif_port=\fIn\fR]
+[\fBfull_duplex=\fIn\fR]
+[\fBuse_big_buf=\fIn\fR]
+[\fBuse_shmem=\fIn\fR]
+[\fBmem_speed=\fIn\fR]
+[\fBdelay_output=\fIn\fR]
+[\fBdelay_time=\fIn\fR]
+[\fBhw_addr=\fIn,n,n,n,n,n\fR]
 
 .SH DESCRIPTION
-.B Pcnet_cs
-is a driver for all NS8390-based PCMCIA ethernet cards.  It can use
-either polled IO or a shared memory window to exchange data with the
-card.  The driver first tests for a shared memory buffer, falling
-back on polled IO if the memory test fails.  It replaces the
-.B de650_cs
-and
-.B ibmcc_cs
-drivers in previous releases.  When this driver is bound to a card, it
-allocates the next available ethernet device
-.RB ( eth0 .. eth# ).
-This
-device name will be reported in the kernel log file, and passed on to
-.BR cardmgr (8).
+\fBPcnet_cs\fR is a driver for all NS8390-based PCMCIA ethernet cards.
+It can use either polled IO or a shared memory window to exchange data
+with the card.  The driver first tests for a shared memory buffer,
+falling back on polled IO if the memory test fails.  When this driver
+is bound to a card, it allocates the next available ethernet device
+(\fBeth0\fR..\fBeth#\fR).  This device name will be reported in the
+kernel log file, and passed on to \fBcardmgr\fR(8).
 
 .SH PARAMETERS
 .TP
@@ -57,6 +42,11 @@ Specifies the set of interrupts that may be allocated by this driver.
 Selects the transceiver type, for Socket EA and IBM CCAE cards.  1 is
 10baseT (twisted pair), and 2 is 10base2 (BNC, or thin net).  The
 default is 1 (10baseT).
+.TP
+.BI full_duplex= n
+For DL10022 based cards where pcnet_cs can't find the MII interface,
+this option permits manual control of the duplex setting.  1 is full
+duplex, and 0 is half duplex; the default is 0.
 .TP
 .BI use_big_buf= n
 For Socket EA cards, a flag indicating if the driver should use the
@@ -76,9 +66,8 @@ Specifies that a delay should be inserted after a polled IO block
 output.  This is turned on by default for Accton and Socket EA cards.
 .TP
 .BI delay_time= n
-Specifies the length of the
-.B delay_output
-delay, in microseconds.  The default is 4.
+Specifies the length of the \fBdelay_output\fR delay, in microseconds.
+The default is 4.
 .TP
 .BI hw_addr= n,n,n,n,n,n
 For cards whose hardware ethernet addresses can't be identified by the
@@ -97,6 +86,11 @@ Indicates that the driver did not receive an interrupt notification
 for some reason.  The driver will poll the card (with a significant
 performance penalty) if the problem persists.  The most likely cause
 is an interrupt conflict and/or host bridge configuration problem.
+.TP
+.B eth#: MII is missing!
+Indicates that the driver expects this card to have a ``Media
+Independent Interface'' for link speed and duplex selection, but could
+not find it.
 
 .SH AUTHOR
 David Hinds \- dahinds@users.sourceforge.net

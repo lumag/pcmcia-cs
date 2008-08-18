@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.96 2001/08/24 13:58:52
+    cistpl.c 1.97 2001/10/04 03:33:49
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -58,7 +58,6 @@
 #include <pcmcia/cisreg.h>
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
-#include "rsrc_mgr.h"
 
 static const u_char mantissa[] = {
     10, 12, 13, 15, 20, 25, 30, 35,

@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.81 2001/08/24 12:14:36
+    cardbus.c 1.82 2001/10/04 03:33:59
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -64,7 +64,6 @@ static int pc_debug = PCMCIA_DEBUG;
 #include <pcmcia/bulkmem.h>
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
-#include "rsrc_mgr.h"
 
 /*====================================================================*/
 

@@ -203,6 +203,8 @@ MODULE_PARM(mem_speed, "i");
 MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
 
+MODULE_LICENSE("GPL");
+
 /*====================================================================*/
 
 /* PCMCIA (Card Services) related functions */
@@ -276,8 +278,15 @@ static dev_link_t *dev_list = NULL;
    because they generally can't be allocated dynamically.
 */
 
-#define SIOCGIPSNAP	SIOCDEVPRIVATE		/* Site Survey Snapshot */
-/*#define SIOCGIPQTHR	SIOCDEVPRIVATE + 1*/
+/* Wireless Extension Backward compatibility - Jean II
+ * If the new wireless device private ioctl range is not defined,
+ * default to standard device private ioctl range */
+#ifndef SIOCIWFIRSTPRIV
+#define SIOCIWFIRSTPRIV	SIOCDEVPRIVATE
+#endif /* SIOCIWFIRSTPRIV */
+
+#define SIOCGIPSNAP	SIOCIWFIRSTPRIV		/* Site Survey Snapshot */
+/*#define SIOCGIPQTHR	SIOCIWFIRSTPRIV + 1*/
 
 #define MAX_ESA 10
 
@@ -1526,7 +1535,7 @@ static int netwave_rx(struct net_device *dev) {
 	dev->last_rx = jiffies;
 	priv->stats.rx_packets++;
 	add_rx_bytes(&priv->stats, rcvLen);
-		
+
 	/* Got the packet, tell the adapter to skip it */
 	wait_WOC(iobase);
 	writeb(NETWAVE_CMD_SRP, ramBase + NETWAVE_EREG_CB + 0);

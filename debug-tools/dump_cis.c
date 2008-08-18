@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.57 2001/08/24 12:16:44
+    dump_cis.c 1.62 2001/11/14 01:17:42
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -31,10 +31,6 @@
     
 ======================================================================*/
 
-#ifndef __linux__
-#include <pcmcia/u_compat.h>
-#endif
-
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,8 +51,6 @@ static int verbose = 0;
 static char indent[10] = "  ";
 
 /*====================================================================*/
-
-#ifdef __linux__
 
 static int major = 0;
 
@@ -81,13 +75,10 @@ static int lookup_dev(char *name)
 	return -1;
 }
 
-#endif /* __linux__ */
-
 /*====================================================================*/
 
 static int open_sock(int sock)
 {
-#ifdef __linux__
     static char *paths[] = {
 	"/var/lib/pcmcia", "/var/run", "/dev", "/tmp", NULL
     };
@@ -97,20 +88,14 @@ static int open_sock(int sock)
 
     for (p = paths; *p; p++) {
 	sprintf(fn, "%s/dc%d", *p, getpid());
-	if (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) == 0)
-	    break;
+	if (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) == 0) {
+	    fd = open(fn, O_RDONLY);
+	    unlink(fn);
+	    if (fd >= 0)
+		return fd;
+	}
     }
-    if (!*p)
-	return -1;
-    fd = open(fn, O_RDONLY);
-    unlink(fn);
-    return fd;
-#endif
-#ifdef __BEOS__
-    char fn[B_OS_NAME_LENGTH];
-    sprintf(fn, "/dev/pcmcia/sock%d", sock);
-    return open(fn, O_RDONLY);
-#endif
+    return -1;
 } /* open_sock */
 
 /*====================================================================*/
@@ -1046,13 +1031,11 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
     
-#ifdef __linux__
     major = lookup_dev("pcmcia");
     if (major < 0) {
 	fprintf(stderr, "no pcmcia driver in /proc/devices\n");
 	exit(EXIT_FAILURE);
     }
-#endif
     
     for (i = 0; (i < MAX_SOCKS) && !(i && infile); i++) {
 	nfn = cur = 0;

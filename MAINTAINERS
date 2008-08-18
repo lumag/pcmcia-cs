@@ -1,6 +1,6 @@
 		Linux PCMCIA Maintainers List
 
-		Last updated: 2000/12/13 23:21:17
+		Last updated: 2001/09/10 13:48:23
 
 The following PCMCIA driver components have active maintainers.  Bug
 reports and questions are often best addressed to the maintainer of
@@ -9,7 +9,7 @@ the appropriate driver.
 [core modules, socket drivers, 3c589_cs, 3c574_cs, pcnet_cs,
 serial_cs, memory_cs, ftl_cs, dummy_cs, ide_cs, aha152x_cs, etc]
 David Hinds <dahinds@users.sourceforge.net>
-http://pcmcia.sourceforge.org
+http://pcmcia-cs.sourceforge.net
 
 [3c575_cb, epic_cb, tulip_cb]
 Donald Becker <becker@scyld.com>

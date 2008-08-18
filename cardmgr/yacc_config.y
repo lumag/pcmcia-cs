@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_config.y 1.53 2001/08/24 12:21:34
+ * yacc_config.y 1.54 2001/10/21 13:58:15
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -244,7 +244,7 @@ manfid:	  card MANFID NUMBER ',' NUMBER
 			yyerror("ID method already defined");
 			YYERROR;
 		    }
-		    $1->ident_type = MANFID_IDENT;
+		    $1->ident_type |= MANFID_IDENT;
 		    $1->manfid.manf = $3;
 		    $1->manfid.card = $5;
 		}
@@ -266,7 +266,7 @@ version:  card VERSION STRING
 			yyerror("ID method already defined\n");
 			YYERROR;
 		    }
-		    $1->ident_type = VERS_1_IDENT;
+		    $1->ident_type |= VERS_1_IDENT;
 		    $1->id.vers.ns = 1;
 		    $1->id.vers.pi[0] = $3;
 		}

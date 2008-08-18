@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# ide 1.14 2001/01/01 21:13:44 (David Hinds)
+# ide 1.15 2001/11/21 13:44:09 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ATA/IDE adapter
 #
@@ -25,9 +25,10 @@ if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 get_info $DEVICE
 
 if [ ! -b /dev/$DEVICE ] ; then
-    log mknod /dev/$DEVICE b $MAJOR 0
-    for minor in 1 2 3 4 5 6 7 8 ; do
-	log mknod /dev/${DEVICE}$minor b $MAJOR $minor
+    log mknod /dev/$DEVICE b $MAJOR $MINOR
+    for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+	minor=`expr $part + $MINOR`
+	log mknod /dev/${DEVICE}$part b $MAJOR $minor
     done
 fi
 eval `/sbin/ide_info /dev/$DEVICE` || usage

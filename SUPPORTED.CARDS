@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2001/08/29 12:49:27
+		Last updated: 2001/11/21 02:03:56
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -49,6 +49,7 @@ Ethernet cards:
 	4Lan EP100 Ethernet
 	Accton EN2212, EN2216 EtherCard
 	Accton SOHO BASIC EN220
+	Actiontec FastNet PE200A
 	Addtron Ethernet
 	AIBrain EPCM-T
 	Allied Telesis CentreCOM CE6001, LA-PCM, LA-PCM V2
@@ -63,6 +64,7 @@ Ethernet cards:
 	AST 1082 Ethernet
 	Atelco ethernet
 	Billionton LNT-10TB, LNT-10TN
+	Buffalo LPC2-CLT
 	CADMUS Micro LNT-10T2C
 	California Access LAN Adapter
 	CeLAN EPCMCIA
@@ -105,6 +107,7 @@ Ethernet cards:
 	Katron PE-520 Ethernet
 	KingMax Technology EN10-T2 Ethernet
 	Kingston KNE-PCM/M, KNE-PC2, KNE-PC2T, KNE-PC2BT
+	Kingston CIO10T CF Ethernet
 	KTI PE-520 Plus
 	LANEED LD-CDW Ethernet
 	LanPro EP4000A
@@ -128,6 +131,7 @@ Ethernet cards:
 	OvisLink Ethernet
 	Panasonic CF-VEL211P-B
 	Planet SmartCOM 2000, 3500, ENW-3501-T, ENW-3502-T
+	Planex ENW-3503-T
 	Pretec Ethernet, CompactLAN Ethernet
 	PreMax PE-200 Ethernet
 	Proteon Ethernet
@@ -176,6 +180,11 @@ Fast Ethernet (10/100baseT) adapters:
 
 	[axnet_cs driver]
 	AmbiCom AMB8110
+	Billionton LNA-100B
+	Buffalo LPC3-CLX
+	Edimax EP-4101
+	CNet CNF301
+	FEP501 Fast Ethernet
 	KingMax Fast Ethernet
 	Linksys NP100 Network Everywhere v2
 	Linksys PCMPC100 EtherFast v3
@@ -183,19 +192,20 @@ Fast Ethernet (10/100baseT) adapters:
 	New Media LiveWire 10/100
 	Planex FNW-3700-T
 	Repotec RP-1638
+	Surecom EP-427X
 
 	[pcnet_cs driver] [x86,ppc,axp]
 	Abocom LinkMate FE1000, FE1500
 	Allied Telesis CentreCOM LA100-PCM-T V2
+	Alloy FE-6305M
 	AnyCom ECO Ethernet 10/100
 	Apollo Fast Ethernet
 	Ark Sky Link Express PA2600
-	Buffalo LPC3-CLX
 	COMPU-SHACK FASTline 10/100
 	Corega FastEther PCC-TX, FEther PCC-TXF, FEther PCC-TXD
 	CyQ've ELA-110E 10/100
 	Digicom Palladio
-	D-Link DFE-650, DRP-16TX
+	D-Link DFE-650, DFE-670-TXD, DRP-16TX
 	EXP ThinLan 100
 	Fiberline Fast Ethernet
 	Hamlet FE1000 10/100
@@ -357,11 +367,12 @@ Modem and serial cards:
 	Argosy dual serial
 	Black Box I114A RS-422/485
 	Brain Boxes 2-Port RS-232
+	Brain Boxes BL-500 Bluetooth Adapter
 	National Instruments PCMCIA-232, PCMCIA-232/2, PCMCIA-232/4
 	National Instruments PCMCIA-485, PCMCIA-485/2
 	Omega Engineering QSP-100
 	Quatech, IOTech dual RS-232 cards
-	Quatech quad RS-232 card
+	Quatech quad RS-232 card, dual and quad RS-422 cards
 	Socket Communications dual RS-232 card
 	Trimble Mobile GPS
 
@@ -463,9 +474,11 @@ IEEE 1394 (FireWire) cards:
 
 	[ohci1394_cb driver] [x86,ppc]
 	[requires kernel ieee1394 patches, experimental!]
+	Belkin F5U512
 	Cherri IEEE-1394
 	Evergreen Technologies fireLINE CardBus Kit
 	Margi 1394-to-Go Adapter
+	Orange Micro OrangeLink
 	Western Digital 1394 Adapter
 
 Multifunction ethernet/modem cards:
@@ -595,8 +608,8 @@ The following cards have contributed drivers which are distributed as
 separate packages.  The drivers are not included in the base PCMCIA
 package for maintenance reasons: they are for less common cards and I
 cannot test them.  Most are available on the Linux PCMCIA FTP site, at
-ftp://pcmcia-cs.sourceforge.net/pub/pcmcia-cs/contrib; some have their
-own web sites.
+http://pcmcia-cs.sourceforge.net/ftp/pub/pcmcia-cs/contrib; some have
+their own web sites.
 
 	[asplus_cs driver]
 	Netwave AirSurfer Plus wireless network adapter
@@ -690,6 +703,9 @@ http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/.
 	GemPlus GPR400 Smart Card Reader
 	  http://www.linuxnet.com/smartcard/code.html
 	  (Wolf Geldmacher <wgeldmacher@paus.ch>)
+
+	[ Ines GPIB IEEE-488 cards ]
+	  http://www.inesinc.com/linux/htm
 
 	[ Intersil PrismI wireless cards ]
 	Harris PRISM/AM79C930 IEEE 802.11 wireless LAN

@@ -1,5 +1,5 @@
 /*======================================================================
-    fmvj18x_cs.c 2.5 2001/07/20
+    fmvj18x_cs.c 2.6 2001/09/17
 
     A fmvj18x (and its compatibles) PCMCIA client driver
 
@@ -58,40 +58,27 @@
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
 
-/*
-   All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
-   you do not define PCMCIA_DEBUG at all, all the debug code will be
-   left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
-   be present but disabled -- but it can then be enabled for specific
-   modules at load time with a 'pc_debug=#' option to insmod.
-*/
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-#else
-#define DEBUG(n, args...)
-#endif
+/*====================================================================*/
+
+/* Module parameters */
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
 /* Bit map of interrupts to choose from */
 /* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4, and 3 */
-static u_int irq_mask = 0xdeb8;
+INT_MODULE_PARM(irq_mask, 0xdeb8);
 static int irq_list[4] = { -1 };
+MODULE_PARM(irq_list, "1-4i");
 
 /* SRAM configuration */
 /* 0:4KB*2 TX buffer   else:8KB*2 TX buffer */
-static int sram_config = 0;
+INT_MODULE_PARM(sram_config, 0);
 
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-4i");
-MODULE_PARM(sram_config, "i");
-
-/*====================================================================*/
-/* 
-   driver version infomation 
- */
 #ifdef PCMCIA_DEBUG
-static char *version = "fmvj18x_cs.c 2.5 2001/07/20";
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+static char *version = "fmvj18x_cs.c 2.6 2001/09/17";
+#else
+#define DEBUG(n, args...)
 #endif
 
 /*====================================================================*/
@@ -983,7 +970,7 @@ static void fjn_reset(struct net_device *dev)
 	outb(BANK_2, ioaddr + CONFIG_1);
 
     /* set 16col ctrl bits */
-    if( lp->cardtype == TDK ) 
+    if( lp->cardtype == TDK || lp->cardtype == CONTEC) 
         outb(TDK_AUTO_MODE, ioaddr + COL_CTRL);
     else
         outb(AUTO_MODE, ioaddr + COL_CTRL);

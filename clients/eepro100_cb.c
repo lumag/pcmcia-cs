@@ -100,6 +100,7 @@ static int debug = 1;			/* The debug level */
 
 MODULE_AUTHOR("Donald Becker <becker@www.scyld.com>");
 MODULE_DESCRIPTION("Intel i82557/i82558 PCI EtherExpressPro driver");
+MODULE_LICENSE("GPL");
 MODULE_PARM(debug, "i");
 MODULE_PARM(options, "1-" __MODULE_STRING(MAX_UNITS) "i");
 MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");

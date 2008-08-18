@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.85 2001/08/24 13:58:51
+    rsrc_mgr.c 1.87 2001/10/09 00:09:44
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -55,7 +55,6 @@
 #include <pcmcia/bulkmem.h>
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
-#include "rsrc_mgr.h"
 
 /*====================================================================*/
 
@@ -347,7 +346,6 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     
     printk(KERN_INFO "cs: IO port probe 0x%04x-0x%04x:",
 	   base, base+num-1);
-    ACQUIRE_RESOURCE_LOCK;
     
     /* First, what does a floating port look like? */
     b = kmalloc(256, GFP_KERNEL);
@@ -398,7 +396,6 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     }
     
     printk(any ? "\n" : " clean.\n");
-    RELEASE_RESOURCE_LOCK;
 }
 
 static int io_scan; /* = 0 */
@@ -439,7 +436,6 @@ static int do_mem_probe(u_long base, u_long num,
 
     printk(KERN_INFO "cs: memory probe 0x%06lx-0x%06lx:",
 	   base, base+num-1);
-    ACQUIRE_RESOURCE_LOCK;
     bad = fail = 0;
     step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
     for (i = base; i < base+num; i = j + step) {
@@ -463,7 +459,6 @@ static int do_mem_probe(u_long base, u_long num,
 	}
     }
     printk(bad ? "\n" : " clean.\n");
-    RELEASE_RESOURCE_LOCK;
     return (num - bad);
 }
 
@@ -569,7 +564,6 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, ioaddr_t align,
     ioaddr_t try;
     resource_map_t *m;
 
-    ACQUIRE_RESOURCE_LOCK;
     validate_io();
     for (m = io_db.next; m != &io_db; m = m->next) {
 	try = (m->base & ~(align-1)) + *base;
@@ -580,13 +574,11 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, ioaddr_t align,
 		(check_io_region(try, num) == 0)) {
 		*base = try;
 		request_region(try, num, name);
-		RELEASE_RESOURCE_LOCK;
 		return 0;
 	    }
 	    if (!align) break;
 	}
     }
-    RELEASE_RESOURCE_LOCK;
     return -1;
 }
 
@@ -596,7 +588,6 @@ int find_mem_region(u_long *base, u_long num, u_long align,
     u_long try;
     resource_map_t *m;
 
-    ACQUIRE_RESOURCE_LOCK;
     while (1) {
 	for (m = mem_db.next; m != &mem_db; m = m->next) {
 	    /* first pass >1MB, second pass <1MB */
@@ -608,7 +599,6 @@ int find_mem_region(u_long *base, u_long num, u_long align,
 		if (check_mem_region(try, num) == 0) {
 		    request_mem_region(try, num, name);
 		    *base = try;
-		    RELEASE_RESOURCE_LOCK;
 		    return 0;
 		}
 		if (!align) break;
@@ -617,7 +607,6 @@ int find_mem_region(u_long *base, u_long num, u_long align,
 	if (force_low) break;
 	force_low++;
     }
-    RELEASE_RESOURCE_LOCK;
     return -1;
 }
 

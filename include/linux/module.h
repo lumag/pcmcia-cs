@@ -17,4 +17,8 @@
 #define SET_MODULE_OWNER(m)	do { } while (0)
 #endif
 
+#ifndef MODULE_LICENSE
+#define MODULE_LICENSE(m)	extern int __bogus_decl
+#endif
+
 #endif /* _COMPAT_MODULE_H */

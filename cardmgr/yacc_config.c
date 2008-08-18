@@ -10,7 +10,7 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #define YYPREFIX "yy"
 #line 2 "yacc_config.y"
 /*
- * yacc_config.y 1.53 2001/08/24 12:21:34
+ * yacc_config.y 1.54 2001/10/21 13:58:15
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -730,7 +730,7 @@ case 31:
 			yyerror("ID method already defined");
 			YYERROR;
 		    }
-		    yyvsp[-4].card->ident_type = MANFID_IDENT;
+		    yyvsp[-4].card->ident_type |= MANFID_IDENT;
 		    yyvsp[-4].card->manfid.manf = yyvsp[-2].num;
 		    yyvsp[-4].card->manfid.card = yyvsp[0].num;
 		}
@@ -754,7 +754,7 @@ case 33:
 			yyerror("ID method already defined\n");
 			YYERROR;
 		    }
-		    yyvsp[-2].card->ident_type = VERS_1_IDENT;
+		    yyvsp[-2].card->ident_type |= VERS_1_IDENT;
 		    yyvsp[-2].card->id.vers.ns = 1;
 		    yyvsp[-2].card->id.vers.pi[0] = yyvsp[0].str;
 		}

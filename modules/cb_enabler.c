@@ -2,7 +2,7 @@
 
     CardBus device enabler
 
-    cb_enabler.c 1.34 2001/08/24 13:58:52
+    cb_enabler.c 1.36 2001/10/13 00:08:39
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -56,22 +56,24 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"cb_enabler.c 1.34 2001/08/24 13:58:52 (David Hinds)";
-#else
-#define DEBUG(n, args...) do { } while (0)
-#endif
+/*====================================================================*/
+
+/* Module parameters */
 
 MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
 MODULE_DESCRIPTION("CardBus stub enabler module");
+MODULE_LICENSE("Dual MPL/GPL");
 
-/*====================================================================*/
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
-/* Parameters that can be set with 'insmod' */
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+static char *version =
+"cb_enabler.c 1.36 2001/10/13 00:08:39 (David Hinds)";
+#else
+#define DEBUG(n, args...) do { } while (0)
+#endif
 
 /*====================================================================*/
 
@@ -113,11 +115,6 @@ static int cb_event(event_t event, int priority,
 static void cb_detach(dev_link_t *);
 
 static bus_info_t bus_table[MAX_DRIVER];
-
-#ifdef __BEOS__
-static cs_socket_module_info *cs;
-#define RSRC_MGR cs->
-#endif
 
 /*====================================================================*/
 

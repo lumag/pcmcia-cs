@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.54 2000/10/26 20:10:55
+ * cs_internal.h 1.55 2001/10/04 03:33:08
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -19,13 +19,7 @@
 #ifndef _LINUX_CS_INTERNAL_H
 #define _LINUX_CS_INTERNAL_H
 
-#ifdef __BEOS__
-#include "wchan.h"
-#endif
-
-#ifdef __LINUX__
 #include <linux/config.h>
-#endif
 
 typedef struct erase_busy_t {
     eraseq_entry_t	*erase;
@@ -56,12 +50,7 @@ typedef struct client_t {
     event_callback_args_t event_callback_args;
     struct client_t 	*next;
     u_int		mtd_count;
-#ifdef __LINUX__
     wait_queue_head_t	mtd_req;
-#endif
-#ifdef __BEOS__
-    struct wchan	mtd_req;
-#endif
     erase_busy_t	erase_busy;
 } client_t;
 
@@ -287,14 +276,6 @@ extern socket_info_t *socket_table[MAX_SOCK];
 
 #ifdef HAS_PROC_BUS
 extern struct proc_dir_entry *proc_pccard;
-#endif
-
-#ifdef __BEOS__
-#include <config_manager_p.h>
-extern isa_module_info *isa;
-extern pci_module_info *pci;
-extern config_manager_for_bus_module_info *cm;
-#define RSRC_MGR
 #endif
 
 #ifdef PCMCIA_DEBUG

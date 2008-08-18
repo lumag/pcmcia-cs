@@ -38,12 +38,6 @@ extern void autoirq_setup(int waittime);
 extern unsigned long autoirq_report(int waittime);
 #endif
 
-static int ethdev_init(struct net_device *dev);
-static void NS8390_init(struct net_device *dev, int startp);
-static int ei_open(struct net_device *dev);
-static int ei_close(struct net_device *dev);
-static void ei_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-
 /* Most of these entries should be in 'struct net_device' (or most of the
    things in there should be here!) */
 /* You have one of these per-board */
@@ -82,8 +76,8 @@ struct ei_device {
 /* Some generic ethernet register configurations. */
 #define E8390_TX_IRQ_MASK	0xa	/* For register EN0_ISR */
 #define E8390_RX_IRQ_MASK	0x5
-#define E8390_RXCONFIG		0x44	/* EN0_RXCR: broadcasts, no multicast,errors */
-#define E8390_RXOFF		0x60	/* EN0_RXCR: Accept no packets */
+#define E8390_RXCONFIG		0x4	/* EN0_RXCR: broadcasts, no multicast,errors */
+#define E8390_RXOFF		0x20	/* EN0_RXCR: Accept no packets */
 #define E8390_TXCONFIG		0x00	/* EN0_TXCR: Normal transmit mode */
 #define E8390_TXOFF		0x02	/* EN0_TXCR: Transmitter off */
 

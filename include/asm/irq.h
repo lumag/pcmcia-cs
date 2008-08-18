@@ -4,7 +4,7 @@
 #include <linux/version.h>
 #include_next <asm/irq.h>
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,2,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,2,12))
 #define disable_irq_nosync(x)	disable_irq(x)
 #endif
 

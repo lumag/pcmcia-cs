@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.31 2001/08/24 12:13:13
+    dummy_cs.c 1.32 2001/10/13 00:08:51
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -58,6 +58,27 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/bus_ops.h>
 
+/*====================================================================*/
+
+/* Module parameters */
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("Dummy PCMCIA driver");
+MODULE_LICENSE("Dual MPL/GPL");
+
+/* Newer, simpler way of listing specific interrupts */
+static int irq_list[4] = { -1 };
+MODULE_PARM(irq_list, "1-4i");
+
+/* Release IO ports after configuration? */
+INT_MODULE_PARM(free_ports, 0);
+
+/* The old way: bit map of interrupts to choose from */
+/* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4, and 3 */
+INT_MODULE_PARM(irq_mask, 0xdeb8);
+
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
    you do not define PCMCIA_DEBUG at all, all the debug code will be
@@ -66,31 +87,13 @@
    modules at load time with a 'pc_debug=#' option to insmod.
 */
 #ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"dummy_cs.c 1.31 2001/08/24 12:13:13 (David Hinds)";
+"dummy_cs.c 1.32 2001/10/13 00:08:51 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
-
-/* Release IO ports after configuration? */
-static int free_ports = 0;
-
-/* The old way: bit map of interrupts to choose from */
-/* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4, and 3 */
-static u_int irq_mask = 0xdeb8;
-/* Newer, simpler way of listing specific interrupts */
-static int irq_list[4] = { -1 };
-
-MODULE_PARM(free_ports, "i");
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-4i");
 
 /*====================================================================*/
 

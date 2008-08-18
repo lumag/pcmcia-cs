@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.126 2001/08/24 12:07:43
+    serial_cs.c 1.128 2001/10/18 12:18:35
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -57,30 +57,32 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
 
+/*====================================================================*/
+
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("PCMCIA serial card driver");
+MODULE_LICENSE("Dual MPL/GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+/* Bit map of interrupts to choose from */
+INT_MODULE_PARM(irq_mask, 0xdeb8);
+static int irq_list[4] = { -1 };
+MODULE_PARM(irq_list, "1-4i");
+
+/* Enable the speaker? */
+INT_MODULE_PARM(do_sound, 1);
+
 #ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.126 2001/08/24 12:07:43 (David Hinds)";
+"serial_cs.c 1.128 2001/10/18 12:18:35 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
-
-/* Bit map of interrupts to choose from */
-static u_int irq_mask = 0xdeb8;
-static int irq_list[4] = { -1 };
-
-/* Enable the speaker? */
-static int do_sound = 1;
-
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-4i");
-MODULE_PARM(do_sound, "i");
 
 /*====================================================================*/
 
@@ -97,6 +99,8 @@ static multi_id_t multi_id[] = {
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D1, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_QUAD_RS232, 4 },
+    { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS422, 2 },
+    { MANFID_QUATECH, PRODID_QUATECH_QUAD_RS422, 4 },
     { MANFID_SOCKET, PRODID_SOCKET_DUAL_RS232, 2 },
     { MANFID_INTEL, PRODID_INTEL_DUAL_RS232, 2 },
     { MANFID_NATINST, PRODID_NATINST_QUAD_RS232, 4 }

@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2 and Series 100 Flash devices
 
-    iflash2_mtd.c 1.61 2001/08/24 12:07:35
+    iflash2_mtd.c 1.64 2001/10/25 01:36:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,7 +39,6 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
-#ifdef __LINUX__
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -53,7 +52,6 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/system.h>
-#endif
 
 #include <stdarg.h>
 
@@ -67,41 +65,33 @@
 #include <pcmcia/mem_op.h>
 #include "iflash.h"
 
+/*====================================================================*/
+
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("Intel Series 2 flash PCMCIA MTD driver");
+MODULE_LICENSE("Dual MPL/GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+INT_MODULE_PARM(word_width, 1);			/* 1 = 16-bit */
+INT_MODULE_PARM(mem_speed, 0);			/* in ns */
+INT_MODULE_PARM(vpp_timeout_period, 1000);	/* in ms */
+INT_MODULE_PARM(vpp_settle, 100);		/* in ms */
+INT_MODULE_PARM(erase_timeout, 100);		/* in ms */
+INT_MODULE_PARM(erase_limit, 10000);		/* in ms */
+INT_MODULE_PARM(retry_limit, 4);		/* write retries */
+INT_MODULE_PARM(max_tries, 4096);		/* status polling */
+
 #ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"iflash2_mtd.c 1.61 2001/08/24 12:07:35 (David Hinds)";
+"iflash2_mtd.c 1.64 2001/10/25 01:36:55 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
-
-static int word_width = 1;			/* 1 = 16-bit */
-static int mem_speed = 0;			/* in ns */
-static int vpp_timeout_period	= 1000;		/* in ms */
-static int vpp_settle		= 100;		/* in ms */
-static int erase_timeout	= 100;		/* in ms */
-static int erase_limit		= 10000;	/* in ms */
-static int retry_limit		= 4;		/* write retries */
-static u_int max_tries       	= 4096;		/* status polling */
-
-MODULE_PARM(word_width, "i");
-MODULE_PARM(mem_speed, "i");
-MODULE_PARM(vpp_timeout_period, "i");
-MODULE_PARM(vpp_settle, "i");
-MODULE_PARM(erase_timeout, "i");
-MODULE_PARM(erase_limit, "i");
-MODULE_PARM(retry_limit, "i");
-MODULE_PARM(max_tries, "i");
 
 /*====================================================================*/
 
@@ -122,7 +112,7 @@ typedef struct flash_region_t {
     u_int		cell_size;
     struct flash_cell_t {
 	u_int		state;
-	k_time_t	erase_time;
+	u_long	erase_time;
 	u_int		erase_addr;
 	u_int		erase_retries;
     } cell[MAX_CELLS];
@@ -134,7 +124,7 @@ typedef struct flash_dev_t {
     u_int		Size;
     u_int		vpp;
     int			vpp_usage;
-    k_time_t		vpp_start;
+    u_long		vpp_start;
     struct timer_list	vpp_timeout;
     flash_region_t	*flash[2*CISTPL_MAX_DEVICES];
 } flash_dev_t;
@@ -146,18 +136,6 @@ typedef struct flash_dev_t {
 static dev_info_t dev_info = "iflash2_mtd";
 
 static dev_link_t *dev_list = NULL;
-
-#ifdef __BEOS__
-static cs_client_module_info *cs;
-static ds_module_info *ds;
-static isa_module_info *isa;
-#define CardServices		cs->_CardServices
-#define MTDHelperEntry		cs->_MTDHelperEntry
-#define add_timer		cs->_add_timer
-#define del_timer		cs->_del_timer
-#define register_pccard_driver	ds->_register_pccard_driver
-#define unregister_pccard_driver ds->_unregister_pccard_driver
-#endif
 
 /*====================================================================*/
 
@@ -1022,8 +1000,6 @@ static int flash_event(event_t event, int priority,
 
 /*====================================================================*/
 
-#ifdef __LINUX__
-
 static int __init init_iflash2_mtd(void)
 {
     servinfo_t serv;
@@ -1057,49 +1033,3 @@ static void __exit exit_iflash2_mtd(void)
 
 module_init(init_iflash2_mtd);
 module_exit(exit_iflash2_mtd);
-
-#endif /* __LINUX__ */
-
-/*====================================================================*/
-
-#ifdef __BEOS__
-
-static status_t std_ops(int32 op)
-{
-    int ret;
-    DEBUG(0, "iflash2_mtd: std_ops(%d)\n", op);
-    switch (op) {
-    case B_MODULE_INIT:
-	vpp_timeout_period = (vpp_timeout_period * HZ) / 1000;
-	vpp_settle = (vpp_settle * HZ) / 1000;
-	erase_limit = (erase_limit * HZ) / 1000;
-	ret = get_module(CS_CLIENT_MODULE_NAME, (struct module_info **)&cs);
-	if (ret != B_OK) return ret;
-	ret = get_module(DS_MODULE_NAME, (struct module_info **)&ds);
-	if (ret != B_OK) return ret;
-	ret = get_module(B_ISA_MODULE_NAME, (struct module_info **)&isa);
-	if (ret != B_OK) return ret;
-	register_pccard_driver(&dev_info, &flash_attach, &flash_detach);
-	break;
-    case B_MODULE_UNINIT:
-	unregister_pccard_driver(&dev_info);
-	while (dev_list != NULL)
-	    flash_detach(dev_list);
-	if (isa) put_module(B_ISA_MODULE_NAME);
-	if (ds) put_module(DS_MODULE_NAME);
-	if (cs) put_module(CS_CLIENT_MODULE_NAME);
-	break;
-    }
-    return B_OK;
-}
-
-static module_info flash_mtd_mod_info = {
-    MTD_MODULE_NAME("iflash2_mtd"), 0, &std_ops
-};
-
-_EXPORT module_info *modules[] = {
-    &flash_mtd_mod_info,
-    NULL
-};
-
-#endif /* __BEOS__ */

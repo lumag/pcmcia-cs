@@ -144,7 +144,9 @@ struct adhoc_beacon
 /*****************************************************************************/
 /* #define C_MAC_HDR_2_WEP 0x40 */
 /* TX/RX CCS constants */
-#define TX_HEADER_LENGTH 0x1C
+/*#define TX_HEADER_LENGTH 0x1C 
+*/
+#define TX_HEADER_LENGTH 24
 #define RX_MAC_HEADER_LENGTH 0x18
 #define TX_AUTHENTICATE_LENGTH (TX_HEADER_LENGTH + 6)
 #define TX_AUTHENTICATE_LENGTH_MSB (TX_AUTHENTICATE_LENGTH >> 8)
@@ -723,10 +725,12 @@ typedef struct snaphdr_t
   UCHAR   ethertype[2];
 } snaphdr_t;
 
-#define BRIDGE_ENCAP  0xf80000
+#define BRIDGE_ENCAP  0x0000f800
 #define RFC1042_ENCAP 0
-#define SNAP_ID       0x0003aaaa
-#define RAY_IPX_TYPE  0x8137
-#define APPLEARP_TYPE 0x80f3
+#define SNAP_ID       0xaaaa0300
+#define RAY_IPX_TYPE  0x3781
+#define APPLEARP_TYPE 0xf380
+#define APPLETALK_TYPE 0x9b80
+#define APPLETALK_ORG 0x08000700
 /*****************************************************************************/
 #endif /* #ifndef RAYLINK_H */

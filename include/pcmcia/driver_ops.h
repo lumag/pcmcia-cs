@@ -1,5 +1,5 @@
 /*
- * driver_ops.h 1.16 2001/08/24 12:16:13
+ * driver_ops.h 1.17 2001/10/04 03:15:22
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -67,15 +67,6 @@ typedef struct driver_operations {
 
 int register_driver(struct driver_operations *ops);
 void unregister_driver(struct driver_operations *ops);
-
-#ifdef __BEOS__
-#define CB_ENABLER_MODULE_NAME	"bus_managers/cb_enabler/v1"
-typedef struct cb_enabler_module_info {
-    bus_manager_info	binfo;
-    int (*register_driver)(struct driver_operations *ops);
-    void (*unregister_driver)(struct driver_operations *ops);
-} cb_enabler_module_info;
-#endif /* __BEOS__ */
 
 #endif /* __KERNEL__ */
 

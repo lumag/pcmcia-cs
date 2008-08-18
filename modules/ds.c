@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.111 2001/08/24 12:14:37
+    ds.c 1.112 2001/10/13 00:08:28
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -58,18 +58,24 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
-#ifdef PCMCIA_DEBUG
-int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static const char *version =
-"ds.c 1.111 2001/08/24 12:14:37 (David Hinds)";
-#else
-#define DEBUG(n, args...)
-#endif
+/*====================================================================*/
+
+/* Module parameters */
 
 MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
 MODULE_DESCRIPTION("PCMCIA Driver Services " CS_RELEASE);
+MODULE_LICENSE("Dual MPL/GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+static const char *version =
+"ds.c 1.112 2001/10/13 00:08:28 (David Hinds)";
+#else
+#define DEBUG(n, args...)
+#endif
 
 /*====================================================================*/
 

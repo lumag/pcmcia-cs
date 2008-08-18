@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.192 2001/08/27 12:33:51
+# Configure 1.194 2001/10/02 01:26:57
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -419,6 +419,7 @@ printconfig () {
     if [ "$CONFIG_KERNEL_DEBUGGING" = "y" ] ; then
 	printflag " Memory leak detection support" CONFIG_MEMLEAK
     fi
+    printflag "Preemptive kernel patch" CONFIG_PREEMPT
     if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
     fi
@@ -535,6 +536,7 @@ case $CONF_SRC in
 	    symcheck 3GB ^401
 	fi
 	symcheck PROC_FS proc_root
+	symcheck PREEMPT preempt_schedule
 	symcheck KDB kdb_
 	symcheck DEBUG_MCOUNT mcount
 	symcheck MEMLEAK kmalloc_wrap
@@ -543,11 +545,11 @@ case $CONF_SRC in
 	    CONFIG_KERNEL_DEBUGGING=y
 	fi
 	if [ $ARCH = "ppc" ] ; then
-	    symcheck _prep_type CONFIG_ALL_PPC
+	    symcheck _prep_type ALL_PPC
 	fi
 	if [ $VERSION_CODE -ge `version 2 4 0` ] ; then
-	    symcheck CONFIG_RWSEM_GENERIC_SPINLOCK __down_read
-	    symcheck CONFIG_RWSEM_XCHGADD_ALGORITHM rwsem_wake
+	    symcheck RWSEM_GENERIC_SPINLOCK __down_read
+	    symcheck RWSEM_XCHGADD_ALGORITHM rwsem_wake
 	fi
 	echo "#ifndef __LINUX_MODVERSIONS_H" > $MODVER
 	echo "#define __LINUX_MODVERSIONS_H" >> $MODVER
@@ -596,7 +598,7 @@ case $CONF_SRC in
 	fi
 	for C in PCI SCSI SERIAL INET NET_FASTROUTE NET_RADIO NET_DIVERT \
 	    TR MODVERSIONS PROC_FS PARPORT PARPORT_PC PARPORT_PC_PCMCIA \
-	    IEEE1394 NET_PCMCIA_RADIO KERNEL_DEBUGGING MEMLEAK ; do
+	    IEEE1394 NET_PCMCIA_RADIO KERNEL_DEBUGGING MEMLEAK PREEMPT ; do
 	    configcheck $C
 	done
 	if grep "^CONFIG_PARPORT_PC=y" $AUTOCONF >/dev/null ; then

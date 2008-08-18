@@ -2,7 +2,7 @@
 
     A driver for CardBus serial devices
 
-    serial_cb.c 1.25 2001/08/24 12:07:43
+    serial_cb.c 1.27 2001/10/13 14:04:06
 
     Copyright 1998, 1999 by Donald Becker and David Hinds
     
@@ -40,12 +40,21 @@
 
 #include <pcmcia/driver_ops.h>
 
+/*====================================================================*/
+
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("CardBus serial card driver");
+MODULE_LICENSE("GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
 #ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cb.c 1.25 2001/08/24 12:07:43 (David Hinds)";
+"serial_cb.c 1.27 2001/10/13 14:04:06 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

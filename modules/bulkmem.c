@@ -2,7 +2,7 @@
 
     PCMCIA Bulk Memory Services
 
-    bulkmem.c 1.41 2001/08/24 13:58:51
+    bulkmem.c 1.43 2001/10/04 03:32:51
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -72,7 +72,6 @@ static int do_mtd_request(memory_handle_t handle, mtd_request_t *req,
     if (mtd == NULL)
 	return CS_GENERAL_FAILURE;
     s = SOCKET(mtd);
-    wacquire(&mtd->mtd_req);
     for (ret = tries = 0; tries < 100; tries++) {
 	mtd->event_callback_args.mtdrequest = req;
 	mtd->event_callback_args.buffer = buf;
@@ -82,26 +81,26 @@ static int do_mtd_request(memory_handle_t handle, mtd_request_t *req,
 	switch (req->Status) {
 	case MTD_WAITREQ:
 	    /* Not that we should ever need this... */
-	    wsleeptimeout(&mtd->mtd_req, HZ);
+	    interruptible_sleep_on_timeout(&mtd->mtd_req, HZ);
 	    break;
 	case MTD_WAITTIMER:
 	case MTD_WAITRDY:
-	    wsleeptimeout(&mtd->mtd_req, req->Timeout*HZ/1000);
+	    interruptible_sleep_on_timeout(&mtd->mtd_req,
+					   req->Timeout*HZ/1000);
 	    req->Function |= MTD_REQ_TIMEOUT;
 	    break;
 	case MTD_WAITPOWER:
-	    wsleep(&mtd->mtd_req);
+	    interruptible_sleep_on(&mtd->mtd_req);
 	    break;
 	}
 	if (signal_pending(current))
 	    printk(KERN_NOTICE "cs: do_mtd_request interrupted!\n");
     }
-    wrelease(&mtd->mtd_req);
     if (tries == 20) {
 	printk(KERN_NOTICE "cs: MTD request timed out!\n");
 	ret = CS_GENERAL_FAILURE;
     }
-    wakeup(&mtd->mtd_req);
+    wake_up_interruptible(&mtd->mtd_req);
     retry_erase_list(&mtd->erase_busy, 0);
     return ret;
 } /* do_mtd_request */
@@ -148,9 +147,7 @@ static void retry_erase(erase_busy_t *busy, u_int cause)
     mtd = erase->Handle->mtd;
     s = SOCKET(mtd);
     mtd->event_callback_args.mtdrequest = &req;
-    wacquire(&mtd->mtd_req);
     ret = EVENT(mtd, CS_EVENT_MTD_REQUEST, CS_EVENT_PRI_LOW);
-    wrelease(&mtd->mtd_req);
     if (ret == CS_BUSY) {
 	DEBUG(2, "  Status = %d, requeueing.\n", req.Status);
 	switch (req.Status) {
@@ -186,7 +183,7 @@ static void retry_erase(erase_busy_t *busy, u_int cause)
 	EVENT(busy->client, CS_EVENT_ERASE_COMPLETE, CS_EVENT_PRI_LOW);
 	kfree(busy);
 	/* Resubmit anything waiting for a request to finish */
-	wakeup(&mtd->mtd_req);
+	wake_up_interruptible(&mtd->mtd_req);
 	retry_erase_list(&mtd->erase_busy, 0);
     }
 } /* retry_erase */
@@ -539,15 +536,6 @@ int open_memory(client_handle_t *handle, open_mem_t *open)
 	if (region->info.CardOffset == open->Offset) break;
 	region = region->info.next;
     }
-#ifdef __BEOS__
-    if (region->dev_info[0] != '\0') {
-	char n[80];
-	struct module_info *m;
-	sprintf(n, MTD_MODULE_NAME("%s"), region->dev_info);
-	if (get_module(n, &m) != B_OK)
-	    dprintf("cs: could not find MTD module %s\n", n);
-    }
-#endif
     if (region && region->mtd) {
 	*handle = (client_handle_t)region;
 	DEBUG(1, "cs: open_memory(0x%p, 0x%x) = 0x%p\n",
@@ -570,13 +558,6 @@ int close_memory(memory_handle_t handle)
     DEBUG(1, "cs: close_memory(0x%p)\n", handle);
     if (CHECK_REGION(handle))
 	return CS_BAD_HANDLE;
-#ifdef __BEOS__
-    if (handle->dev_info[0] != '\0') {
-	char n[80];
-	sprintf(n, MTD_MODULE_NAME("%s"), handle->dev_info);
-	put_module(n);
-    }
-#endif
     return CS_SUCCESS;
 } /* close_memory */
 

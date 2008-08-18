@@ -21,7 +21,7 @@
 
     In addition this module was derived from dummy_cs.
     The initial developer of dummy_cs is David A. Hinds
-    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.    
     
 ======================================================================*/
@@ -94,6 +94,7 @@ MODULE_AUTHOR("Benjamin Reed");
 MODULE_DESCRIPTION("Support for Cisco/Aironet 802.11 wireless ethernet \
                    cards.  This is the module that links the PCMCIA card \
 		   with the airo module.");
+MODULE_LICENSE("MPL");
 MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340 PCMCIA cards");
 MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");

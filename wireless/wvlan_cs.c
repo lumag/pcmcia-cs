@@ -338,6 +338,8 @@ MODULE_PARM(channel, "i");
 static char station_name[IW_ESSID_MAX_SIZE+1] = "\0";	// Name of station []
 MODULE_PARM(station_name, "c" __MODULE_STRING(IW_ESSID_MAX_SIZE));
 
+MODULE_LICENSE("GPL");
+
 // Useful macros we have in pcmcia-cs but not in the kernel
 #ifndef __IN_PCMCIA_PACKAGE__
 #define DEV_KFREE_SKB(skb) dev_kfree_skb(skb);
@@ -1120,9 +1122,8 @@ static int wvlan_hw_config (struct net_device *dev)
  			/* This is a PrismII card. It is is *very* similar
  			 * to the Lucent, and the driver work 95%,
  			 * therefore, we attempt to support it... */
- 			printk(KERN_NOTICE "%s: This is a PrismII card, not a Wavelan IEEE card :-(
-You may want report firmare revision (0x%X) and what the card support.
-I will try to make it work, but you should look for a better driver.\n", dev_info, firmware);
+			printk(KERN_INFO "%s: PrismII card, rev 0x%X\n",
+			       dev_info, firmware);
  			local->has_port3  = 1;
  			local->has_ibssid = 0;
  			local->has_mwo    = 0;

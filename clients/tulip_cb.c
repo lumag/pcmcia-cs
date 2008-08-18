@@ -133,6 +133,7 @@ static int csr0 = 0x00A00000 | 0x4800;
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Digital 21*4* Tulip ethernet driver");
+MODULE_LICENSE("GPL");
 MODULE_PARM(debug, "i");
 MODULE_PARM(max_interrupt_work, "i");
 MODULE_PARM(reverse_probe, "i");
@@ -3266,6 +3267,15 @@ static dev_node_t *tulip_attach(dev_locator_t *loc)
 	case 0xab0213d1:
 	case 0xab0313d1:
 	case 0x12161113:
+	case 0xab0813d1:
+	case 0xab0913d1:
+	case 0xab081737:
+	case 0xab091737:
+	case 0xab0817b3:
+	case 0x15611186:
+	case 0x15901186:
+	case 0x15911186:
+	case 0xab0814ea:
 		chip_idx = CENTAUR;
 		break;
 	default:

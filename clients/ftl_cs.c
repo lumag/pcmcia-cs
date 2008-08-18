@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.70 2001/08/24 12:13:14
+    ftl_cs.c 1.72 2001/11/14 01:00:41
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -82,15 +82,25 @@
 
 /*====================================================================*/
 
-/* Parameters that can be set with 'insmod' */
+/* Module parameters */
 
-/* Major device # for FTL device */
-static int major_dev = 0;
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("PCMCIA Flash Translation Layer driver");
+MODULE_LICENSE("Dual MPL/GPL");
 
-static int shuffle_freq = 50;
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
-MODULE_PARM(major_dev, "i");
-MODULE_PARM(shuffle_freq, "i");
+INT_MODULE_PARM(major_dev, 0);		/* major device # for FTL */
+INT_MODULE_PARM(shuffle_freq, 50);
+
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+static char *version =
+"ftl_cs.c 1.72 2001/11/14 01:00:41 (David Hinds)";
+#else
+#define DEBUG(n, args...)
+#endif
 
 /*====================================================================*/
 
@@ -107,16 +117,6 @@ MODULE_PARM(shuffle_freq, "i");
 #define MINOR_NR(dev,reg,part)	(((dev)<<5)+((reg)<<3)+(part))
 
 #include <linux/blk.h>
-
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"ftl_cs.c 1.70 2001/08/24 12:13:14 (David Hinds)";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -1542,8 +1542,7 @@ static int __init init_ftl_cs(void)
     blksize_size[major_dev] = ftl_blocksizes;
     ftl_gendisk.major = major_dev;
     blk_init_queue(BLK_DEFAULT_QUEUE(major_dev), &do_ftl_request);
-    ftl_gendisk.next = gendisk_head;
-    gendisk_head = &ftl_gendisk;
+    add_gendisk(&ftl_gendisk);
     init_waitqueue_head(&ftl_wait_open);
     
     return 0;
@@ -1553,7 +1552,6 @@ static void __exit exit_ftl_cs(void)
 {
     int i;
     dev_link_t *link;
-    struct gendisk *gd, **gdp;
 
     DEBUG(0, "ftl_cs: unloading\n");
     unregister_pccard_driver(&dev_info);
@@ -1570,11 +1568,7 @@ static void __exit exit_ftl_cs(void)
 	    ftl_detach(link);
 	}
     }
-    for (gdp = &gendisk_head; *gdp; gdp = &((*gdp)->next))
-	if (*gdp == &ftl_gendisk) {
-	    gd = *gdp; *gdp = gd->next;
-	    break;
-	}
+    del_gendisk(&ftl_gendisk);
 }
 
 module_init(init_ftl_cs);

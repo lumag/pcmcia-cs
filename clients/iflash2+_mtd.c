@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2+ Flash devices
 
-    iflash2+_mtd.c 1.69 2001/08/24 12:07:35
+    iflash2+_mtd.c 1.74 2001/10/25 01:36:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,7 +39,6 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
-#ifdef __LINUX__
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -54,7 +53,6 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/system.h>
-#endif
 
 #include <stdarg.h>
 
@@ -67,19 +65,13 @@
 #include <pcmcia/mem_op.h>
 #include "iflash.h"
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
-static char *version =
-"iflash2+_mtd.c 1.69 2001/08/24 12:07:35 (David Hinds)";
-#else
-#define DEBUG(n, args...) do { } while (0)
-#endif
-
 /*====================================================================*/
 
-/* Parameters that can be set with 'insmod' */
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("Intel Series 2+ flash PCMCIA MTD driver");
+MODULE_LICENSE("Dual MPL/GPL");
 
 #define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
@@ -93,6 +85,15 @@ INT_MODULE_PARM(erase_limit, 10000);		/* in ms */
 INT_MODULE_PARM(retry_limit, 8);		/* write retries */
 INT_MODULE_PARM(max_tries, 4096);		/* status polling */
 INT_MODULE_PARM(do_sleep, 1);			/* spin vs sleep? */
+
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
+static char *version =
+"iflash2+_mtd.c 1.74 2001/10/25 01:36:55 (David Hinds)";
+#else
+#define DEBUG(n, args...) do { } while (0)
+#endif
 
 /*====================================================================*/
 
@@ -113,7 +114,7 @@ typedef struct flash_region_t {
     u_int		cell_size;
     struct flash_cell_t {
 	u_int		state;
-	k_time_t	erase_time;
+	u_long	erase_time;
 	u_int		erase_addr;
 	u_int		erase_retries;
     } cell[MAX_CELLS];
@@ -126,7 +127,7 @@ typedef struct flash_dev_t {
     window_handle_t	ESRwin;
     caddr_t		ESRbase;
     int			vpp_usage;
-    k_time_t		vpp_start;
+    u_long		vpp_start;
     struct timer_list	vpp_timeout;
     flash_region_t	*flash[2*CISTPL_MAX_DEVICES];
 } flash_dev_t;
@@ -148,9 +149,9 @@ static void cs_error(client_handle_t handle, int func, int ret)
 }
 
 #ifdef BENCHMARK
-static inline k_time_t uticks(void)
+static inline u_long uticks(void)
 {
-    k_time_t count;
+    u_long count;
     outb_p(0x00, 0x43);
     count = inb_p(0x40);
     count |= inb(0x40) << 8;
@@ -170,7 +171,7 @@ static inline k_time_t uticks(void)
 static void sleep_or_spin(wait_queue_head_t *queue)
 {
     if (do_sleep)
-	wsleeptimeout(queue, 1);
+	interruptible_sleep_on_timeout(queue, 1);
     else
 	udelay(50);
 }
@@ -696,7 +697,7 @@ static int flash_read(dev_link_t *link, char *buf, mtd_request_t *req)
     u_int from, length, nb, cell;
     int ret;
 #ifdef BENCHMARK
-    k_time_t time;
+    u_long time;
 #endif
     
     DEBUG(2, "iflash2+_mtd: flash_read(0x%p, 0x%lx, 0x%p, 0x%x, "
@@ -851,7 +852,7 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
     cs_status_t status;
     int ret;
 #ifdef BENCHMARK
-    k_time_t time;
+    u_long time;
 #endif
 
     DEBUG(2, "iflash2+_mtd: flash_write(0x%p, 0x%lx, "
@@ -1152,8 +1153,6 @@ static int flash_event(event_t event, int priority,
 
 /*====================================================================*/
 
-#ifdef __LINUX__
-
 static int __init init_iflash2x_mtd(void)
 {
     servinfo_t serv;
@@ -1188,5 +1187,3 @@ static void __exit exit_iflash2x_mtd(void)
 
 module_init(init_iflash2x_mtd);
 module_exit(exit_iflash2x_mtd);
-
-#endif /* __LINUX__ */

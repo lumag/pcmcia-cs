@@ -11,7 +11,7 @@
 
     Copyright (C) 2001 David A. Hinds -- dahinds@users.sourceforge.net
 
-    axnet_cs.c 1.21 2001/08/24 13:58:58
+    axnet_cs.c 1.24 2001/11/18 02:46:51
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -62,19 +62,13 @@
 
 #define AXNET_RDC_TIMEOUT 0x02	/* Max wait in jiffies for Tx RDC */
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"axnet_cs.c 1.21 2001/08/24 13:58:58 (David Hinds)";
-#else
-#define DEBUG(n, args...)
-#endif
-
 /*====================================================================*/
 
-/* Parameters that can be set with 'insmod' */
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("Asix AX88190 PCMCIA ethernet driver");
+MODULE_LICENSE("GPL");
 
 #define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
@@ -82,6 +76,15 @@ static char *version =
 INT_MODULE_PARM(irq_mask,	0xdeb8);
 static int irq_list[4] = { -1 };
 MODULE_PARM(irq_list, "1-4i");
+
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+static char *version =
+"axnet_cs.c 1.24 2001/11/18 02:46:51 (David Hinds)";
+#else
+#define DEBUG(n, args...)
+#endif
 
 /*====================================================================*/
 
@@ -111,6 +114,11 @@ static void axnet_detach(dev_link_t *);
 
 static dev_info_t dev_info = "axnet_cs";
 static dev_link_t *dev_list;
+
+static int axdev_init(struct net_device *dev);
+static void AX88190_init(struct net_device *dev, int startp);
+static int ax_open(struct net_device *dev);
+static void ax_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
 /*====================================================================*/
 
@@ -202,7 +210,7 @@ static dev_link_t *axnet_attach(void)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    ethdev_init(dev);
+    axdev_init(dev);
     init_dev_name(dev, info->node);
     dev->init = &axnet_init;
     dev->open = &axnet_open;
@@ -295,7 +303,7 @@ static int get_prom(dev_link_t *link)
 	{0x00,	EN0_RCNTHI},
 	{0x00,	EN0_IMR},	/* Mask completion irq. */
 	{0xFF,	EN0_ISR},
-	{E8390_RXOFF, EN0_RXCR},	/* 0x20  Set to monitor */
+	{E8390_RXOFF|0x40, EN0_RXCR},	/* 0x60  Set to monitor */
 	{E8390_TXOFF, EN0_TXCR},	/* 0x02  and loopback mode. */
 	{0x10,	EN0_RCNTLO},
 	{0x00,	EN0_RCNTHI},
@@ -572,7 +580,7 @@ static int axnet_event(event_t event, int priority,
 	    CardServices(RequestConfiguration, link->handle, &link->conf);
 	    if (link->open) {
 		axnet_reset_8390(&info->dev);
-		NS8390_init(&info->dev, 1);
+		AX88190_init(&info->dev, 1);
 		netif_device_attach(&info->dev);
 	    }
 	}
@@ -662,7 +670,7 @@ static int axnet_open(struct net_device *dev)
     info->watchdog.expires = jiffies + HZ;
     add_timer(&info->watchdog);
 
-    return ei_open(dev);
+    return ax_open(dev);
 } /* axnet_open */
 
 /*====================================================================*/
@@ -725,7 +733,7 @@ static void ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs)
 {
     axnet_dev_t *info = dev_id;
     info->stale = 0;
-    ei_interrupt(irq, dev_id, regs);
+    ax_interrupt(irq, dev_id, regs);
 }
 
 static void ei_watchdog(u_long arg)
@@ -777,7 +785,7 @@ static void ei_watchdog(u_long arg)
 	    else
 		printk(KERN_INFO "%s: link partner did not autonegotiate\n",
 		       dev->name);
-	    NS8390_init(dev, 1);
+	    AX88190_init(dev, 1);
 	}
 	info->link_status = link;
     }
@@ -1036,22 +1044,22 @@ static void do_set_multicast_list(struct net_device *dev);
 
 
 /**
- * ei_open - Open/initialize the board.
+ * ax_open - Open/initialize the board.
  * @dev: network device to initialize
  *
  * This routine goes all-out, setting everything
  * up anew at each open, even though many of these registers should only
  * need to be set once at boot.
  */
-static int ei_open(struct net_device *dev)
+static int ax_open(struct net_device *dev)
 {
 	unsigned long flags;
 	struct ei_device *ei_local = (struct ei_device *) dev->priv;
 
-	/* This can't happen unless somebody forgot to call ethdev_init(). */
+	/* This can't happen unless somebody forgot to call axdev_init(). */
 	if (ei_local == NULL) 
 	{
-		printk(KERN_EMERG "%s: ei_open passed a non-existent device!\n", dev->name);
+		printk(KERN_EMERG "%s: ax_open passed a non-existent device!\n", dev->name);
 		return -ENXIO;
 	}
 
@@ -1070,37 +1078,13 @@ static int ei_open(struct net_device *dev)
 	 */
       
       	spin_lock_irqsave(&ei_local->page_lock, flags);
-	NS8390_init(dev, 1);
+	AX88190_init(dev, 1);
 	/* Set the flag before we drop the lock, That way the IRQ arrives
 	   after its set and we get no silly warnings */
 	netif_mark_up(dev);
 	netif_start_queue(dev);
       	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 	ei_local->irqlock = 0;
-	return 0;
-}
-
-/**
- * ei_close - shut down network device
- * @dev: network device to close
- *
- * Opposite of ei_open(). Only used when "ifconfig <devname> down" is done.
- */
-
-#define dev_lock(dev) (((struct ei_device *)(dev)->priv)->page_lock)
-
-static int ei_close(struct net_device *dev)
-{
-	unsigned long flags;
-
-	/*
-	 *	Hold the page lock during close
-	 */
-
-	spin_lock_irqsave(&dev_lock(dev), flags);
-	NS8390_init(dev, 0);
-	spin_unlock_irqrestore(&dev_lock(dev), flags);
-	netif_stop_queue(dev);
 	return 0;
 }
 
@@ -1143,7 +1127,7 @@ void ei_tx_timeout(struct net_device *dev)
 		
 	/* Try to restart the card.  Perhaps the user has fixed something. */
 	ei_reset_8390(dev);
-	NS8390_init(dev, 1);
+	AX88190_init(dev, 1);
 		
 	spin_unlock(&ei_local->page_lock);
 	enable_irq(dev->irq);
@@ -1274,7 +1258,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 /**
- * ei_interrupt - handle the interrupts from an 8390
+ * ax_interrupt - handle the interrupts from an 8390
  * @irq: interrupt number
  * @dev_id: a pointer to the net_device
  * @regs: unused
@@ -1286,7 +1270,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * needed.
  */
 
-static void ei_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static void ax_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
 	struct net_device *dev = dev_id;
 	long e8390_base;
@@ -1748,11 +1732,11 @@ static void do_set_multicast_list(struct net_device *dev)
 	long e8390_base = dev->base_addr;
 
   	if(dev->flags&IFF_PROMISC)
-  		outb_p(E8390_RXCONFIG | 0x18, e8390_base + EN0_RXCR);
+  		outb_p(E8390_RXCONFIG | 0x58, e8390_base + EN0_RXCR);
 	else if(dev->flags&IFF_ALLMULTI || dev->mc_list)
-  		outb_p(E8390_RXCONFIG | 0x08, e8390_base + EN0_RXCR);
+  		outb_p(E8390_RXCONFIG | 0x48, e8390_base + EN0_RXCR);
   	else
-  		outb_p(E8390_RXCONFIG, e8390_base + EN0_RXCR);
+  		outb_p(E8390_RXCONFIG | 0x40, e8390_base + EN0_RXCR);
 }
 
 /*
@@ -1760,6 +1744,8 @@ static void do_set_multicast_list(struct net_device *dev)
  *	be parallel to just about everything else. Its also fairly quick and
  *	not called too often. Must protect against both bh and irq users
  */
+
+#define dev_lock(dev) (((struct ei_device *)(dev)->priv)->page_lock)
 
 static void set_multicast_list(struct net_device *dev)
 {
@@ -1771,14 +1757,14 @@ static void set_multicast_list(struct net_device *dev)
 }	
 
 /**
- * ethdev_init - init rest of 8390 device struct
+ * axdev_init - init rest of 8390 device struct
  * @dev: network device structure to init
  *
  * Initialize the rest of the 8390 device structure.  Do NOT __init
  * this, as it is used by 8390 based modular drivers too.
  */
 
-static int ethdev_init(struct net_device *dev)
+static int axdev_init(struct net_device *dev)
 {
 	if (ei_debug > 1)
 		printk(version_8390);
@@ -1810,14 +1796,14 @@ static int ethdev_init(struct net_device *dev)
 /* Follow National Semi's recommendations for initializing the "NIC". */
 
 /**
- * NS8390_init - initialize 8390 hardware
+ * AX88190_init - initialize 8390 hardware
  * @dev: network device to initialize
  * @startp: boolean.  non-zero value to initiate chip processing
  *
  *	Must be called with lock held.
  */
 
-static void NS8390_init(struct net_device *dev, int startp)
+static void AX88190_init(struct net_device *dev, int startp)
 {
 	axnet_dev_t *info = (axnet_dev_t *)dev;
 	long e8390_base = dev->base_addr;
@@ -1834,7 +1820,7 @@ static void NS8390_init(struct net_device *dev, int startp)
 	outb_p(0x00,  e8390_base + EN0_RCNTLO);
 	outb_p(0x00,  e8390_base + EN0_RCNTHI);
 	/* Set to monitor and loopback mode -- this is vital!. */
-	outb_p(E8390_RXOFF, e8390_base + EN0_RXCR); /* 0x20 */
+	outb_p(E8390_RXOFF|0x40, e8390_base + EN0_RXCR); /* 0x60 */
 	outb_p(E8390_TXOFF, e8390_base + EN0_TXCR); /* 0x02 */
 	/* Set the transmit page and receive ring. */
 	outb_p(ei_local->tx_start_page, e8390_base + EN0_TPSR);
@@ -1878,7 +1864,7 @@ static void NS8390_init(struct net_device *dev, int startp)
 		outb_p(E8390_TXCONFIG | info->duplex_flag,
 		       e8390_base + EN0_TXCR); /* xmit on. */
 		/* 3c503 TechMan says rxconfig only after the NIC is started. */
-		outb_p(E8390_RXCONFIG, e8390_base + EN0_RXCR); /* rx on,  */
+		outb_p(E8390_RXCONFIG | 0x40, e8390_base + EN0_RXCR); /* rx on, */
 		do_set_multicast_list(dev);	/* (re)load the mcast table */
 	}
 }

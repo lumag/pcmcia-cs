@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.142 2001/08/24 11:44:24
+    pcnet_cs.c 1.144 2001/11/07 04:06:56
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -76,14 +76,18 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.142 2001/08/24 11:44:24 (David Hinds)";
+"pcnet_cs.c 1.144 2001/11/07 04:06:56 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
 
 /*====================================================================*/
 
-/* Parameters that can be set with 'insmod' */
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("NE2000 compatible PCMCIA ethernet driver");
+MODULE_LICENSE("GPL");
 
 #define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
@@ -98,6 +102,7 @@ INT_MODULE_PARM(mem_speed,	0);	/* shared mem speed, in ns */
 INT_MODULE_PARM(delay_output,	0);	/* pause after xmit? */
 INT_MODULE_PARM(delay_time,	4);	/* in usec */
 INT_MODULE_PARM(use_shmem,	-1);	/* use shared memory? */
+INT_MODULE_PARM(full_duplex,	0);	/* full duplex? */
 
 /* Ugh!  Let the user hardwire the hardware address for queer cards */
 static int hw_addr[6] = { 0, /* ... */ };
@@ -105,7 +110,7 @@ MODULE_PARM(hw_addr, "6i");
 
 /*====================================================================*/
 
-static void mii_phy_probe(struct net_device *dev); /* +Wilson 30.05.2001 */
+static void mii_phy_probe(struct net_device *dev);
 static void pcnet_config(dev_link_t *link);
 static void pcnet_release(u_long arg);
 static int pcnet_event(event_t event, int priority,
@@ -145,13 +150,11 @@ typedef struct hw_info_t {
 #define HAS_MII		0x40
 #define USE_SHMEM	0x80	/* autodetected */
 
-/* +Wilson 30.05.2001 */
 #define AM79C9XX_HOME_PHY	0x00006B90  /* HomePNA PHY */
 #define AM79C9XX_ETH_PHY	0x00006B70  /* 10baseT PHY */
 #define MII_PHYID_REV_MASK	0xfffffff0
 #define MII_PHYID_REG1		0x02
 #define MII_PHYID_REG2		0x03
-/* +Wilson */
 
 static hw_info_t hw_info[] = {
     { /* Accton EN2212 */ 0x0ff0, 0x00, 0x00, 0xe8, DELAY_OUTPUT }, 
@@ -769,8 +772,6 @@ static void pcnet_config(dev_link_t *link)
 	u_char id = inb(dev->base_addr + 0x1a);
 	dev->do_ioctl = &ei_ioctl;
 	mii_phy_probe(dev);
-	if ((id == 0x30) && !info->pna_phy)
-	    info->eth_phy = 0;
 	printk(KERN_INFO "%s: NE2000 (DL100%d rev %02x): ",
 	       dev->name, ((info->flags & IS_DL10022) ? 22 : 19), id);
 	if (info->pna_phy)
@@ -976,11 +977,15 @@ static void set_misc_reg(struct net_device *dev)
 	outb_p(tmp, nic_base + PCNET_MISC);
     }
     if (info->flags & IS_DL10022) {
-	mdio_reset(nic_base + DLINK_GPIO, info->eth_phy);
-	/* Restart MII autonegotiation */
-	mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 0, 0x0000);
-	mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 0, 0x1200);
-	info->mii_reset = jiffies;
+	if (info->flags & HAS_MII) {
+	    mdio_reset(nic_base + DLINK_GPIO, info->eth_phy);
+	    /* Restart MII autonegotiation */
+	    mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 0, 0x0000);
+	    mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 0, 0x1200);
+	    info->mii_reset = jiffies;
+	} else {
+	    outb(full_duplex ? 4 : 0, nic_base + DLINK_DIAG);
+	}
     }
 }
 
@@ -1150,8 +1155,12 @@ static void ei_watchdog(u_long arg)
     mdio_read(mii_addr, info->phy_id, 1);
     link = mdio_read(mii_addr, info->phy_id, 1);
     if (!link || (link == 0xffff)) {
-	printk(KERN_INFO "%s: MII is missing!\n", dev->name);
-	info->flags &= ~HAS_MII;
+	if (info->eth_phy) {
+	    info->phy_id = info->eth_phy = 0;
+	} else {
+	    printk(KERN_INFO "%s: MII is missing!\n", dev->name);
+	    info->flags &= ~HAS_MII;
+	}
 	goto reschedule;
     }
 

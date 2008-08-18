@@ -14,10 +14,6 @@
 
 */
 
-/* Driver author info must always be in the binary.  Version too.. */
-static const char *tc574_version =
-"3c574_cs.c v1.08 9/24/98 Donald Becker/David Hinds, becker@scyld.com.\n";
-
 /*
 				Theory of Operation
 
@@ -103,28 +99,43 @@ earlier 3Com products.
 #include <pcmcia/ds.h>
 #include <pcmcia/mem_op.h>
 
-/* A few values that may be tweaked. */
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-4i");
-MODULE_PARM(max_interrupt_work, "i");
-MODULE_PARM(full_duplex, "i");
-MODULE_PARM(auto_polarity, "i");
+/*====================================================================*/
+
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("3Com 3c574 series PCMCIA ethernet driver");
+MODULE_LICENSE("GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
 /* Now-standard PC card module parameters. */
-static u_int irq_mask = 0xdeb8;			/* IRQ3,4,5,7,9,10,11,12,14,15 */
+INT_MODULE_PARM(irq_mask, 0xdeb8);
 static int irq_list[4] = { -1 };
+MODULE_PARM(irq_list, "1-4i");
+
+/* Maximum events (Rx packets, etc.) to handle at each interrupt. */
+INT_MODULE_PARM(max_interrupt_work, 32);
+
+/* Force full duplex modes? */
+INT_MODULE_PARM(full_duplex, 0);
+
+/* Autodetect link polarity reversal? */
+INT_MODULE_PARM(auto_polarity, 1);
+
+#ifdef PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+static char *version =
+"3c574_cs.c 1.65 2001/10/13 00:08:50 Donald Becker/David Hinds, becker@scyld.com.\n";
+#else
+#define DEBUG(n, args...)
+#endif
+
+/*====================================================================*/
 
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  ((800*HZ)/1000)
-
-/* Maximum events (Rx packets, etc.) to handle at each interrupt. */
-static int max_interrupt_work = 32;
-
-/* Force full duplex modes? */
-static int full_duplex = 0;
-
-/* Autodetect link polarity reversal? */
-static int auto_polarity = 1;
 
 /* To minimize the size of the driver source and make the driver more
    readable not all constants are symbolically defined.
@@ -219,16 +230,6 @@ struct el3_private {
    This only set with the original DP83840 on older 3c905 boards, so the extra
    code size of a per-interface flag is not worthwhile. */
 static char mii_preamble_required = 0;
-
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"3c574_cs.c 1.000 1998/1/8 Donald Becker, becker@scyld.com.\n";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /* Index of functions. */
 
@@ -1317,8 +1318,6 @@ static int __init init_3c574_cs(void)
 {
 	servinfo_t serv;
 
-	/* Always emit the version, before any failure. */
-	printk(KERN_INFO"%s", tc574_version);
 	DEBUG(0, "%s\n", version);
 	CardServices(GetCardServicesInfo, &serv);
 	if (serv.Revision != CS_RELEASE_CODE) {

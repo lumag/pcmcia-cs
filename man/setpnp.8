@@ -1,7 +1,7 @@
 .\" Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
-.\" setpnp.8 1.3 2000/06/12 21:24:49
+.\" setpnp.8 1.4 2001/10/04 03:11:23
 .\"
-.TH SETPNP 8 "2000/06/12 21:24:49" "pcmcia-cs"
+.TH SETPNP 8 "2001/10/04 03:11:23" "pcmcia-cs"
 .SH NAME
 setpnp \- modify Plug and Play BIOS device resources
 .SH SYNOPSIS
@@ -30,6 +30,7 @@ be unitary or dash-separated ranges.  For example:
 .nf
 setpnp 0d io 0x2f8-0x2ff irq 3
 setpnp 12 io 0x350-0x35f,0x2f8-0x2ff irq 3 irq 10
+setpnp 0b irq off
 .RE
 .fi
 .sp

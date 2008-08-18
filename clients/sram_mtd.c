@@ -2,7 +2,7 @@
 
     A simple MTD for accessing static RAM
 
-    sram_mtd.c 1.52 2001/08/24 12:07:50
+    sram_mtd.c 1.54 2001/10/13 00:08:53
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -34,7 +34,6 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
-#ifdef __LINUX__
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -47,7 +46,6 @@
 #include <linux/fs.h>
 #include <asm/io.h>
 #include <asm/system.h>
-#endif
 
 #include <stdarg.h>
 
@@ -59,25 +57,27 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/mem_op.h>
 
+/*====================================================================*/
+
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("Static RAM PCMCIA MTD driver");
+MODULE_LICENSE("Dual MPL/GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+INT_MODULE_PARM(word_width, 1);			/* 1 = 16-bit */
+INT_MODULE_PARM(mem_speed, 0);			/* in ns */
+
 #ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"sram_mtd.c 1.52 2001/08/24 12:07:50 (David Hinds)";
+"sram_mtd.c 1.54 2001/10/13 00:08:53 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
-
-static int word_width = 1;			/* 1 = 16-bit */
-static int mem_speed = 0;			/* in ns */
-
-MODULE_PARM(word_width, "i");
-MODULE_PARM(mem_speed, "i");
 
 /*====================================================================*/
 
@@ -100,18 +100,6 @@ typedef struct sram_dev_t {
 static dev_info_t dev_info = "sram_mtd";
 
 static dev_link_t *dev_list = NULL;
-
-#ifdef __BEOS__
-static cs_client_module_info *cs;
-static ds_module_info *ds;
-static isa_module_info *isa;
-#define CardServices		cs->_CardServices
-#define MTDHelperEntry		cs->_MTDHelperEntry
-#define add_timer		cs->_add_timer
-#define del_timer		cs->_del_timer
-#define register_pccard
-#define unregister_pccard_driver ds->_unregister_pccard_driver
-#endif
 
 /*====================================================================*/
 
@@ -501,8 +489,6 @@ static int sram_event(event_t event, int priority,
 
 /*====================================================================*/
 
-#ifdef __LINUX__
-
 static int __init init_sram_mtd(void)
 {
     servinfo_t serv;
@@ -527,46 +513,3 @@ static void __exit exit_sram_mtd(void)
 
 module_init(init_sram_mtd);
 module_exit(exit_sram_mtd);
-
-#endif /* __LINUX__ */
-
-/*====================================================================*/
-
-#ifdef __BEOS__
-
-static status_t std_ops(int32 op)
-{
-    int ret;
-    DEBUG(0, "sram_mtd: std_ops(%d)\n", op);
-    switch (op) {
-    case B_MODULE_INIT:
-	ret = get_module(CS_CLIENT_MODULE_NAME, (struct module_info **)&cs);
-	if (ret != B_OK) return ret;
-	ret = get_module(DS_MODULE_NAME, (struct module_info **)&ds);
-	if (ret != B_OK) return ret;
-	ret = get_module(B_ISA_MODULE_NAME, (struct module_info **)&isa);
-	if (ret != B_OK) return ret;
-	register_pccard_driver(&dev_info, &sram_attach, &sram_detach);
-	break;
-    case B_MODULE_UNINIT:
-	unregister_pccard_driver(&dev_info);
-	while (dev_list != NULL)
-	    sram_detach(dev_list);
-	if (isa) put_module(B_ISA_MODULE_NAME);
-	if (ds) put_module(DS_MODULE_NAME);
-	if (cs) put_module(CS_CLIENT_MODULE_NAME);
-	break;
-    }
-    return B_OK;
-}
-
-static module_info sram_mtd_mod_info = {
-    MTD_MODULE_NAME("sram_mtd"), 0, &std_ops
-};
-
-_EXPORT module_info *modules[] = {
-    &sram_mtd_mod_info,
-    NULL
-};
-
-#endif /* __BEOS__ */

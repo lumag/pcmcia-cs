@@ -1,4 +1,4 @@
-/* orinoco_cs.c 0.06f	- (formerly known as dldwd_cs.c)
+/* orinoco_cs.c 0.08	- (formerly known as dldwd_cs.c)
  *
  * A driver for "Hermes" chipset based PCMCIA wireless adaptors, such
  * as the Lucent WavelanIEEE/Orinoco cards and their OEM (Cabletron/
@@ -13,12 +13,14 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/config.h>
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
@@ -45,10 +47,11 @@
 
 /*====================================================================*/
 
-static const char version[] __initdata = "orinoco_cs.c 0.06f (David Gibson <hermes@gibson.dropbear.id.au> and others)";
+static char version[] __initdata = "orinoco_cs.c 0.08 (David Gibson <hermes@gibson.dropbear.id.au> and others)";
 
 MODULE_AUTHOR("David Gibson <hermes@gibson.dropbear.id.au>");
 MODULE_DESCRIPTION("Driver for PCMCIA Lucent Orinoco, Prism II based and similar wireless cards");
+MODULE_LICENSE("Dual MPL/GPL");
 
 /* Parameters that can be set with 'insmod' */
 
@@ -189,7 +192,7 @@ dldwd_cs_cor_reset(dldwd_priv_t *priv)
 	dldwd_card_t* card = (dldwd_card_t *)priv->card;
 	dev_link_t *link = &card->link;
 	conf_reg_t reg;
-	u_long default_cor; 
+	u_int default_cor; 
 
 	TRACE_ENTER(priv->ndev.name);
 
@@ -722,6 +725,9 @@ dldwd_cs_event(event_t event, int priority,
 
 	switch (event) {
 	case CS_EVENT_CARD_REMOVAL:
+		/* FIXME: Erg.. this whole hw_ready thing looks racy
+		   to me.  this may not be fixable without changin the
+		   PCMCIA subsystem, though */
 		priv->hw_ready = 0;
 		dldwd_shutdown(priv);
 		link->state &= ~DEV_PRESENT;
@@ -789,8 +795,7 @@ init_dldwd_cs(void)
 
 	TRACE_ENTER("dldwd");
 
-	printk(KERN_DEBUG "dldwd: David's Less Dodgy WaveLAN/IEEE Driver\n"
-	       KERN_DEBUG "%s\n", version);
+	printk(KERN_DEBUG "%s\n", version);
 
 	CardServices(GetCardServicesInfo, &serv);
 	if (serv.Revision != CS_RELEASE_CODE) {

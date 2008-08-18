@@ -94,6 +94,7 @@ static int max_interrupt_work = 32;
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("SMC 83c170 EPIC series Ethernet driver");
+MODULE_LICENSE("GPL");
 MODULE_PARM(debug, "i");
 MODULE_PARM(options, "1-" __MODULE_STRING(8) "i");
 MODULE_PARM(full_duplex, "1-" __MODULE_STRING(8) "i");

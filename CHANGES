@@ -1,3 +1,35 @@
+Version 3.1.30
+-- Tweaked MII detection algorithm in pcnet_cs to be more robust.
+-- Added full_duplex flag to pcnet_cs, to allow duplex control for
+   DL10022 rev 5 cards.
+-- Wireless tools update from Jean Tourrilhes.
+-- Changed xirc2ps_cs so that "if_port=" option overrides transceiver
+   type for CE3 cards, from Paul Sheer.
+-- Added support for Quatech dual, quad RS-422 cards.
+-- Updated module parameters, license info in many drivers.
+-- Update of orinoco_cs to version 0.08, from David Gibson.
+-- Fixed frame translation and max-sized frame transmit bug in ray_cs
+   from Corey Thomas.
+-- Fixed creation of device files in alternate locations by user
+   tools, from Philippe Troin.
+-- Fixed cardmgr bug in usage of config entries that specify both
+   product strings and manfid codes.
+-- Fixed ftl_cs to build on 2.4.10.
+-- Fixed setpnp to support disabling resources via the "off" keyword,
+   rather than using a value of 0 for that purpose.
+-- Fixed Configure to handle preemptive kernel patches.
+-- Tweaked axnet_cs so that it works with an unmodified 8390.h, for
+   easier 2.4 kernel integration.
+-- Added support for SSi 78Q8370 chips used in older CONTEC C-NET(PC)C
+   cards to fmvj18x_cs driver, from Komuro.
+-- Changed wvlan_cs to be less vociferous about PrismII cards.
+-- Changed ide_cs to disable drive interrupts during the IDE probe.
+-- Fixed axnet_cs incompatibility with early 2.2.* kernels.
+-- Fixed Configure bug in reading a few settings of current kernel.
+-- Fixed design bug in memory_cb driver affecting non-x86 archs.
+-- Fixed PCMCIA startup script to better handle 2.4 kernel PCMCIA
+   configurations.
+
 [29-Aug-01] Version 3.1.29
 -- Back-ported orinoco_cs driver from 2.4 kernel tree.
 -- Added tougher test for IEEE1394 driver compatibility, because

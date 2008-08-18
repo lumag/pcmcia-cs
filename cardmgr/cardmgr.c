@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.161 2001/08/24 12:19:19
+    cardmgr.c 1.165 2001/11/14 01:24:35
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -30,10 +30,6 @@
     file under either the MPL or the GPL.
     
 ======================================================================*/
-
-#ifndef __linux__
-#include <pcmcia/u_compat.h>
-#endif
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -109,10 +105,8 @@ static char *configpath = "/etc/pcmcia";
 /* Default path for pid file */
 static char *pidfile = "/var/run/cardmgr.pid";
 
-#ifdef __linux__
 /* Default path for finding modules */
 static char *modpath = NULL;
-#endif
 
 /* Default path for socket info table */
 static char *stabfile;
@@ -130,8 +124,6 @@ static int one_pass = 0;
 static int verbose = 0;
 
 /*====================================================================*/
-
-#ifdef __linux__
 
 static int major = 0;
 
@@ -161,37 +153,30 @@ int open_dev(dev_t dev, int mode)
     static char *paths[] = {
 	"/var/lib/pcmcia", "/var/run", "/dev", "/tmp", NULL
     };
+    static int nd = 0;
     char **p, fn[64];
     int fd;
 
+    int o_mode = (mode & S_IWRITE) ? O_RDWR : O_RDONLY;
     for (p = paths; *p; p++) {
-	sprintf(fn, "%s/cm-%d", *p, getpid());
-	if (mknod(fn, mode, dev) == 0)
-	    break;
-    }
-    if (!*p)
-	return -1;
-    fd = open(fn, (mode&S_IWRITE)?O_RDWR:O_RDONLY);
-    if (fd < 0)
-	fd = open(fn, O_NONBLOCK|((mode&S_IWRITE)?O_RDWR:O_RDONLY));
-    unlink(fn);
-    return fd;
-}
+	sprintf(fn, "%s/cm-%d-%d", *p, getpid(), nd++);
+	if (mknod(fn, mode, dev) == 0) {
+	    fd = open(fn, o_mode);
+	    if (fd < 0)
+		fd = open(fn, O_NONBLOCK|o_mode);
+	    unlink(fn);
+	    if (fd >= 0)
+		return fd;
+	}
 
-#endif /* __linux__ */
+    }
+    return -1;
+}
 
 int open_sock(int sock, int mode)
 {
-#ifdef __linux__
     dev_t dev = (major<<8)+sock;
     return open_dev(dev, mode);
-#endif
-#ifdef __BEOS__
-    int fd;
-    char fn[B_OS_NAME_LENGTH];
-    sprintf(fn, "/dev/pcmcia/sock%d", sock);
-    return open(fn, (mode & S_IWRITE) ? O_RDWR: O_RDONLY);
-#endif
 }
 
 /*======================================================================
@@ -201,8 +186,6 @@ int open_sock(int sock, int mode)
     the low-level driver.
     
 ======================================================================*/
-
-#ifdef __linux__
 
 #include <linux/major.h>
 #include <scsi/scsi.h>
@@ -250,7 +233,6 @@ static int xlate_scsi_name(bind_info_t *bind)
     }
     return -1;
 }
-#endif
 
 /*====================================================================*/
 
@@ -258,8 +240,6 @@ static int xlate_scsi_name(bind_info_t *bind)
 #define BEEP_OK   1000
 #define BEEP_WARN 2000
 #define BEEP_ERR  4000
-
-#ifdef __linux__
 
 #include <sys/kd.h>
 
@@ -277,15 +257,6 @@ static void beep(unsigned int ms, unsigned int freq)
     close(fd);
     usleep(ms*1000);
 }
-
-#endif /* __linux__ */
-
-#ifdef __BEOS__
-static void beep(unsigned int ms, unsigned int freq)
-{
-    if (!be_quiet) system("/bin/beep");
-}
-#endif
 
 /*====================================================================*/
 
@@ -313,12 +284,10 @@ static void write_stab(void)
 	syslog(LOG_WARNING, "fopen(stabfile) failed: %m");
 	return;
     }
-#ifndef __BEOS__
     if (flock(fileno(f), LOCK_EX) != 0) {
 	syslog(LOG_ERR, "flock(stabfile) failed: %m");
 	return;
     }
-#endif
     for (i = 0; i < sockets; i++) {
 	s = &socket[i];
 	fprintf(f, "Socket %d: ", i);
@@ -347,9 +316,7 @@ static void write_stab(void)
 	}
     }
     fflush(f);
-#ifndef __BEOS__
     flock(fileno(f), LOCK_UN);
-#endif
     fclose(f);
 }
 
@@ -383,8 +350,6 @@ static int get_tuple(int ns, cisdata_t code, ds_ioctl_arg_t *arg)
 
 ======================================================================*/
 
-#ifdef __linux__
-
 typedef struct pci_id {
     u_short vendor, device;
     struct pci_id *next;
@@ -403,8 +368,6 @@ static int get_pci_id(int ns, pci_id_t *id)
     id->device = config.ConfigBase >> 16;
     return 1;
 }
-
-#endif /* __linux__ */
 
 /*====================================================================*/
 
@@ -715,8 +678,6 @@ static int execute_on_all(char *cmd, char *class, int sn, int fn)
 
 /*====================================================================*/
 
-#ifdef __linux__
-
 typedef struct module_list_t {
     char *mod;
     int usage;
@@ -783,7 +744,6 @@ static void install_module(char *mod, char *opts)
     if (ml->usage != 1)
 	return;
 
-#ifdef __linux__
     if (access("/proc/bus/pccard/drivers", R_OK) == 0) {
 	FILE *f = fopen("/proc/bus/pccard/drivers", "r");
 	if (f) {
@@ -800,7 +760,6 @@ static void install_module(char *mod, char *opts)
 	    fclose(f);
 	}
     }
-#endif
 
     if (do_modprobe) {
 	if (try_modprobe(mod, opts) != 0)
@@ -829,24 +788,6 @@ static void remove_module(char *mod)
 	}
     }
 }
-
-#endif /* __linux__ */
-
-/*====================================================================*/
-
-#ifdef __BEOS__
-
-#define install_module(a,b)
-#define remove_module(a)
-
-static void republish_driver(char *mod)
-{
-    int fd = open("/dev", O_RDWR);
-    write(fd, mod, strlen(mod));
-    close(fd);
-}
-
-#endif /* __BEOS__ */
 
 /*====================================================================*/
 
@@ -983,14 +924,12 @@ static void do_insert(int sn)
     if (i < card->bindings)
 	bind_mtd(sn);
 
-#ifdef __linux__
     /* Install kernel modules */
     for (i = 0; i < card->bindings; i++) {
 	dev[i]->refs++;
 	for (j = 0; j < dev[i]->modules; j++)
 	    install_module(dev[i]->module[j], dev[i]->opts[j]);
     }
-#endif
     
     /* Bind drivers by their dev_info identifiers */
     for (i = 0; i < card->bindings; i++) {
@@ -1013,10 +952,6 @@ static void do_insert(int sn)
 	    }
 	}
 
-#ifdef __BEOS__
-	republish_driver(dev[i]->module[0]);
-#endif
-
 	for (ret = j = 0; j < 10; j++) {
 	    ret = ioctl(s->fd, DS_GET_DEVICE_INFO, bind);
 	    if ((ret == 0) || (errno != EAGAIN))
@@ -1034,10 +969,8 @@ static void do_insert(int sn)
 	tail = &s->bind[i];
 	while (ret == 0) {
 	    bind_info_t *old;
-#ifdef __linux__
 	    if ((strlen(bind->name) > 3) && (bind->name[2] == '#'))
 		xlate_scsi_name(bind);
-#endif
 	    old = *tail = bind; tail = (bind_info_t **)&bind->next;
 	    bind = (bind_info_t *)malloc(sizeof(bind_info_t));
 	    memcpy(bind, old, sizeof(bind_info_t));
@@ -1332,7 +1265,6 @@ static int init_sockets(void)
     int fd, i;
     servinfo_t serv;
 
-#ifdef __linux__
     major = lookup_dev("pcmcia");
     if (major < 0) {
 	if (major == -ENODEV)
@@ -1341,7 +1273,6 @@ static int init_sockets(void)
 	    syslog(LOG_ERR, "could not open /proc/devices: %m");
 	exit(EXIT_FAILURE);
     }
-#endif
     for (fd = -1, i = 0; i < MAX_SOCKS; i++) {
 	fd = open_sock(i, S_IFCHR|S_IREAD|S_IWRITE);
 	if (fd < 0) break;
@@ -1401,12 +1332,10 @@ int main(int argc, char *argv[])
 	    delay_fork = 1; break;
 	case 'c':
 	    configpath = strdup(optarg); break;
-#ifdef __linux__
 	case 'd':
 	    do_modprobe = 1; break;
 	case 'm':
 	    modpath = strdup(optarg); break;
-#endif
 	case 'p':
 	    pidfile = strdup(optarg); break;
 	case 's':
@@ -1437,7 +1366,6 @@ int main(int argc, char *argv[])
     if (verbose)
 	putenv("VERBOSE=1");
 
-#ifdef __linux__
     if (modpath == NULL) {
 	if (access("/lib/modules/preferred", X_OK) == 0)
 	    modpath = "/lib/modules/preferred";
@@ -1455,7 +1383,6 @@ int main(int argc, char *argv[])
 	syslog(LOG_INFO, "cannot access %s: %m", modpath);
     /* We default to using modprobe if it is available */
     do_modprobe |= (access("/sbin/modprobe", X_OK) == 0);
-#endif /* __linux__ */
     
     load_config();
     

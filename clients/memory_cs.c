@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.80 2001/08/24 12:13:14
+    memory_cs.c 1.82 2001/10/13 14:04:05
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -82,32 +82,28 @@ static int major_dev = 0;
 
 #include <linux/blk.h>
 
+/*====================================================================*/
+
+/* Module parameters */
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("PCMCIA memory card driver");
+MODULE_LICENSE("Dual MPL/GPL");
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+INT_MODULE_PARM(word_width, 1);		/* 1 = 16-bit, 0 = 8-bit */
+INT_MODULE_PARM(mem_speed, 0);		/* access speed, in ns */
+INT_MODULE_PARM(force_size, 0);		/* force SRAM card size? */
+
 #ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.80 2001/08/24 12:13:14 (David Hinds)";
+"memory_cs.c 1.82 2001/10/13 14:04:05 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
-
-/* 1 = do 16-bit transfers, 0 = do 8-bit transfers */
-static int word_width = 1;
-
-/* Speed of memory accesses, in ns */
-static int mem_speed = 0;
-
-/* Force the size of an SRAM card */
-static int force_size = 0;
-
-MODULE_PARM(word_width, "i");
-MODULE_PARM(mem_speed, "i");
-MODULE_PARM(force_size, "i");
 
 /*====================================================================*/
 
