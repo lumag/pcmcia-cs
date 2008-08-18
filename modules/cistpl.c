@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.99 2002/10/24 06:11:48
+    cistpl.c 1.101 2003/12/15 03:58:03
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -351,9 +351,12 @@ static void read_cis_cache(socket_info_t *s, int attr, u_int addr,
 
 int verify_cis_cache(socket_info_t *s)
 {
-    char buf[256], *caddr;
+    char *buf, *caddr;
     int i;
-    
+
+    buf = kmalloc(256, GFP_KERNEL);
+    if (buf == NULL)
+	return -1;
     caddr = s->cis_cache;
     for (i = 0; i < s->cis_used; i++) {
 #ifdef CONFIG_CARDBUS
@@ -368,6 +371,7 @@ int verify_cis_cache(socket_info_t *s)
 	    break;
 	caddr += s->cis_table[i].len;
     }
+    kfree(buf);
     return (i < s->cis_used);
 }
 
@@ -1411,19 +1415,24 @@ int parse_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
 int read_tuple(client_handle_t handle, cisdata_t code, void *parse)
 {
     tuple_t tuple;
-    cisdata_t buf[255];
+    cisdata_t *buf;
     int ret;
-    
+
+    buf = kmalloc(255, GFP_KERNEL);
+    if (buf == NULL)
+	return CS_OUT_OF_RESOURCE;
     tuple.DesiredTuple = code;
     tuple.Attributes = TUPLE_RETURN_COMMON;
     ret = CardServices(GetFirstTuple, handle, &tuple, NULL);
-    if (ret != CS_SUCCESS) return ret;
+    if (ret != CS_SUCCESS) goto done;
     tuple.TupleData = buf;
     tuple.TupleOffset = 0;
-    tuple.TupleDataMax = sizeof(buf);
+    tuple.TupleDataMax = 255;
     ret = CardServices(GetTupleData, handle, &tuple, NULL);
-    if (ret != CS_SUCCESS) return ret;
+    if (ret != CS_SUCCESS) goto done;
     ret = CardServices(ParseTuple, handle, &tuple, parse);
+done:
+    kfree(buf);
     return ret;
 }
 
@@ -1440,36 +1449,39 @@ int read_tuple(client_handle_t handle, cisdata_t code, void *parse)
 int validate_cis(client_handle_t handle, cisinfo_t *info)
 {
     tuple_t tuple;
-    cisparse_t p;
+    cisparse_t *p;
     int ret, reserved, dev_ok = 0, ident_ok = 0;
 
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
+    p = kmalloc(sizeof(*p), GFP_KERNEL);
+    if (p == NULL)
+	return CS_OUT_OF_RESOURCE;
 
     info->Chains = reserved = 0;
     tuple.DesiredTuple = RETURN_FIRST_TUPLE;
     tuple.Attributes = TUPLE_RETURN_COMMON;
     ret = get_first_tuple(handle, &tuple);
     if (ret != CS_SUCCESS)
-	return CS_SUCCESS;
+	goto done;
 
     /* First tuple should be DEVICE; we should really have either that
        or a CFTABLE_ENTRY of some sort */
     if ((tuple.TupleCode == CISTPL_DEVICE) ||
-	(read_tuple(handle, CISTPL_CFTABLE_ENTRY, &p) == CS_SUCCESS) ||
-	(read_tuple(handle, CISTPL_CFTABLE_ENTRY_CB, &p) == CS_SUCCESS))
+	(read_tuple(handle, CISTPL_CFTABLE_ENTRY, p) == CS_SUCCESS) ||
+	(read_tuple(handle, CISTPL_CFTABLE_ENTRY_CB, p) == CS_SUCCESS))
 	dev_ok++;
 
     /* All cards should have a MANFID tuple, and/or a VERS_1 or VERS_2
        tuple, for card identification.  Certain old D-Link and Linksys
        cards have only a broken VERS_2 tuple; hence the bogus test. */
-    if ((read_tuple(handle, CISTPL_MANFID, &p) == CS_SUCCESS) ||
-	(read_tuple(handle, CISTPL_VERS_1, &p) == CS_SUCCESS) ||
-	(read_tuple(handle, CISTPL_VERS_2, &p) != CS_NO_MORE_ITEMS))
+    if ((read_tuple(handle, CISTPL_MANFID, p) == CS_SUCCESS) ||
+	(read_tuple(handle, CISTPL_VERS_1, p) == CS_SUCCESS) ||
+	(read_tuple(handle, CISTPL_VERS_2, p) != CS_NO_MORE_ITEMS))
 	ident_ok++;
 
     if (!dev_ok && !ident_ok)
-	return CS_SUCCESS;
+	goto done;
 
     for (info->Chains = 1; info->Chains < MAX_TUPLES; info->Chains++) {
 	ret = get_next_tuple(handle, &tuple);
@@ -1483,6 +1495,8 @@ int validate_cis(client_handle_t handle, cisinfo_t *info)
 	((!dev_ok || !ident_ok) && (info->Chains > 10)))
 	info->Chains = 0;
 
+done:
+    kfree(p);
     return CS_SUCCESS;
 }
 

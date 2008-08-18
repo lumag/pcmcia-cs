@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.88 2003/11/09 07:02:47
+    cardbus.c 1.90 2003/12/12 17:13:39
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -112,6 +112,7 @@ typedef struct cb_config_t {
 #if (LINUX_VERSION_CODE >= VERSION(2,3,15))
 #include <linux/resource.h>
 #define BASE(cb,n)	((cb).dev.resource[n].start)
+#define END(cb,n)	((cb).dev.resource[n].end)
 #define FLAGS(cb,n)	((cb).dev.resource[n].flags)
 #define ROM(cb)		((cb).dev.resource[6].start)
 #define res_flags(x)	\
@@ -437,7 +438,7 @@ int cb_config(socket_info_t *s)
 {
     cb_config_t *c = s->cb_config;
     u_char fn = s->functions;
-    u_char i, j, *name;
+    u_char i, j;
     u_int sz, align, m, mask[3], num[3], base[3];
     int irq;
 
@@ -474,13 +475,12 @@ int cb_config(socket_info_t *s)
     }
 
     /* Allocate system resources */
-    name = "cb_enabler";
     s->io[0].NumPorts = num[B_IO];
     s->io[0].BasePort = 0;
     if (num[B_IO]) {
 	for (align = 1; align < mask[B_IO]; align <<= 1) ;
 	if (find_io_region(&s->io[0].BasePort, num[B_IO],
-			   align, name) != 0) {
+			   align, NULL) != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %d IO ports for"
 		   " CardBus socket %d\n", num[B_IO], s->sock);
 	    goto failed;
@@ -492,7 +492,7 @@ int cb_config(socket_info_t *s)
     if (num[B_M1]) {
 	for (align = 1; align < mask[B_M1]; align <<= 1) ;
 	if (find_mem_region(&s->win[0].base, num[B_M1], align,
-			    0, name) != 0) {
+			    0, "cb_enabler") != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %dK memory for"
 		   " CardBus socket %d\n", num[B_M1]/1024, s->sock);
 	    goto failed;
@@ -504,13 +504,15 @@ int cb_config(socket_info_t *s)
     if (num[B_M2]) {
 	for (align = 1; align < mask[B_M2]; align <<= 1) ;
 	if (find_mem_region(&s->win[1].base, num[B_M2], align,
-			    0, name) != 0) {
+			    0, NULL) != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %dK memory for"
 		   " CardBus socket %d\n", num[B_M2]/1024, s->sock);
 	    goto failed;
 	}
 	base[B_M2] = s->win[1].base + num[B_M2];
     }
+    if (num[B_M1])
+	release_mem_region(s->win[0].base, num[B_M1]);
     
     /* Set up base address registers */
     while (mask[B_IO] | mask[B_M1] | mask[B_M2]) {
@@ -531,6 +533,9 @@ int cb_config(socket_info_t *s)
 		    printk("%s 0x%x-0x%x\n", (m) ? "mem" : "io",
 			   base[m], base[m]+sz-1);
 		    BASE(c[i], j) = base[m];
+#ifdef END
+		    END(c[i], j) = base[m]+sz-1;
+#endif
 		    FLAGS(c[i], j) |= res_flags(map_flags[m]);
 		}
 	    }
@@ -548,13 +553,13 @@ int cb_config(socket_info_t *s)
 	if (irq == 0) {
 	    int try;
 	    for (try = 0; try < 2; try++) {
-		for (irq = 0; irq < 32; irq++)
+		for (irq = 0; irq < 16; irq++)
 		    if (((s->cap.irq_mask >> irq) & 1) &&
 			(try_irq(IRQ_TYPE_EXCLUSIVE, irq, try) == 0))
 			break;
-		if (irq < 32) break;
+		if (irq < 16) break;
 	    }
-	    if (irq == 32) irq = 0;
+	    if (irq == 16) irq = 0;
 	}
 	if (irq == 0) {
 	    printk(KERN_NOTICE "cs: could not allocate interrupt"
@@ -592,12 +597,6 @@ void cb_release(socket_info_t *s)
     
     DEBUG(0, "cs: cb_release(bus %d)\n", s->cap.cardbus);
     
-    if (s->win[0].size > 0)
-	release_mem_region(s->win[0].base, s->win[0].size);
-    if (s->win[1].size > 0)
-	release_mem_region(s->win[1].base, s->win[1].size);
-    if (s->io[0].NumPorts > 0)
-	release_region(s->io[0].BasePort, s->io[0].NumPorts);
     s->io[0].NumPorts = 0;
 #ifdef CONFIG_ISA
     if ((c[0].dev.irq != 0) && (c[0].dev.irq != s->cap.pci_irq))

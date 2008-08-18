@@ -1,16 +1,23 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.235 2003/11/24 17:55:14 (David Hinds)
+# config 1.237 2003/12/07 07:07:26 (David Hinds)
 #
-
 # config.opts is now included at the very end.  In general, it is a
 # good idea to add things to that file rather than to this one.
+#
 
 #
 # Device driver definitions
 #
 # These should generally not be changed!
+#
+# For drivers that depend on multiple modules, the definitions here
+# assume that "modprobe" will resolve all dependencies.  Current
+# versions of cardmgr use modprobe by default but will fall back on
+# insmod if modprobe is unavailable.  On such a system, you must
+# explicitly specify module dependencies in this file.  Here, those
+# module dependencies are listed but commented out.
 #
 
 device "3c589_cs"
@@ -33,7 +40,7 @@ device "oti12_cs"
   class "cdrom" module "oti12_cs"
 
 device "pcnet_cs"
-  #class "network" module "net/8390", "pcnet_cs"
+  #class "network" module "8390", "pcnet_cs"
   class "network" module "pcnet_cs"
 
 device "smc91c92_cs"
@@ -658,6 +665,10 @@ card "PreMax PE-200 Ethernet"
 
 card "PRETEC CompactLAN Ethernet"
   version "PRETEC", "Ethernet CompactLAN 10baseT 3.3V"
+  bind "pcnet_cs"
+
+card "PRETEC CompactLAN Ethernet"
+  version "PRETEC", "Ethernet CompactLAN 10BaseT 3.3V"
   bind "pcnet_cs"
 
 card "Psion Gold Card Ethernet"

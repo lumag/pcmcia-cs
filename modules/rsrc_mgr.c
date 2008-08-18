@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.91 2003/08/16 16:51:26
+    rsrc_mgr.c 1.94 2003/12/12 17:12:53
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -92,8 +92,8 @@ typedef struct irq_info_t {
     struct socket_info_t	*Socket;
 } irq_info_t;
 
-/* Table of IRQ assignments */
-static irq_info_t irq_table[NR_IRQS] = { { 0, 0, 0 }, /* etc */ };
+/* Table of ISA IRQ assignments */
+static irq_info_t irq_table[16] = { { 0, 0, 0 }, /* etc */ };
 
 #endif
 
@@ -533,12 +533,13 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 		  int force_low)
 {
-    resource_map_t *m;
+    resource_map_t *m, *n;
     static int done = 0;
     
     if (!probe_mem || done++)
 	return;
-    for (m = mem_db.next; m != &mem_db; m = m->next)
+    for (m = mem_db.next; m != &mem_db; m = n)
+	n = m->next;
 	if (do_mem_probe(m->base, m->num, is_valid, do_cksum))
 	    return;
 }
@@ -573,7 +574,7 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, ioaddr_t align,
 	    if ((check_region(try, num) == 0) &&
 		(check_io_region(try, num) == 0)) {
 		*base = try;
-		request_region(try, num, name);
+		if (name) request_region(try, num, name);
 		return 0;
 	    }
 	    if (!align) break;
@@ -597,7 +598,7 @@ int find_mem_region(u_long *base, u_long num, u_long align,
 		 (try >= m->base) && (try+num <= m->base+m->num);
 		 try += align) {
 		if (check_mem_region(try, num) == 0) {
-		    request_mem_region(try, num, name);
+		    if (name) request_mem_region(try, num, name);
 		    *base = try;
 		    return 0;
 		}

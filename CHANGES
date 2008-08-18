@@ -1,3 +1,9 @@
+[15-Dec-03] Version 3.2.7
+-- Reduced kernel stack usage in CIS processing code.
+-- Changed CardBus resource management to be the responsibility of the
+   client driver rather than cb_enabler.
+-- Fixed the Configure script fix for 2.4.23 from 3.2.6 release.
+
 [30-Nov-03] Version 3.2.6
 -- Made cardmgr less verbose by default, and fixed logging levels of
    some messages to be more sensible.

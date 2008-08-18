@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2003/11/24 17:55:46
+		Last updated: 2003/12/09 15:13:20
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -365,7 +365,7 @@ Wireless network adapters:
 	ASUS SpaceLink WL-100
 	Avaya World Card
 	Belkin F5D6020
-	Buffallo WLI-PCM-S11
+	Buffalo WLI-PCM-S11
 	Cabletron/Enterasys RoamAbout 802.11 DS
 	Compaq WL100, HNW-100
 	Corega PCCA-11

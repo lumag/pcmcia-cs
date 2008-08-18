@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.235 2003/12/01 06:48:05
+# Configure 1.236 2003/12/04 17:25:23
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -715,9 +715,9 @@ case $CONF_SRC in
 	configcheck PCMCIA
 	if qgrep "^ *SMP *= *1" $LINUX/Makefile ; then
 	    CONFIG_SMP=y
-	    eval `grep "^CONFIG_NR_CPUS=" $AUTOCONF`
 	else
 	    configcheck SMP
+	    eval `grep "^CONFIG_NR_CPUS=" $AUTOCONF`
 	fi
 	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	    configcheck BLK_DEV_IDE_PCMCIA

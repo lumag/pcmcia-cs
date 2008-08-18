@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.117, 18 October 2003
+  v2.118, 06 December 2003
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -105,7 +105,7 @@
 
   7. Debugging tips and programming information
 
-     7.1 Submitting useful bug reports
+     7.1 Submitting useful problem reports
      7.2 Interpreting kernel trap reports
      7.3 Low level PCMCIA debugging aids
      7.4 /proc/bus/pccard
@@ -3084,19 +3084,21 @@
 
   77..  DDeebbuuggggiinngg ttiippss aanndd pprrooggrraammmmiinngg iinnffoorrmmaattiioonn
 
-  77..11..  SSuubbmmiittttiinngg uusseeffuull bbuugg rreeppoorrttss
+  77..11..  SSuubbmmiittttiinngg uusseeffuull pprroobblleemm rreeppoorrttss
 
-  The best way to submit bug reports is to use the HyperNews message
-  lists on the Linux PCMCIA information site.  That way, other people
-  can see current problems (and fixes or workarounds, if available).
-  Here are some things that should be included in all bug reports:
+  The best way to submit reports is to use the online pcmcia-cs forums
+  or the bug tracker at SourceForge.  That way, other people can see
+  current problems (and fixes or workarounds, if available).  Here are
+  some things that should be included in all bug reports:
 
   +o  Your system brand and model.
 
-  +o  What PCMCIA card(s) you are using.
+  +o  All PCMCIA card(s) you are using.
 
   +o  Your Linux kernel version (i.e., ``uname -rv''), and PCMCIA driver
      version (i.e., ``cardctl -V'').
+
+  +o  Output of 'lspci -v'
 
   +o  Any changes you have made to the startup files in /etc/pcmcia, or
      to the PCMCIA startup script.
@@ -3120,7 +3122,8 @@
 
   If you do not have web access, bug reports can be sent to me at
   dahinds@users.sourceforge.net.  However, I prefer that bug reports be
-  posted to the PCMCIA web site, so that they can be seen by others.
+  posted to the pcmcia-cs SourceForge site, so that they can be seen by
+  others.
 
   77..22..  IInntteerrpprreettiinngg kkeerrnneell ttrraapp rreeppoorrttss
 
@@ -3202,7 +3205,6 @@
   +o  To diagnose a silent lock-up, try to provoke the problem with X
      disabled, since kernel messages sent to the text console will not
      be visible under X.
-
   +o  If you kill klogd, most kernel messages will be echoed directly on
      the text console, which may be helpful if the problem prevents
      klogd from writing to the system log.
@@ -3267,6 +3269,7 @@
   can only be interpreted using the data sheets for the PCMCIA host
   controller.  Its contents may depend on how the drivers were
   configured, but may include all or some of the following:
+
      /proc/bus/pccard/{irq,ioport,memory}
         If present, these files contain resource allocation information
         to supplement the normal kernel resource tables.  Recent
@@ -3385,6 +3388,7 @@
   with the 3.1.6 release, cardmgr will automatically process any *.conf
   files installed in /etc/pcmcia, so installation of contributed drivers
   should no longer require hand editing configuration files.
+
   I will accept client drivers prepared according to this specification
   and place them in the /pub/pcmcia-cs/contrib directory on
   projects.sourceforge.net.  The README in this directory will describe

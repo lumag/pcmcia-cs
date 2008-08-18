@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.285 2003/11/27 22:30:38
+    cs.c 1.286 2003/12/12 17:13:23
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -133,7 +133,7 @@ INT_MODULE_PARM(do_pnp, 1);
 int pc_debug=PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.285 2003/11/27 22:30:38 (David Hinds)";
+"cs.c 1.286 2003/12/12 17:13:23 (David Hinds)";
 #endif
 
 /*====================================================================*/
@@ -1811,7 +1811,7 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 	if (req->IRQInfo1 & IRQ_INFO2_VALID) {
 	    u_int try, mask = req->IRQInfo2 & s->cap.irq_mask;
 	    for (try = 0; try < 2; try++) {
-		for (irq = 0; irq < 32; irq++)
+		for (irq = 0; irq < 16; irq++)
 		    if ((mask >> irq) & 1) {
 			ret = try_irq(req->Attributes, irq, try);
 			if (ret == 0) break;
