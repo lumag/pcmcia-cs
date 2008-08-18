@@ -1,5 +1,5 @@
 /*
- * ricoh.h 1.9 1999/10/25 20:03:34
+ * ricoh.h 1.10 2000/04/24 21:19:49
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -128,5 +128,13 @@
 #define  RL5C4XX_CMD_SHIFT		4
 #define  RL5C4XX_HOLD_MASK		0x1c00
 #define  RL5C4XX_HOLD_SHIFT		10
+
+/* Data structure for tracking vendor-specific state */
+typedef struct ricoh_state_t {
+    u_short		misc;		/* RL5C4XX_MISC */
+    u_short		ctl;		/* RL5C4XX_16BIT_CTL */
+    u_short		io;		/* RL5C4XX_16BIT_IO_0 */
+    u_short		mem;		/* RL5C4XX_16BIT_MEM_0 */
+} ricoh_state_t;
 
 #endif /* _LINUX_RICOH_H */

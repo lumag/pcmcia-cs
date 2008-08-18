@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# ftl 1.22 1998/10/08 19:44:18 (David Hinds)
+# ftl 1.23 2000/04/17 20:31:01 (David Hinds)
 #
 # Initialize or shutdown an FTL memory device
 #
@@ -46,7 +46,7 @@ case "$ACTION" in
     ;;
 
 'cksum')
-    chk_parts "$3,$SOCKET,$INSTANCE" || exit 1
+    chk_parts "$NEW_SCHEME,$SOCKET,$INSTANCE" || exit 1
     ;;
     
 'suspend'|'resume')

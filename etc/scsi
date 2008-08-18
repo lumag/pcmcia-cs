@@ -61,7 +61,7 @@ case "$ACTION" in
     ;;
 
 'cksum')
-    chk_parts "$3,$TYPE,$SOCKET,$SCSI_ID" || exit 1
+    chk_parts "$NEW_SCHEME,$TYPE,$SOCKET,$SCSI_ID" || exit 1
     ;;
     
 'suspend'|'resume')

@@ -102,7 +102,6 @@ static void fmvj18x_config(dev_link_t *link);
 static void fmvj18x_release(u_long arg);
 static int fmvj18x_event(event_t event, int priority,
 			  event_callback_args_t *args);
-static int fmvj18x_init(struct net_device *dev);
 static dev_link_t *fmvj18x_attach(void);
 static void fmvj18x_detach(dev_link_t *);
 
@@ -317,7 +316,6 @@ static dev_link_t *fmvj18x_attach(void)
     dev->set_multicast_list = &set_rx_mode;
     ether_setup(dev);
     dev->name = lp->node.dev_name;
-    dev->init = &fmvj18x_init;
     dev->open = &fjn_open;
     dev->stop = &fjn_close;
 #ifdef HAVE_NETIF_QUEUE
@@ -353,7 +351,6 @@ static void fmvj18x_detach(dev_link_t *link)
 {
     local_info_t *lp = link->priv;
     dev_link_t **linkp;
-    long flags;
     
     DEBUG(0, "fmvj18x_detach(0x%p)\n", link);
     
@@ -363,14 +360,7 @@ static void fmvj18x_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    save_flags(flags);
-    cli();
-    if (link->state & DEV_RELEASE_PENDING) {
-	del_timer(&link->release);
-	link->state &= ~DEV_RELEASE_PENDING;
-    }
-    restore_flags(flags);
-    
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG) {
 	fmvj18x_release((u_long)link);
 	if (link->state & DEV_STALE_CONFIG) {
@@ -574,7 +564,7 @@ static void fmvj18x_release(u_long arg)
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
     
-    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+    link->state &= ~DEV_CONFIG;
     
 } /* fmvj18x_release */
 
@@ -594,8 +584,7 @@ static int fmvj18x_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    netif_device_detach(dev);
-	    link->release.expires = jiffies + HZ/20;
-	    add_timer(&link->release);
+	    mod_timer(&link->release, jiffies + HZ/20);
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
@@ -627,11 +616,6 @@ static int fmvj18x_event(event_t event, int priority,
     }
     return 0;
 } /* fmvj18x_event */
-
-static int fmvj18x_init(struct net_device *dev)
-{
-    return 0;
-} /* fmvj18x_init */
 
 /*====================================================================*/
 
@@ -1051,11 +1035,8 @@ static int fjn_close(struct net_device *dev)
 	outb(INTR_OFF, ioaddr + LAN_CTRL);
 
     link->open--;
-    if (link->state & DEV_STALE_CONFIG) {
-	link->release.expires = jiffies + HZ/20;
-	link->state |= DEV_RELEASE_PENDING;
-	add_timer(&link->release);
-    }
+    if (link->state & DEV_STALE_CONFIG)
+	mod_timer(&link->release, jiffies + HZ/20);
     MOD_DEC_USE_COUNT;
 
     return 0;

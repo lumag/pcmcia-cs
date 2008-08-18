@@ -453,16 +453,8 @@
  */
 #ifndef HAVE_NETIF_QUEUE
 #define devstate(dev)			((dev->tbusy) | (dev->start << 1))
-#define devstart(dev)			(dev->start = 1)
-#define devstop(dev)			(dev->start = 0)
 #else	/* 2.3.47 */
 #define devstate(dev)			(dev->state)
-#define devstart(dev)			(1)
-#define devstop(dev)			(0)
-#endif	/* 2.3.47 */
-
-#ifndef HAVE_NETIF_QUEUE
-#define spin_is_locked(s)		0
 #endif	/* 2.3.47 */
 
 /************************** DRIVER OPTIONS **************************/
@@ -800,8 +792,7 @@ static void
 /* ------------------- CONFIGURATION CALLBACKS ------------------- */
 static int
 	wavelan_open(device *),		/* Open the device */
-	wavelan_close(device *),	/* Close the device */
-	wavelan_init(device *);		/* Do nothing */
+	wavelan_close(device *);	/* Close the device */
 static dev_link_t *
 	wavelan_attach(void);		/* Create a new device */
 static void

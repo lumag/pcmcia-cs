@@ -1,5 +1,5 @@
 /*
- * cirrus.h 1.6 2000/03/10 19:52:30
+ * cirrus.h 1.7 2000/04/24 21:19:49
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -162,5 +162,13 @@
 
 /* Socket Number Register */
 #define PD6832_SOCKET_NUMBER		0x004c	/* 8 bit */
+
+/* Data structure for tracking vendor-specific state */
+typedef struct cirrus_state_t {
+    u_char		misc1;		/* PD67_MISC_CTL_1 */
+    u_char		misc2;		/* PD67_MISC_CTL_2 */
+    u_char		ectl1;		/* PD67_EXT_CTL_1 */
+    u_char		timer[6];	/* PD67_TIME_* */
+} cirrus_state_t;
 
 #endif /* _LINUX_CIRRUS_H */

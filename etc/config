@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.114 2000/03/13 22:29:19 (David Hinds)
+# config 1.119 2000/05/15 19:28:14 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -504,7 +504,7 @@ card "NE2000 Compatible Ethernet"
   bind "pcnet_cs"
 
 card "NE2000 Compatible Ethernet"
-  version "NE2000 Compatible", "PCMCIA", "Ethernet Card"
+  version "NE2000 Compatible"
   bind "pcnet_cs"
 
 card "NE2000 Compatible Ethernet"
@@ -706,6 +706,10 @@ card "Laneed LD-10/100CD Fast Ethernet"
   version "Laneed", "LD-10/100CD"
   bind "pcnet_cs"
 
+card "Level One 10/100 Fast Ethernet"
+  version "Dual Speed", "10/100 PC Card"
+  bind "pcnet_cs"
+
 card "Linksys EtherFast 10/100 Fast Ethernet"
   version "Linksys", "EtherFast 10/100 PC Card (PCMPC100)"
   bind "pcnet_cs"
@@ -754,14 +758,13 @@ card "Toshiba 10/100 Fast Ethernet"
   version "Toshiba", "10/100 Ethernet PC Card"
   bind "xirc2ps_cs"
 
-#Conflicts with Kingston KNE-PC2!
+# These conflict with other cards!
 #card "WiseCom WC-PC400 Fast Ethernet"
 #  manfid 0x0186, 0x0100
 #  bind "smc91c92_cs"
-
-card "WiseCom WC-PC400 Fast Ethernet"
-  manfid 0x8a01, 0xc1ab
-  bind "smc91c92_cs"
+#card "WiseCom WC-PC400 Fast Ethernet"
+#  manfid 0x8a01, 0xc1ab
+#  bind "smc91c92_cs"
 
 card "Xircom CE3-10/100 Fast Ethernet"
   version "Xircom", "*", "CE3-10/100"
@@ -828,8 +831,16 @@ card "Serial or Modem"
   function serial_port
   bind "serial_cs"
 
+card "3Com 3CCM156 56K Global Modem"
+  manfid 0x0101, 0x0039
+  bind "serial_cs"
+
 card "Angia Fax/Modem"
   version "Intelligent", "ANGIA FAX/MODEM"
+  bind "serial_cs"
+
+card "Bullet V.34 28.8K Modem"
+  version "OEM      ", "C288MX     "
   bind "serial_cs"
 
 card "Cirrus Logic 14.4K Fax Modem"
@@ -1495,6 +1506,10 @@ card "3Com 3CCFEM656B w/Winmodem"
   manfid 0x0102, 0x6562
   bind "3c575_cb"
 
+card "3Com 3CCFEM656C w/Winmodem"
+  manfid 0x0102, 0x6564
+  bind "3c575_cb"
+
 card "Accton EN2220 Fast Ethernet"
   version "Accton", "EN2220 CardBus Fast Ethernet Card"
   bind "tulip_cb"
@@ -1514,10 +1529,6 @@ card "Ambicom AMB8100 Fast Ethernet"
 
 card "Asante FriendlyNET 10/100 CardBus"
   version "Asante", "FriendlyNET 10/100 CardBus"
-  bind "tulip_cb"
-
-card "Tulip-based CardBus Fast Ethernet"
-  version "CardBus", "10/100Mbps LAN Card"
   bind "tulip_cb"
 
 card "D-Link DFE-660 Fast Ethernet"
@@ -1548,6 +1559,18 @@ card "Linksys EtherFast 10/100"
   manfid 0x0149, 0xc2ab
   bind "tulip_cb"
 
+card "NetGear FA510C Fast Ethernet"
+  manfid 0x9513, 0x0081
+  bind "tulip_cb"
+
+card "PLANET ENW-3502-FC"
+  version "PLANET", "ENW-3502-FC"
+  bind "tulip_cb"
+
+card "PrimeXPress 10/100 Fast Ethernet"
+  manfid 0x021b, 0x0510
+  bind "tulip_cb"
+
 card "SMC EZ 10/100 Fast Ethernet"
   manfid 0x01bf, 0x2220
   bind "tulip_cb"
@@ -1562,6 +1585,10 @@ card "SMC EZ 10/100 Fast Ethernet"
 
 card "TDK NetworkFlyer 10/100 Fast Ethernet"
   manfid 0x0105, 0x0500
+  bind "tulip_cb"
+
+card "Tulip-based CardBus Fast Ethernet"
+  version "CardBus", "10/100Mbps LAN Card"
   bind "tulip_cb"
 
 card "UMAX Technologies UMAX250 Fast Ethernet"

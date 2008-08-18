@@ -1,5 +1,5 @@
 /*
- * topic.h 1.10 1999/12/06 23:43:51
+ * topic.h 1.11 2000/04/24 21:19:49
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -25,7 +25,7 @@
  * other provisions required by the GPL.  If you do not delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
- * topic.h $Release$ 1999/12/06 23:43:51
+ * topic.h $Release$ 2000/04/24 21:19:49
  */
 
 #ifndef _LINUX_TOPIC_H
@@ -95,5 +95,13 @@
 #define  TOPIC97_RCR_RI_DISABLE		0x00000004
 #define  TOPIC97_RCR_CAUDIO_OFF		0x00000002
 #define  TOPIC_RCR_CAUDIO_INVERT	0x00000001
+
+/* Data structure for tracking vendor-specific state */
+typedef struct topic_state_t {
+    u_char		slot;		/* TOPIC_SLOT_CONTROL */
+    u_char		ccr;		/* TOPIC_CARD_CONTROL */
+    u_char		cdr;		/* TOPIC_CARD_DETECT */
+    u_int		rcr;		/* TOPIC_REGISTER_CONTROL */
+} topic_state_t;
 
 #endif /* _LINUX_TOPIC_H */

@@ -2,7 +2,7 @@
 
     Utility to look up information about IDE devices
 
-    ide_info.c 1.10 1999/11/30 04:48:34
+    ide_info.c 1.11 2000/05/09 18:12:20
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -82,7 +82,7 @@ static int read_proc_identify(char *dev, struct hd_driveid *id)
     proc[12] = dev[7];
     if (access(proc, R_OK) == 0) {
 	FILE *f = fopen(proc, "r");
-	short *b = ((short *)&id) + 4;
+	short *b = (short *)id;
 	while (fgets(s, 41, f)) {
 	    for (i = 0; i < 40; i += 5, b++) {
 		*b = flip16(strtol(s+i, NULL, 16));

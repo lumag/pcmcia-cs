@@ -45,9 +45,9 @@
 #endif   
 
 #include <linux/config.h>
-#include <linux/module.h>
 #endif 
 #include <linux/kernel.h>
+#include <linux/module.h>
 
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -292,7 +292,6 @@ static dev_link_t *airo_attach(void)
 static void airo_detach(dev_link_t *link)
 {
 	dev_link_t **linkp;
-	long flags;
 	
 	DEBUG(0, "airo_detach(0x%p)\n", link);
 	
@@ -302,13 +301,7 @@ static void airo_detach(dev_link_t *link)
 	if (*linkp == NULL)
 		return;
 	
-	save_flags(flags);
-	cli();
-	if (link->state & DEV_RELEASE_PENDING) {
-		del_timer(&link->release);
-		link->state &= ~DEV_RELEASE_PENDING;
-	}
-	restore_flags(flags);
+	del_timer(&link->release);
 	if ( link->state & DEV_CONFIG ) {
 		airo_release( (int)link );
 		if ( link->state & DEV_STALE_CONFIG ) {
@@ -581,7 +574,7 @@ static void airo_release(u_long arg)
 		CardServices(ReleaseIO, link->handle, &link->io);
 	if (link->irq.AssignedIRQ)
 		CardServices(ReleaseIRQ, link->handle, &link->irq);
-	link->state &= ~(DEV_CONFIG|DEV_RELEASE_PENDING);
+	link->state &= ~DEV_CONFIG;
 	
 } /* airo_release */
 
@@ -610,9 +603,7 @@ static int airo_event(event_t event, int priority,
 		link->state &= ~DEV_PRESENT;
 		if (link->state & DEV_CONFIG) {
 			netif_device_detach(local->eth_dev);
-			link->state |= DEV_RELEASE_PENDING;
-			link->release.expires = jiffies + (HZ/20);
-			add_timer(&link->release);
+			mod_timer(&link->release, jiffies + HZ/20);
 		}
 		break;
 	case CS_EVENT_CARD_INSERTION:

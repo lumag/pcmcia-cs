@@ -1,14 +1,14 @@
 #
-# flash/Makefile 1.14 1999/12/28 22:51:05 (David Hinds)
+# flash/Makefile 1.16 2000/05/11 02:34:15 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
-CC := $(CC) $(UFLAGS)
+CC += $(UFLAGS)
 
-SRCS = ftl_format.c ftl_check.c
+SRCS  = ftl_format.c ftl_check.c
 TOOLS = ftl_format ftl_check
 
 all:	$(TOOLS)
@@ -22,7 +22,7 @@ clean:
 	rm -f $(TOOLS)
 
 install: $(TOOLS)
-	mkdir -p $(PREFIX)/sbin
+	@mkdir -p $(PREFIX)/sbin
 	cp -f $(TOOLS) $(PREFIX)/sbin
 
 include ../rules.mk

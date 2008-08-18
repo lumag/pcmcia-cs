@@ -1,11 +1,14 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 #
-# Makefile 1.124 2000/02/15 02:19:23
+# Makefile 1.126 2000/04/29 02:00:26
 #
 
 # Include site dependent options and kernel configuration
 include ../config.mk
+
+# For files in kernel source tree, so that we can override config flags
+XFLAGS := -O2 $(CPPFLAGS) -D__KERNEL__ -DEXPORT_SYMTAB $(MFLAG)
 
 # Don't remove "-O3" or bad things will happen!
 CFLAGS = -O3 -Wall -Wstrict-prototypes -pipe
@@ -13,17 +16,12 @@ CPPFLAGS += $(PCDEBUG) -D__KERNEL__ -DMODULE
 
 CC += $(AFLAGS) $(KFLAGS)
 
-# For files in kernel source tree, so that we can override config flags
-XFLAGS = -O2 -I../include -I$(LINUX)/include -D__KERNEL__ -DEXPORT_SYMTAB
-ifdef CONFIG_MODVERSIONS
-XFLAGS += $(MFLAG)
-endif
-
 SRCS    = serial_cs.c memory_cs.c ftl_cs.c dummy_cs.c \
 	  sram_mtd.c iflash2_mtd.c iflash2+_mtd.c
 MODULES = serial_cs.o memory_cs.o ftl_cs.o dummy_cs.o \
 	  sram_mtd.o iflash2_mtd.o iflash2+_mtd.o
 EXTRA   =
+I_EXTRA =
 
 ifdef CONFIG_CARDBUS
 SRCS    += 3c575_cb.c tulip_cb.c memory_cb.c serial_cb.c
@@ -47,6 +45,7 @@ SRCS    += pcnet_cs.c 3c589_cs.c nmclan_cs.c fmvj18x_cs.c smc91c92_cs.c \
 	   xirc2ps_cs.c 3c574_cs.c
 SRCS    += 8390.c
 EXTRA   += 8390.o
+I_EXTRA += install-8390
 ifdef CONFIG_TR
 MODULES += ibmtr_cs.o
 SRCS    += ibmtr_cs.c
@@ -133,15 +132,13 @@ clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d
 
 install-modules: $(MODULES)
-	mkdir -p $(PREFIX)/$(MODDIR)/pcmcia
-	cp $(MODULES) $(PREFIX)/$(MODDIR)/pcmcia
+	@mkdir -p $(PREFIX)$(MODDIR)/pcmcia
+	cp $(MODULES) $(PREFIX)$(MODDIR)/pcmcia
 
-install-extra: $(EXTRA)
-	if [ -f 8390.o ] ; then				\
-	    mkdir -p $(PREFIX)/$(MODDIR)/net ;		\
-	    cp 8390.o $(PREFIX)/$(MODDIR)/net ;		\
-	fi
+install-8390: 8390.o
+	@mkdir -p $(PREFIX)$(MODDIR)/net
+	cp 8390.o $(PREFIX)$(MODDIR)/net
 
-install: install-modules install-extra
+install: install-modules $(I_EXTRA)
 
 include ../rules.mk

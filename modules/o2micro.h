@@ -1,5 +1,5 @@
 /*
- * o2micro.h 1.14 2000/03/01 00:57:43
+ * o2micro.h 1.15 2000/04/24 21:19:49
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -122,5 +122,16 @@
 #define  O2_MODE_E_SPKR_OUT	0x02
 #define  O2_MODE_E_LED_OUT	0x08
 #define  O2_MODE_E_SKTA_ACTV	0x10
+
+/* Data structure for tracking vendor-specific state */
+typedef struct o2micro_state_t {
+    u_char		mode_a;		/* O2_MODE_A */
+    u_char		mode_b;		/* O2_MODE_B */
+    u_char		mode_c;		/* O2_MODE_C */
+    u_char		mode_d;		/* O2_MODE_D */
+    u_char		mhpg;		/* O2_MHPG_DMA */
+    u_char		fifo;		/* O2_FIFO_ENA */
+    u_char		mode_e;		/* O2_MODE_E */
+} o2micro_state_t;
 
 #endif /* _LINUX_O2MICRO_H */

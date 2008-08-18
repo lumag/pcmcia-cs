@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2 and Series 100 Flash devices
 
-    iflash2_mtd.c 1.51 1999/11/15 06:07:22
+    iflash2_mtd.c 1.55 2000/05/16 21:31:36
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -41,6 +41,7 @@
 
 #ifdef __LINUX__
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -72,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"iflash2_mtd.c 1.51 1999/11/15 06:07:22 (David Hinds)";
+"iflash2_mtd.c 1.55 2000/05/16 21:31:36 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -340,12 +341,9 @@ static int vpp_setup(dev_link_t *link, mtd_request_t *req)
     
     /* First time for this request? */
     if (!(req->Function & MTD_REQ_TIMEOUT)) {
-	dev->vpp_usage++;
 	/* If no other users, kill shutdown timer and apply power */
-	if (dev->vpp_usage == 1) {
-	    if (dev->vpp_timeout.expires)
-		del_timer(&dev->vpp_timeout);
-	    else {
+	if (++dev->vpp_usage == 1) {
+	    if (!del_timer(&dev->vpp_timeout)) {
 		DEBUG(1, "iflash2_mtd: raising Vpp...\n");
 		dev->vpp_start = jiffies;
 		vpp_req.Vpp1 = vpp_req.Vpp2 = dev->vpp;
@@ -459,9 +457,7 @@ static void flash_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    if (link->state & DEV_RELEASE_PENDING)
-	del_timer(&link->release);
-    
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG)
 	flash_release((u_long)link);
 
@@ -545,7 +541,9 @@ static void flash_config(dev_link_t *link)
 	    printk(KERN_INFO "iflash2_mtd: %s at 0x%x, ",
 		   attr ? "attr" : "common", region.CardOffset);
 	    printk_size(region.RegionSize);
-	    printk(", %u ns\n", region.AccessSpeed);
+	    printk(", ");
+	    printk_size(region.BlockSize);
+	    printk(" blocks, %u ns\n", region.AccessSpeed);
 	    memset(dev->flash[i], 0, sizeof(struct flash_region_t));
 	    /* Assume 128K blocks, if no geometry info present */
 	    if (region.BlockSize == 1)
@@ -994,11 +992,8 @@ static int flash_event(event_t event, int priority,
 	
     case CS_EVENT_CARD_REMOVAL:
 	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    link->release.expires = jiffies + HZ/20;
-	    link->state |= DEV_RELEASE_PENDING;
-	    add_timer(&link->release);
-	}
+	if (link->state & DEV_CONFIG)
+	    mod_timer(&link->release, jiffies + HZ/20);
 	break;
 	
     case CS_EVENT_CARD_INSERTION:

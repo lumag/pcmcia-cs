@@ -2,7 +2,7 @@
 
     Device driver for Databook TCIC-2 PCMCIA controller
 
-    tcic.c 1.111 2000/02/15 04:13:12
+    tcic.c 1.115 2000/05/10 19:30:15
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -64,7 +64,7 @@
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"tcic.c 1.111 2000/02/15 04:13:12 (David Hinds)";
+"tcic.c 1.115 2000/05/10 19:30:15 (David Hinds)";
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 #else
 #define DEBUG(n, args...)
@@ -126,11 +126,9 @@ typedef struct socket_info_t {
     u_char	id;
 } socket_info_t;
 
-static struct timer_list poll_timer;
-static int tcic_timer_pending = 0;
-
 static int sockets;
 static socket_info_t socket_table[2];
+static struct timer_list poll_timer = { function: tcic_timer };
 
 static socket_cap_t tcic_cap = {
     /* only 16-bit cards, memory windows must be size-aligned */
@@ -447,11 +445,6 @@ static int __init init_tcic(void)
 	printk("Unknown ID 0x%02x", socket_table[0].id);
     }
     
-    /* Set up polling */
-    poll_timer.function = &tcic_timer;
-    poll_timer.data = 0;
-    poll_timer.prev = poll_timer.next = NULL;
-
     /* Build interrupt mask */
     printk(", %d sockets\n" KERN_INFO "  irq list (", sockets);
     if (irq_list[0] == -1)
@@ -522,8 +515,7 @@ static void __exit exit_tcic(void)
 	tcic_aux_setw(TCIC_AUX_SYSCFG, TCIC_SYSCFG_AUTOBUSY|0x0a00);
 	free_irq(cs_irq, tcic_interrupt);
     }
-    if (tcic_timer_pending)
-	del_timer(&poll_timer);
+    del_timer(&poll_timer);
     restore_flags(flags);
     release_region(tcic_base, 16);
 } /* exit_tcic */
@@ -568,15 +560,15 @@ static void tcic_interrupt(int irq, void *dev, struct pt_regs *regs)
 	    events |= (latch & TCIC_SSTAT_LBAT1) ? SS_BATDEAD : 0;
 	    events |= (latch & TCIC_SSTAT_LBAT2) ? SS_BATWARN : 0;
 	}
+	DEBUG(1, "tcic: socket %d event 0x%04x\n", i, events);
 	if (events)
 	    socket_table[i].handler(socket_table[i].info, events);
     }
 
     /* Schedule next poll, if needed */
-    if (((cs_irq == 0) || quick) && (!tcic_timer_pending)) {
+    if (((cs_irq == 0) || quick) && !timer_pending(&poll_timer)) {
 	poll_timer.expires = jiffies + (quick ? poll_quick : poll_interval);
 	add_timer(&poll_timer);
-	tcic_timer_pending = 1;
     }
     active = 0;
     
@@ -587,9 +579,8 @@ static void tcic_interrupt(int irq, void *dev, struct pt_regs *regs)
 static void tcic_timer(u_long data)
 {
     DEBUG(2, "tcic: tcic_timer()\n");
-    tcic_timer_pending = 0;
     tcic_interrupt(0, NULL, NULL);
-} /* tcic_timer */
+}
 
 /*====================================================================*/
 
@@ -800,7 +791,7 @@ static int tcic_get_io_map(u_short lsock, struct pccard_io_map *io)
     default:
 	break;
     }
-    DEBUG(1, "tcic: GetIOMap(%d, %d) = %#2.2x, %d ns, "
+    DEBUG(3, "tcic: GetIOMap(%d, %d) = %#2.2x, %d ns, "
 	  "%#4.4x-%#4.4x\n", lsock, io->map, io->flags,
 	  io->speed, io->start, io->stop);
     return 0;
@@ -814,7 +805,7 @@ static int tcic_set_io_map(u_short lsock, struct pccard_io_map *io)
     u_int addr;
     u_short base, len, ioctl;
     
-    DEBUG(1, "tcic: SetIOMap(%d, %d, %#2.2x, %d ns, "
+    DEBUG(3, "tcic: SetIOMap(%d, %d, %#2.2x, %d ns, "
 	  "%#4.4x-%#4.4x)\n", lsock, io->map, io->flags,
 	  io->speed, io->start, io->stop);
     if ((io->map > 1) || (io->start > 0xffff) || (io->stop > 0xffff) ||
@@ -882,7 +873,7 @@ static int tcic_get_mem_map(u_short lsock, struct pccard_mem_map *mem)
     mem->flags |= (ctl & TCIC_MCTL_WP) ? MAP_WRPROT : 0;
     mem->speed = to_ns(ctl & TCIC_MCTL_WSCNT_MASK);
     
-    DEBUG(1, "tcic: GetMemMap(%d, %d) = %#2.2x, %d ns, "
+    DEBUG(3, "tcic: GetMemMap(%d, %d) = %#2.2x, %d ns, "
 	  "%#5.5lx-%#5.5lx, %#5.5x\n", lsock, mem->map, mem->flags,
 	  mem->speed, mem->sys_start, mem->sys_stop, mem->card_start);
     return 0;
@@ -896,7 +887,7 @@ static int tcic_set_mem_map(u_short lsock, struct pccard_mem_map *mem)
     u_short addr, ctl;
     u_long base, len, mmap;
 
-    DEBUG(1, "tcic: SetMemMap(%d, %d, %#2.2x, %d ns, "
+    DEBUG(3, "tcic: SetMemMap(%d, %d, %#2.2x, %d ns, "
 	  "%#5.5lx-%#5.5lx, %#5.5x)\n", lsock, mem->map, mem->flags,
 	  mem->speed, mem->sys_start, mem->sys_stop, mem->card_start);
     if ((mem->map > 3) || (mem->card_start > 0x3ffffff) ||
@@ -952,17 +943,8 @@ static subfn_t service_table[] = {
 
 static int tcic_service(u_int lsock, u_int cmd, void *arg)
 {
-    int err;
-
-    DEBUG(2, "tcic_service(%d, %d, 0x%p)\n", lsock, cmd, arg);
-
-    if (cmd < NFUNC)
-	err = service_table[cmd](lsock, arg);
-    else
-	err = -EINVAL;
-
-    return err;
-} /* tcic_service */
+    return (cmd < NFUNC) ? service_table[cmd](lsock, arg) : -EINVAL; 
+}
 
 /*====================================================================*/
 

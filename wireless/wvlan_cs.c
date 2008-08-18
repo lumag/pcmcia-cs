@@ -434,7 +434,6 @@ static void wvlan_watchdog (struct net_device *dev);
 int wvlan_tx (struct sk_buff *skb, struct net_device *dev);
 void wvlan_rx (struct net_device *dev, int len);
 
-static int wvlan_init (struct net_device *dev);
 static int wvlan_open (struct net_device *dev);
 static int wvlan_close (struct net_device *dev);
 
@@ -2208,13 +2207,8 @@ void wvlan_rx (struct net_device *dev, int len)
 
 
 /********************************************************************
- * NET INIT / OPEN / CLOSE
+ * NET OPEN / CLOSE
  */
-static int wvlan_init (struct net_device *dev)
-{
-	DEBUG(DEBUG_CALLTRACE, "<> wvlan_init()\n");
-	return 0;
-}
 
 static int wvlan_open (struct net_device *dev)
 {
@@ -2270,7 +2264,7 @@ static int wvlan_close (struct net_device *dev)
 	}
 	else
 		if (link->state & DEV_STALE_CONFIG)
-			wvlan_release((u_long)link);
+			mod_timer(&link->release, jiffies + HZ/20);
 
 	DEBUG(DEBUG_CALLTRACE, "<- wvlan_close()\n");
 	return -EINVAL;
@@ -2641,7 +2635,7 @@ static void wvlan_release (u_long arg)
 	if (link->irq.AssignedIRQ)
 		CardServices(ReleaseIRQ, link->handle, &link->irq);
 
-	link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+	link->state &= ~DEV_CONFIG;
 
 	DEBUG(DEBUG_CALLTRACE, "<- wvlan_release()\n");
 }
@@ -2692,7 +2686,6 @@ static dev_link_t *wvlan_attach (void)
 	ether_setup(dev);
 
 	// kernel callbacks
-	dev->init = wvlan_init;
 	dev->open = wvlan_open;
 	dev->stop = wvlan_close;
 	dev->hard_start_xmit = wvlan_tx;
@@ -2759,6 +2752,7 @@ static void wvlan_detach (dev_link_t *link)
 	// actually delete it yet. Instead, it is marked so that when the
 	// release() function is called, that will trigger a proper
 	// detach()
+	del_timer(&link->release);
 	if (link->state & DEV_CONFIG)
 	{
 		DEBUG(DEBUG_INFO, "%s: wvlan_detach: detach postponed, %s still locked\n", dev_info, link->dev->dev_name);
@@ -2826,8 +2820,7 @@ static int wvlan_event (event_t event, int priority, event_callback_args_t *args
 			{
 				netif_stop_queue(dev);
 				netif_device_detach(dev);
-				link->release.expires = jiffies + (HZ/20);
-				add_timer(&link->release);
+				mod_timer(&link->release, jiffies + HZ/20);
 			}
 			break;
 

@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 #
-# Makefile 1.113 2000/02/22 03:08:13
+# Makefile 1.114 2000/04/29 02:00:30
 #
 
 # Include site dependent options and kernel configuration
@@ -60,7 +60,7 @@ clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d
 
 install install-modules: $(MODULES)
-	mkdir -p $(PREFIX)/$(MODDIR)/pcmcia
-	cp $(MODULES) $(PREFIX)/$(MODDIR)/pcmcia
+	@mkdir -p $(PREFIX)$(MODDIR)/pcmcia
+	cp $(MODULES) $(PREFIX)$(MODDIR)/pcmcia
 
 include ../rules.mk

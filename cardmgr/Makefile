@@ -1,42 +1,45 @@
 #
-# cardmgr/Makefile 1.79 2000/01/21 23:26:12 (David Hinds)
+# cardmgr/Makefile 1.81 2000/05/11 02:33:24 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
-CPPFLAGS := $(CPPFLAGS) -I../modules
+CPPFLAGS += -I../modules
 
-CC := $(CC) $(UFLAGS)
+CC += $(UFLAGS)
 
-SRCS = cardmgr.c cardctl.c yacc_config.c lex_config.c probe.c
+SRCS  = cardmgr.c cardctl.c yacc_config.c lex_config.c probe.c
 TOOLS = cardmgr cardctl
 
 ifdef CONFIG_INET
-SRCS := ${SRCS} ifport.c ifuser.c
-TOOLS := ${TOOLS} ifport ifuser
+SRCS  += ifport.c ifuser.c
+TOOLS += ifport ifuser
 endif
 
 ifdef CONFIG_SCSI
-SRCS := ${SRCS} scsi_info.c
-TOOLS := ${TOOLS} scsi_info
+SRCS  += scsi_info.c
+TOOLS += scsi_info
 endif
 
 ifdef DO_IDE
-SRCS := ${SRCS} ide_info.c
-TOOLS := ${TOOLS} ide_info
+SRCS  += ide_info.c
+TOOLS += ide_info
 endif
 
 ifdef HAS_FORMS
-SRCS := ${SRCS} cardinfo.c
-CPPFLAGS := ${CPPFLAGS} -I/usr/X11R6/include -I/usr/X11/include \
-	-I/usr/X11R6/include/X11
-EXTRA := ${EXTRA} cardinfo
+SRCS  += cardinfo.c
+CPPFLAGS += -I/usr/X11R6/include -I/usr/X11/include -I/usr/X11R6/include/X11
+EXTRA += cardinfo
+I_EXTRA += install-cardinfo
 endif
 
 ifdef CONFIG_ISA
 PROBE = probe
+ifdef PREFIX
+I_EXTRA += install-probe
+endif
 endif
 
 all:	$(SRCS) $(TOOLS) $(EXTRA) $(PROBE)
@@ -57,18 +60,19 @@ parser: lex_config.o yacc_config.c
 cardinfo: cardinfo.o
 	$(CC) $< -o $@ -L/usr/X11R6/lib -L/usr/X11/lib -lforms -lX11 -lm
 
-install: $(TOOLS) $(EXTRA) $(PROBE)
-	mkdir -p $(PREFIX)/sbin
-	rm -f $(PREFIX)/sbin/cardmgr
+install-cardinfo: cardinfo
+	@mkdir -p $(PREFIX)/usr/X11R6/bin
+	cp -f cardinfo $(PREFIX)/usr/X11R6/bin
+	chmod u+s $(PREFIX)/usr/X11R6/bin/cardinfo
+
+install-probe:
+	@mkdir -p $(PREFIX)/sbin
+	cp -f probe $(PREFIX)/sbin
+
+install: $(TOOLS) $(I_EXTRA)
+	@mkdir -p $(PREFIX)/sbin
+	@rm -f $(PREFIX)/sbin/cardmgr
 	cp -f $(TOOLS) pcinitrd $(PREFIX)/sbin
 	chmod u+s $(PREFIX)/sbin/cardctl
-	if [ "$(PREFIX)" != "" -a -f probe ] ; then	\
-	    cp -f probe $(PREFIX)/sbin ;		\
-	fi
-	if [ -r cardinfo ] ; then			\
-	    mkdir -p $(PREFIX)/usr/X11R6/bin ;		\
-	    cp -f cardinfo $(PREFIX)/usr/X11R6/bin ;	\
-	    chmod u+s $(PREFIX)/usr/X11R6/bin/cardinfo ;\
-	fi
 
 include ../rules.mk

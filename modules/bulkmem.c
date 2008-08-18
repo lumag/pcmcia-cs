@@ -2,7 +2,7 @@
 
     PCMCIA Bulk Memory Services
 
-    bulkmem.c 1.34 1999/11/17 01:37:55
+    bulkmem.c 1.36 2000/05/09 20:53:56
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -75,7 +75,7 @@ static int do_mtd_request(memory_handle_t handle, mtd_request_t *req,
 	return CS_GENERAL_FAILURE;
     s = SOCKET(mtd);
     wacquire(&mtd->mtd_req);
-    for (tries = 0; tries < 100; tries++) {
+    for (ret = tries = 0; tries < 100; tries++) {
 	mtd->event_callback_args.mtdrequest = req;
 	mtd->event_callback_args.buffer = buf;
 	ret = EVENT(mtd, CS_EVENT_MTD_REQUEST, CS_EVENT_PRI_LOW);
@@ -239,7 +239,7 @@ static void setup_erase_request(client_handle_t handle, eraseq_entry_t *erase)
 	    busy = kmalloc(sizeof(erase_busy_t), GFP_KERNEL);
 	    busy->erase = erase;
 	    busy->client = handle;
-	    busy->timeout.prev = busy->timeout.next = NULL;
+	    init_timer(&busy->timeout);
 	    busy->timeout.data = (u_long)busy;
 	    busy->timeout.function = &handle_erase_timeout;
 	    busy->prev = busy->next = NULL;

@@ -2,7 +2,7 @@
 
     A simple MTD for accessing static RAM
 
-    sram_mtd.c 1.45 1999/11/15 06:06:36
+    sram_mtd.c 1.48 2000/05/16 21:31:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -35,8 +35,9 @@
 #include <pcmcia/k_compat.h>
 
 #ifdef __LINUX__
-#include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
@@ -64,7 +65,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"sram_mtd.c 1.45 1999/11/15 06:06:36 (David Hinds)";
+"sram_mtd.c 1.48 2000/05/16 21:31:37 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -191,9 +192,7 @@ static void sram_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    if (link->state & DEV_RELEASE_PENDING)
-	del_timer(&link->release);
-    
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG)
 	sram_release((u_long)link);
 
@@ -472,11 +471,8 @@ static int sram_event(event_t event, int priority,
 	
     case CS_EVENT_CARD_REMOVAL:
 	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    link->release.expires = jiffies + HZ/20;
-	    link->state |= DEV_RELEASE_PENDING;
-	    add_timer(&link->release);
-	}
+	if (link->state & DEV_CONFIG)
+	    mod_timer(&link->release, jiffies + HZ/20);
 	break;
 	
     case CS_EVENT_CARD_INSERTION:

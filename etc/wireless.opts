@@ -49,7 +49,7 @@ case "$ADDRESS" in
 
 # Old Lucent Wavelan
 *,*,*,08:00:0E:*)
-    INFO="Wavelan example (Lucent default settings)
+    INFO="Wavelan example (Lucent default settings)"
     NWID="0100"
     MODE="Ad-Hoc"
     FREQ="2.425G"
@@ -58,7 +58,7 @@ case "$ADDRESS" in
 
 # Netwave (Xircom Netwave/Netwave Airsurfer)
 *,*,*,00:80:C7:*)
-    INFO="Netwave example (Netwave default settings)
+    INFO="Netwave example (Netwave default settings)"
     NWID="100"
     KEY="00"
     ;;

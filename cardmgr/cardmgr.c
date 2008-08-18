@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.133 2000/01/12 20:50:33
+    cardmgr.c 1.135 2000/05/16 22:44:58
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -413,9 +413,13 @@ static card_info_t *lookup_card(int ns)
     
     /* Try to read VERS_1, MANFID tuples */
     if (has_cis) {
+	/* rule of thumb: cards with no FUNCID, but with common memory
+	   device geometry information, are probably memory cards */
 	if (get_tuple(ns, CISTPL_FUNCID, &arg) == 0)
 	    memcpy(&funcid, &arg.tuple_parse.parse.funcid,
 		   sizeof(funcid));
+	else if (get_tuple(ns, CISTPL_DEVICE_GEO, &arg) == 0)
+	    funcid.func = CISTPL_FUNCID_MEMORY;
 	if (get_tuple(ns, CISTPL_MANFID, &arg) == 0)
 	    memcpy(&manfid, &arg.tuple_parse.parse.manfid,
 		   sizeof(manfid));
@@ -662,11 +666,39 @@ typedef struct module_list_t {
 
 static module_list_t *module_list = NULL;
 
-static int install_module(char *mod, char *opts)
+static int try_insmod(char *mod, char *opts)
 {
     char path[128], cmd[128];
+    if (strchr(mod, '/') != NULL)
+	sprintf(path, "%s/%s.o", modpath, mod);
+    else
+	sprintf(path, "%s/pcmcia/%s.o", modpath, mod);
+    if (access(path, R_OK) != 0) {
+	syslog(LOG_INFO, "module %s not available", path);
+	return -1;
+    }
+    sprintf(cmd, "insmod %s", path);
+    if (opts) {
+	strcat(cmd, " ");
+	strcat(cmd, opts);
+    }
+    return execute("insmod", cmd);
+}
+
+static int try_modprobe(char *mod, char *opts)
+{
+    char cmd[128], *s = strrchr(mod, '/');
+    sprintf(cmd, "modprobe %s", (s) ? s+1 : mod);
+    if (opts) {
+	strcat(cmd, " ");
+	strcat(cmd, opts);
+    }
+    return execute("modprobe", cmd);
+}
+
+static void install_module(char *mod, char *opts)
+{
     module_list_t *ml;
-    int ret;
 
     for (ml = module_list; ml != NULL; ml = ml->next)
 	if (strcmp(mod, ml->mod) == 0) break;
@@ -679,7 +711,7 @@ static int install_module(char *mod, char *opts)
     }
     ml->usage++;
     if (ml->usage != 1)
-	return 0;
+	return;
 
 #ifdef __linux__
     if (access("/proc/bus/pccard/drivers", R_OK) == 0) {
@@ -687,41 +719,26 @@ static int install_module(char *mod, char *opts)
 	if (f) {
 	    char a[61], s[33];
 	    while (fgets(a, 60, f)) {
-		sscanf(a, "%s %d", s, &ret);
+		int is_kernel;
+		sscanf(a, "%s %d", s, &is_kernel);
 		if (strcmp(s, mod) != 0) continue;
 		/* If it isn't a module, we won't try to rmmod */
-		ml->usage += ret;
+		ml->usage += is_kernel;
 		fclose(f);
-		return 0;
+		return;
 	    }
 	    fclose(f);
 	}
     }
 #endif
 
-    if (!do_modprobe) {
-	if (strchr(mod, '/') != NULL)
-	    sprintf(path, "%s/%s.o", modpath, mod);
-	else
-	    sprintf(path, "%s/pcmcia/%s.o", modpath, mod);
-	if (access(path, R_OK) != 0) {
-	    syslog(LOG_INFO, "module %s not available", path);
-	    return -1;
-	}
-	sprintf(cmd, "insmod %s", path);
-	if (opts) {
-	    strcat(cmd, " ");
-	    strcat(cmd, opts);
-	}
-	ret = execute("insmod", cmd);
-	if (ret == 0) return 0;
+    if (do_modprobe) {
+	if (try_modprobe(mod, opts) != 0)
+	    try_insmod(mod, opts);
+    } else {
+	if (try_insmod(mod, opts) != 0)
+	    try_modprobe(mod, opts);
     }
-    sprintf(cmd, "modprobe %s", mod);
-    if (opts) {
-	strcat(cmd, " ");
-	strcat(cmd, opts);
-    }
-    return execute("modprobe", cmd);
 }
 
 static void remove_module(char *mod)
@@ -736,10 +753,7 @@ static void remove_module(char *mod)
 	if (ml->usage == 0) {
 	    /* Strip off leading path names */
 	    s = strrchr(mod, '/');
-	    if (s == NULL)
-		s = mod;
-	    else
-		s++;
+	    s = (s) ? s+1 : mod;
 	    sprintf(cmd, do_modprobe ? "modprobe -r %s" : "rmmod %s", s);
 	    execute(do_modprobe ? "modprobe" : "rmmod", cmd);
 	}
@@ -928,7 +942,7 @@ static void do_insert(int sn)
 	republish_driver(dev[i]->module[0]);
 #endif
 
-	for (j = 0; j < 10; j++) {
+	for (ret = j = 0; j < 10; j++) {
 	    ret = ioctl(s->fd, DS_GET_DEVICE_INFO, bind);
 	    if ((ret == 0) || (errno != EAGAIN))
 		break;
@@ -1256,7 +1270,7 @@ static int init_sockets(void)
 	exit(EXIT_FAILURE);
     }
 #endif
-    for (i = 0; i < MAX_SOCKS; i++) {
+    for (fd = -1, i = 0; i < MAX_SOCKS; i++) {
 	fd = open_sock(i, S_IFCHR|S_IREAD|S_IWRITE);
 	if (fd < 0) break;
 	socket[i].fd = fd;
@@ -1309,8 +1323,6 @@ int main(int argc, char *argv[])
 	    break;
 	case 'q':
 	    be_quiet = 1; break;
-	case 'd':
-	    do_modprobe = 1; break;
 	case 'v':
 	    verbose = 1; break;
 	case 'o':
@@ -1320,6 +1332,8 @@ int main(int argc, char *argv[])
 	case 'c':
 	    configpath = strdup(optarg); break;
 #ifdef __linux__
+	case 'd':
+	    do_modprobe = 1; break;
 	case 'm':
 	    modpath = strdup(optarg); break;
 #endif
@@ -1343,9 +1357,6 @@ int main(int argc, char *argv[])
 #else
     openlog("cardmgr", LOG_PID|LOG_CONS, LOG_DAEMON);
     close(0); close(1); close(2);
-#endif
-
-#ifndef DEBUG
     if (!delay_fork && !one_pass)
 	fork_now();
 #endif
@@ -1372,6 +1383,8 @@ int main(int argc, char *argv[])
 	syslog(LOG_INFO, "cannot access %s: %m", modpath);
 	exit(EXIT_FAILURE);
     }
+    /* We default to using modprobe if it is available */
+    do_modprobe |= (access("/sbin/modprobe", X_OK) == 0);
 #endif /* __linux__ */
     
     load_config();

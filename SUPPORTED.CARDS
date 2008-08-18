@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/04/11 01:25:17
+		Last updated: 2000/05/08 19:42:08
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -144,7 +144,7 @@ Ethernet cards:
 	Trust Ethernet Combo
 	Volktek NPL-402CT Ethernet
 
-	[smc91c92_cs driver] [x86]
+	[smc91c92_cs driver] [x86,ppc]
 	Farallon Enet
 	Megahertz XJ10BT, XJ10BC, CC10BT Ethernet
 	New Media BASICS Ethernet
@@ -166,6 +166,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Apollo Fast Ethernet
 	COMPU-SHACK FASTline 10/100
 	Corega FastEther PCC-TX
+	Digicom Palladio
 	D-Link DFE-650
 	EXP ThinLan 100
 	Fiberline Fast Ethernet
@@ -195,9 +196,6 @@ Fast Ethernet (10/100baseT) adapters:
 	WiseCom WC-PC400
 	
 	[xirc2ps_cs driver] [x86,axp]
-	[ some cards seem to misbehave at either 10baseT, or 100baseT,
-	or both: the driver seems to not know how to configure the
-	transceiver correctly ]
 	Accton Fast EtherCard-16
 	Compaq Netelligent 10/100
 	Intel EtherExpress PRO/100 16-bit
@@ -225,7 +223,10 @@ Fast Ethernet (10/100baseT) adapters:
 	Laneed LD-10/100CB
 	LevelOne FPC-0101TX 10/100Mbps CardBus
 	Linksys PCMPC200 EtherFast CardBus
+	NetGear FA510C
 	OvisLink LFS PCM 32
+	PLANET ENW-3502-FC
+	PrimeXpress Fast Ethernet
 	SMC EZ CardBus 10/100 Ethernet	[ some do not work?? ]
 	SVEC FD606 10/100 Ethernet
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
@@ -334,6 +335,7 @@ SCSI adapters:
 	New Media Toast 'n Jam		[ SCSI only ]
 	Noteworthy Bus Toaster SCSI
 	Sony CD-ROM Discman PRD-250
+	Toshiba HandyCard SCSI
 
 	[fdomain_cs driver] [x86]
 	Future Domain SCSI2GO
@@ -414,7 +416,8 @@ Multifunction ethernet/modem cards:
 	Xircom RealPort REM10BT, REM56G-100
 
 	[3c575_cb driver] [x86]
-	3Com 3CCFEM656B			[ ethernet only!! ]
+	[ ethernet only: the modem is a WinModem! ]
+	3Com 3CCFEM656B, 3CCFEM656C, 3CXFEM656C
 
 	[epic_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
@@ -575,6 +578,8 @@ People are working on the following cards:
 
 	Roland SCP-55 MIDI (Toshiaki Nakatsu <risyu@zo-kun.to>)
 	CyberRom CD-ROM (David Rowntree <rowntree@dircon.co.uk>)
+	DAQCard-AI-16E-4 (Shao Zhang <shao@linuxfreak.com>,
+			  Cyrus Patel <cyrus@linuxfan.com>)
 	IO DATA PCSC-II (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)
 	Macnica mPS-1x0 (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)
 	TView Preso (Brenden Tuck <friar@zendragon.com>)
@@ -591,6 +596,7 @@ email just to ask if their status has changed.
 
 	Adaptec/Trantor APA-460 SlimSCSI
 	Eiger Labs SCSI w/FCC ID K36...
+	Melco LPC3-TX
 	New Media .WAVjammer and all other sound cards
 	New Media LiveWire+
 	Nikon CoolPix100

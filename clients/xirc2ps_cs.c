@@ -422,7 +422,6 @@ static void do_tx_timeout(struct net_device *dev);
 static struct enet_statistics *do_get_stats(struct net_device *dev);
 static void set_addresses(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static int do_init(struct net_device *dev);
 static int set_card_type(dev_link_t *link, const void *s);
 static int do_config(struct net_device *dev, struct ifmap *map);
 static int do_open(struct net_device *dev);
@@ -719,7 +718,6 @@ xirc2ps_attach(void)
     dev->set_multicast_list = &set_multicast_list;
     ether_setup(dev);
     dev->name = local->node.dev_name;
-    dev->init = &do_init;
     dev->open = &do_open;
     dev->stop = &do_stop;
 #ifdef HAVE_NETIF_QUEUE
@@ -760,7 +758,6 @@ xirc2ps_detach(dev_link_t * link)
 {
     local_info_t *local = link->priv;
     dev_link_t **linkp;
-    long flags;
 
     DEBUG(0, "detach(0x%p)\n", link);
 
@@ -773,20 +770,13 @@ xirc2ps_detach(dev_link_t * link)
 	return;
     }
 
-    save_flags(flags);
-    cli();
-    if (link->state & DEV_RELEASE_PENDING) {
-	del_timer(&link->release);
-	link->state &= ~DEV_RELEASE_PENDING;
-    }
-    restore_flags(flags);
-
     /*
      * If the device is currently configured and active, we won't
      * actually delete it yet.	Instead, it is marked so that when
      * the release() function is called, that will trigger a proper
      * detach().
      */
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG) {
 	DEBUG(0, "detach postponed, '%s' still locked\n",
 	      link->dev->dev_name);
@@ -1305,7 +1295,7 @@ xirc2ps_release(u_long arg)
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
-    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+    link->state &= ~DEV_CONFIG;
 
 } /* xirc2ps_release */
 
@@ -1341,8 +1331,7 @@ xirc2ps_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    netif_device_detach(dev);
-	    link->release.expires = jiffies + HZ / 20;
-	    add_timer(&link->release);
+	    mod_timer(&link->release, jiffies + HZ/20);
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
@@ -1747,17 +1736,6 @@ set_multicast_list(struct net_device *dev)
     SelectPage(0);
 }
 
-/****************
- * We never need to do anything when a IIps device is "initialized"
- * by the net software, because we only register already-found cards.
- */
-static int
-do_init(struct net_device *dev)
-{
-    DEBUG(0, "do_init(%p)\n", dev);
-    return 0;
-}
-
 static int
 do_config(struct net_device *dev, struct ifmap *map)
 {
@@ -2137,11 +2115,8 @@ do_stop(struct net_device *dev)
     SelectPage(0);
 
     link->open--;
-    if (link->state & DEV_STALE_CONFIG) {
-	link->release.expires = jiffies + HZ/20;
-	link->state |= DEV_RELEASE_PENDING;
-	add_timer(&link->release);
-    }
+    if (link->state & DEV_STALE_CONFIG)
+	mod_timer(&link->release, jiffies + HZ/20);
 
     MOD_DEC_USE_COUNT;
 

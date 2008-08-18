@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.68 2000/01/11 01:04:46
+    memory_cs.c 1.70 2000/05/04 01:29:47
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -91,7 +91,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.68 2000/01/11 01:04:46 (David Hinds)";
+"memory_cs.c 1.70 2000/05/04 01:29:47 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -301,6 +301,7 @@ static void memory_detach(dev_link_t *link)
     if (nd == MAX_DEV)
 	return;
 
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG) {
 	memory_release((u_long)link);
 	if (link->state & DEV_STALE_CONFIG) {
@@ -540,10 +541,8 @@ static int memory_event(event_t event, int priority,
     switch (event) {
     case CS_EVENT_CARD_REMOVAL:
 	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    link->release.expires = jiffies + HZ/20;
-	    add_timer(&link->release);
-	}
+	if (link->state & DEV_CONFIG)
+	    mod_timer(&link->release, jiffies + HZ/20);
 	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
@@ -770,6 +769,9 @@ static int memory_erase(int minor, u_long f_pos, size_t count)
     minor_dev_t *minor_dev = &dev->minor[REGION_NR(minor)];
     int i, ret;
 
+    DEBUG(2, "memory_erase(%d, 0x%lx, %ld)\n", minor,
+	  f_pos, (u_long)count);
+    
     /* Find a free erase slot, or wait for one to become available */
     for (;;) {
 	for (i = 0; i < MAX_ERASE; i++)

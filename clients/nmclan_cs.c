@@ -465,17 +465,6 @@ static void cs_error(client_handle_t handle, int func, int ret)
 }
 
 /* ----------------------------------------------------------------------------
-nmclan_init
-	We never need to do anything when a nmclan device is "initialized"
-	by the net software, because we only register already-found cards.
----------------------------------------------------------------------------- */
-
-static int nmclan_init(struct net_device *dev)
-{
-    return 0;
-}
-
-/* ----------------------------------------------------------------------------
 nmclan_attach
 	Creates an "instance" of the driver, allocating local data
 	structures for one device.  The device is registered with Card
@@ -528,7 +517,6 @@ static dev_link_t *nmclan_attach(void)
     dev->set_multicast_list = &set_multicast_list;
     ether_setup(dev);
     dev->name = lp->node.dev_name;
-    dev->init = &nmclan_init;
     dev->open = &mace_open;
     dev->stop = &mace_close;
 #ifdef HAVE_NETIF_QUEUE
@@ -579,6 +567,7 @@ static void nmclan_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG) {
 	nmclan_release((u_long)link);
 	if (link->state & DEV_STALE_CONFIG) {
@@ -857,7 +846,7 @@ static void nmclan_release(u_long arg)
   CardServices(ReleaseIO, link->handle, &link->io);
   CardServices(ReleaseIRQ, link->handle, &link->irq);
 
-  link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+  link->state &= ~DEV_CONFIG;
 
 } /* nmclan_release */
 
@@ -882,8 +871,7 @@ static int nmclan_event(event_t event, int priority,
       link->state &= ~DEV_PRESENT;
       if (link->state & DEV_CONFIG) {
 	netif_device_detach(dev);
-	link->release.expires = jiffies + HZ/20;
-	add_timer(&link->release);
+	mod_timer(&link->release, jiffies + HZ/20);
       }
       break;
     case CS_EVENT_CARD_INSERTION:
@@ -896,7 +884,7 @@ static int nmclan_event(event_t event, int priority,
     case CS_EVENT_RESET_PHYSICAL:
       if (link->state & DEV_CONFIG) {
 	if (link->open)
-	  netif_device_attach(dev);
+	  netif_device_detach(dev);
 	CardServices(ReleaseConfiguration, link->handle);
       }
       break;
@@ -1007,7 +995,6 @@ static int mace_open(struct net_device *dev)
 
   netif_start_queue(dev);
   netif_mark_up(dev);
-
   nmclan_reset(dev);
 
   return 0; /* Always succeed */
@@ -1031,11 +1018,8 @@ static int mace_close(struct net_device *dev)
   link->open--;
   netif_stop_queue(dev);
   netif_mark_down(dev);
-  if (link->state & DEV_STALE_CONFIG) {
-    link->release.expires = jiffies + HZ/20;
-    link->state |= DEV_RELEASE_PENDING;
-    add_timer(&link->release);
-  }
+  if (link->state & DEV_STALE_CONFIG)
+    mod_timer(&link->release, jiffies + HZ/20);
 
   MOD_DEC_USE_COUNT;
 

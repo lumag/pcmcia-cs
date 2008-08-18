@@ -1,7 +1,9 @@
-#ifndef _PCMCIA_PM_H
-#define _PCMCIA_PM_H
+#ifndef _COMPAT_PM_H
+#define _COMPAT_PM_H
 
-#if (LINUX_VERSION_CODE < 0x02032b)
+#include <linux/version.h>
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,43))
 
 #include <linux/apm_bios.h>
 
@@ -18,4 +20,4 @@
 
 #endif
 
-#endif /* _PCMCIA_PM_H */
+#endif /* _COMPAT_PM_H */

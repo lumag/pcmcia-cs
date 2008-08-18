@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.24 1999/11/23 19:14:06
+    dummy_cs.c 1.26 2000/05/16 21:31:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,12 +39,14 @@
 #include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
 #include <linux/string.h>
 #include <linux/timer.h>
+#include <linux/ioport.h>
 #include <asm/io.h>
 #include <asm/system.h>
 
@@ -68,7 +70,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"dummy_cs.c 1.24 1999/11/23 19:14:06 (David Hinds)";
+"dummy_cs.c 1.26 2000/05/16 21:31:37 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -598,8 +600,7 @@ static int dummy_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    ((local_info_t *)link->priv)->stop = 1;
-	    link->release.expires = jiffies + HZ/20;
-	    add_timer(&link->release);
+	    mod_timer(&link->release, jiffies + HZ/20);
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
@@ -653,6 +654,7 @@ static void __exit exit_dummy_cs(void)
     DEBUG(0, "dummy_cs: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL) {
+	del_timer(&dev_list->release);
 	if (dev_list->state & DEV_CONFIG)
 	    dummy_release((u_long)dev_list);
 	dummy_detach(dev_list);

@@ -2,7 +2,7 @@
 
     A driver for CardBus serial devices
 
-    serial_cb.c 1.15 1999/11/24 02:52:06
+    serial_cb.c 1.17 2000/05/04 00:24:56
 
     Copyright 1998, 1999 by Donald Becker and David Hinds
     
@@ -42,7 +42,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cb.c 1.15 1999/11/24 02:52:06 (David Hinds)";
+"serial_cb.c 1.17 2000/05/04 00:24:56 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -53,12 +53,12 @@ static char *version =
 
 ======================================================================*/
 
-static void device_setup(u_char bus, u_char devfn, u_int ioaddr)
+static void device_setup(struct pci_dev *pdev, u_int ioaddr)
 {
     u_short a, b;
 
-    pcibios_read_config_word(bus, devfn, PCI_SUBSYSTEM_VENDOR_ID, &a);
-    pcibios_read_config_word(bus, devfn, PCI_SUBSYSTEM_ID, &b);
+    pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &a);
+    pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &b);
     if (((a == 0x13a2) && (b == 0x8007)) ||
 	((a == 0x1420) && (b == 0x8003))) {
 	/* Ositech, Psion 83c175-based cards */
@@ -87,19 +87,24 @@ static dev_node_t *serial_attach(dev_locator_t *loc)
     u_char bus, devfn, irq;
     int line;
     struct serial_struct serial;
-    
-    if (loc->bus != LOC_PCI) return NULL;
+    struct pci_dev *pdev;
+    dev_node_t *node = kmalloc(sizeof(dev_node_t), GFP_KERNEL);
+
+    MOD_INC_USE_COUNT;
+    if (loc->bus != LOC_PCI)
+	goto fail;
     bus = loc->b.pci.bus; devfn = loc->b.pci.devfn;
-    printk(KERN_INFO "serial_attach(bus %d, fn %d)\n", bus, devfn);
-    pcibios_read_config_dword(bus, devfn, PCI_BASE_ADDRESS_0, &io);
-    pcibios_read_config_byte(bus, devfn, PCI_INTERRUPT_LINE, &irq);
-    if (io & PCI_BASE_ADDRESS_SPACE_IO) {
-	io &= PCI_BASE_ADDRESS_IO_MASK;
-    } else {
+    pdev = pci_find_slot(bus, devfn);
+    printk(KERN_INFO "serial_attach(device %02x:%02x.%d)\n",
+	   bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
+    pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &io);
+    pci_read_config_byte(pdev, PCI_INTERRUPT_LINE, &irq);
+    if (!(io & PCI_BASE_ADDRESS_SPACE_IO)) {
 	printk(KERN_NOTICE "serial_cb: PCI base address 0 is not IO\n");
-	return NULL;
+	goto fail;
     }
-    device_setup(bus, devfn, io);
+    io &= PCI_BASE_ADDRESS_IO_MASK;
+    device_setup(pdev, io);
     memset(&serial, 0, sizeof(serial));
     serial.port = io; serial.irq = irq;
     serial.flags = ASYNC_SKIP_TEST | ASYNC_SHARE_IRQ;
@@ -112,20 +117,25 @@ static dev_node_t *serial_attach(dev_locator_t *loc)
     if (line < 0) {
 	printk(KERN_NOTICE "serial_cb: register_serial() at 0x%04x, "
 	       "irq %d failed\n", serial.port, serial.irq);
-	return NULL;
-    } else {
-	dev_node_t *node = kmalloc(sizeof(dev_node_t), GFP_KERNEL);
-	sprintf(node->dev_name, "ttyS%d", line);
-	node->major = TTY_MAJOR; node->minor = 0x40 + line;
-	node->next = NULL;
-	MOD_INC_USE_COUNT;
-	return node;
+	goto fail;
     }
+    node = kmalloc(sizeof(dev_node_t), GFP_KERNEL);
+    if (!node) goto fail_alloc;
+    sprintf(node->dev_name, "ttyS%d", line);
+    node->major = TTY_MAJOR; node->minor = 0x40 + line;
+    node->next = NULL;
+    return node;
+
+fail_alloc:
+    unregister_serial(line);
+fail:
+    MOD_DEC_USE_COUNT;
+    return NULL;
 }
 
 static void serial_detach(dev_node_t *node)
 {
-    DEBUG(0, "serial_detach(tty%02d)\n", node->minor - 0x40);
+    DEBUG(0, "serial_detach(ttyS%02d)\n", node->minor - 0x40);
     unregister_serial(node->minor - 0x40);
     kfree(node);
     MOD_DEC_USE_COUNT;

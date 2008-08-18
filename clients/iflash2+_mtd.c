@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2+ Flash devices
 
-    iflash2+_mtd.c 1.58 1999/11/15 06:08:09
+    iflash2+_mtd.c 1.64 2000/05/16 21:31:36
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -41,6 +41,7 @@
 
 #ifdef __LINUX__
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -50,6 +51,7 @@
 #include <linux/timex.h>
 #include <linux/major.h>
 #include <linux/fs.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/segment.h>
@@ -71,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"iflash2+_mtd.c 1.58 1999/11/15 06:08:09 (David Hinds)";
+"iflash2+_mtd.c 1.64 2000/05/16 21:31:36 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -80,25 +82,18 @@ static char *version =
 
 /* Parameters that can be set with 'insmod' */
 
-static int word_width = 1;			/* 1 = 16-bit */
-static int mem_speed = 0;			/* in ns */
-static int vpp_timeout_period	= 1000;		/* in ms */
-static int vpp_settle		= 100;		/* in ms */
-static int write_timeout	= 100;		/* in ms */
-static int erase_timeout	= 100;		/* in ms */
-static int erase_limit		= 10000;	/* in ms */
-static int retry_limit		= 4;		/* write retries */
-static u_int max_tries       	= 4096;		/* status polling */
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
-MODULE_PARM(word_width, "i");
-MODULE_PARM(mem_speed, "i");
-MODULE_PARM(vpp_timeout_period, "i");
-MODULE_PARM(vpp_settle, "i");
-MODULE_PARM(write_timeout, "i");
-MODULE_PARM(erase_timeout, "i");
-MODULE_PARM(erase_limit, "i");
-MODULE_PARM(retry_limit, "i");
-MODULE_PARM(max_tries, "i");
+INT_MODULE_PARM(word_width, 1);			/* 1 = 16-bit */
+INT_MODULE_PARM(mem_speed, 0);			/* in ns */
+INT_MODULE_PARM(vpp_timeout_period, 1000);	/* in ms */
+INT_MODULE_PARM(vpp_settle, 100);		/* in ms */
+INT_MODULE_PARM(write_timeout, 100);		/* in ms */
+INT_MODULE_PARM(erase_timeout, 100);		/* in ms */
+INT_MODULE_PARM(erase_limit, 10000);		/* in ms */
+INT_MODULE_PARM(retry_limit, 8);		/* write retries */
+INT_MODULE_PARM(max_tries, 4096);		/* status polling */
+INT_MODULE_PARM(do_sleep, 1);			/* spin vs sleep? */
 
 /*====================================================================*/
 
@@ -173,6 +168,14 @@ static inline k_time_t uticks(void)
     
 ======================================================================*/
 
+static void sleep_or_spin(wait_queue_head_t *queue)
+{
+    if (do_sleep)
+	wsleeptimeout(queue, 1);
+    else
+	udelay(50);
+}
+
 static void log_esr(char *s, volatile u_short *esr)
 {
     u_short CSR, GSR, BSR;
@@ -182,9 +185,8 @@ static void log_esr(char *s, volatile u_short *esr)
     writew(IF_READ_ESR, esr);
     BSR = readw(esr+2);
     GSR = readw(esr+4);
-    printk(KERN_NOTICE "%s%s", s ? s : "", s ? ": " : "");
-    printk("CSR = 0x%04x, BSR = 0x%04x, GSR = 0x%04x\n",
-	   CSR, BSR, GSR);
+    printk("%sCSR = 0x%04x, BSR = 0x%04x, GSR = 0x%04x\n",
+	   (s ? s : KERN_NOTICE), CSR, BSR, GSR);
 }
 
 static void abort_cmd(volatile u_short *esr)
@@ -203,70 +205,67 @@ static void abort_cmd(volatile u_short *esr)
 
 static int set_rdy_mode(volatile u_short *esr, u_short mode)
 {
-    u_short i;
+    u_short i, j;
 
-    writew(IF_READ_ESR, esr);
-    for (i = 0; i < max_tries; i++)
-	if (!(readw(esr+2) & BSR_QUEUE_FULL)) break;
-    if (i == max_tries) {
-	printk(KERN_NOTICE "iflash2+_mtd: set_rdy_mode timed out!\n");
-	log_esr(NULL, esr);
-	return CS_GENERAL_FAILURE;
+    DEBUG(3, "iflash2+_mtd: set_rdy_mode(%04x)\n", mode);
+    for (j = 0; j < retry_limit; j++) {
+	writew(IF_READ_ESR, esr);
+	for (i = 0; i < max_tries; i++)
+	    if (!(readw(esr+4) & GSR_QUEUE_FULL)) break;
+	if (i == max_tries)
+	    goto failed;
+	writew(IF_RDY_MODE, esr);
+	writew(mode, esr);
+	writew(IF_READ_ESR, esr);
+	for (i = 0; i < max_tries; i++)
+	    if ((readw(esr+4) & GSR_WR_READY) == GSR_WR_READY) break;
+	if (i == max_tries)
+	    goto failed;
+	if (!(readw(esr+4) & GSR_OP_ERR))
+	    return CS_SUCCESS;
+	writew(IF_READ_ARRAY, esr);
+	writew(IF_CLEAR_CSR, esr);
     }
-    writew(IF_RDY_MODE, esr);
-    writew(mode, esr);
-    writew(IF_READ_ESR, esr);
-    for (i = 0; i < max_tries; i++) {
-	if ((readw(esr+4) & GSR_WR_READY) == GSR_WR_READY) break;
-    }
-    if (i == max_tries) {
-	printk(KERN_NOTICE "iflash2+_mtd: set_rdy_mode timed out!\n");
-	log_esr(NULL, esr);
-	return CS_GENERAL_FAILURE;
-    }
-    if (readw(esr+4) & GSR_OP_ERR) {
-	printk(KERN_NOTICE "iflash2+_mtd: set_rdy_mode failed!\n");
-	return CS_GENERAL_FAILURE;
-    }
-    return CS_SUCCESS;
+failed:
+    printk(KERN_NOTICE "iflash2+_mtd: set_rdy_mode failed!\n");
+    log_esr(NULL, esr);
+    return CS_GENERAL_FAILURE;
 }
 
 static int check_write(wait_queue_head_t *queue, volatile u_short *esr)
 {
+    u_long end = jiffies + write_timeout;
     writew(IF_READ_ESR, esr);
+    while (((readw(esr+2) & BSR_READY) != BSR_READY) && 
+	   (jiffies < end))
+	sleep_or_spin(queue);
     if ((readw(esr+2) & BSR_READY) != BSR_READY) {
-	int to = 1;
-	while (to && ((readw(esr+2) & BSR_READY) != BSR_READY))
-	    to = wsleeptimeout(queue, write_timeout);
-	if ((readw(esr+2) & BSR_READY) != BSR_READY) {
-	    printk(KERN_NOTICE "iflash2+_mtd: check_write: timed out!\n");
-	    log_esr(NULL, esr);
-	    return CS_GENERAL_FAILURE;
-	}
+	printk(KERN_NOTICE "iflash2+_mtd: check_write: timed out!\n");
+	log_esr(NULL, esr);
+	return CS_GENERAL_FAILURE;
     }
     if (readw(esr+2) & BSR_FAILED) {
-	log_esr("write error", esr);
+	log_esr(KERN_DEBUG "write error: ", esr);
 	return CS_WRITE_FAILURE;
     } else
 	return CS_SUCCESS;
 }
 
 static int page_setup(wait_queue_head_t *queue, volatile u_short *esr,
-		      volatile u_short *address,  u_short count)
+		      volatile u_short *address, u_short count)
 {
+    u_long end = jiffies + write_timeout;
     u_short nw;
-
     writew(IF_READ_ESR, esr);
+    while (((readw(esr+4) & GSR_PAGE_AVAIL) != GSR_PAGE_AVAIL) &&
+	   (jiffies < end))
+	sleep_or_spin(queue);
     if ((readw(esr+4) & GSR_PAGE_AVAIL) != GSR_PAGE_AVAIL) {
-	int to = 1;
-	while (to && ((readw(esr+4) & GSR_PAGE_AVAIL) != GSR_PAGE_AVAIL))
-	    to = wsleeptimeout(queue, write_timeout);
-	if ((readw(esr+4) & GSR_PAGE_AVAIL) != GSR_PAGE_AVAIL) {
-	    printk(KERN_NOTICE "iflash2+_mtd: page_setup timed out\n");
-	    log_esr(NULL, esr);
-	    return CS_GENERAL_FAILURE;
-	}
+	printk(KERN_NOTICE "iflash2+_mtd: page_setup timed out\n");
+	log_esr(NULL, esr);
+	return CS_GENERAL_FAILURE;
     }
+
     nw = count >> 1;
     if (nw == 0) {
 	/* Special case of single byte write */
@@ -334,7 +333,7 @@ static int check_erase(volatile u_short *address)
     if ((CSR & CSR_WR_READY) != CSR_WR_READY) {
 	return CS_BUSY;
     } else if (CSR & (CSR_ERA_ERR | CSR_VPP_LOW | CSR_WR_ERR)) {
-	log_esr("erase error", address);
+	log_esr(KERN_NOTICE "erase error: ", address);
 	return CS_WRITE_FAILURE;
     } else
 	return CS_SUCCESS;
@@ -410,12 +409,9 @@ static int vpp_setup(dev_link_t *link, mtd_request_t *req)
 
     /* First time for this request? */
     if (!(req->Function & MTD_REQ_TIMEOUT)) {
-	dev->vpp_usage++;
 	/* If no other users, kill shutdown timer and apply power */
-	if (dev->vpp_usage == 1) {
-	    if (dev->vpp_timeout.expires)
-		del_timer(&dev->vpp_timeout);
-	    else {
+	if (++dev->vpp_usage == 1) {
+	    if (!del_timer(&dev->vpp_timeout)) {
 		DEBUG(1, "iflash2+_mtd: raising Vpp...\n");
 		dev->vpp_start = jiffies;
 		vpp_req.Vpp1 = vpp_req.Vpp2 = 120;
@@ -531,9 +527,7 @@ static void flash_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    if (link->state & DEV_RELEASE_PENDING)
-	del_timer(&link->release);
-    
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG)
 	flash_release((u_long)link);
 
@@ -629,7 +623,9 @@ static void flash_config(dev_link_t *link)
 	    printk(KERN_INFO "iflash2+_mtd: %s at 0x%x, ",
 		   attr ? "attr" : "common", region.CardOffset);
 	    printk_size(region.RegionSize);
-	    printk(", %u ns\n", region.AccessSpeed);
+	    printk(", ");
+	    printk_size(region.BlockSize);
+	    printk(" blocks, %u ns\n", region.AccessSpeed);
 	    memset(dev->flash[i], 0, sizeof(struct flash_region_t));
 	    dev->flash[i]->region = region;
 	    /* Distinguish between 4MB..20MB cards and 40MB cards */
@@ -794,7 +790,7 @@ static int basic_write(wait_queue_head_t *queue, char *esr, char *dest,
     int ret;
 
     /* Enable interrupts on write complete */
-    ret = set_rdy_mode((u_short *)esr, IF_RDY_PULSE_WRITE);
+    ret = set_rdy_mode((u_short *)esr, IF_RDY_LEVEL);
     if (ret != CS_SUCCESS) return ret;
     
     /* Fix for mis-aligned writes */
@@ -815,7 +811,6 @@ static int basic_write(wait_queue_head_t *queue, char *esr, char *dest,
     }
     
     for (; nb > 0; nb -= npb) {
-	    
 	/* npb = # of bytes to write to page buffer */
 	npb = (nb > 512) ? 512 : nb;
 	/* sleep until page buffer is free */
@@ -829,6 +824,7 @@ static int basic_write(wait_queue_head_t *queue, char *esr, char *dest,
 	
 	ret = page_write((u_short *)esr, (u_short *)dest, npb);
 	if (ret != CS_SUCCESS) return ret;
+	check_write(queue, (u_short *)esr);
 	
 	dest += npb;
 	buf += npb;
@@ -925,8 +921,8 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
 	    abort_cmd((u_short *)dev->ESRbase);
 	}
 	if (retry == retry_limit) {
-	    printk(KERN_DEBUG "iflash2+_mtd: write failed: "
-		   "too many retries!\n");
+	    printk(KERN_NOTICE "iflash2+_mtd: write at 0x%06x failed:"
+		   " too many retries!\n", mod.CardOffset);
 	    goto done;
 	}
 	
@@ -1116,17 +1112,14 @@ static int flash_event(event_t event, int priority,
 {
     dev_link_t *link = args->client_data;
 
-    DEBUG(2, "iflash2+_mtd: flash_event(0x%06x)\n", event);
+    DEBUG(3, "iflash2+_mtd: flash_event(0x%06x)\n", event);
     
     switch (event) {
 	
     case CS_EVENT_CARD_REMOVAL:
 	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    link->release.expires = jiffies + HZ/20;
-	    link->state |= DEV_RELEASE_PENDING;
-	    add_timer(&link->release);
-	}
+	if (link->state & DEV_CONFIG)
+	    mod_timer(&link->release, jiffies + HZ/20);
 	break;
 	
     case CS_EVENT_CARD_INSERTION:

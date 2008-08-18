@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.104 2000/01/11 01:18:02
+    ds.c 1.105 2000/05/03 20:04:52
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.104 2000/01/11 01:18:02 (David Hinds)";
+"ds.c 1.105 2000/05/03 20:04:52 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -914,7 +914,7 @@ int __init init_pcmcia_ds(void)
 	init_waitqueue_head(&s->queue);
 	init_waitqueue_head(&s->request);
 	s->handle = NULL;
-	s->removal.prev = s->removal.next = NULL;
+	init_timer(&s->removal);
 	s->removal.data = i;
 	s->removal.function = &handle_removal;
 	s->bind = NULL;
@@ -957,11 +957,9 @@ int __init init_pcmcia_ds(void)
     register_symtab(&ds_symtab);
 
 #ifdef HAS_PROC_BUS
-    if (proc_pccard) {
-	struct proc_dir_entry *ent;
-	ent = create_proc_entry("drivers", 0, proc_pccard);
-	ent->read_proc = proc_read_drivers;
-    }
+    if (proc_pccard)
+	create_proc_read_entry("drivers", 0, proc_pccard,
+			       proc_read_drivers, NULL);
     init_status = 0;
 #endif
     return 0;

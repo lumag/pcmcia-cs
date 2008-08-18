@@ -3453,7 +3453,6 @@ static void set_rx_mode(struct net_device *dev)
 static void tulip_reap(void)
 {
 	struct net_device **devp, **next;
-	printk(KERN_DEBUG "tulip_reap()\n");
 	for (devp = &root_tulip_dev; *devp; devp = next) {
 		struct tulip_private *tp = (*devp)->priv;
 		next = &tp->next_module;
@@ -3476,7 +3475,8 @@ static dev_node_t *tulip_attach(dev_locator_t *loc)
 	tulip_reap();
 	if (loc->bus != LOC_PCI) return NULL;
 	bus = loc->b.pci.bus; devfn = loc->b.pci.devfn;
-	printk(KERN_INFO "tulip_attach(bus %d, function %d)\n", bus, devfn);
+	printk(KERN_INFO "tulip_attach(device %02x:%02x.%d)\n",
+		   bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
 	pcibios_read_config_dword(bus, devfn, PCI_BASE_ADDRESS_0, &io);
 	pcibios_read_config_word(bus, devfn, PCI_DEVICE_ID, &dev_id);
 	pcibios_read_config_byte(bus, devfn, PCI_INTERRUPT_LINE, &irq);

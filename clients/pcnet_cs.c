@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    pcnet_cs.c 1.115 2000/03/31 21:03:29
+    pcnet_cs.c 1.120 2000/05/13 02:35:35
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -31,9 +31,9 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.115 2000/03/31 21:03:29 (David Hinds)";
+"pcnet_cs.c 1.120 2000/05/13 02:35:35 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -146,16 +146,18 @@ static dev_link_t *dev_list;
 /*====================================================================*/
 
 typedef struct hw_info_t {
-    u_long	offset;
+    u_int	offset;
     u_char	a0, a1, a2;
-    u_long	flags;
+    u_int	flags;
 } hw_info_t;
 
 #define DELAY_OUTPUT	0x01
 #define HAS_MISC_REG	0x02
 #define USE_BIG_BUF	0x04
 #define HAS_IBM_MISC	0x08
-#define IS_DL10019A	0x10
+#define IS_DL10019	0x10
+#define IS_DL10022	0x20
+#define IS_AX88190	0x40
 #define USE_SHMEM	0x80	/* autodetected */
 
 static hw_info_t hw_info[] = {
@@ -221,20 +223,22 @@ static hw_info_t hw_info[] = {
 
 #define NR_INFO		(sizeof(hw_info)/sizeof(hw_info_t))
 
-static hw_info_t default_info =
-{ /* Unknown NE2000 Clone */ 0x00, 0x00, 0x00, 0x00, 0 };
-static hw_info_t dl_fast_info =
-{ /* D-Link EtherFast */ 0x00, 0x00, 0x00, 0x00, IS_DL10019A };
+static hw_info_t default_info = { 0, 0, 0, 0, 0 };
+static hw_info_t dl10019_info = { 0, 0, 0, 0, IS_DL10019 };
+static hw_info_t dl10022_info = { 0, 0, 0, 0, IS_DL10019|IS_DL10022 };
+#if 0
+static hw_info_t ax88190_info = { 0, 0, 0, 0, IS_AX88190 };
+#endif
 
 typedef struct pcnet_dev_t {
-    struct net_device	dev; /* so &dev == &pcnet_dev_t */
+    struct net_device	dev;	/* so &dev == &pcnet_dev_t */
     dev_link_t		link;
     dev_node_t		node;
-    u_long		flags;
+    u_int		flags;
     caddr_t		base;
     struct timer_list	watchdog;
-    int			stale, state;
-    u_short		fast_poll;
+    int			stale, fast_poll;
+    u_short		link_status;
 } pcnet_dev_t;
 
 /*======================================================================
@@ -355,7 +359,6 @@ static void pcnet_detach(dev_link_t *link)
 {
     pcnet_dev_t *info = link->priv;
     dev_link_t **linkp;
-    long flags;
 
     DEBUG(0, "pcnet_detach(0x%p)\n", link);
 
@@ -365,14 +368,7 @@ static void pcnet_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    save_flags(flags);
-    cli();
-    if (link->state & DEV_RELEASE_PENDING) {
-	del_timer(&link->release);
-	link->state &= ~DEV_RELEASE_PENDING;
-    }
-    restore_flags(flags);
-
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG) {
 	pcnet_release((u_long)link);
 	if (link->state & DEV_STALE_CONFIG) {
@@ -391,27 +387,6 @@ static void pcnet_detach(dev_link_t *link)
     kfree(info);
 
 } /* pcnet_detach */
-
-/*======================================================================
-
-    For the Linksys EtherFast 10/100 card
-
-======================================================================*/
-
-static hw_info_t *get_dl_fast(dev_link_t *link)
-{
-    struct net_device *dev = link->priv;
-    int i;
-    u_char sum;
-
-    for (sum = 0, i = 0x14; i < 0x1c; i++)
-	sum += inb_p(dev->base_addr + i);
-    if (sum != 0xff)
-	return NULL;
-    for (i = 0; i < 6; i++)
-	dev->dev_addr[i] = inb_p(dev->base_addr + 0x14 + i);
-    return &dl_fast_info;
-}
 
 /*======================================================================
 
@@ -473,8 +448,8 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
 static hw_info_t *get_prom(dev_link_t *link)
 {
     struct net_device *dev = link->priv;
+    ioaddr_t ioaddr = dev->base_addr;
     u_char prom[32];
-    ioaddr_t ioaddr;
     int i, j;
 
     /* This is lifted straight from drivers/net/ne.c */
@@ -495,8 +470,6 @@ static hw_info_t *get_prom(dev_link_t *link)
 	{0x00,	EN0_RSARHI},
 	{E8390_RREAD+E8390_START, E8390_CMD},
     };
-
-    ioaddr = dev->base_addr;
 
     pcnet_reset_8390(dev);
     udelay(10000);
@@ -519,6 +492,63 @@ static hw_info_t *get_prom(dev_link_t *link)
     }
     return NULL;
 } /* get_prom */
+
+/*======================================================================
+
+    For DL10019 based cards, like the Linksys EtherFast
+
+======================================================================*/
+
+static hw_info_t *get_dl10019(dev_link_t *link)
+{
+    struct net_device *dev = link->priv;
+    int i;
+    u_char sum;
+
+    for (sum = 0, i = 0x14; i < 0x1c; i++)
+	sum += inb_p(dev->base_addr + i);
+    if (sum != 0xff)
+	return NULL;
+    for (i = 0; i < 6; i++)
+	dev->dev_addr[i] = inb_p(dev->base_addr + 0x14 + i);
+    i = inb(dev->base_addr + 0x1f);
+    return ((i == 0x91)||(i == 0x99)) ? &dl10022_info : &dl10019_info;
+}
+
+/*======================================================================
+
+    For Asix AX88190 based cards
+
+======================================================================*/
+
+static hw_info_t *get_ax88190(dev_link_t *link)
+{
+    struct net_device *dev = link->priv;
+    ioaddr_t ioaddr = dev->base_addr;
+    int i, j;
+
+    /* Not much of a test, but the alternatives are messy */
+    if (link->conf.ConfigBase != 0x03c0)
+	return NULL;
+
+    outb_p(0x01, EN0_DCFG);	/* Set word-wide access. */
+    outb_p(0x00, EN0_RSARLO);	/* DMA starting at 0x0400. */
+    outb_p(0x04, EN0_RSARHI);
+    outb_p(E8390_RREAD+E8390_START, E8390_CMD);
+
+    for (i = 0; i < 6; i += 2) {
+	j = inw(ioaddr + PCNET_DATAPORT);
+	dev->dev_addr[i] = j & 0xff;
+	dev->dev_addr[i+1] = j >> 8;
+    }
+#if 0
+    return &ax88190_info;
+#else
+    printk(KERN_INFO "pcnet_cs: sorry, the AX88190 chipset is not "
+	   "supported.\n");
+    return NULL;
+#endif
+}
 
 /*======================================================================
 
@@ -698,13 +728,17 @@ static void pcnet_config(dev_link_t *link)
     if (hw_info == NULL)
 	hw_info = get_prom(link);
     if (hw_info == NULL)
-	hw_info = get_dl_fast(link);
+	hw_info = get_dl10019(link);
+    if (hw_info == NULL)
+	hw_info = get_ax88190(link);
     if (hw_info == NULL)
 	hw_info = get_hwired(link);
     
     if (hw_info == NULL) {
-	printk(KERN_NOTICE "pcnet_cs: unable to read hardware net address\n");
-	goto config_undo;
+	printk(KERN_NOTICE "pcnet_cs: unable to read hardware net"
+	       " address for io base %#3lx\n", dev->base_addr);
+	unregister_netdev(dev);
+	goto failed;
     }
 
     info->flags = hw_info->flags;
@@ -733,14 +767,20 @@ static void pcnet_config(dev_link_t *link)
     ei_status.name = "NE2000";
     ei_status.word16 = 1;
     ei_status.reset_8390 = &pcnet_reset_8390;
-    if (info->flags & IS_DL10019A)
-	dev->do_ioctl = &do_ioctl;
 
     link->dev = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
 
-    printk(KERN_INFO "%s: NE2000 Compatible: io %#3lx, irq %d,",
-	   dev->name, dev->base_addr, dev->irq);
+    if (info->flags & IS_DL10019) {
+	dev->do_ioctl = &do_ioctl;
+	printk(KERN_INFO "%s: NE2000 (DL100%d rev %02x): ",
+	       dev->name, ((info->flags & IS_DL10022) ? 22 : 19),
+	       inb(dev->base_addr + 0x1a));
+    } else if (info->flags & IS_AX88190) {
+	printk(KERN_INFO "%s: NE2000 (AX88190): ", dev->name);
+    } else
+	printk(KERN_INFO "%s: NE2000 Compatible: ", dev->name);
+    printk("io %#3lx, irq %d,", dev->base_addr, dev->irq);
     if (info->flags & USE_SHMEM)
 	printk (" mem %#5lx,", dev->mem_start);
     if (info->flags & HAS_MISC_REG)
@@ -750,9 +790,6 @@ static void pcnet_config(dev_link_t *link)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
     return;
 
-config_undo:
-    unregister_netdev(dev);
-    goto failed;
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
@@ -790,7 +827,7 @@ static void pcnet_release(u_long arg)
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
 
-    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+    link->state &= ~DEV_CONFIG;
 
 } /* pcnet_release */
 
@@ -816,9 +853,7 @@ static int pcnet_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    netif_device_detach(&info->dev);
-	    link->release.expires = jiffies + HZ/20;
-	    link->state |= DEV_RELEASE_PENDING;
-	    add_timer(&link->release);
+	    mod_timer(&link->release, jiffies + HZ/20);
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
@@ -852,6 +887,79 @@ static int pcnet_event(event_t event, int priority,
     return 0;
 } /* pcnet_event */
 
+/*======================================================================
+
+    MII interface support for DL10019 and DL10022 based cards
+
+    On the DL10019, the MII IO direction bit is 0x10; on  the DL10022
+    it is 0x20.  Setting both bits seems to work on both card types.
+
+======================================================================*/
+
+#define DLINK_GPIO		0x1c
+#define DLINK_DIAG		0x1d
+#define MDIO_SHIFT_CLK		0x80
+#define MDIO_DATA_OUT		0x40
+#define MDIO_DIR_WRITE		0x30
+#define MDIO_DATA_WRITE0	(MDIO_DIR_WRITE)
+#define MDIO_DATA_WRITE1	(MDIO_DIR_WRITE | MDIO_DATA_OUT)
+#define MDIO_DATA_READ		0x10
+#define MDIO_MASK		0x0f
+
+static void mdio_sync(ioaddr_t addr)
+{
+    int bits, mask = inb(addr) & MDIO_MASK;
+    for (bits = 0; bits < 32; bits++) {
+	outb(mask | MDIO_DATA_WRITE1, addr);
+	outb(mask | MDIO_DATA_WRITE1 | MDIO_SHIFT_CLK, addr);
+    }
+}
+
+static int mdio_read(ioaddr_t addr, int phy_id, int loc)
+{
+    u_int cmd = (0x06<<10)|(phy_id<<5)|loc;
+    int i, retval = 0, mask = inb(addr) & MDIO_MASK;
+
+    mdio_sync(addr);
+    for (i = 13; i >= 0; i--) {
+	int dat = (cmd&(1<<i)) ? MDIO_DATA_WRITE1 : MDIO_DATA_WRITE0;
+	outb(mask | dat, addr);
+	outb(mask | dat | MDIO_SHIFT_CLK, addr);
+    }
+    for (i = 19; i > 0; i--) {
+	outb(mask, addr);
+	retval = (retval << 1) | ((inb(addr) & MDIO_DATA_READ) != 0);
+	outb(mask | MDIO_SHIFT_CLK, addr);
+    }
+    return (retval>>1) & 0xffff;
+}
+
+static void mdio_write(ioaddr_t addr, int phy_id, int loc, int value)
+{
+    u_int cmd = (0x05<<28)|(phy_id<<23)|(loc<<18)|(1<<17)|value;
+    int i, mask = inb(addr) & MDIO_MASK;
+
+    mdio_sync(addr);
+    for (i = 31; i >= 0; i--) {
+	int dat = (cmd&(1<<i)) ? MDIO_DATA_WRITE1 : MDIO_DATA_WRITE0;
+	outb(mask | dat, addr);
+	outb(mask | dat | MDIO_SHIFT_CLK, addr);
+    }
+    for (i = 1; i >= 0; i--) {
+	outb(mask, addr);
+	outb(mask | MDIO_SHIFT_CLK, addr);
+    }
+}
+
+static void mdio_reset(ioaddr_t addr, int phy_id)
+{
+    outb_p(0x08, addr);
+    outb_p(0x0c, addr);
+    outb_p(0x08, addr);
+    outb_p(0x0c, addr);
+    outb_p(0x00, addr);
+}
+
 /*====================================================================*/
 
 static void set_misc_reg(struct net_device *dev)
@@ -869,6 +977,12 @@ static void set_misc_reg(struct net_device *dev)
 	if (info->flags & HAS_IBM_MISC)
 	    tmp |= 8;
 	outb_p(tmp, nic_base + PCNET_MISC);
+    }
+    if (info->flags & IS_DL10022) {
+	mdio_reset(nic_base + DLINK_GPIO, 0);
+	/* Restart MII autonegotiation */
+	mdio_write(nic_base + DLINK_GPIO, 0, 0, 0x0000);
+	mdio_write(nic_base + DLINK_GPIO, 0, 0, 0x1200);
     }
 }
 
@@ -890,8 +1004,7 @@ static int pcnet_open(struct net_device *dev)
     set_misc_reg(dev);
     request_irq(dev->irq, ei_irq_wrapper, SA_SHIRQ, dev_info, dev);
 
-    /* Start by assuming the link is bad */
-    info->state = 1;
+    info->link_status = 0x00;
     info->watchdog.function = &ei_watchdog;
     info->watchdog.data = (u_long)info;
     info->watchdog.expires = jiffies + HZ;
@@ -915,11 +1028,8 @@ static int pcnet_close(struct net_device *dev)
     netif_stop_queue(dev);
     netif_mark_down(dev);
     del_timer(&info->watchdog);
-    if (link->state & DEV_STALE_CONFIG) {
-	link->release.expires = jiffies + HZ/20;
-	link->state |= DEV_RELEASE_PENDING;
-	add_timer(&link->release);
-    }
+    if (link->state & DEV_STALE_CONFIG)
+	mod_timer(&link->release, jiffies + HZ/20);
 
     MOD_DEC_USE_COUNT;
 
@@ -988,13 +1098,14 @@ static void ei_watchdog(u_long arg)
     pcnet_dev_t *info = (pcnet_dev_t *)(arg);
     struct net_device *dev = &info->dev;
     ioaddr_t nic_base = dev->base_addr;
+    u_short link;
 
     if (!netif_device_present(dev)) goto reschedule;
 
     /* Check for pending interrupt with expired latency timer: with
        this, we can limp along even if the interrupt is blocked */
     outb_p(E8390_NODMA+E8390_PAGE0, nic_base + E8390_CMD);
-    if (info->stale++ && inb_p(nic_base + EN0_ISR)) {
+    if (info->stale++ && (inb_p(nic_base + EN0_ISR) & ENISR_ALL)) {
 	if (!info->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
 	ei_irq_wrapper(dev->irq, dev, NULL);
@@ -1007,15 +1118,21 @@ static void ei_watchdog(u_long arg)
 	return;
     }
 
-    if (info->flags & IS_DL10019A) {
-	int state = inb(dev->base_addr+0x1c) & 0x01;
-	if (state != info->state) {
-	    printk(KERN_INFO "%s: %s link beat\n", dev->name,
-		   (state) ? "lost" : "found");
-	    if (!state)
-		NS8390_init(dev, 1);
-	    info->state = state;
+    if (!(info->flags & IS_DL10019))
+	goto reschedule;
+
+    link = mdio_read(dev->base_addr + DLINK_GPIO, 0, 1) & 0x0004;
+    if (link != info->link_status) {
+	printk(KERN_INFO "%s: %s link beat\n", dev->name,
+	       (link) ? "found" : "lost");
+	if (link && info->flags & IS_DL10022) {
+	    /* Disable collision detection on full duplex links */
+	    u_short p = mdio_read(dev->base_addr + DLINK_GPIO, 0, 5);
+	    outb((p & 0x0140) ? 4 : 0, dev->base_addr + DLINK_DIAG);
 	}
+	if (link)
+	    NS8390_init(dev, 1);
+	info->link_status = link;
     }
 
 reschedule:
@@ -1023,79 +1140,22 @@ reschedule:
     add_timer(&info->watchdog);
 }
 
-/*======================================================================
-
-    MII interface support for DL10019 based cards
-
-======================================================================*/
-
-#define MDIO_SHIFT_CLK		0x80
-#define MDIO_DIR_WRITE		0x10
-#define MDIO_DATA_WRITE0	0x10
-#define MDIO_DATA_WRITE1	0x60
-#define MDIO_DATA_READ		0x10
-#define MDIO_MASK		0x0f
-#define MDIO_ENB_IN		0x00
-
-static void mdio_sync(ioaddr_t addr)
-{
-    int bits, mask = inb(addr) & MDIO_MASK;
-    for (bits = 0; bits < 32; bits++) {
-	outb(mask | MDIO_DATA_WRITE1, addr);
-	outb(mask | MDIO_DATA_WRITE1 | MDIO_SHIFT_CLK, addr);
-    }
-}
-
-static int mdio_read(ioaddr_t addr, int phy_id, int loc)
-{
-    u_int cmd = (0xf6<<10)|(phy_id<<5)|loc;
-    int i, retval = 0, mask = inb(addr) & MDIO_MASK;
-
-    mdio_sync(addr);
-    for (i = 14; i >= 0; i--) {
-	int dat = (cmd&(1<<i)) ? MDIO_DATA_WRITE1 : MDIO_DATA_WRITE0;
-	outb(mask | dat, addr);
-	outb(mask | dat | MDIO_SHIFT_CLK, addr);
-    }
-    for (i = 19; i > 0; i--) {
-	outb(mask | MDIO_ENB_IN, addr);
-	retval = (retval << 1) | ((inb(addr) & MDIO_DATA_READ) != 0);
-	outb(mask | MDIO_ENB_IN | MDIO_SHIFT_CLK, addr);
-    }
-    return (retval>>1) & 0xffff;
-}
-
-static void mdio_write(ioaddr_t addr, int phy_id, int loc, int value)
-{
-    u_int cmd = (0x05<<28)|(phy_id<<23)|(loc<<18)|(1<<17)|value;
-    int i, mask = inb(addr) & MDIO_MASK;
-
-    mdio_sync(addr);
-    for (i = 31; i >= 0; i--) {
-	int dat = (cmd&(1<<i)) ? MDIO_DATA_WRITE1 : MDIO_DATA_WRITE0;
-	outb(mask | dat, addr);
-	outb(mask | dat | MDIO_SHIFT_CLK, addr);
-    }
-    for (i = 1; i >= 0; i--) {
-	outb(mask | MDIO_ENB_IN, addr);
-	outb(mask | MDIO_ENB_IN | MDIO_SHIFT_CLK, addr);
-    }
-}
+/*====================================================================*/
 
 static int do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
     u16 *data = (u16 *)&rq->ifr_data;
-    ioaddr_t addr = dev->base_addr + 0x1c;
+    ioaddr_t addr = dev->base_addr + DLINK_GPIO;
     switch (cmd) {
     case SIOCDEVPRIVATE:
 	data[0] = 0;
     case SIOCDEVPRIVATE+1:
-	data[3] = mdio_read(addr, 0, data[1] & 0x1f);
+	data[3] = mdio_read(addr, data[0], data[1] & 0x1f);
 	return 0;
     case SIOCDEVPRIVATE+2:
 	if (!capable(CAP_NET_ADMIN))
 	    return -EPERM;
-	mdio_write(addr, 0, data[1] & 0x1f, data[2]);
+	mdio_write(addr, data[0], data[1] & 0x1f, data[2]);
 	return 0;
     }
     return -EOPNOTSUPP;

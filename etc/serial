@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.33 2000/02/08 19:32:21 (David Hinds)
+# serial 1.34 2000/04/18 01:50:17 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -25,8 +25,8 @@ ADDRESS="$SCHEME,$SOCKET,$INSTANCE"
 
 # Newer kernels deprecate use of "cua" devices, but we need to
 # keep track of them anyway, if the device files are present
+NR=`expr $MINOR - 64`
 if [ -c /dev/cua1 ] ; then
-    NR=`expr $MINOR - 64`
     CALLOUT=cua$NR
 else
     CALLOUT=$DEVICE
@@ -59,11 +59,16 @@ case "$ACTION" in
     ;;
 
 'check')
-    fuser -s /dev/$DEVICE /dev/$CALLOUT $LINK && exit 1
+    if [ "$INITTAB" ] ; then
+	fuser -v /dev/$DEVICE /dev/$CALLOUT $LINK | grep -v getty \
+	    | grep -q /dev/$DEVICE && exit 1
+    else
+	fuser -s /dev/$DEVICE /dev/$CALLOUT $LINK && exit 1
+    fi
     ;;
 
 'cksum')
-    chk_simple "$3,$SOCKET,$INSTANCE" || exit 1
+    chk_simple "$NEW_SCHEME,$SOCKET,$INSTANCE" || exit 1
     ;;
     
 'stop')

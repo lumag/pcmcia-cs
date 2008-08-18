@@ -4,17 +4,19 @@
 #
 # Specific configuration of a PCMCIA wireless LAN adapter
 #
-# This script should be invoked with two arguments.  The first is the
-# action to be taken, either "start", "stop", or "restart".  The
-# second is the network interface name.  It is invoked automatically by
-# the network script.
+# This script is invoked automatically by the network script; it should
+# not be executed by hand.
 #
 # Note : it would be real cool to have the name of the driver as part
 # of the extended device address
 #
 
 # Load site-specific settings
-. $0.opts
+if [ -x ./wireless.opts ] ; then
+    . ./wireless.opts
+else
+    . /etc/pcmcia/wireless.opts
+fi
 
 # Find the path where wireless tools are installed
 for IWPATH in /usr/{bin,sbin} /usr/local/{bin,sbin} /sbin ; do
@@ -78,7 +80,8 @@ case "$ACTION" in
     ;;
 
 'cksum')
-    chk_simple "$3,$SOCKET,$INSTANCE,$HWADDR" || exit 1
+    chk_simple "$NEW_SCHEME,$SOCKET,$INSTANCE,$HWADDR"
+    WIRELESS=$?
     ;;
 
 'stop'|'check'|'restart'|'suspend'|'resume')

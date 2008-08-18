@@ -324,6 +324,9 @@ static struct pci_id_info pci_tbl[] = {
 	{"3CCFEM656 Cyclone CardBus",	0x10B7, 0x6562, 0xffff,
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS,
 	 128, vortex_probe1},
+	{"3CCFEM656 Cyclone CardBus",	0x10B7, 0x6564, 0xffff,
+	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS,
+	 128, vortex_probe1},
 	{"3c575 series CardBus (unknown version)", 0x10B7, 0x5057, 0xf0ff,
 	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG|HAS_MII, 64, vortex_probe1},
 	{"3Com Boomerang (unknown version)",	0x10B7, 0x9000, 0xff00,
@@ -581,7 +584,6 @@ static int compaq_ioaddr = 0, compaq_irq = 0, compaq_device_id = 0x5900;
 static void vortex_reap(void)
 {
 	struct net_device **devp, **next;
-	printk(KERN_DEBUG "vortex_reap()\n");
 	for (devp = &root_vortex_dev; *devp; devp = next) {
 		struct vortex_private *vp = (*devp)->priv;
 		next = &vp->next_module;
@@ -609,8 +611,8 @@ static dev_node_t *vortex_attach(dev_locator_t *loc)
 	pcibios_read_config_byte(bus, devfn, PCI_INTERRUPT_LINE, &irq);
 	pcibios_read_config_word(bus, devfn, PCI_VENDOR_ID, &vendor_id);
 	pcibios_read_config_word(bus, devfn, PCI_DEVICE_ID, &dev_id);
-	printk(KERN_INFO "vortex_attach(bus %d, function %d, device %4.4x)\n",
-		   bus, devfn, dev_id);
+	printk(KERN_INFO "vortex_attach(device %02x:%02x.%d)\n",
+		   bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
 	io &= ~3;
 	if (io == 0 || irq == 0) {
 		printk(KERN_ERR "The 3Com CardBus Ethernet interface was not "
@@ -1175,11 +1177,13 @@ vortex_up(struct net_device *dev)
 	if (vp->cb_fn_base) {
 		u_short n = inw(ioaddr + Wn2_ResetOptions);
 		/* Inverted LED polarity */
-		if (pci_tbl[vp->chip_id].device_id != 0x5257)
+		if ((pci_tbl[vp->chip_id].device_id != 0x5257) &&
+			(pci_tbl[vp->chip_id].device_id != 0x6564))
 			n |= 0x0010;
 		/* Inverted polarity of MII power bit */
 		if ((pci_tbl[vp->chip_id].device_id == 0x6560) ||
 			(pci_tbl[vp->chip_id].device_id == 0x6562) ||
+			(pci_tbl[vp->chip_id].device_id == 0x6564) ||
 			(pci_tbl[vp->chip_id].device_id == 0x5257))
 			n |= 0x4000;
 		outw(n, ioaddr + Wn2_ResetOptions);

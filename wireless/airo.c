@@ -626,10 +626,6 @@ static int takedown_proc_entry( struct net_device *dev,
 				struct airo_info *apriv );
 
 
-static int airo_init( struct net_device *dev ) {
-	return 0;
-}
-
 static int airo_open(struct net_device *dev) {
 	struct airo_info *info = dev->priv;
 
@@ -783,7 +779,6 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 	dev->name = ((struct airo_info *)dev->priv)->name;
 	ether_setup(dev);
 	dev->change_mtu = &airo_change_mtu;
-	dev->init = &airo_init;
 	dev->open = &airo_open;
 	dev->stop = &airo_close;
 	netif_stop_queue(dev);

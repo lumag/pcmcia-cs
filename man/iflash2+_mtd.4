@@ -1,9 +1,11 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" iflash2_mtd.4 1.6 1999/12/21 22:56:31
+.\" iflash2_mtd.4 1.7 2000/04/21 19:30:55
 .\"
-.TH IFLASH2_MTD 4 "1999/12/21 22:56:31" "pcmcia-cs"
+.TH IFLASH2_MTD 4 "2000/04/21 19:30:55" "pcmcia-cs"
+
 .SH NAME
 iflash2+_mtd \- memory technology driver for Intel Series 2+ flash
+
 .SH SYNOPSIS
 .B insmod iflash2+_mtd.o
 .RB [ pc_debug=\c
@@ -28,19 +30,27 @@ iflash2+_mtd \- memory technology driver for Intel Series 2+ flash
 .IR n ]
 .RB [ word_width=\c
 .IR n ]
+.RB [ do_sleep=\c
+.IR n ]
+
 .SH DESCRIPTION
 .B Iflash2+_mtd
-is a memory technology driver for Intel Series 2+ flash
-devices.  Memory technology drivers are used by Card Services to
-provide device-independent access for memory cards through bulk memory
-services.  
+is a memory technology driver for Intel Series 2+ flash devices.
+Memory technology drivers are used by Card Services to provide
+device-independent access for memory cards through bulk memory
+services.
 .PP
 In addition to backwards compatibility with Series 2 flash devices,
 Series 2+ devices provide fast page-mode transfers, which allow
 sequential flash writes to proceed in the background without active
 monitoring.  While faster than Series 2 cards in actual write speeds,
-this means that Series 2+ cards also do not tie up the 
-host processor while writes are in progress.
+this means that Series 2+ cards also do not tie up the host processor
+while writes are in progress.  By default, the driver sleeps while
+waiting for writes to complete.  For even faster write throughput, at
+the expense of higher CPU utilization, the driver can optionally poll
+for write completion.  The \fBdo_sleep\fR parameter determines which
+mode is used.
+
 .SH PARAMETERS
 .TP
 .BI pc_debug= n
@@ -81,12 +91,18 @@ operation is assumed to have failed.  The default is 10000 ms.
 .TP
 .BI retry_limit= n
 The maximum number of retries for a write operation.  The default is
-4.
+8.
 .TP
 .BI max_tries= n
 The maximum number of status register polls before various commands
 are assumed to have timed out.  The default is 4096.
+.TP
+.BI do_sleep= n
+A flag indicating if the driver should sleep or busy loop while
+waiting for write completion.  The default is 1 (true).
+
 .SH AUTHOR
 David Hinds \- dhinds@pcmcia.sourceforge.org
+
 .SH "SEE ALSO"
 iflash2+_mtd(4), memory_cs(4).

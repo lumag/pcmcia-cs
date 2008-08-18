@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    3c589_cs.c 1.147 2000/02/24 20:27:11
+    3c589_cs.c 1.151 2000/05/08 22:03:18
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -120,7 +120,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.147 2000/02/24 20:27:11 (David Hinds)";
+"3c589_cs.c 1.151 2000/05/08 22:03:18 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -196,18 +196,6 @@ static void cs_error(client_handle_t handle, int func, int ret)
 
 /*======================================================================
 
-    We never need to do anything when a tc589 device is "initialized"
-    by the net software, because we only register already-found cards.
-    
-======================================================================*/
-
-static int tc589_init(struct net_device *dev)
-{
-    return 0;
-}
-
-/*======================================================================
-
     tc589_attach() creates an "instance" of the driver, allocating
     local data structures for one device.  The device is registered
     with Card Services.
@@ -257,7 +245,6 @@ static dev_link_t *tc589_attach(void)
     dev->set_multicast_list = &set_multicast_list;
     ether_setup(dev);
     dev->name = lp->node.dev_name;
-    dev->init = &tc589_init;
     dev->open = &el3_open;
     dev->stop = &el3_close;
 #ifdef HAVE_NETIF_QUEUE
@@ -300,7 +287,6 @@ static void tc589_detach(dev_link_t *link)
 {
     struct el3_private *lp = link->priv;
     dev_link_t **linkp;
-    long flags;
     
     DEBUG(0, "3c589_detach(0x%p)\n", link);
     
@@ -310,14 +296,7 @@ static void tc589_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    save_flags(flags);
-    cli();
-    if (link->state & DEV_RELEASE_PENDING) {
-	del_timer(&link->release);
-	link->state &= ~DEV_RELEASE_PENDING;
-    }
-    restore_flags(flags);
-    
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG) {
 	tc589_release((u_long)link);
 	if (link->state & DEV_STALE_CONFIG) {
@@ -410,7 +389,6 @@ static void tc589_config(dev_link_t *link)
 	goto failed;
     }
     
-    link->state &= ~DEV_CONFIG_PENDING;
     ioaddr = dev->base_addr;
     EL3WINDOW(0);
 
@@ -432,6 +410,7 @@ static void tc589_config(dev_link_t *link)
     }
     
     link->dev = &lp->node;
+    link->state &= ~DEV_CONFIG_PENDING;
     
     /* The address and resource configuration register aren't loaded from
        the EEPROM and *must* be set to 0 and IRQ3 for the PCMCIA version. */
@@ -487,7 +466,7 @@ static void tc589_release(u_long arg)
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
     
-    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+    link->state &= ~DEV_CONFIG;
     
 } /* tc589_release */
 
@@ -514,8 +493,7 @@ static int tc589_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    netif_device_detach(dev);
-	    link->release.expires = jiffies + HZ/20;
-	    add_timer(&link->release);
+	    mod_timer(&link->release, jiffies + HZ/20);
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
@@ -1109,11 +1087,8 @@ static int el3_close(struct net_device *dev)
     netif_stop_queue(dev);
     netif_mark_down(dev);
     del_timer(&lp->media);
-    if (link->state & DEV_STALE_CONFIG) {
-	link->release.expires = jiffies + HZ/20;
-	link->state |= DEV_RELEASE_PENDING;
-	add_timer(&link->release);
-    }
+    if (link->state & DEV_STALE_CONFIG)
+	mod_timer(&link->release, jiffies + HZ/20);
     
     MOD_DEC_USE_COUNT;
     

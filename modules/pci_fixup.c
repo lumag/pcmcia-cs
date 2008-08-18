@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.14 2000/04/03 18:00:03
+    pci_fixup.c 1.17 2000/05/16 21:31:49
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/malloc.h>
 #include <linux/pci.h>
+#include <asm/io.h>
 
 /* We use these for setting up CardBus bridges */
 #include "yenta.h"
@@ -262,6 +263,9 @@ static void ali_init(struct pci_dev *router, u8 link, u8 irq)
 #ifndef PCI_DEVICE_ID_INTEL_82440MX_1
 #define PCI_DEVICE_ID_INTEL_82440MX_1 0x7198
 #endif
+#ifndef PCI_DEVICE_ID_VIA_82C586_0
+#define PCI_DEVICE_ID_VIA_82C586_0 0x0586
+#endif
 #ifndef PCI_DEVICE_ID_VIA_82C596
 #define PCI_DEVICE_ID_VIA_82C596 0x0596
 #endif
@@ -280,6 +284,7 @@ struct router {
     { ID(INTEL, 82371SB_0),	&pIIx_link,	&pIIx_init },
     { ID(INTEL, 82371AB_0),	&pIIx_link,	&pIIx_init },
     { ID(INTEL, 82440MX_1),	&pIIx_link,	&pIIx_init },
+    { ID(VIA, 82C586_0),	&via_link,	&via_init },
     { ID(VIA, 82C596),		&via_link,	&via_init },
     { ID(VIA, 82C686),		&via_link,	&via_init },
     { ID(OPTI, 82C700),		&opti_link,	&opti_init },
@@ -296,7 +301,7 @@ static struct router *router_info = NULL;
 #define __va(x) (x)
 #endif
 
-void scan_pirq_table(void)
+static void scan_pirq_table(void)
 {
     struct routing_table *r;
     struct pci_dev *router, *dev;
@@ -358,7 +363,7 @@ void scan_pirq_table(void)
     }
 }
 
-#endif /* (LINUX_VERSION_CODE >= VERSION(2,1,103)) */
+#endif /* (LINUX_VERSION_CODE < VERSION(2,3,24)) && defined(__i386__) */
 
 /*======================================================================
 

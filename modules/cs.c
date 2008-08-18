@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.254 2000/03/31 03:53:35
+    cs.c 1.259 2000/05/10 19:26:32
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -70,7 +70,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.254 2000/03/31 03:53:35 (David Hinds)";
+"cs.c 1.259 2000/05/10 19:26:32 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -331,6 +331,7 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 	s->cis_mem.flags = 0;
 	s->cis_mem.speed = cis_speed;
 	s->erase_busy.next = s->erase_busy.prev = &s->erase_busy;
+	spin_lock_init(&s->lock);
 	
 	for (i = 0; i < sockets; i++)
 	    if (socket_table[i] == NULL) break;
@@ -343,18 +344,13 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 	if (proc_pccard) {
 	    char name[3];
 	    sprintf(name, "%02d", i);
-	    s->proc = create_proc_entry(name, S_IFDIR, proc_pccard);
+	    s->proc = proc_mkdir(name, proc_pccard);
 	    if (s->proc)
 		ss_entry(ns, SS_ProcSetup, s->proc);
 #ifdef PCMCIA_DEBUG
-	    if (s->proc) {
-		struct proc_dir_entry *ent;
-		ent = create_proc_entry("clients", 0, s->proc);
-		if (ent) {
-		    ent->read_proc = proc_read_clients;
-		    ent->data = s;
-		}
-	    }
+	    if (s->proc)
+		create_proc_read_entry("clients", 0, s->proc,
+				       proc_read_clients, s);
 #endif
 	}
 #endif
@@ -2146,7 +2142,7 @@ int CardServices(int func, void *a1, void *a2, void *a3)
 {
 
 #ifdef PCMCIA_DEBUG
-    if (pc_debug > 1) {
+    if (pc_debug > 2) {
 	int i;
 	for (i = 0; i < SERVICE_COUNT; i++)
 	    if (service_table[i].key == func) break;
@@ -2356,25 +2352,19 @@ static int __init init_pcmcia_cs(void)
 #endif
     register_symtab(&cs_symtab);
 #ifdef HAS_PROC_BUS
-    proc_pccard = create_proc_entry("pccard", S_IFDIR, proc_bus);
+    proc_pccard = proc_mkdir("pccard", proc_bus);
 #ifdef CONFIG_PNP_BIOS
     if (proc_pccard) {
-	struct proc_dir_entry *ent;
-	ent = create_proc_entry("ioport", 0, proc_pccard);
-	if (ent)
-	    ent->read_proc = proc_read_io;
-	ent = create_proc_entry("irq", 0, proc_pccard);
-	if (ent)
-	    ent->read_proc = proc_read_irq;
+	create_proc_read_entry("ioport", 0, proc_pccard,
+			       proc_read_io, NULL);
+	create_proc_read_entry("irq", 0, proc_pccard,
+			       proc_read_irq, NULL);
     }
 #endif
 #ifndef HAVE_MEMRESERVE
-    if (proc_pccard) {
-	struct proc_dir_entry *ent;
-	ent = create_proc_entry("memory", 0, proc_pccard);
-	if (ent)
-	    ent->read_proc = proc_read_mem;
-    }
+    if (proc_pccard)
+	create_proc_read_entry("memory", 0, proc_pccard,
+			       proc_read_mem, NULL);
 #endif
 #endif
     return 0;

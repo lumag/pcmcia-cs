@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# ide 1.10 2000/03/30 19:07:13 (David Hinds)
+# ide 1.11 2000/04/17 20:31:02 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ATA/IDE adapter
 #
@@ -55,7 +55,7 @@ case "$ACTION" in
     ;;
 
 'cksum')
-    chk_parts "$3,$SOCKET,$SERIAL_NO" || exit 1
+    chk_parts "$NEW_SCHEME,$SOCKET,$SERIAL_NO" || exit 1
     ;;
     
 'suspend'|'resume')

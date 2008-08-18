@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.58, 07 April 2000
+  v2.60, 14 May 2000
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -670,6 +670,8 @@
 
   +o  On the TI TravelMate 5000, use memory 0xd4000-0xdffff.
 
+  +o  On the Toshiba Satellite 4030CDS, exclude irq 9.
+
   +o  On the Toshiba T4900 CT, exclude irq 5, port 0x2e0-0x2e8, port
      0x330-0x338.
 
@@ -767,6 +769,14 @@
   You should also be familiar with basic diagnostic tools like dmesg and
   lsmod.  Also, be aware that most driver components (including all the
   kernel modules) have their own individual man pages.
+
+  In 3.1.15 and later releases, the debug-tools subdirectory of the
+  PCMCIA source tree has a few scripts to help diagnose some of the most
+  common configuration problems.  The test_setup script checks your
+  PCMCIA installation for completeness.  The test_network and test_modem
+  scripts will try to diagnose problems with PCMCIA network and modem
+  cards.  These scripts can be particularly helpful if you are
+  unfamiliar with Linux and are not sure how to approach a problem.
 
   Try to define your problem as narrowly as possible.  If you have
   several cards, try each card in isolation, and in different
@@ -875,7 +885,6 @@
 
   +o  The network client drivers require that CONFIG_INET is enabled.
      Kernel networking support cannot be compiled as a module.
-
   +o  The token-ring client requires that the kernel be compiled with
      CONFIG_TR enabled.
 
@@ -942,6 +951,7 @@
 
   In either case, the probe options can be specified using the PCIC_OPTS
   definition in the PCMCIA startup script, for example:
+
        PCIC_OPTS="irq_list=5,9,10"
 
   It should be noted that /proc/interrupts is completely useless when it
@@ -1048,7 +1058,6 @@
 
   +o  The drivers do not respond to insertion and removal events, either
      by recording events in the system log, or by beeping.
-
   In most cases, the socket driver (i82365 or tcic) will automatically
   probe and select an appropriate interrupt to signal card status
   changes.  The automatic interrupt probe doesn't work on some Intel-
@@ -1222,10 +1231,10 @@
   If the modules are all loaded correctly, the output of the lsmod
   command should look like the following, when no cards are inserted:
 
-       Module                  Size  Used by
-       ds                      5640   2
-       i82365                 15452   2
-       pcmcia_core            30012   3  [ds i82365]
+  Module                  Size  Used by
+  ds                      5640   2
+  i82365                 15452   2
+  pcmcia_core            30012   3  [ds i82365]
 
   The system log should also include output from the socket driver
   describing the host controller(s) found and the number of sockets
@@ -1275,7 +1284,6 @@
   see how it is configured.  It can also be used to alter the
   configuration status of a card.  Here is an example of the output of
   the ``cardctl config'' command:
-
        Socket 0:
          not configured
        Socket 1:
@@ -1407,6 +1415,7 @@
   device configuration tools.  In that case, some of the following
   sections may not apply; ideally, this will be documented by the
   distribution maintainers.
+
   44..33..  PPCCMMCCIIAA nneettwwoorrkk aaddaapptteerrss
 
   Linux ethernet-type network interfaces normally have names like eth0,
@@ -1448,13 +1457,13 @@
   Alternatively, they could be configured using their hardware
   addresses, as in:
 
-       case "$ADDRESS" in
-       *,*,*,00:80:C8:76:00:B1)
-           # definitions for a D-Link card
-           ;;
-       *,*,*,08:00:5A:44:80:01)
-           # definitions for an IBM card
-       esac
+  case "$ADDRESS" in
+  *,*,*,00:80:C8:76:00:B1)
+      # definitions for a D-Link card
+      ;;
+  *,*,*,08:00:5A:44:80:01)
+      # definitions for an IBM card
+  esac
 
   44..33..11..  NNeettwwoorrkk ddeevviiccee ppaarraammeetteerrss
 
@@ -1514,19 +1523,19 @@
 
   For example:
 
-  case "$ADDRESS" in
-  *,*,*,*)
-      IF_PORT="10base2"
-      BOOTP="n"
-      IPADDR="10.0.0.1"
-      NETMASK="255.255.255.0"
-      NETWORK="10.0.0.0"
-      BROADCAST="10.0.0.255"
-      GATEWAY="10.0.0.1"
-      DOMAIN="domain.org"
-      DNS_1="dns1.domain.org"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,*,*,*)
+           IF_PORT="10base2"
+           BOOTP="n"
+           IPADDR="10.0.0.1"
+           NETMASK="255.255.255.0"
+           NETWORK="10.0.0.0"
+           BROADCAST="10.0.0.255"
+           GATEWAY="10.0.0.1"
+           DOMAIN="domain.org"
+           DNS_1="dns1.domain.org"
+           ;;
+       esac
 
   To automatically mount and unmount NFS filesystems, first add all
   these filesystems to /etc/fstab, but include noauto in the mount
@@ -1619,6 +1628,10 @@
      <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/>.
 
   44..33..33..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh nneettwwoorrkk aaddaapptteerrss
+
+  +o  In 3.1.15 and later PCMCIA releases, the test_network script in the
+     debug-tools subdirectory of the PCMCIA source tree will spot some
+     common problems.
 
   +o  Is your card recognized as an ethernet card?  Check the system log
      and make sure that cardmgr identifies the card correctly and starts
@@ -1736,18 +1749,17 @@
 
      SERIAL_OPTS
         Specifies options to be passed to the setserial command.
-
      INITTAB
         If specified, this will be used to construct an inittab entry
         for the device.
 
   For example:
 
-  case "$ADDRESS" in
-  *,*,*,*)
-      LINK="/dev/modem"
-      SERIAL_OPTS=""
-      INITTAB="/sbin/getty"
+       case "$ADDRESS" in
+       *,*,*,*)
+           LINK="/dev/modem"
+           SERIAL_OPTS=""
+           INITTAB="/sbin/getty"
 
   44..44..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
 
@@ -1756,6 +1768,10 @@
      for PPP, "ATDT0".
 
   44..44..33..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh sseerriiaall ddeevviicceess
+
+  +o  In 3.1.15 and later PCMCIA releases, the test_modem script in the
+     debug-tools subdirectory of the PCMCIA source tree will spot some
+     common problems.
 
   +o  Is your card recognized as a modem?  Check the system log and make
      sure that cardmgr identifies the card correctly and starts up the
@@ -2120,20 +2136,20 @@
   Here is an example of a script that will automatically mount memory
   cards based on which socket they are inserted into:
 
-       case "$ADDRESS" in
-       *,0,0)
-           # Mount filesystem, but don't update /etc/fstab
-           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="ext2" ; OPTS=""
-           MOUNTPT="/mem0"
-           ;;
-       *,1,0)
-           # Mount filesystem, but don't update /etc/fstab
-           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="ext2" ; OPTS=""
-           MOUNTPT="/mem1"
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,0,0)
+      # Mount filesystem, but don't update /etc/fstab
+      DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="ext2" ; OPTS=""
+      MOUNTPT="/mem0"
+      ;;
+  *,1,0)
+      # Mount filesystem, but don't update /etc/fstab
+      DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="ext2" ; OPTS=""
+      MOUNTPT="/mem1"
+      ;;
+  esac
 
   44..77..22..  UUssiinngg lliinneeaarr ffllaasshh mmeemmoorryy ccaarrddss
 
@@ -2227,17 +2243,17 @@
   Here is an example ide.opts file to mount the first partition of any
   ATA/IDE card on /mnt.
 
-       case "$ADDRESS" in
-       *,*,*,1)
-           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="msdos"
-           OPTS=""
-           MOUNTPT="/mnt"
-           ;;
-       *,*,*)
-           PARTS="1"
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,*,*,1)
+      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="msdos"
+      OPTS=""
+      MOUNTPT="/mnt"
+      ;;
+  *,*,*)
+      PARTS="1"
+      ;;
+  esac
 
   44..88..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh AATTAA//IIDDEE aaddaapptteerrss
 
@@ -2332,16 +2348,16 @@
   schemes, called ``home'' and ``work''.  Here is an example of a
   network.opts script with scheme-specific settings:
 
-       case "$ADDRESS" in
-       work,*,*,*)
-           # definitions for network card in work scheme
-           ...
-           ;;
-       home,*,*,*|default,*,*,*)
-           # definitions for network card in home scheme
-           ...
-           ;;
-       esac
+  case "$ADDRESS" in
+  work,*,*,*)
+      # definitions for network card in work scheme
+      ...
+      ;;
+  home,*,*,*|default,*,*,*)
+      # definitions for network card in home scheme
+      ...
+      ;;
+  esac
 
   The first part of a device address is always the configuration scheme.
   In this example, the second ``case'' clause will select for both the
@@ -2378,14 +2394,14 @@
   To save even more keystrokes, schemes can be specified in lilo's
   configuration file.  For instance, you could have:
 
-       root = /dev/hda1
-       read-only
-       image = /boot/vmlinuz
-         label  = home
-         append = "SCHEME=home"
-       image = /boot/vmlinuz
-         label  = work
-         append = "SCHEME=work"
+  root = /dev/hda1
+  read-only
+  image = /boot/vmlinuz
+    label  = home
+    append = "SCHEME=home"
+  image = /boot/vmlinuz
+    label  = work
+    append = "SCHEME=work"
 
   Typing ``home'' or ``work'' at the boot prompt would then boot into
   the appropriate scheme.
@@ -2597,6 +2613,7 @@
   copy the strings exactly, preserving case and blank spaces.  Also be
   sure that the config entry has the same number of strings as are
   reported in the log file.
+
   Beware that you can specify just about any driver for a card, but if
   you're just shooting in the dark, there is not much reason to expect
   this to be productive.  You may get lucky and find that your card is
@@ -2710,6 +2727,7 @@
   +o  All PCMCIA-related messages in your system log file.  That includes
      startup messages, and messages generated when your cards are
      configured.
+
   All the PCMCIA modules and the cardmgr daemon send status messages to
   the system log.  This will usually be something like /var/log/messages
   or /usr/adm/messages.  This file should be the first place to look
@@ -2744,13 +2762,13 @@
   on the module's load address.  Let's say that you have the following
   kernel fault:
 
-       Unable to handle kernel NULL pointer dereference
-       current->tss.cr3 = 014c9000, %cr3 = 014c9000
-       *pde = 00000000
-       Oops: 0002
-       CPU:    0
-       EIP:    0010:[<c2026081>]
-       EFLAGS: 00010282
+  Unable to handle kernel NULL pointer dereference
+  current->tss.cr3 = 014c9000, %cr3 = 014c9000
+  *pde = 00000000
+  Oops: 0002
+  CPU:    0
+  EIP:    0010:[<c2026081>]
+  EFLAGS: 00010282
 
   The fault address is 0xc2026081.  Looking at System.map, we see that
   this is past the end of the kernel, i.e., is in a kernel module.  To
@@ -2844,16 +2862,18 @@
   ensure that ``kern.debug'' messages are recorded somewhere.  See ``man
   syslog.conf'' for details.
 
-  There are a few debugging tools in the debug_tools/ subdirectory of
-  the PCMCIA distribution.  The dump_tcic and dump_i365 utilities
-  generate complete register dumps of the PCMCIA controllers, and decode
-  a lot of the register information.  They are most useful if you have
+  There are a few register-level debugging tools in the debug_tools/
+  subdirectory of the PCMCIA distribution.  The dump_tcic and dump_i365
+  utilities generate register dumps for ISA-to-PCMCIA controllers.  In
+  3.1.15 and later releases, dump_i365 is replaced by dump_exca, which
+  is similar but also works for PCI-to-CardBus bridges.  Also new in
+  3.1.15 for CardBus bridges is the dump_cardbus tool, which interprets
+  the CardBus-specific registers.  These are all most useful if you have
   access to a datasheet for the corresponding controller chip.  The
   dump_cis utility (dump_tuples in pre-3.0.2 distributions) lists the
   contents of a card's CIS (Card Information Structure), and decodes
-  some of the important bits.  And the dump_cisreg utility displays a
+  most of the important bits.  And the dump_cisreg utility displays a
   card's local configuration registers.
-
   The memory_cs memory card driver is also sometimes useful for
   debugging problems with 16-bit PC Cards.  It can be bound to any card,
   and does not interfere with other drivers.  It can be used to directly
@@ -2967,14 +2987,14 @@
   (for example, sample_cs-1.5.tar.gz).  A complete distribution could
   look like:
 
-       sample_cs.mk
-       README.sample_cs
-       modules/sample_cs.c
-       modules/sample_cs.h
-       etc/sample.conf
-       etc/sample
-       etc/sample.opts
-       man/sample_cs.4
+  sample_cs.mk
+  README.sample_cs
+  modules/sample_cs.c
+  modules/sample_cs.h
+  etc/sample.conf
+  etc/sample
+  etc/sample.opts
+  man/sample_cs.4
 
   With this arrangement, when the contributed driver is unpacked, it
   becomes essentially part of the PCMCIA source tree.  It can make use

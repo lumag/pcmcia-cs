@@ -32,6 +32,8 @@ case "$ADDRESS" in
     DNS_3=""
     # NFS mounts, should be listed in /etc/fstab
     MOUNTS=""
+    # If you need to override the interface's MTU...
+    MTU=""
     # For IPX interfaces, the frame type and network number
     IPX_FRAME=""
     IPX_NETNUM=""

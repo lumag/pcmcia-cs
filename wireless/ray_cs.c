@@ -26,6 +26,7 @@
 #include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
 #include <linux/ptrace.h>
@@ -159,7 +160,6 @@ static struct symbol_table ray_cs_syms = {
 #include <linux/symtab_end.h>
 };
 #else /* (kernel > 2.1.17) Use new kernel method of registering symbols */
-#define register_symtab(n)
 EXPORT_SYMBOL(ray_dev_ioctl);
 EXPORT_SYMBOL(ray_rx);
 #endif
@@ -317,7 +317,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.11 2000/04/04 23:14:18 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.17 2000/05/16 23:37:12 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -467,7 +467,6 @@ static dev_link_t *ray_attach(void)
 static void ray_detach(dev_link_t *link)
 {
     dev_link_t **linkp;
-    long flags;
 
     DEBUG(1, "ray_detach(0x%p)\n", link);
     
@@ -477,19 +476,12 @@ static void ray_detach(dev_link_t *link)
     if (*linkp == NULL)
         return;
 
-    save_flags(flags);
-    cli();
-    if (link->state & DEV_RELEASE_PENDING) {
-        del_timer(&link->release);
-        link->state &= ~DEV_RELEASE_PENDING;
-    }
-    restore_flags(flags);
-
     /* If the device is currently configured and active, we won't
       actually delete it yet.  Instead, it is marked so that when
       the release() function is called, that will trigger a proper
       detach().
     */
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG) {
         ray_release((u_long)link);
         if(link->state & DEV_STALE_CONFIG) {
@@ -743,8 +735,7 @@ static int dl_startup_params(struct net_device *dev)
     }
     local->card_status = CARD_DL_PARAM;
     /* Start kernel timer to wait for dl startup to complete. */
-    if(local->timer.prev != (struct timer_list *) NULL)
-      del_timer(&local->timer);   /* If already exist, remove */
+    del_timer(&local->timer);   /* If already exist, remove */
     local->timer.expires = jiffies + HZ/2;
     local->timer.data = (long)local;
     local->timer.function = &verify_dl_startup;
@@ -936,9 +927,8 @@ static void ray_release(u_long arg)
         link->state |= DEV_STALE_CONFIG;
         return;
     }
-    if (local->timer.prev)
-	del_timer(&local->timer);
-    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+    del_timer(&local->timer);
+    link->state &= ~DEV_CONFIG;
 
     iounmap(local->sram);
     iounmap(local->rmem);
@@ -981,11 +971,8 @@ static int ray_event(event_t event, int priority,
         link->state &= ~DEV_PRESENT;
         if (link->state & DEV_CONFIG) {
 	    netif_device_detach(dev);
-            link->release.expires = jiffies + HZ/20;
-	    link->state |= DEV_RELEASE_PENDING;
-            add_timer(&link->release);
-	    if (local->timer.prev)
-		del_timer(&local->timer);
+            mod_timer(&link->release, jiffies + HZ/20);
+	    del_timer(&local->timer);
         }
         break;
     case CS_EVENT_CARD_INSERTION:
@@ -1034,11 +1021,7 @@ int init_module(void)
     DEBUG(1, "raylink init_module register_pcmcia_driver returns 0x%x\n",rc);
     register_symtab(&ray_cs_syms);
 #ifdef HAS_PROC_BUS
-    {
-	struct proc_dir_entry *ent =
-	    create_proc_entry("ray_cs", 0, &proc_root);
-	ent->read_proc = ray_cs_proc_read;
-    }
+    create_proc_read_entry("ray_cs", 0, &proc_root, ray_cs_proc_read, NULL);
 #endif
     if (translate != 0) translate = 1;
 #ifdef PCMCIA_DEBUG
@@ -1077,7 +1060,7 @@ static int ray_dev_init(struct net_device *dev)
     if ( (i = dl_startup_params(dev)) < 0)
     {
         printk(KERN_INFO "ray_dev_init dl_startup_params failed - "
-           "returns 0x%x/n",i);
+           "returns 0x%x\n",i);
         spin_unlock(&local->ray_lock);
         return -1;
     }
@@ -1097,7 +1080,7 @@ static int ray_dev_config(struct net_device *dev, struct ifmap *map)
     dev_link_t *link = local->finder;
     /* Dummy routine to satisfy device structure */
     DEBUG(1,"ray_dev_config(dev=%p,ifmap=%p)\n",dev,map);
-    if (!(link->state & DEV_PRESENT)) {
+    if (!DEV_OK(link)) {
         DEBUG(2,"ray_dev_config - device not present\n");
         return -1;
     }
@@ -1111,7 +1094,7 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
     dev_link_t *link = local->finder;
     short length;
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!DEV_OK(link)) {
         DEBUG(2,"ray_dev_start_xmit - device not present\n");
         return -1;
     }
@@ -1321,7 +1304,7 @@ static int ray_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
     struct iwreq *wrq = (struct iwreq *) ifr;
 #endif	/* WIRELESS_EXT > 8 */
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!DEV_OK(link)) {
         DEBUG(2,"ray_dev_ioctl - device not present\n");
         return -1;
     }
@@ -1777,11 +1760,8 @@ static int ray_dev_close(struct net_device *dev)
     link->open--;
     netif_stop_queue(dev);
     netif_mark_down(dev);
-    if (link->state & DEV_STALE_CONFIG) {
-        link->release.expires = jiffies + HZ/20;
-        link->state |= DEV_RELEASE_PENDING;
-        add_timer(&link->release);
-    }
+    if (link->state & DEV_STALE_CONFIG)
+        mod_timer(&link->release, jiffies + HZ/20);
 
     MOD_DEC_USE_COUNT;
 
@@ -1948,7 +1928,7 @@ static struct enet_statistics *ray_get_stats(struct net_device *dev)
     dev_link_t *link = local->finder;
     struct status *p = (struct status *)(local->sram + STATUS_BASE);
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!DEV_OK(link)) {
         DEBUG(2,"ray_cs enet_statistics - device not present\n");
         return &local->stats;
     }
@@ -1982,7 +1962,7 @@ static void ray_update_parm(struct net_device *dev, UCHAR objid, UCHAR *value, i
     int i;
     struct ccs *pccs;
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!DEV_OK(link)) {
         DEBUG(2,"ray_update_parm - device not present\n");
         return;
     }
@@ -2032,7 +2012,7 @@ static void ray_update_multi_list(struct net_device *dev, int all)
     dev_link_t *link = local->finder;
     UCHAR *p = local->sram + HOST_TO_ECF_BASE;
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!DEV_OK(link)) {
         DEBUG(2,"ray_update_multi_list - device not present\n");
         return;
     }

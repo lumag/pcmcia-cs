@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.70 2000/04/07 22:18:39 (David Hinds)
+# network 1.73 2000/04/29 01:39:15 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -34,8 +34,11 @@ RESOLV=/etc/resolv.conf
 # Now, run the specific script for Wireless LAN interfaces
 # Note : we need the wireless parameters to be set up before IP parameters,
 # so that we can perform DHCP over the Wireless link if needed. Jean II
-if [ -r ./wireless ] ; then . ./wireless ; else . /etc/pcmcia/wireless ; fi
-WIRELESS=$?
+if [ -x ./wireless ] ; then
+    . ./wireless
+else
+    . /etc/pcmcia/wireless
+fi
 
 match () { case $1 in $2) return 0; ;; *) return 1; ;; esac ; }
 bootp_setup ()
@@ -106,7 +109,8 @@ case "$ACTION" in
 	# Basic network setup
 	NM=${NETMASK:+netmask $NETMASK}
 	BC=${BROADCAST:+broadcast $BROADCAST}
-	/sbin/ifconfig $DEVICE up $IPADDR $NM $BC
+	MTU=${MTU:+mtu $MTU}
+	/sbin/ifconfig $DEVICE up $IPADDR $NM $BC $MTU
 	if [ "$NETWORK" ] ; then
 	    /sbin/ifuser $DEVICE $NETWORK || \
 		/sbin/route add -net $NETWORK $NM dev $DEVICE
@@ -219,7 +223,7 @@ case "$ACTION" in
 
 'cksum')
     if [ $WIRELESS = 1 ] ; then exit 1 ; fi
-    chk_simple "$3,$SOCKET,$INSTANCE,$HWADDR" || exit 1
+    chk_simple "$NEW_SCHEME,$SOCKET,$INSTANCE,$HWADDR" || exit 1
     ;;
 
 'restart')

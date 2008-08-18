@@ -95,12 +95,12 @@ void pnp_proc_init(void)
 	if (pnp_bios_dev_node_info(&node_info) != 0)
 		return;
 	
-	proc_pnp = create_proc_entry("pnp", S_IFDIR, proc_bus);
+	proc_pnp = proc_mkdir("pnp", proc_bus);
 	if (!proc_pnp) return;
-	proc_pnp_boot = create_proc_entry("boot", S_IFDIR, proc_pnp);
+	proc_pnp_boot = proc_mkdir("boot", proc_pnp);
 	if (!proc_pnp_boot) return;
-	ent = create_proc_entry("devices", 0, proc_pnp);
-	if (ent) ent->read_proc = proc_read_devices;
+	create_proc_read_entry("devices", 0, proc_pnp,
+			       proc_read_devices, NULL);
 	
 	node = kmalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node) return;

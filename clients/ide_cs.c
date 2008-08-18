@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.26 1999/11/16 02:10:49
+    ide_cs.c 1.29 2000/05/16 21:31:36
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -35,6 +35,7 @@
 #include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -62,7 +63,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.26 1999/11/16 02:10:49 (David Hinds)";
+"ide_cs.c 1.29 2000/05/16 21:31:36 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -94,7 +95,6 @@ typedef struct ide_info_t {
     int		hd;
 } ide_info_t;
 
-static void ide_config(dev_link_t *link);
 static void ide_release(u_long arg);
 static int ide_event(event_t event, int priority,
 		     event_callback_args_t *args);
@@ -187,7 +187,6 @@ static dev_link_t *ide_attach(void)
 static void ide_detach(dev_link_t *link)
 {
     dev_link_t **linkp;
-    long flags;
     int ret;
 
     DEBUG(0, "ide_detach(0x%p)\n", link);
@@ -198,14 +197,7 @@ static void ide_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    save_flags(flags);
-    cli();
-    if (link->state & DEV_RELEASE_PENDING) {
-	del_timer(&link->release);
-	link->state &= ~DEV_RELEASE_PENDING;
-    }
-    restore_flags(flags);
-    
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG)
 	ide_release((u_long)link);
     
@@ -337,7 +329,7 @@ void ide_config(dev_link_t *link)
 	release_region(link->io.BasePort2, link->io.NumPorts2);
 
     /* retry registration in case device is still spinning up */
-    for (i = 0; i < 10; i++) {
+    for (hd = -1, i = 0; i < 10; i++) {
 	hd = ide_register(io_base, ctl_base, link->irq.AssignedIRQ);
 	if (hd >= 0) break;
 	if (link->io.NumPorts1 == 0x20) {
@@ -429,11 +421,8 @@ int ide_event(event_t event, int priority,
     switch (event) {
     case CS_EVENT_CARD_REMOVAL:
 	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    link->release.expires = jiffies + HZ/20;
-	    link->state |= DEV_RELEASE_PENDING;
-	    add_timer(&link->release);
-	}
+	if (link->state & DEV_CONFIG)
+	    mod_timer(&link->release, jiffies + HZ/20);
 	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;

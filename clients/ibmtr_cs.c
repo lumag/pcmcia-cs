@@ -68,11 +68,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/trdevice.h>
-#if (LINUX_VERSION_CODE >= VERSION(2,3,21))
-#include <../drivers/net/tokenring/ibmtr.h>
-#else
-#include <../drivers/net/ibmtr.h>
-#endif
+#include <linux/ibmtr.h>
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -282,7 +278,6 @@ static void ibmtr_detach(dev_link_t *link)
     struct ibmtr_dev_t *info = link->priv;
     dev_link_t **linkp;
     struct net_device *dev; 
-    long flags;
 
     DEBUG(0, "ibmtr_detach(0x%p)\n", link);
 
@@ -293,22 +288,15 @@ static void ibmtr_detach(dev_link_t *link)
         return;
 
     dev = info->dev;
-    save_flags(flags);
-    cli();
 #if (LINUX_VERSION_CODE < VERSION(2,1,100))
-    if (tr_timer.next) del_timer(&tr_timer);
+    del_timer(&tr_timer);
 #else
     {
 	struct tok_info *ti = (struct tok_info *)dev->priv;
-	if (ti->tr_timer.next) del_timer(&(ti->tr_timer));
+	del_timer(&(ti->tr_timer));
     }
 #endif
-    if (link->state & DEV_RELEASE_PENDING) {
-        del_timer(&link->release);
-        link->state &= ~DEV_RELEASE_PENDING;
-    }
-    restore_flags(flags);
-
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG) {
         ibmtr_release((u_long)link);
         if (link->state & DEV_STALE_CONFIG) {
@@ -499,7 +487,7 @@ static void ibmtr_release(u_long arg)
 	CardServices(ReleaseWindow, info->sram_win_handle);
     }
 
-    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+    link->state &= ~DEV_CONFIG;
 
 } /* ibmtr_release */
 
@@ -526,9 +514,7 @@ static int ibmtr_event(event_t event, int priority,
         link->state &= ~DEV_PRESENT;
         if (link->state & DEV_CONFIG) {
 	    netif_device_detach(dev);
-            link->release.expires = jiffies + HZ/20;
-            link->state |= DEV_RELEASE_PENDING;
-            add_timer(&link->release);
+	    mod_timer(&link->release, jiffies + HZ/20);
         }
         break;
     case CS_EVENT_CARD_INSERTION:

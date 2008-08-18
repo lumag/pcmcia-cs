@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.151 2000/03/31 03:58:40
+# Configure 1.156 2000/05/16 21:35:31
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -350,7 +350,6 @@ symcheck () {
 	insmod $3 > /dev/null 2>&1
 	if $KSYMS | grep "$2" > /dev/null ; then
 	    eval "$1=y"
-	    INSTALL_DEPMOD=y
 	fi
     fi
 }
@@ -361,7 +360,6 @@ configcheck () {
 	eval "$1=y"
     elif grep "^$1=m" $AUTOCONF >/dev/null ; then
 	eval "$1=y"
-	INSTALL_DEPMOD=y
     fi
 }
 
@@ -414,7 +412,7 @@ printconfig () {
 	write_int CONFIG_X86_L1_CACHE_BYTES
     fi
     if [ $ARCH = "alpha" ] ; then
-	if [ $VERSION_CODE -lt `version 2 2 0`] ; then
+	if [ $VERSION_CODE -lt `version 2 2 0` ] ; then
 	    CONFIG_ALPHA_LCA=y
 	    write_bool CONFIG_ALPHA_LCA
 	else
@@ -618,6 +616,8 @@ if [ $CONF_SRC != "1" -a "$CONFIG_MODVERSIONS" = "y" ] ; then
 	fail
     fi
 else
+    # We may need at least an empty modversions.h file
+    touch $MODVER
     MODVER="../$MODVER"
 fi
 
@@ -632,7 +632,11 @@ echo "" >> $CONFIG_H
 #=======================================================================
 
 HAS_PROC_BUS=n
-echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
+if [ "$CONFIG_MODVERSIONS" = "y" ] ; then
+    echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
+else
+    echo "MFLAG=" >> $CONFIG_MK
+fi
 if [ "$CONFIG_PCMCIA" = "y" ] ; then
     # Use our kernel config, then kernel headers, then our headers
     CPPFLAGS="-I../include/static -I\$(LINUX)/include -I../include"
@@ -668,7 +672,7 @@ write_str UTS_VERSION
 echo "LINUX_VERSION_CODE=$VERSION_CODE" >> $CONFIG
 echo "LINUX_VERSION_CODE=$VERSION_CODE" >> $CONFIG_MK
 echo "#define LINUX_VERSION_CODE $VERSION_CODE" >> $CONFIG_H
-
+echo "#define KERNEL_VERSION(v,p,s)	(((v)<<16)+((p)<<8)+(s))" >> $CONFIG_H
 echo "" >> $CONFIG
 echo "" >> $CONFIG_MK
 echo "" >> $CONFIG_H
@@ -791,8 +795,6 @@ else
 	ask_str "Top-level directory for RC scripts" RC_DIR
     fi
 fi
-if [ ! -x /sbin/depmod ] ; then INSTALL_DEPMOD=n ; fi
-write_bool INSTALL_DEPMOD
 
 echo ""
 

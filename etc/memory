@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# memory 1.25 1999/10/25 18:16:20 (David Hinds)
+# memory 1.26 2000/04/17 20:30:22 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA memory device
 #
@@ -71,7 +71,7 @@ case "$ACTION" in
     ;;
 
 'cksum')
-    chk_simple "$3,$SOCKET,$INSTANCE" || exit 1
+    chk_simple "$NEW_SCHEME,$SOCKET,$INSTANCE" || exit 1
     ;;
     
 'suspend'|'resume')

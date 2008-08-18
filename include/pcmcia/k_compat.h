@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.115 2000/03/22 18:41:21
+ * k_compat.h 1.124 2000/05/16 22:07:35
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -63,25 +63,6 @@ typedef struct wait_queue *wait_queue_head_t;
 
 #define FS_SIZE_T		ssize_t
 #define U_FS_SIZE_T		size_t
-
-#if 0
-#if (LINUX_VERSION_CODE < VERSION(2,1,4)) && !defined(__alpha__)
-#define FS_SIZE_T		int
-#define U_FS_SIZE_T		int
-#else
-#if (LINUX_VERSION_CODE < VERSION(2,1,60))
-#define FS_SIZE_T		long
-#define U_FS_SIZE_T		unsigned long
-#else
-#define FS_SIZE_T		ssize_t
-#define U_FS_SIZE_T		size_t
-#endif
-#endif
-#endif
-
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-#define net_device_stats	enet_statistics
-#endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,31))
 #define FS_RELEASE_T		void
@@ -164,6 +145,7 @@ typedef struct wait_queue *wait_queue_head_t;
 #define spin_lock_irqsave(l,f)	do { save_flags(f); cli(); } while (0)
 #define spin_unlock_irqrestore(l,f) do { restore_flags(f); } while (0)
 #define spin_lock_init(s)	do { } while (0)
+#define spin_trylock(l)		(1)
 typedef int spinlock_t;
 #else
 #if (LINUX_VERSION_CODE < VERSION(2,3,17))
@@ -175,6 +157,16 @@ typedef int spinlock_t;
     (defined(__powerpc__) && (LINUX_VERSION_CODE > VERSION(2,2,12)))
 #define USE_SPIN_LOCKS
 #endif
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,2,12)) && \
+    !defined(CONFIG_SMP) && defined(__alpha__)
+#undef spin_trylock
+#define spin_trylock(l)		(1)
+#endif
+
+#ifndef spin_is_locked
+#define spin_is_locked(l)	(0)
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,104))
@@ -294,6 +286,7 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,25))
+#define net_device_stats	enet_statistics
 #define skb_tx_check(dev, skb) \
     do { if (skb == NULL) { dev_tint(dev); return 0; } \
     if (skb->len <= 0) return 0; } while (0)
@@ -318,17 +311,25 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 #define netif_running(dev)	((dev)->start)
 #define netif_mark_up(dev)	do { (dev)->start = 1; } while (0)
 #define netif_mark_down(dev)	do { (dev)->start = 0; } while (0)
+#define netif_carrier_on(dev)	do { dev->flags |= IFF_RUNNING; } while (0)
+#define netif_carrier_off(dev)	do { dev->flags &= ~IFF_RUNNING; } while (0)
 #define netif_queue_stopped(dev) ((dev)->tbusy)
 #define tx_timeout_check(dev, tx_timeout) \
     do { if (test_and_set_bit(0, (void *)&(dev)->tbusy) != 0) { \
 	if (jiffies - (dev)->trans_start < TX_TIMEOUT) return 1; \
 	tx_timeout(dev); \
     } } while (0)
-#define dev_kfree_skb_irq(skb)	dev_kfree_skb(skb)
+#define dev_kfree_skb_irq(skb)	DEV_KFREE_SKB(skb)
 #else
 #define netif_mark_up(dev)	do { } while (0)
 #define netif_mark_down(dev)	do { } while (0)
-#define tx_timeout_check(d,h)	do { } while (0)
+#define tx_timeout_check(d,h)	netif_stop_queue(d)
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,2,0))
+#define timer_pending(a)	(((a)->prev) != NULL)
+#define mod_timer(a, b)	\
+    do { del_timer(a); (a)->expires = (b); add_timer(a); } while (0)
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

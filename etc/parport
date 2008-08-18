@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.2 1999/10/25 18:16:20 (David Hinds)
+# serial 1.3 2000/04/17 20:30:22 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA parallel device
 #
@@ -45,7 +45,7 @@ case "$ACTION" in
     ;;
 
 'cksum')
-    chk_simple "$3,$SOCKET,$INSTANCE" || exit 1
+    chk_simple "$NEW_SCHEME,$SOCKET,$INSTANCE" || exit 1
     ;;
     
 'stop')

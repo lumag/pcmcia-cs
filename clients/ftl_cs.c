@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.63 2000/03/30 19:18:06
+    ftl_cs.c 1.65 2000/05/16 21:31:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -54,6 +54,7 @@
 /* #define PSYCHO_DEBUG */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -118,7 +119,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.63 2000/03/30 19:18:06 (David Hinds)";
+"ftl_cs.c 1.65 2000/05/16 21:31:37 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -340,6 +341,7 @@ static void ftl_detach(dev_link_t *link)
     if (i == MAX_DEV)
 	return;
 
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG) {
 	ftl_release((u_long)link);
 	if (link->state & DEV_STALE_CONFIG) {
@@ -469,10 +471,8 @@ static int ftl_event(event_t event, int priority,
     switch (event) {
     case CS_EVENT_CARD_REMOVAL:
 	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    link->release.expires = jiffies + HZ/20;
-	    add_timer(&link->release);
-	}
+	if (link->state & DEV_CONFIG)
+	    mod_timer(&link->release, jiffies + HZ/20);
 	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;

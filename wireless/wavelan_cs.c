@@ -551,7 +551,7 @@ void wv_roam_init(struct net_device *dev)
   lp->curr_point=NULL;                        /* No default WavePoint */
   lp->cell_search=0;
   
-  lp->cell_timer.data=(int)lp;                /* Start cell expiry timer */
+  lp->cell_timer.data=(long)lp;               /* Start cell expiry timer */
   lp->cell_timer.function=wl_cell_expiry;
   lp->cell_timer.expires=jiffies+CELL_TIMEOUT;
   add_timer(&lp->cell_timer);
@@ -1038,7 +1038,6 @@ wv_82593_reconfig(device *	dev)
 
   /* Check if we can do it now ! */
   if((link->open) && (netif_running(dev)) && !(netif_queue_stopped(dev)))
-    /*(test_and_set_bit(0, (void *)&dev->tbusy) != 0)*/
     {
       wv_82593_config(dev);
     }
@@ -2727,17 +2726,7 @@ wv_packet_read(device *		dev,
   skb->protocol = eth_type_trans(skb, dev);
 
 #ifdef DEBUG_RX_INFO
-  /* Another glitch : Due to the way the GET_PACKET macro is written,
-   * we are not sure to have the same thing in skb->data. On the other
-   * hand, skb->mac.raw is not defined everywhere...
-   * For versions between 1.2.13 and those where skb->mac.raw appear,
-   * I don't have a clue...
-   */
-#if (LINUX_VERSION_CODE < VERSION(1,3,0))
-  wv_packet_info(skb->data, sksize, dev->name, "wv_packet_read");
-#else	/* 1.3.0 */
   wv_packet_info(skb->mac.raw, sksize, dev->name, "wv_packet_read");
-#endif	/* 1.3.0 */
 #endif	/* DEBUG_RX_INFO */
      
   /* Statistics gathering & stuff associated.
@@ -2770,14 +2759,8 @@ wv_packet_read(device *		dev,
 	  wl_roam_gather(dev, skb->data, stats);
 #endif	/* WAVELAN_ROAMING */
 	  
-      /* Spying stuff */
 #ifdef WIRELESS_SPY
-      /* Same as above */
-#if (LINUX_VERSION_CODE < VERSION(1,3,0))
-      wl_spy_gather(dev, skb->data + WAVELAN_ADDR_SIZE, stats);
-#else	/* 1.3.0 */
       wl_spy_gather(dev, skb->mac.raw + WAVELAN_ADDR_SIZE, stats);
-#endif	/* 1.3.0 */
 #endif	/* WIRELESS_SPY */
 #ifdef HISTOGRAM
       wl_his_gather(dev, stats);
@@ -2991,12 +2974,7 @@ wv_packet_write(device *	dev,
 
 #ifndef HAVE_NETIF_QUEUE
   /* If watchdog not already active, activate it... */
-  if(lp->watchdog.prev == (timer_list *) NULL)
-    {
-      /* set timer to expire in WATCHDOG_JIFFIES */
-      lp->watchdog.expires = jiffies + WATCHDOG_JIFFIES;
-      add_timer(&lp->watchdog);
-    }
+  mod_timer(&lp->watchdog, jiffies + WATCHDOG_JIFFIES);
 #endif
 
   wv_splx(lp, &flags);
@@ -3754,8 +3732,7 @@ wv_hw_reset(device *	dev)
 
 #ifndef HAVE_NETIF_QUEUE
   /* If watchdog was activated, kill it ! */
-  if(lp->watchdog.prev != (timer_list *) NULL)
-    del_timer(&lp->watchdog);
+  del_timer(&lp->watchdog);
 #endif
 
   lp->nresets++;
@@ -3966,7 +3943,7 @@ wv_pcmcia_release(u_long	arg)	/* Address of the interface struct */
   CardServices(ReleaseIO, link->handle, &link->io);
   CardServices(ReleaseIRQ, link->handle, &link->irq);
 
-  link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING | DEV_STALE_CONFIG);
+  link->state &= ~(DEV_CONFIG | DEV_STALE_CONFIG);
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: <- wv_pcmcia_release()\n", dev->name);
@@ -4154,8 +4131,7 @@ wavelan_interrupt(int		irq,
 
 #ifndef HAVE_NETIF_QUEUE
 	  /* If watchdog was activated, kill it ! */
-	  if(lp->watchdog.prev != (timer_list *) NULL)
-	    del_timer(&lp->watchdog);
+	  del_timer(&lp->watchdog);
 #endif
 
 	  /* Get transmission status */
@@ -4395,9 +4371,7 @@ wavelan_open(device *	dev)
   if(!wv_ru_start(dev))
     wv_hw_reset(dev);		/* If problem : reset */
   netif_start_queue(dev);
-#ifndef HAVE_NETIF_QUEUE
   netif_mark_up(dev);
-#endif
 
   /* Mark the device as used */
   link->open++;
@@ -4446,12 +4420,8 @@ wavelan_close(device *	dev)
 #endif	/* WAVELAN_ROAMING */
 
 #ifndef HAVE_NETIF_QUEUE
-  {
-    /* If watchdog was activated, kill it ! */
-    net_local * lp = (net_local *)dev->priv;
-    if(lp->watchdog.prev != (timer_list *) NULL)
-      del_timer(&lp->watchdog);
-  }
+  /* If watchdog was activated, kill it ! */
+    del_timer(&((net_local *)dev->priv)->watchdog);
 #endif
 
   link->open--;
@@ -4478,21 +4448,6 @@ wavelan_close(device *	dev)
   printk(KERN_DEBUG "%s: <-wavelan_close()\n", dev->name);
 #endif
   return 0;
-}
-
-/*------------------------------------------------------------------*/
-/*
- * We never need to do anything when a wavelan device is "initialized"
- * by the net software, because we only register already-found cards.
- */
-static int
-wavelan_init(device *	dev)
-{
-#ifdef DEBUG_CALLBACK_TRACE
-  printk(KERN_DEBUG "<>wavelan_init()\n");
-#endif
-
-  return(0);
 }
 
 /*------------------------------------------------------------------*/
@@ -4582,7 +4537,6 @@ wavelan_attach(void)
   ether_setup(dev);
 
   /* wavelan NET3 callbacks */
-  dev->init = &wavelan_init;
   dev->open = &wavelan_open;
   dev->stop = &wavelan_close;
   dev->hard_start_xmit = &wavelan_packet_xmit;

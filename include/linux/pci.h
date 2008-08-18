@@ -1,5 +1,5 @@
-#ifndef _PCMCIA_PCI_H
-#define _PCMCIA_PCI_H
+#ifndef _COMPAT_PCI_H
+#define _COMPAT_PCI_H
 
 #include_next <linux/pci.h>
 #include <linux/version.h>
@@ -10,12 +10,12 @@
 #define PCI_DEVFN(dev,fn)	(((dev)<<3)|((fn)&7))
 #endif
 
-#if (LINUX_VERSION_CODE < 0x020100)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,1,0))
 extern struct pci_dev *pci_devices;
 extern struct pci_bus pci_root;
 #endif
 
-#if (LINUX_VERSION_CODE < 0x02015d)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,1,93))
 
 #include <linux/bios32.h>
 #include <linux/types.h>
@@ -35,15 +35,15 @@ pci_fn(write, dword, u32)
 
 #endif
 
-#if (LINUX_VERSION_CODE < 0x020318)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,24))
 extern int pci_enable_device(struct pci_dev *dev);
 extern int pci_set_power_state(struct pci_dev *dev, int state);
 #endif
 
-#if (LINUX_VERSION_CODE < 0x020328)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,40))
 #define pci_for_each_dev(p) for (p = pci_devices; p; p = p->next)
 #endif
 
 extern u32 pci_irq_mask;
 
-#endif /* _PCMCIA_PCI_H */
+#endif /* _COMPAT_PCI_H */

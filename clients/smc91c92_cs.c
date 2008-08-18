@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    smc91c92_cs.c 1.91 2000/03/24 00:55:57
+    smc91c92_cs.c 1.96 2000/05/09 02:35:58
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -91,10 +91,6 @@ MODULE_PARM(irq_list, "1-4i");
 
 /* Operational parameter that usually are not changed. */
 
-/* Do you want to use 32 bit xfers?  This should work on all chips,
-   but could cause trouble with some PCMCIA controllers... */
-#define USE_32_BIT		1
-
 /* Time in jiffies before concluding Tx hung */
 #define TX_TIMEOUT		((400*HZ)/1000)
 
@@ -104,9 +100,6 @@ MODULE_PARM(irq_list, "1-4i");
 /* Times to check the check the chip before concluding that it doesn't
    currently have room for another Tx packet. */
 #define MEMORY_WAIT_TIME       	8
-
-/* Values that should be specific lengths */
-typedef unsigned short uint16;
 
 static dev_info_t dev_info = "smc91c92_cs";
 
@@ -323,14 +316,6 @@ static void cs_error(client_handle_t handle, int func, int ret)
     CardServices(ReportError, handle, &err);
 }
 
-/*====================================================================*/
-
-static int smc91c92_init(struct net_device *dev)
-{
-    DEBUG(0, "%s: smc91c92_init called!\n", dev->name);
-    return 0;
-}
-
 /*======================================================================
 
   smc91c92_attach() creates an "instance" of the driver, allocating
@@ -380,7 +365,6 @@ static dev_link_t *smc91c92_attach(void)
     dev->set_multicast_list = &set_rx_mode;
     ether_setup(dev);
     dev->name = smc->node.dev_name;
-    dev->init = &smc91c92_init;
     dev->open = &smc91c92_open;
     dev->stop = &smc91c92_close;
 #ifdef HAVE_NETIF_QUEUE
@@ -423,7 +407,6 @@ static void smc91c92_detach(dev_link_t *link)
 {
     struct smc_private *smc = link->priv;
     dev_link_t **linkp;
-    long flags;
 
     DEBUG(0, "smc91c92_detach(0x%p)\n", link);
     
@@ -433,14 +416,7 @@ static void smc91c92_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
     
-    save_flags(flags);
-    cli();
-    if (link->state & DEV_RELEASE_PENDING) {
-	del_timer(&link->release);
-	link->state &= ~DEV_RELEASE_PENDING;
-    }
-    restore_flags(flags);
-    
+    del_timer(&link->release);
     if (link->state & DEV_CONFIG) {
 	smc91c92_release((u_long)link);
 	if (link->state & DEV_STALE_CONFIG) {
@@ -670,7 +646,7 @@ static int mot_setup(dev_link_t *link) {
     struct net_device *dev = &smc->dev;
     ioaddr_t ioaddr = dev->base_addr;
     int i, wait, loop;
-    unsigned int addr;
+    u_int addr;
 
     /* Read Ethernet address from Serial EEPROM */
     
@@ -1086,7 +1062,7 @@ static void smc91c92_release(u_long arg)
 	CardServices(ReleaseWindow, link->win);
     }
     
-    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+    link->state &= ~DEV_CONFIG;
 
 } /* smc91c92_release */
 
@@ -1113,9 +1089,7 @@ static int smc91c92_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    netif_device_detach(dev);
-	    link->release.expires = jiffies + HZ/20;
-	    link->state |= DEV_RELEASE_PENDING;
-	    add_timer(&link->release);
+	    mod_timer(&link->release, jiffies + HZ/20);
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
@@ -1247,11 +1221,8 @@ static int smc91c92_close(struct net_device *dev)
     
     link->open--;
     del_timer(&smc->media);
-    if (link->state & DEV_STALE_CONFIG) {
-	link->release.expires = jiffies + HZ/20;
-	link->state |= DEV_RELEASE_PENDING;
-	add_timer(&link->release);
-    }
+    if (link->state & DEV_STALE_CONFIG)
+	mod_timer(&link->release, jiffies + HZ/20);
     
     MOD_DEC_USE_COUNT;
     
@@ -1271,7 +1242,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
     struct smc_private *smc = dev->priv;
     struct sk_buff *skb = smc->saved_skb;
     ioaddr_t ioaddr = dev->base_addr;
-    unsigned char packet_no;
+    u_char packet_no;
     
     if (!skb) {
 	printk(KERN_ERR "%s: In XMIT with no packet to send.\n", dev->name);
@@ -1284,7 +1255,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
 	/* If not, there is a hardware problem!  Likely an ejected card. */
 	printk(KERN_WARNING "%s: 91c92 hardware Tx buffer allocation"
 	       " failed, status %#2.2x.\n", dev->name, packet_no);
-	DEV_KFREE_SKB (skb);
+	dev_kfree_skb_irq(skb);
 	smc->saved_skb = NULL;
 	netif_start_queue(dev);
 	return;
@@ -1299,8 +1270,8 @@ static void smc_hardware_send_packet(struct net_device * dev)
     /* Send the packet length (+6 for status, length and ctl byte)
        and the status word (set to zeros). */
     {
-	unsigned char *buf = skb->data;
-	int length = skb->len;	/* The chip will pad to ethernet min length. */
+	u_char *buf = skb->data;
+	u_int length = skb->len; /* The chip will pad to ethernet min. */
 
 	DEBUG(2, "%s: Trying to xmit packet of length %d.\n",
 	      dev->name, length);
@@ -1308,15 +1279,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
 	/* send the packet length: +6 for status word, length, and ctl */
 	outw(0, ioaddr + DATA_1);
 	outw(length + 6, ioaddr + DATA_1);
-#ifdef USE_32_BIT
-	if (length & 0x2) {
-	    outsl(ioaddr + DATA_1, buf,  length >> 2);
-	    outw(*((u16 *)(buf + (length & 0xfffc))), ioaddr + DATA_1);
-	} else
-	    outsl_ns(ioaddr + DATA_1, buf, length >> 2);
-#else
 	outsw_ns(ioaddr + DATA_1, buf, length >> 1);
-#endif
 	
 	/* The odd last byte, if there is one, goes in the control word. */
 	outw((length & 1) ? 0x2000 | buf[length-1] : 0, ioaddr + DATA_1);
@@ -1331,7 +1294,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
     outw(MC_ENQUEUE , ioaddr + MMU_CMD);
     
     smc->saved_skb = NULL;
-    DEV_KFREE_SKB (skb);
+    dev_kfree_skb_irq(skb);
     dev->trans_start = jiffies;
     netif_start_queue(dev);
     return;
@@ -1358,7 +1321,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
     struct smc_private *smc = dev->priv;
     ioaddr_t ioaddr = dev->base_addr;
-    unsigned short num_pages;
+    u_short num_pages;
     short time_out, ir;
 
     tx_timeout_check(dev, smc_tx_timeout);
@@ -1463,7 +1426,7 @@ static void smc_eph_irq(struct net_device *dev)
 {
     struct smc_private *smc = dev->priv;
     ioaddr_t ioaddr = dev->base_addr;
-    unsigned short card_stats, ephs;
+    u_short card_stats, ephs;
     
     SMC_SELECT_BANK(0);
     ephs = inw(ioaddr + EPH);
@@ -1685,14 +1648,14 @@ static struct net_device_stats *smc91c92_get_stats(struct net_device *dev)
 
 ======================================================================*/
 
-static unsigned const ethernet_polynomial = 0x04c11db7U;
+static const u_int ethernet_polynomial = 0x04c11db7U;
 
-static unsigned ether_crc(int length, unsigned char *data)
+static u_int ether_crc(int length, u_char *data)
 {
     int crc = 0xffffffff;	/* Initial value. */
     
     while (--length >= 0) {
-	unsigned char current_octet = *data++;
+	u_char current_octet = *data++;
 	int bit;
 	for (bit = 0; bit < 8; bit++, current_octet >>= 1) {
 	    crc = (crc << 1) ^
@@ -1712,12 +1675,12 @@ static unsigned ether_crc(int length, unsigned char *data)
 ======================================================================*/
 
 static void fill_multicast_tbl(int count, struct dev_mc_list *addrs,
-			       unsigned char *multicast_table)
+			       u_char *multicast_table)
 {
     struct dev_mc_list	*mc_addr;
     
     for (mc_addr = addrs;  mc_addr && --count > 0;  mc_addr = mc_addr->next) {
-	unsigned int position = ether_crc(6, mc_addr->dmi_addr);
+	u_int position = ether_crc(6, mc_addr->dmi_addr);
 #ifndef final_version		/* Verify multicast address. */
 	if ((mc_addr->dmi_addr[0] & 1) == 0)
 	    continue;
@@ -1740,9 +1703,9 @@ static void fill_multicast_tbl(int count, struct dev_mc_list *addrs,
 static void set_rx_mode(struct net_device *dev)
 {
     ioaddr_t ioaddr = dev->base_addr;
-    unsigned int multicast_table[ 2 ] = { 0, };
+    u_int multicast_table[ 2 ] = { 0, };
     long flags;
-    uint16 rx_cfg_setting;
+    u_short rx_cfg_setting;
     
     if (dev->flags & IFF_PROMISC) {
 	printk(KERN_NOTICE "%s: setting Rx mode to promiscuous.\n", dev->name);
@@ -1752,7 +1715,7 @@ static void set_rx_mode(struct net_device *dev)
     else {
 	if (dev->mc_count)  {
 	    fill_multicast_tbl(dev->mc_count, dev->mc_list,
-			       (unsigned char *)multicast_table);
+			       (u_char *)multicast_table);
 	}
 	rx_cfg_setting = RxStripCRC | RxEnable;
     }

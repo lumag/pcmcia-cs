@@ -1,3 +1,31 @@
+[16-May-00] Version 3.1.15
+-- Added test_setup, test_network, test_modem to debug-tools.
+-- Added D-Link DL10022 chipset support to pcnet_cs driver.
+-- Dropped dump_i365 debug tool, added dump_exca and dump_cardbus.
+-- Added TI 1410 bridge support.
+-- Added some PCI fixups for VIA and SiS PCI-to-ISA bridges.
+-- Fixed another device eject bug in ray_cs driver.
+-- Fixed amazingly braindead bug in ide_info.
+-- Changed tulip_cb driver to set up receive filter differently for
+   Xircom CardBus cards.
+-- Fixed big-endian transmit bug in smc91c92_cs driver.
+-- Changed i82365 module to default to probing 0x3e2 (in addition to
+   0x3e0) for ISA bus bridges, if it doesn't find anything else.
+-- Replaced most of etc/Makefile with a simpler shell script.
+-- Updated a few modules to use newer PCI, procfs, and timer API's.
+-- Changed i82365 module to not trust PCI irq test on Ricoh bridges.
+-- Changed cardmgr to use modprobe whenever it is available.
+-- Changed dump_pirq to scan for known irq routers if there is no PCI
+   interrupt routing table.
+-- Updated pcnet_cs driver to reject AX88190 chipsets for now.
+-- A couple of minor Makefile changes; one 2.3.* build problem fixed.
+-- Minor iflash2+_mtd driver tune-up; added new write option that is
+   faster but spins instead of sleeping during page writes.
+-- Better heuristic for automatic detection of flash memory cards.
+-- Fixed glitches in new wireless config scripts.
+-- Added MTU parameter to network script.
+-- Fixed problems with INITTAB handling in serial config script.
+
 [10-Apr-00] Version 3.1.14
 -- Added wireless.opts config script for drivers that support the
    wireless tools API.

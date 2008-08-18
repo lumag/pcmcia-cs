@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.19 2000/02/22 19:28:09
+ * ti113x.h 1.21 2000/05/10 18:22:11
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -69,6 +69,9 @@
 #endif
 #ifndef PCI_DEVICE_ID_TI_1251B
 #define PCI_DEVICE_ID_TI_1251B		0xac1f
+#endif
+#ifndef PCI_DEVICE_ID_TI_1410
+#define PCI_DEVICE_ID_TI_1410		0xac50
 #endif
 #ifndef PCI_DEVICE_ID_TI_1420
 #define PCI_DEVICE_ID_TI_1420		0xac51
@@ -177,5 +180,12 @@
 /* ExCA IO offset registers */
 #define TI113X_IO_OFFSET(map)		(0x36+((map)<<1))
 
-#endif /* _LINUX_TI113X_H */
+/* Data structure for tracking vendor-specific state */
+typedef struct ti113x_state_t {
+    u_int		sysctl;		/* TI113X_SYSTEM_CONTROL */
+    u_char		cardctl;	/* TI113X_CARD_CONTROL */
+    u_char		devctl;		/* TI113X_DEVICE_CONTROL */
+    u_char		diag;		/* TI1250_DIAGNOSTIC */
+} ti113x_state_t;
 
+#endif /* _LINUX_TI113X_H */

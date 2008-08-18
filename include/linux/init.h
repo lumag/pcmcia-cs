@@ -1,9 +1,9 @@
-#ifndef _PCMCIA_INIT_H
-#define _PCMCIA_INIT_H
+#ifndef _COMPAT_INIT_H
+#define _COMPAT_INIT_H
 
 #include <linux/version.h>
 
-#if (LINUX_VERSION_CODE < 0x020300) && defined(MODULE)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)) && defined(MODULE)
 #define __init
 #define __initdata
 #define __exit
@@ -14,4 +14,4 @@
 #include_next <linux/init.h>
 #endif
 
-#endif /* _PCMCIA_INIT_H */
+#endif /* _COMPAT_INIT_H */

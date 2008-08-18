@@ -2,7 +2,7 @@
 
     A direct memory interface driver for CardBus cards
 
-    memory_cb.c 1.12 2000/02/06 07:16:41
+    memory_cb.c 1.15 2000/05/16 21:31:36
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -34,16 +34,16 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/malloc.h>
 #include <linux/string.h>
-#include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/major.h>
 #include <linux/pci.h>
+#include <asm/io.h>
 
 #include <pcmcia/driver_ops.h>
 #include <pcmcia/mem_op.h>
@@ -53,7 +53,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cb.c 1.12 2000/02/06 07:16:41 (David Hinds)";
+"memory_cb.c 1.15 2000/05/16 21:31:36 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -65,12 +65,12 @@ static char *version =
 /*====================================================================*/
 
 typedef struct memory_dev_t {
-    dev_node_t	node;
-    u_char	bus, devfn;
-    u_int	open, stopped;
-    u_int	base[8];
-    u_int	size[8];
-    u_char	*virt[8];
+    dev_node_t		node;
+    struct pci_dev	*pdev;
+    u_int		open, stopped;
+    u_int		base[8];
+    u_int		size[8];
+    u_char		*virt[8];
 } memory_dev_t;
 
 #define MAX_DEV 8
@@ -92,29 +92,29 @@ static dev_node_t *memory_attach(dev_locator_t *loc)
     
     if (loc->bus != LOC_PCI) return NULL;
     bus = loc->b.pci.bus; devfn = loc->b.pci.devfn;
-    printk(KERN_INFO "memory_attach(bus %d, function %d)\n",
-	   bus, devfn);
+    printk(KERN_INFO "memory_attach(device %02x:%02x.%d)\n",
+	   bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
     for (i = 0; i < MAX_DEV; i++)
 	if (dev_table[i] == NULL) break;
     if (i == MAX_DEV) return NULL;
     dev_table[i] = dev = kmalloc(sizeof(memory_dev_t), GFP_KERNEL);
     memset(dev, 0, sizeof(memory_dev_t));
-    dev->bus = bus; dev->devfn = devfn;
+    dev->pdev = pci_find_slot(bus, devfn);
     sprintf(dev->node.dev_name, "cbmem%d", i);
     dev->node.major = major_dev;
     dev->node.minor = i<<3;
     
     dev->size[0] = 0x100;
     printk(KERN_INFO "memory_cb: cbmem%d: 0 [256 b]", i);
-    pcibios_read_config_byte(bus, devfn, PCI_COMMAND, &cmd);
-    pcibios_write_config_byte(bus, devfn, PCI_COMMAND, 0);
+    pci_read_config_byte(dev->pdev, PCI_COMMAND, &cmd);
+    pci_write_config_byte(dev->pdev, PCI_COMMAND, 0);
     for (i = 1; i < 8; i++) {
 	br = (i == 7) ? CB_ROM_BASE : CB_BAR(i-1);
-	pcibios_read_config_dword(bus, devfn, br, &dev->base[i]);
-	pcibios_write_config_dword(bus, devfn, br, 0xffffffff);
-	pcibios_read_config_dword(bus, devfn, br, &dev->size[i]);
-	pcibios_write_config_dword(bus, devfn, br, dev->base[i]);
+	pci_read_config_dword(dev->pdev, br, &dev->base[i]);
+	pci_write_config_dword(dev->pdev, br, 0xffffffff);
+	pci_read_config_dword(dev->pdev, br, &dev->size[i]);
+	pci_write_config_dword(dev->pdev, br, dev->base[i]);
 	dev->size[i] &= PCI_BASE_ADDRESS_MEM_MASK;
 	dev->size[i] = FIND_FIRST_BIT(dev->size[i]);
 	if (dev->size[i] == 0) continue;
@@ -130,7 +130,7 @@ static dev_node_t *memory_attach(dev_locator_t *loc)
 	    printk(", %d [%d kb]", i, dev->size[i]>>10);
     }
     printk("\n");
-    pcibios_write_config_byte(bus, devfn, PCI_COMMAND, cmd);
+    pci_write_config_byte(dev->pdev, PCI_COMMAND, cmd);
     MOD_INC_USE_COUNT;
     return &dev->node;
 }
@@ -201,23 +201,21 @@ static ssize_t memory_read FOPS(struct inode *inode,
     if (space == 0) {
 
 	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    pcibios_read_config_dword(dev->bus, dev->devfn, pos,
-				      (u_int *)buf);
+	    pci_read_config_dword(dev->pdev, pos, (u32 *)buf);
 	if (odd & 2) {
-	    pcibios_read_config_word(dev->bus, dev->devfn, pos,
-				     (u_short *)buf);
+	    pci_read_config_word(dev->pdev, pos, (u16 *)buf);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
-	    pcibios_read_config_byte(dev->bus, dev->devfn, pos, buf);
+	    pci_read_config_byte(dev->pdev, pos, buf);
 	}
 
     } else if (dev->virt[space] != NULL) {
 
 	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    *(u_int *)buf = readl_ns(dev->virt[space]+pos);
+	    *(u32 *)buf = readl_ns(dev->virt[space]+pos);
 	if (odd & 2) {
-	    *(u_short *)buf = readw_ns(dev->virt[space]+pos);
+	    *(u16 *)buf = readw_ns(dev->virt[space]+pos);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
@@ -227,9 +225,9 @@ static ssize_t memory_read FOPS(struct inode *inode,
     } else {
 
 	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    *(u_int *)buf = inl(dev->base[space]+pos);
+	    *(u32 *)buf = inl(dev->base[space]+pos);
 	if (odd & 2) {
-	    *(u_short *)buf = inw(dev->base[space]+pos);
+	    *(u16 *)buf = inw(dev->base[space]+pos);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
@@ -261,29 +259,26 @@ static ssize_t memory_write FOPS(struct inode *inode,
     if (count > dev->size[space] - pos)
 	count = dev->size[space] - pos;
 
-
     odd = count & 3; count &= ~3;
 
     if (space == 0) {
 
 	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    pcibios_write_config_dword(dev->bus, dev->devfn, pos,
-				       *(u_int *)buf);
+	    pci_write_config_dword(dev->pdev, pos, *(u32 *)buf);
 	if (odd & 2) {
-	    pcibios_write_config_word(dev->bus, dev->devfn, pos,
-				      *(u_short *)buf);
+	    pci_write_config_word(dev->pdev, pos, *(u16 *)buf);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
-	    pcibios_write_config_byte(dev->bus, dev->devfn, pos, *buf);
+	    pci_write_config_byte(dev->pdev, pos, *buf);
 	}
 
     } else if (dev->virt[space] != NULL) {
 
 	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    writel_ns(*(u_int *)buf, dev->virt[space]+pos);
+	    writel_ns(*(u32 *)buf, dev->virt[space]+pos);
 	if (odd & 2) {
-	    writew_ns(*(u_short *)buf, dev->virt[space]+pos);
+	    writew_ns(*(u16 *)buf, dev->virt[space]+pos);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {
@@ -293,9 +288,9 @@ static ssize_t memory_write FOPS(struct inode *inode,
     } else {
 
 	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
-	    outl(*(u_int *)buf, dev->base[space]+pos);
+	    outl(*(u32 *)buf, dev->base[space]+pos);
 	if (odd & 2) {
-	    outw(*(u_short *)buf, dev->base[space]+pos);
+	    outw(*(u16 *)buf, dev->base[space]+pos);
 	    pos += 2; buf += 2;
 	}
 	if (odd & 1) {

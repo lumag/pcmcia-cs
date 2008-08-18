@@ -1,5 +1,5 @@
 #
-# debug-tools/Makefile 1.38 2000/01/27 00:26:28 (David Hinds)
+# debug-tools/Makefile 1.40 2000/05/11 17:47:44 (David Hinds)
 #
 
 # Include site dependent options
@@ -7,22 +7,26 @@ include ../config.mk
 
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 XFLAGS = -O -pipe
-CPPFLAGS := $(CPPFLAGS) -I../modules
+CPPFLAGS += -I../modules
+CC += $(UFLAGS)
 
-CC := $(CC) $(UFLAGS)
-
-SRCS = dump_cis.c dump_cisreg.c pack_cis.c
-HDRS = pack_cis.h
+SRCS  = dump_cis.c dump_cisreg.c pack_cis.c
+HDRS  = pack_cis.h
 TOOLS = dump_cis dump_cisreg pack_cis
 
 ifdef CONFIG_PNP_BIOS
-SRCS := $(SRCS) lspnp.c setpnp.c
-TOOLS := $(TOOLS) lspnp setpnp
+SRCS  += lspnp.c setpnp.c
+TOOLS += lspnp setpnp
 endif
 
 ifdef CONFIG_ISA
-SRCS := $(SRCS) dump_tcic.c dump_i365.c 
-TOOLS := $(TOOLS) dump_tcic dump_i365
+SRCS  += dump_tcic.c dump_exca.c 
+TOOLS += dump_tcic dump_exca
+endif
+
+ifdef CONFIG_PCI
+SRCS  += dump_cardbus.c
+TOOLS += dump_cardbus
 endif
 
 all:	$(SRCS) $(HDRS) $(TOOLS)
@@ -58,11 +62,11 @@ clean:
 	rm -f dump_i365 dump_tcic $(TOOLS)
 
 install: $(TOOLS)
-	mkdir -p $(PREFIX)/sbin
+	@mkdir -p $(PREFIX)/sbin
 	cp -f dump_cis pack_cis $(PREFIX)/sbin
 ifdef CONFIG_PNP_BIOS
 	cp -f lspnp setpnp $(PREFIX)/sbin
-	mkdir -p $(PREFIX)/usr/share
+	@mkdir -p $(PREFIX)/usr/share
 	cp -f pnp.ids $(PREFIX)/usr/share
 endif
 

@@ -1,5 +1,5 @@
 #
-# shared 1.16 2000/03/30 19:06:49 (David Hinds)
+# shared 1.18 2000/04/17 20:27:52 (David Hinds)
 #
 
 usage ()
@@ -52,7 +52,7 @@ rm_blkdev ()
     # usage: rm_blkdev [device]
     test -b $1 || return 1
     fuser -k -m $1 > /dev/null
-    if mount | fgrep "$1 on" ; then
+    if mount | fgrep -q "$1 on" ; then
 	umount -v $1 || return 1
     fi
     if is_true $DO_FSTAB ; then
@@ -140,4 +140,4 @@ get_info ()
 # A bit of stuff to do right away...
 
 if [ $# -lt 2 ] ; then usage ; fi
-ACTION=$1 ; DEVICE=$2
+ACTION=$1 ; DEVICE=$2 ; NEW_SCHEME=$3

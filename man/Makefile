@@ -1,5 +1,5 @@
 #
-# man/Makefile 1.45 2000/01/25 01:54:28 (David Hinds)
+# man/Makefile 1.47 2000/05/15 23:26:53 (David Hinds)
 #
 
 # Include site dependent options
@@ -19,27 +19,27 @@ MAN8 = cardmgr.8 cardctl.8 ftl_format.8 ftl_check.8 scsi_info.8 \
 	ifport.8 ifuser.8 ide_info.8 pcinitrd.8 pack_cis.8 dump_cis.8 \
 	lspnp.8 setpnp.8
 
-all: $(MAN1) $(MAN4) $(MAN5) $(MAN8)
+all: $(MAN1_X11) $(MAN4) $(MAN5) $(MAN8)
 
 dep:
 
 clean:
 
 install-man1-x11: $(MAN1_X11)
-	mkdir -p $(PREFIX)/usr/X11R6/man/man1
+	@mkdir -p $(PREFIX)/usr/X11R6/man/man1
 	cp $(MAN1_X11) $(PREFIX)/usr/X11R6/man/man1
 
 install-man4: $(MAN4)
-	mkdir -p $(MANDIR)/man4
-	cp $(MAN4) $(MANDIR)/man4
+	@mkdir -p $(MANDIR)/man4
+	cp *.4 $(MANDIR)/man4
 
 install-man5: $(MAN5)
-	mkdir -p $(MANDIR)/man5
-	cp $(MAN5) $(MANDIR)/man5
+	@mkdir -p $(MANDIR)/man5
+	cp *.5 $(MANDIR)/man5
 
 install-man8: $(MAN8)
-	mkdir -p $(MANDIR)/man8
-	cp $(MAN8) $(MANDIR)/man8
+	@mkdir -p $(MANDIR)/man8
+	cp *.8 $(MANDIR)/man8
 
 install: install-man1-x11 install-man4 install-man5 install-man8
 

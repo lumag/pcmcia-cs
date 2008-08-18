@@ -280,16 +280,6 @@ static void cs_error(client_handle_t handle, int func, int ret)
 }
 
 /*
-   We never need to do anything when a tc574 device is "initialized"
-   by the net software, because we only register already-found cards.
-*/
-
-static int tc574_init(struct net_device *dev)
-{
-	return 0;
-}
-
-/*
 	tc574_attach() creates an "instance" of the driver, allocating
 	local data structures for one device.  The device is registered
 	with Card Services.
@@ -338,12 +328,11 @@ static dev_link_t *tc574_attach(void)
 	dev->set_multicast_list = &set_rx_mode;
 	ether_setup(dev);
 	dev->name = lp->node.dev_name;
-	dev->init = &tc574_init;
 	dev->open = &el3_open;
 	dev->stop = &el3_close;
 #ifdef HAVE_NETIF_QUEUE
-    dev->tx_timeout = el3_tx_timeout;
-    dev->watchdog_timeo = TX_TIMEOUT;
+	dev->tx_timeout = el3_tx_timeout;
+	dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
 	/* Register with Card Services */
@@ -381,7 +370,6 @@ static void tc574_detach(dev_link_t *link)
 {
 	struct el3_private *lp = link->priv;
 	dev_link_t **linkp;
-	long flags;
 
 	DEBUG(0, "3c574_detach(0x%p)\n", link);
 
@@ -391,14 +379,7 @@ static void tc574_detach(dev_link_t *link)
 	if (*linkp == NULL)
 	return;
 
-	save_flags(flags);
-	cli();
-	if (link->state & DEV_RELEASE_PENDING) {
-		del_timer(&link->release);
-		link->state &= ~DEV_RELEASE_PENDING;
-	}
-	restore_flags(flags);
-
+	del_timer(&link->release);
 	if (link->state & DEV_CONFIG) {
 		tc574_release((u_long)link);
 		if (link->state & DEV_STALE_CONFIG) {
@@ -479,10 +460,9 @@ static void tc574_config(dev_link_t *link)
 		goto failed;
 	}
 
-	link->state &= ~DEV_CONFIG_PENDING;
-
 	ioaddr = dev->base_addr;
 	link->dev = &lp->node;
+	link->state &= ~DEV_CONFIG_PENDING;
 
 	/* The 3c574 normally uses an EEPROM for configuration info, including
 	   the hardware address.  The future products may include a modem chip
@@ -604,7 +584,7 @@ static void tc574_release(u_long arg)
 	CardServices(ReleaseIO, link->handle, &link->io);
 	CardServices(ReleaseIRQ, link->handle, &link->irq);
 
-	link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+	link->state &= ~DEV_CONFIG;
 
 } /* tc574_release */
 
@@ -629,8 +609,7 @@ static int tc574_event(event_t event, int priority,
 		link->state &= ~DEV_PRESENT;
 		if (link->state & DEV_CONFIG) {
 			netif_device_detach(dev);
-			link->release.expires = jiffies + HZ/20;
-			add_timer(&link->release);
+			mod_timer(&link->release, jiffies + HZ/20);
 		}
 		break;
 	case CS_EVENT_CARD_INSERTION:
@@ -917,8 +896,8 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	ioaddr_t ioaddr = dev->base_addr;
 
-    tx_timeout_check(dev, el3_tx_timeout);
-    skb_tx_check(dev, skb);
+	tx_timeout_check(dev, el3_tx_timeout);
+	skb_tx_check(dev, skb);
 
 	DEBUG(3, "%s: el3_start_xmit(length = %ld) called, "
 		  "status %4.4x.\n", dev->name, (long)skb->len,
@@ -1316,11 +1295,8 @@ static int el3_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	netif_mark_down(dev);
 	del_timer(&lp->media);
-	if (link->state & DEV_STALE_CONFIG) {
-		link->release.expires = jiffies + HZ/20;
-		link->state |= DEV_RELEASE_PENDING;
-		add_timer(&link->release);
-	}
+	if (link->state & DEV_STALE_CONFIG)
+		mod_timer(&link->release, jiffies + HZ/20);
 
 	MOD_DEC_USE_COUNT;
 
