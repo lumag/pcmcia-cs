@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.225 2002/11/05 03:51:26
+# Configure 1.229 2003/01/12 17:52:42
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -34,6 +34,11 @@ fail ()
     echo "Configuration failed."
     echo ""
     exit 1
+}
+
+qgrep ()
+{
+    grep $* >/dev/null 2>&1
 }
 
 # Minimal requirements for sanity
@@ -397,20 +402,18 @@ echo ""
 
 symcheck () {
     eval "CONFIG_$1=n"
-    if $KSYMS | grep "$2" >/dev/null ; then eval "CONFIG_$1=y" ; fi
+    if $KSYMS | qgrep "$2" ; then eval "CONFIG_$1=y" ; fi
     if [ "$3" ] ; then
 	/sbin/insmod $3 > /dev/null 2>&1
-	if $KSYMS | grep "$2" > /dev/null ; then
-	    eval "CONFIG_$1=y"
-	fi
+	if $KSYMS | qgrep "$2" ; then eval "CONFIG_$1=y" ; fi
     fi
 }
 
 configcheck () {
     eval "CONFIG_$1=n"
-    if grep "^CONFIG_$1=y" $AUTOCONF >/dev/null ; then
+    if qgrep "^CONFIG_$1=y" $AUTOCONF ; then
 	eval "CONFIG_$1=y"
-    elif grep "^CONFIG_$1=m" $AUTOCONF >/dev/null ; then
+    elif qgrep "^CONFIG_$1=m" $AUTOCONF ; then
 	eval "CONFIG_$1=y"
     fi
 }
@@ -461,6 +464,7 @@ x86_config_tweak () {
 	write_bool CONFIG_2GB
 	write_bool CONFIG_3GB
     fi
+    printflag "PAE support" CONFIG_X86_PAE
 }
 
 alpha_config_tweak () {
@@ -503,6 +507,7 @@ printconfig () {
 	echo "#define __SMP__ 1" >> $CONFIG_H
     fi
     printflag "Preemptive kernel support" CONFIG_PREEMPT
+    printflag "High memory support" CONFIG_HIGHMEM
     if [ "$NEED_HZ" = "y" ] ; then
 	echo "    Timer frequency (HZ) for the kernel is $CONFIG_HZ."
 	write_int CONFIG_HZ
@@ -543,8 +548,8 @@ echo "" >> $CONFIG_MK
 echo "" >> $CONFIG_H
 
 if [ $ARCH = "i386" ] ; then
-    grep -qs CONFIG_1GB $LINUX/include/asm-i386/page_offset.h && BIGMEM=y
-    grep -qs CONFIG_HZ $LINUX/include/asm-i386/param.h && NEED_HZ=y
+    qgrep CONFIG_1GB $LINUX/include/asm-i386/page_offset.h && BIGMEM=y
+    qgrep CONFIG_HZ $LINUX/include/asm-i386/param.h && NEED_HZ=y
 fi
 
 CONFIG_PCMCIA=n
@@ -564,7 +569,7 @@ case $CONF_SRC in
 	echo "CKSUM=\"`cksum < /proc/version`\"" >> $CONFIG
 	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
 	if [ $VERSION_CODE -lt `version 2 3 37` ] ; then
-	    if $KSYMS | grep CardServices | grep -v pcmcia > /dev/null ; then
+	    if $KSYMS | grep CardServices | qgrep -v pcmcia ; then
 		CONFIG_PCMCIA=y
 	    fi
 	else
@@ -601,6 +606,7 @@ case $CONF_SRC in
 	    symcheck BLK_DEV_IDE_PCMCIA ide_register
 	fi
 	symcheck TR tr_setup
+	symcheck HIGHMEM kmap_high
 	if [ "$BIGMEM" ] ; then
 	    symcheck 1GB ^c01
 	    symcheck 2GB ^801
@@ -616,6 +622,10 @@ case $CONF_SRC in
 	    CONFIG_DEBUG_KERNEL=y
 	fi
 	if [ $ARCH = "i386" ] ; then
+	    CONFIG_X86_PAE=n
+	    if qgrep pae_pgd /proc/slabinfo ; then
+		CONFIG_X86_PAE=y
+	    fi
 	    symcheck EISA_bus EISA
 	elif [ $ARCH = "ppc" ] ; then
 	    symcheck _prep_type ALL_PPC
@@ -656,7 +666,7 @@ case $CONF_SRC in
 	echo "CKSUM=\"`cksum < $AUTOCONF`\"" >> $CONFIG
 	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
 	configcheck PCMCIA
-	if grep "^ *SMP *= *1" $LINUX/Makefile >/dev/null ; then
+	if qgrep "^ *SMP *= *1" $LINUX/Makefile ; then
 	    CONFIG_SMP=y
 	else
 	    configcheck SMP
@@ -676,13 +686,13 @@ case $CONF_SRC in
 	for C in PCI SCSI SERIAL INET NET_FASTROUTE NET_RADIO NET_DIVERT \
 	    TR MODVERSIONS PROC_FS PARPORT PARPORT_PC PARPORT_PC_PCMCIA \
 	    IEEE1394 NET_PCMCIA_RADIO KERNEL_DEBUGGING MEMLEAK PREEMPT \
-	    DEBUG_KERNEL DEBUG_SPINLOCK PREEMPT ; do
+	    DEBUG_KERNEL DEBUG_SPINLOCK PREEMPT HIGHMEM X86_PAE ; do
 	    configcheck $C
 	done
 	if [ "$NEED_HZ" = "y" ] ; then
 	    eval `grep "^CONFIG_HZ=" $AUTOCONF`
 	fi
-	if grep "^CONFIG_PARPORT_PC=y" $AUTOCONF >/dev/null ; then
+	if qgrep "^CONFIG_PARPORT_PC=y" $AUTOCONF ; then
 	    CONFIG_PARPORT_PC=n
 	fi
 	if [ $CONFIG_KERNEL_DEBUGGING = "y" ] ; then
@@ -717,8 +727,7 @@ if [ "$USE_PM" != "y" ] ; then CONFIG_PM=n ; fi
 if [ ! -r $LINUX/include/linux/wireless.h ] ; then
     CONFIG_NET_PCMCIA_RADIO=n
 fi
-if ! grep get_lynx_template $LINUX/drivers/ieee1394/pcilynx.c \
-     >/dev/null 2>&1 ; then
+if ! qgrep get_lynx_template $LINUX/drivers/ieee1394/pcilynx.c ; then
     CONFIG_IEEE1394=n
 fi
 printconfig
@@ -799,6 +808,9 @@ else
     CPPFLAGS="-I../include -I\$(LINUX)/include"
 fi
 echo "CPPFLAGS=$CPPFLAGS" >> $CONFIG_MK
+echo "" > tmp.c
+WFLAG=-Wa,--no-warn ; $KCC $WFLAG -c tmp.c 2>/dev/null || WFLAG=
+echo "WFLAG=$WFLAG" >> $CONFIG_MK
 
 write_str UTS_RELEASE
 write_str UTS_VERSION
@@ -839,7 +851,7 @@ fi
 
 SCSI=$LINUX/drivers/scsi
 if [ "$CONFIG_SCSI" = "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
-    if grep ADAPTEC_1480A $SCSI/aic7xxx.c >/dev/null 2>&1 ; then
+    if qgrep ADAPTEC_1480A $SCSI/aic7xxx.c ; then
 	echo "DO_APA1480=y" >> $CONFIG_MK
 	NEW_AIC7XXX=n
     elif [ -r $SCSI/aic7xxx/aic7xxx.c ] ; then
@@ -859,8 +871,8 @@ if [ "$CONFIG_SCSI" = "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
     echo "#define AIC7XXX_H <../drivers/scsi/$AIC7XXX_H>" >> $CONFIG_H
 fi
 
-if ! grep get_lynx_template $LINUX/drivers/ieee1394/pcilynx.c \
-     >/dev/null 2>&1 && [ "$CONFIG_PCMCIA" = "n" ] ; then
+if ! qgrep get_lynx_template $LINUX/drivers/ieee1394/pcilynx.c \
+    && [ "$CONFIG_PCMCIA" = "n" ] ; then
     echo "The standalone IEEE 1394 CardBus drivers are not" \
 	 "supported with this"
     echo "    kernel.  If you need them, use the kernel" \
@@ -921,7 +933,7 @@ fi
 
 # How should the startup scripts be configured?
 
-if [ "$PREFIX" = "" ] ; then
+if [ -z "$PREFIX" -a -z "$RC_DIR" ] ; then
     if [ -d /sbin/init.d -o -d /etc/rc.d/init.d -o -d /etc/init.d ] ; then
 	echo "It looks like you have a System V init file setup."
 	SYSV_INIT=y
@@ -934,7 +946,7 @@ if [ "$PREFIX" = "" ] ; then
 	fi
     else
 	echo "It looks like you have a BSD-ish init file setup."
-	if ! grep rc.pcmcia /etc/rc.d/rc.S >/dev/null ; then
+	if ! qgrep rc.pcmcia /etc/rc.d/rc.S ; then
 	    echo "    You'll need to edit /etc/rc.d/rc.S to invoke" \
 		 "/etc/rc.d/rc.pcmcia"
 	    echo "    so that PCMCIA services will start at boot time."
@@ -943,6 +955,8 @@ if [ "$PREFIX" = "" ] ; then
     fi
     write_bool SYSV_INIT
     if [ "$SYSV_INIT" = "y" ] ; then write_str RC_DIR ; fi
+elif [ -z "$PREFIX" ] ; then
+    write_str RC_DIR
 else
     ask_bool "System V init script layout" SYSV_INIT
     if [ "$SYSV_INIT" = "y" ] ; then

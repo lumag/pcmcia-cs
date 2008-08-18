@@ -1,14 +1,12 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.14 2002/11/03 19:08:12
+# Makefile 1.16 2003/01/12 18:03:20
 #
 
 # Include site dependent options and kernel configuration
 include ../config.mk
 
-# Don't remove "-O3" or bad things will happen!
-CFLAGS = -O3 -Wall -Wstrict-prototypes -pipe -Wa,--no-warn
 CPPFLAGS += $(PCDEBUG) -D__KERNEL__ -DMODULE
 CC = $(KCC) $(AFLAGS) $(KFLAGS)
 
@@ -17,8 +15,8 @@ SRCS    = netwave_cs.c wavelan_cs.c ray_cs.c airo_cs.c airo.c \
 	  wvlan_cs.c wvlan_hcf.c wvlan_hcfio.c
 
 ifdef DO_ORINOCO
-MODULES += hermes.o orinoco.o orinoco_cs.o
-SRCS    += hermes.c orinoco.c orinoco_cs.c
+MODULES += hermes.o orinoco.o orinoco_cs.o orinoco_plx.o
+SRCS    += hermes.c orinoco.c orinoco_cs.c orinoco_plx.c
 endif
 
 all:	$(MODULES)

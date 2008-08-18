@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2002/10/25 07:38:21
+		Last updated: 2003/02/24 17:16:09
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -75,7 +75,7 @@ Ethernet cards:
 	Compex LinkPort Ethernet
 	COMPU-SHACK BASEline Ethernet
 	Connectware LANdingGear Adapter
-	Corega Ether PCC-T, PCM-T
+	Corega Ether PCC-T, PCM-T, EtherII PCC-TD
 	CyQ've ELA-010 10baseT
 	Danpex EN-6200P2 Ethernet
 	Datatrek NetCard
@@ -179,7 +179,8 @@ Fast Ethernet (10/100baseT) adapters:
 
 	[3c574_cs driver] [x86,ppc]
 	3Com 3c574TX
-	3Com Megahertz 3CCFE574BT, 3CXFE574BT, 3CCSH572BT, 3CXSH572BT
+	3Com Megahertz 3CCFE574BT, 3CXFE574BT, 3C3FE574BT
+	3Com Megahertz 3CCSH572BT, 3CXSH572BT
 
 	[axnet_cs driver]
 	AmbiCom AMB8110
@@ -208,12 +209,13 @@ Fast Ethernet (10/100baseT) adapters:
 	AnyCom ECO Ethernet 10/100
 	Apollo Fast Ethernet
 	Aprotech Fast Ethernet
+	Argosy EN-225
 	Ark Sky Link Express PA2600
 	Belkin F5D5020
 	COMPU-SHACK FASTline 10/100
 	Corega FastEther PCC-TX, FEther PCC-TXF
 	CyQ've ELA-110E 10/100
-	Digicom Palladio
+	Digicom Palladio, Palladio Dongless
 	D-Link DFE-650, DFE-670-TXD, DRP-16TX
 	EXP ThinLan 100
 	Fiberline Fast Ethernet
@@ -253,6 +255,8 @@ Fast Ethernet (10/100baseT) adapters:
 	WiseCom WC-PC400
 	
 	[xirc2ps_cs driver] [x86,axp]
+	[ not recommended: no active maintainer, some problems have
+	been reported, and fixes are not forthcoming ]
 	Accton Fast EtherCard-16
 	Compaq Netelligent 10/100
 	Intel EtherExpress PRO/100 Mobile Adapter 16-bit
@@ -303,7 +307,7 @@ Fast Ethernet (10/100baseT) adapters:
 	RATOC REX-CB80
 	Siemens SpeedStream SS1012
 	Silicom Fast Ethernet
-	SMC EZ CardBus 10/100 Ethernet
+	SMC 8036TX, EZ CardBus 10/100 Ethernet
 	SVEC FD606 10/100 Ethernet
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
 	TRENDnet TE100-PCBUSR
@@ -346,18 +350,31 @@ Wireless network adapters:
 	DEC RoamAbout/DS
 
 	[orinoco_cs driver] [x86,axp,ppc,smp]
+	[ this driver supports multiple chipsets and some features may
+	not be supported for all cards ]
 	3Com AirConnect
 	1stWave 1ST-PC-DSS11IS, DSS11IG, DSS11ES, DSS11EG
+	Addtron AWP-100
+	Ambicom WL1100 PC
 	ARtem Onair ComCard STD & EMB versions, 128- & 64-bit
 	Avaya World Card
+	Belkin F5D6020
 	Cabletron/Enterasys RoamAbout 802.11 DS
-	Compaq HNW-100
+	Compaq WL100, HNW-100
+	Dell TrueMobile 1150 Series
+	D-Link DWL-650, DRC-650, DCF-650W, DWL-660, DCF-660W
 	EagleTec ET-WL300NE-CC
+	Efficient SpeedStream SS1021
 	ELSA AirLancer MC-11
 	Ericsson WLAN Card C11
+	Farallon SkyLINE
 	HP F2136B
+	HyperLink Wireless
 	IBM High Rate Wireless LAN
 	Intel PRO/Wireless 2011
+	LA4111 Spectrum24 Wireless LAN
+	Linksys WPC11 Instant Wireless
+	Linksys WCF12 Wireless CompactFlash
 	Lucent Orinoco WaveLAN/IEEE 802.11(b)
 	Melco WLI-PCM-L11, WLI-PCM-L11G
 	NCR WaveLAN/IEEE 802.11
@@ -367,20 +384,8 @@ Wireless network adapters:
 	Proxim Harmony 802.11b
 	Safeway Wireless
 	Samsung 11Mbps WLAN
-	[ PrismII based cards: limited functionality ]
-	Addtron AWP-100
-	Ambicom WL1100 PC
-	Belkin F5D6020
-	Compaq WL100
-	Dell TrueMobile 1150 Series
-	D-Link DWL-650, DRC-650, DCF-650W
-	Farallon SkyLINE
-	HyperLink Wireless
-	LA4111 Spectrum24 Wireless LAN
-	Linksys WPC11 Instant Wireless
-	Netgear MA401
 	SMC2632W
-	Efficient SpeedStream SS1021
+	Tekram AIR.mate PCF 200
 	ZCOMAX AirRunner/XI=300
 
 Modem and serial cards:
@@ -534,6 +539,9 @@ Multifunction ethernet/modem cards:
 	[3c574_cs driver] [x86,ppc]
 	3Com Megahertz 3CCFEM556B
 
+	[axnet_cs driver] [x86]
+	Psion 10/100 LANGLOBAL Combine iT
+
 	[fmvj18x_cs driver] [x86,ppc]
 	TDK Global Networker 3410/3412
 
@@ -569,7 +577,7 @@ Multifunction ethernet/modem cards:
 
 	[smc91c92_cs driver] [x86]
 	Gateway Telepath Combo
-	Megahertz/U.S. Robotics EM1144, EM3288, EM3336
+	Megahertz/U.S. Robotics EM1144, EM3288, EM3336, XJEM3336
 	Motorola Mariner
 	Ositech Jack of Diamonds, Jack of Hearts
 	Psion Gold Card Netglobal 56K+10Mb 
@@ -627,6 +635,7 @@ ATA/IDE Interface Cards:
 	Iomega Zip-250
 	MCE DataShuttle
 	Shining Technology CitiDISK 250PE, PMIDE-ASC
+	Shuttle Technology IDE/ATAPI adapter
 	Sicon Periperal Micro Mate
 	Sony MSAC-PC2 Memory Stick Adapter
 
@@ -652,7 +661,7 @@ ATA/IDE CD-ROM and DVD adapters:
 	Microtech International MicroCD
 	Microtech Mii Zip 100
 	NOVAC NV-CD410, DVD Powerstation
-	Panasonic KXL-807A
+	Panasonic KXL-807A, KXL-808A
 	Sony PCGA-CD5, PCGA-CD51, CRX50A CD-ROM
 	Sony CRX75A			[ 16-bit mode only! ]
 	TEAC IDE Card/II

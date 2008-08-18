@@ -1,3 +1,18 @@
+[03-Mar-03] Version 3.2.4
+-- Changed handling of pci_irq_list= in i82365 module so that it will
+   take precedence over an existing bridge interrupt assignment.
+-- Cleaned up, simplified CFLAGS handling in Makefiles.
+-- Minor config file and documentation updates.
+-- Added PCI ID's for a bunch of new TI CardBus bridge chips.
+-- Added orinoco_plx driver, from Adam Kropelin.
+-- Changed cardmgr to beep on /dev/tty0, from Pavel Roskin.
+-- Updated orinoco_cs driver to v0.13b, from Adam Kropelin.
+-- Updated epic_cb, tulip_cb to use <linux/crc32.h>.
+-- Fixed memory_cs bug in retrieving filesystem offset information.
+-- Fixed Configure script to check for "cc -Wa,--no-warn" support.
+-- Fixed Configure script to check for HIGHMEM and PAE support.
+-- Fixed a header issue in cardmgr with recent 2.5.* kernels.
+
 [04-Nov-02] Version 3.2.3
 -- Fixed bug in <linux/crc32.h> compatibility header.
 -- Fixed old warnings in fmvj18x_cs and ray_cs drivers.

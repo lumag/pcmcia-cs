@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.180 2002/10/13 19:18:10
+    cardmgr.c 1.183 2003/02/27 07:11:45
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -195,11 +195,12 @@ int open_sock(int sock, int mode)
     
 ======================================================================*/
 
-#include <linux/major.h>
-#include <scsi/scsi.h>
-#ifndef SCSI_DISK0_MAJOR
-#define SCSI_DISK0_MAJOR SCSI_DISK_MAJOR
-#endif
+/* getting these from headers is too much grief */
+#define SCSI_DISK0_MAJOR	8
+#define SCSI_TAPE_MAJOR		9
+#define SCSI_CDROM_MAJOR	11
+#define SCSI_GENERIC_MAJOR	21
+#define SCSI_IOCTL_GET_IDLUN	0x5382
 
 static int xlate_scsi_name(bind_info_t *bind)
 {
@@ -256,7 +257,7 @@ static void beep(unsigned int ms, unsigned int freq)
 
     if (be_quiet)
 	return;
-    fd = open("/dev/console", O_RDWR);
+    fd = open("/dev/tty0", O_RDWR);
     if (fd < 0)
 	return;
     arg = (ms << 16) | freq;

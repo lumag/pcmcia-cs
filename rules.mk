@@ -1,5 +1,7 @@
 # Global defaults
 
+# Kernel compiles must have optimization enabled!
+CFLAGS = -O3 -Wall -Wstrict-prototypes -pipe $(WFLAG)
 COFLAGS = -kv
 YFLAGS = -d
 

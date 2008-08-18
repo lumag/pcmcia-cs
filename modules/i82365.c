@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.353 2002/09/21 05:47:52
+    i82365.c 1.356 2003/01/25 06:02:02
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -138,7 +138,7 @@ INT_MODULE_PARM(pci_int, 1);		/* PCI IO card irqs? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.353 2002/09/21 05:47:52 (David Hinds)";
+"i82365.c 1.356 2003/01/25 06:02:02 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -357,10 +357,9 @@ static void i365_set_pair(socket_info_t *s, u_short reg, u_short data)
 
 static int __init get_pci_irq(socket_info_t *s)
 {
-    u8 irq;
-    irq = pci_find_slot(s->bus, s->devfn)->irq;
-    if ((irq == 0) && (pci_csc || pci_int))
-	irq = pci_irq_list[s - socket];
+    u8 irq = pci_irq_list[s - socket];
+    if (!irq)
+	irq = pci_find_slot(s->bus, s->devfn)->irq;
     if (irq >= NR_IRQS) irq = 0;
     s->cap.pci_irq = irq;
     return irq;
@@ -1382,7 +1381,7 @@ static int __init is_alive(socket_info_t *s)
 
 /*====================================================================*/
 
-static void __init add_socket(u_short port, int psock, int type)
+static void __init add_socket(u_int port, int psock, int type)
 {
     socket_info_t *s = socket+sockets;
     s->ioaddr = port;
@@ -2067,6 +2066,7 @@ static int i365_get_mem_map(socket_info_t *s, struct pccard_mem_map *mem)
     if (s->type == IS_PD6729) {
 	i365_set(s, PD67_EXT_INDEX, PD67_MEM_PAGE(map));
 	addr = i365_get(s, PD67_EXT_DATA) << 24;
+	mem->sys_stop += addr; mem->sys_start += addr;
     } else if (s->flags & IS_CARDBUS) {
 	addr = i365_get(s, CB_MEM_PAGE(map)) << 24;
 	mem->sys_stop += addr; mem->sys_start += addr;

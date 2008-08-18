@@ -112,6 +112,7 @@ static int csr0 = 0x00A00000 | 0x4800;
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/crc32.h>
 #include <linux/delay.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/bitops.h>
@@ -3047,41 +3048,6 @@ static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
    Note that we only use exclusion around actually queueing the
    new frame, not around filling tp->setup_frame.  This is non-deterministic
    when re-entered but still correct. */
-
-/* The little-endian AUTODIN32 ethernet CRC calculation.
-   N.B. Do not use for bulk data, use a table-based routine instead.
-   This is common code and should be moved to net/core/crc.c */
-static unsigned const ethernet_polynomial_le = 0xedb88320U;
-static inline u32 ether_crc_le(int length, unsigned char *data)
-{
-	u32 crc = 0xffffffff;	/* Initial value. */
-	while(--length >= 0) {
-		unsigned char current_octet = *data++;
-		int bit;
-		for (bit = 8; --bit >= 0; current_octet >>= 1) {
-			if ((crc ^ current_octet) & 1) {
-				crc >>= 1;
-				crc ^= ethernet_polynomial_le;
-			} else
-				crc >>= 1;
-		}
-	}
-	return crc;
-}
-static unsigned const ethernet_polynomial = 0x04c11db7U;
-static inline u32 ether_crc(int length, unsigned char *data)
-{
-    int crc = -1;
-
-    while(--length >= 0) {
-		unsigned char current_octet = *data++;
-		int bit;
-		for (bit = 0; bit < 8; bit++, current_octet >>= 1)
-			crc = (crc << 1) ^
-				((crc < 0) ^ (current_octet & 1) ? ethernet_polynomial : 0);
-    }
-    return crc;
-}
 
 static void set_rx_mode(struct net_device *dev)
 {

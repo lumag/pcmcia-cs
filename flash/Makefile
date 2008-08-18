@@ -1,11 +1,10 @@
 #
-# flash/Makefile 1.18 2001/02/07 00:41:40 (David Hinds)
+# flash/Makefile 1.19 2002/12/21 08:22:06 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
-CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 CC = $(UCC) $(UFLAGS)
 
 SRCS  = ftl_format.c ftl_check.c

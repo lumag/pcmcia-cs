@@ -1,11 +1,10 @@
 #
-# debug-tools/Makefile 1.43 2001/02/07 00:41:40 (David Hinds)
+# debug-tools/Makefile 1.44 2002/12/21 08:23:22 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
-CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 XFLAGS = -O -pipe
 CPPFLAGS += -I../modules
 CC = $(UCC) $(UFLAGS)

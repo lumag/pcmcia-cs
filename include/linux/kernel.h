@@ -97,4 +97,31 @@
 	resetup_one_dev(dev, drive); } while (0);
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,13))
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,3))
+#define PREPARE_TQUEUE(_tq, _routine, _data)			\
+	do {							\
+		(_tq)->routine = _routine;			\
+		(_tq)->data = _data;				\
+	} while (0)
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,3,99))
+#define INIT_TQUEUE(_tq, _routine, _data)			\
+	do {							\
+		INIT_LIST_HEAD(&(_tq)->list);			\
+		(_tq)->sync = 0;				\
+		PREPARE_TQUEUE((_tq), (_routine), (_data));	\
+	} while (0)
+#else
+#define INIT_TQUEUE(_tq, _routine, _data)			\
+	do {							\
+		(_tq)->next = 0;				\
+		(_tq)->sync = 0;				\
+		PREPARE_TQUEUE((_tq), (_routine), (_data));	\
+	} while (0)
+#endif
+#endif
+
 #endif /* _COMPAT_KERNEL_H */

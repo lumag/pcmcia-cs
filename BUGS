@@ -1,4 +1,4 @@
-Known problems and limitations for the 3.2.3 PCMCIA release
+Known problems and limitations for the 3.2.4 PCMCIA release
 ============================================================
 
 Bug summaries:
@@ -21,7 +21,7 @@ o IDE driver does not share PCI interrupts properly
 o SuSE 6.4 IDE driver problem
 o Multicast filter problem with xirc2ps_cs driver
 o Xircom CardBus ethernet cards lock up some Toshiba laptops
-o Duplex detection doesn't work for DL10022 rev 5 cards
+o Duplex detection doesn't work for some DL10022 based cards
 
 Bug details:
 
@@ -178,14 +178,14 @@ o Xircom CardBus ethernet cards lock up some Toshiba laptops
   CardBus bridges are somewhat quirky, I haven't had a lot of reports
   of problems with the latest PCMCIA drivers, except for this issue.
 
-o Duplex detection doesn't work for DL10022 rev 5 cards
+o Duplex detection doesn't work for some DL10022 based cards
 
   For certain Linksys and D-Link 16-bit fast ethernet cards using the
-  pcnet_cs driver and identified as having this chipset revision, the
-  driver doesn't know how to talk to the "MII" transceiver chip that
-  handles autonegotiation of link speed and duplex mode.  By default
-  it assumes half duplex; this leads to poor performance on full
-  duplex links.
+  pcnet_cs driver and identified as having a "DL10022 rev 5" chipset,
+  the driver doesn't know how to talk to the "MII" transceiver chip
+  that handles autonegotiation of link speed and duplex mode.  By
+  default it assumes half duplex; this leads to poor performance on
+  full duplex links.
 
   Prognosis: as of 3.1.30, the pcnet_cs driver has a "full_duplex"
   module option for forcing full duplex mode.  That's the best I can

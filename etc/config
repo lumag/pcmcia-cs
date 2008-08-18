@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.210 2002/10/25 07:38:21 (David Hinds)
+# config 1.221 2003/02/22 08:51:28 (David Hinds)
 #
 
 # config.opts is now included at the very end.  In general, it is a
@@ -196,10 +196,6 @@ card "Asante FriendlyNet Ethernet"
   version "ASANTE", "FriendlyNet PC Card"
   bind "pcnet_cs"
 
-card "Belkin F5D5020 Ethernet"
-  version "Belkin", "F5D5020-PCMCIA-Network-Card"
-  bind "pcnet_cs"
-
 card "Billionton LNT-10TB"
   version "Billionton", "LNT-10TB"
   bind "pcnet_cs"
@@ -270,6 +266,10 @@ card "Corega PCC-T Ethernet"
 
 card "Corega PCM-T Ethernet"
   version "Corega,K.K.", "Ethernet LAN Card"
+  bind "pcnet_cs"
+
+card "Corega EtherII PCC-TD Ethernet"
+  version "Corega K.K.", "corega EtherII PCC-TD"
   bind "pcnet_cs"
 
 card "CyQ've 10baseT Ethernet"
@@ -774,9 +774,14 @@ card "Allied Telesis CentreCOM LA100-PCM-T V2"
     "CentreCOM LA100-PCM-T V2 100/10M LAN PC Card"
   bind "pcnet_cs"
 
-card "AmbiCom AMB8110 Fast Ethernet"
-  manfid 0x021b, 0x0202
-  bind "axnet_cs"
+card "Allied Telesis CentreCOM LA100-PCM V2"
+  version "Allied Telesis K.K.", "LA100-PCM V2"
+  bind "pcnet_cs"
+
+# this is not specific enough:
+#card "AmbiCom AMB8110 Fast Ethernet"
+#  manfid 0x021b, 0x0202
+#  bind "axnet_cs"
 
 card "AnyCom ECO 10/100 Fast Ethernet"
   version "AnyCom", "ECO Ethernet 10/100"
@@ -812,11 +817,16 @@ card "Asix AX88190 Fast Ethernet"
   bind "axnet_cs"
 
 card "Belkin F5D5020 Fast Ethernet"
+  #version "Belkin", "F5D5020-PCMCIA-Network-Card"
   manfid 0x01bf, 0x2328
   bind "pcnet_cs"
 
 card "Billionton LNA-100B"
   version "Billionton", "LNA-100B"
+  bind "axnet_cs"
+
+card "Buffalo LPC3-CLX Fast Ethernet"
+  manfid 0x018a, 0x0301
   bind "axnet_cs"
 
 card "Buffalo LPC3-CLX Fast Ethernet"
@@ -855,6 +865,10 @@ card "CyQ've ELA-110E 10/100M LAN Card"
 
 card "Digicom Palladio 10/100"
   version "Digicom", "Palladio LAN 10/100"
+  bind "pcnet_cs"
+
+card "Digicom Palladio 10/100 Dongless"
+  version "Digicom", "Palladio LAN 10/100 Dongless"
   bind "pcnet_cs"
 
 card "dit Co., Ltd., PC Card-10/100BTX"
@@ -970,6 +984,11 @@ card "NE2000 Compatible Fast Ethernet"
   version "Dual Speed", "10/100 Port Attached PC Card"
   bind "pcnet_cs"
 
+card "NE2000 Compatible Fast Ethernet"
+  version "PCMCIA", "FastEthernet"
+  manfid 0x021b, 0x0202
+  bind "pcnet_cs"
+
 card "Asix AX88190 Fast Ethernet"
   #version "PCMCIA", "10/100 Ethernet Card"
   #version "NEWMEDIA", "LIVEWIRE 10/100"
@@ -1030,11 +1049,6 @@ card "Xircom CompactCard Ethernet"
   version "Xircom", "*", "CFE-10"
   bind "pcnet_cs"
 
-card "DynaLink 10/100Base Fast Ethernet"
-  version "PCMCIA", "FastEthernet"
-  #manfid 0x021b, 0x0202
-  bind "pcnet_cs"
-
 card "Xircom CE3-10/100 Fast Ethernet"
   version "Xircom", "*", "CE3-10/100"
   bind "xirc2ps_cs"
@@ -1055,6 +1069,10 @@ card "Xircom XE2000 10/100 Fast Ethernet"
 #
 # Wireless network adapters
 #
+card "Intersil PRISM2 11 Mbps Wireless Adapter"
+  manfid 0x0156, 0x0002
+  bind "orinoco_cs"
+
 card "350 Series Wireless LAN Adapter"
   manfid 0x015f, 0x000a
   bind "airo_cs"
@@ -1103,6 +1121,10 @@ card "D-Link DRC-650"
   version "D", "Link DRC-650 11Mbps WLAN Card"
   bind "orinoco_cs"
 
+card "D-Link DCF660"
+  manfid 0xd601, 0x0005
+  bind "orinoco_cs"
+
 card "ELSA AirLancer MC-11"
   version "ELSA", "AirLancer MC-11"
   bind "orinoco_cs"
@@ -1115,10 +1137,6 @@ card "HyperLink Wireless PC Card 11Mbps"
   version "HyperLink", "Wireless PC Card 11Mbps"
   bind "orinoco_cs"
 
-card "Intersil PRISM2 11 Mbps Wireless Adapter"
-  manfid 0x0156, 0x0002
-  bind "orinoco_cs"
-
 card "Intel PRO/Wireless 2011"
   manfid 0x0089, 0x0001
   bind "orinoco_cs"
@@ -1129,6 +1147,14 @@ card "LA4111 Spectrum24 Wireless LAN PC Card"
 
 card "Linksys WPC11 11Mbps 802.11b WLAN Card"
   version "Instant Wireless ", " Network PC CARD", "Version 01.02"
+  bind "orinoco_cs"
+
+card "Linksys WPC11 11Mbps 802.11b WLAN Card"
+  manfid 0x0274, 0x1613
+  bind "orinoco_cs"
+
+card "Linksys WCF12 Wireless CompactFlash Card"
+  manfid 0x028a, 0x0673
   bind "orinoco_cs"
 
 card "Lucent Technologies WaveLAN/IEEE Adapter"
@@ -1805,6 +1831,10 @@ card "Psion Gold Card Netglobal 56K+10Mb Ethernet"
   manfid 0x016c, 0x0020
   bind "smc91c92_cs" to 0, "serial_cs" to 1
 
+card "Psion 10/100 LANGLOBAL Combine iT"
+  manfid 0x016c, 0x0081
+  bind "axnet_cs", "serial_cs"
+
 card "Reliable Combo-L/M-56K"
   manfid 0x0213, 0x2452
   bind "pcnet_cs"
@@ -1951,6 +1981,10 @@ card "Ninja ATA"
 
 card "PCMCIA PnPIDE"
   version "PCMCIA", "PnPIDE"
+  bind "ide-cs"
+
+card "Shuttle Technology IDE/ATAPI adapter"
+  version "SHUTTLE TECHNOLOGY LTD.", "PCCARD-IDE/ATAPI Adapter"
   bind "ide-cs"
 
 card "Simple Tech Compact Flash"
@@ -2168,6 +2202,10 @@ card "SMC EZ 10/100 Fast Ethernet"
 
 card "SMC EZ 10/100 Fast Ethernet"
   manfid 0x01bf, 0x2225
+  bind "tulip_cb"
+
+card "SMC 8036TX EZ 10/100 Fast Ethernet"
+  manfid 0x01bf, 0x8036
   bind "tulip_cb"
 
 #card "SVEC 10/100 Fast Ethernet"

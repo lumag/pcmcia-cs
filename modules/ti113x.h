@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.31 2002/05/12 18:19:47
+ * ti113x.h 1.32 2003/02/13 06:28:09
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -79,6 +79,15 @@
 #ifndef PCI_DEVICE_ID_TI_1451
 #define PCI_DEVICE_ID_TI_1451		0xac52
 #endif
+#ifndef PCI_DEVICE_ID_TI_1510
+#define PCI_DEVICE_ID_TI_1510		0xac56
+#endif
+#ifndef PCI_DEVICE_ID_TI_1520
+#define PCI_DEVICE_ID_TI_1520		0xac55
+#endif
+#ifndef PCI_DEVICE_ID_TI_1620
+#define PCI_DEVICE_ID_TI_1620		0xac54
+#endif
 #ifndef PCI_DEVICE_ID_TI_4410
 #define PCI_DEVICE_ID_TI_4410		0xac41
 #endif
@@ -87,6 +96,21 @@
 #endif
 #ifndef PCI_DEVICE_ID_TI_4451
 #define PCI_DEVICE_ID_TI_4451		0xac42
+#endif
+#ifndef PCI_DEVICE_ID_TI_4510
+#define PCI_DEVICE_ID_TI_4510		0xac44
+#endif
+#ifndef PCI_DEVICE_ID_TI_4520
+#define PCI_DEVICE_ID_TI_4520		0xac46
+#endif
+#ifndef PCI_DEVICE_ID_TI_7410
+#define PCI_DEVICE_ID_TI_7410		0xac49
+#endif
+#ifndef PCI_DEVICE_ID_TI_7510
+#define PCI_DEVICE_ID_TI_7510		0xac47
+#endif
+#ifndef PCI_DEVICE_ID_TI_7610
+#define PCI_DEVICE_ID_TI_7610		0xac48
 #endif
 
 /* Register definitions for TI 113X PCI-to-CardBus bridges */
@@ -205,7 +229,9 @@ typedef struct ti113x_state_t {
     IS_TI1130, IS_TI1131, IS_TI1031, IS_TI1210, IS_TI1211,	\
     IS_TI1220, IS_TI1221, IS_TI1225, IS_TI1250A, IS_TI1251A,	\
     IS_TI1251B, IS_TI1410, IS_TI1420, IS_TI1450, IS_TI1451,	\
-    IS_TI4410, IS_TI4450, IS_TI4451
+    IS_TI1510, IS_TI1520, IS_TI1620, IS_TI4410, IS_TI4450,	\
+    IS_TI4451, IS_TI4510, IS_TI4520, IS_TI7410, IS_TI7510,	\
+    IS_TI7610
 
 #define TI_PCIC_INFO \
     { "TI 1130",  IS_TI|IS_CARDBUS, ID(TI, 1130) }, \
@@ -223,8 +249,16 @@ typedef struct ti113x_state_t {
     { "TI 1420",  IS_TI|IS_CARDBUS, ID(TI, 1420) }, \
     { "TI 1450",  IS_TI|IS_CARDBUS, ID(TI, 1450) }, \
     { "TI 1451",  IS_TI|IS_CARDBUS, ID(TI, 1451) }, \
+    { "TI 1510",  IS_TI|IS_CARDBUS, ID(TI, 1510) }, \
+    { "TI 1520",  IS_TI|IS_CARDBUS, ID(TI, 1520) }, \
+    { "TI 1620",  IS_TI|IS_CARDBUS, ID(TI, 1620) }, \
     { "TI 4410",  IS_TI|IS_CARDBUS, ID(TI, 4410) }, \
     { "TI 4450",  IS_TI|IS_CARDBUS, ID(TI, 4450) }, \
-    { "TI 4451",  IS_TI|IS_CARDBUS, ID(TI, 4451) }
+    { "TI 4451",  IS_TI|IS_CARDBUS, ID(TI, 4451) }, \
+    { "TI 4510",  IS_TI|IS_CARDBUS, ID(TI, 4510) }, \
+    { "TI 4520",  IS_TI|IS_CARDBUS, ID(TI, 4520) }, \
+    { "TI 7410",  IS_TI|IS_CARDBUS, ID(TI, 7410) }, \
+    { "TI 7510",  IS_TI|IS_CARDBUS, ID(TI, 7510) }, \
+    { "TI 7610",  IS_TI|IS_CARDBUS, ID(TI, 7610) }
 
 #endif /* _LINUX_TI113X_H */

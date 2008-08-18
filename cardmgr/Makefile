@@ -1,11 +1,10 @@
 #
-# cardmgr/Makefile 1.91 2002/10/10 04:20:58 (David Hinds)
+# cardmgr/Makefile 1.92 2002/12/21 08:22:25 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
-CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 CPPFLAGS += -I../modules
 CC = $(UCC) $(UFLAGS)
 

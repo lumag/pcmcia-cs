@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.87 2002/06/29 06:27:37
+    memory_cs.c 1.88 2003/03/03 16:29:00
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -97,7 +97,7 @@ INT_MODULE_PARM(force_size, 0);		/* force SRAM card size? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.87 2002/06/29 06:27:37 (David Hinds)";
+"memory_cs.c 1.88 2003/03/03 16:29:00 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -442,8 +442,8 @@ static void memory_config(dev_link_t *link)
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
 	tuple.DesiredTuple = CISTPL_FORMAT;
-	if ((CardServices(ValidateCIS, &info) == CS_SUCCESS) &&
-	    (info.Chains > 0) &&
+	if ((CardServices(ValidateCIS, link->handle, &info)
+	     == CS_SUCCESS) && (info.Chains > 0) &&
 	    (CardServices(GetFirstTuple, link->handle, &tuple)
 	     == CS_SUCCESS)) {
 	    CS_CHECK(GetTupleData, link->handle, &tuple);

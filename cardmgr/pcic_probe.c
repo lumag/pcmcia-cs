@@ -2,7 +2,7 @@
 
     PCMCIA bridge device probe
 
-    pcic_probe.c 1.2 2002/08/13 15:20:03
+    pcic_probe.c 1.3 2003/02/13 06:38:14
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -76,9 +76,17 @@ pci_id_t pci_id[] = {
     { 0x104c, 0xac51, "yenta_socket", "Texas Instruments PCI1420" }, 
     { 0x104c, 0xac1b, "yenta_socket", "Texas Instruments PCI1450" }, 
     { 0x104c, 0xac52, "yenta_socket", "Texas Instruments PCI1451" }, 
+    { 0x104c, 0xac56, "yenta_socket", "Texas Instruments PCI1510" }, 
+    { 0x104c, 0xac55, "yenta_socket", "Texas Instruments PCI1520" }, 
+    { 0x104c, 0xac54, "yenta_socket", "Texas Instruments PCI1620" }, 
     { 0x104c, 0xac41, "yenta_socket", "Texas Instruments PCI4410" }, 
     { 0x104c, 0xac40, "yenta_socket", "Texas Instruments PCI4450" }, 
     { 0x104c, 0xac42, "yenta_socket", "Texas Instruments PCI4451" }, 
+    { 0x104c, 0xac44, "yenta_socket", "Texas Instruments PCI4510" }, 
+    { 0x104c, 0xac46, "yenta_socket", "Texas Instruments PCI4520" }, 
+    { 0x104c, 0xac49, "yenta_socket", "Texas Instruments PCI7410" }, 
+    { 0x104c, 0xac47, "yenta_socket", "Texas Instruments PCI7510" }, 
+    { 0x104c, 0xac48, "yenta_socket", "Texas Instruments PCI7610" }, 
     { 0x1217, 0x6729, "i82365", "O2 Micro 6729" }, 
     { 0x1217, 0x673a, "i82365", "O2 Micro 6730" }, 
     { 0x1217, 0x6832, "yenta_socket", "O2 Micro 6832/6833" }, 

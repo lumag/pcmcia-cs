@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.106, 09 October 2002
+  v2.113, 27 February 2003
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -199,9 +199,9 @@
 
   +o  Texas Instruments PCI1031, PCI1130, PCI1131, PCI1210, PCI1211,
      PCI1220, PCI1221, PCI1225, PCI1250A, PCI1251A, PCI1251B, PCI1410,
-     PCI1410A, PCI1420, PCI1450, PCI1451A, PCI4410, PCI4410A, PCI4450,
-     PCI4451
-
+     PCI1410A, PCI1420, PCI1450, PCI1451A, PCI1510, PCI1520, PCI1620,
+     PCI4410, PCI4410A, PCI4450, PCI4451, PCI4510, PCI4520, PCI7410,
+     PCI7510, PCI7610
   +o  Toshiba ToPIC95, ToPIC97, ToPIC100 (experimental, incomplete)
 
   +o  Vadem VG465, VG468, VG469
@@ -318,6 +318,11 @@
   that you are using the right combination of shared libraries and
   module tools.
 
+  On x86 based systems, if you plan to use 16-bit PC Card devices, you
+  should also enable CONFIG_ISA, for recent kernels.  These cards behave
+  much like ISA devices, and the PCMCIA drivers use CONFIG_ISA to judge
+  whether a platform supports ISA bus interrupts.
+
   When configuring your kernel, if you plan on using a PCMCIA ethernet
   card, you should turn on networking support but turn off the normal
   Linux network card drivers, including the ``pocket and portable
@@ -334,9 +339,8 @@
   though you should leave CONFIG_IBMTR off.
 
   If you want to use a PCMCIA IDE adapter, your kernel should be
-  configured with CONFIG_BLK_DEV_IDE_PCMCIA enabled, for 2.0.*  through
-  2.1.7 kernels.  Older kernels do not support removeable IDE devices;
-  newer kernels do not require a special configuration setting.
+  configured with CONFIG_BLK_DEV_IDE_PCMCIA enabled, for 2.0.*  kernels.
+  Newer kernels do not require a special configuration setting.
 
   If you will be using a PCMCIA SCSI adapter, then enable CONFIG_SCSI
   when configuring your kernel.  Also, enable any top level drivers
@@ -368,12 +372,12 @@
   and later kernels, the standalone drivers cannot be used.
 
   To use the kernel PCMCIA drivers, configure the kernel with
-  CONFIG_HOTPLUG, CONFIG_PCMCIA, and usually CONFIG_CARDBUS enabled.
-  The drivers can either be built into the kernel or built as modules.
-  PCMCIA client driver options are listed in their regular driver
-  categories; thus, PCMCIA network drivers are in a submenu of network
-  drivers, and PCMCIA serial drivers are in a submenu of character
-  drivers.
+  CONFIG_HOTPLUG, CONFIG_PCMCIA, and usually CONFIG_CARDBUS enabled.  On
+  x86 based systems, CONFIG_ISA should also be enabled.  The drivers can
+  either be built into the kernel or built as modules.  PCMCIA client
+  driver options are listed in their regular driver categories; thus,
+  PCMCIA network drivers are in a submenu of network drivers, and PCMCIA
+  serial drivers are in a submenu of character drivers.
 
   In the standalone pcmcia-cs drivers, the i82365 module supports both
   ISA-to-PCMCIA, PCI-to-PCMCIA, and PCI-to-CardBus bridges.  The CardBus
@@ -576,6 +580,7 @@
 
   +o  On the ARM Pentium-90 or Midwest Micro Soundbook Plus, use
      ``freq_bypass=1 cmd_time=8''.
+
   +o  On a Compaq Presario 1220, try ``setup_time=1''.
 
   +o  On a Midwest Micro Soundbook Elite, use ``cmd_time=12''.
@@ -649,6 +654,8 @@
   +o  On the BMX 486DX2-66, exclude irq 5, irq 9.
 
   +o  On the Chicony NB5, use memory 0xda000-0xdffff.
+
+  +o  On the Compaq Presario 900Z, exclude port 0x3b0-0x3bb.
 
   +o  On the Compaq Presario 1020, exclude port 0x2f8-0x2ff, irq 3, irq
      5.
@@ -947,8 +954,8 @@
 
   +o  The SCSI client drivers require that CONFIG_SCSI be enabled, along
      with the appropriate top level driver options (CONFIG_BLK_DEV_SD,
-     CONFIG_BLK_DEV_SR, etc for 2.1 kernels).  These may be built as
-     modules.
+     CONFIG_BLK_DEV_SR, etc for 2.2 and later kernels).  These may be
+     built as modules.
 
   +o  The network client drivers require that CONFIG_INET is enabled.
      Kernel networking support cannot be compiled as a module.
@@ -1050,7 +1057,6 @@
   Linux driver.  The probe is read-only, but in rare cases, reading from
   a device may interfere with an important system function, resulting in
   a lock-up.
-
   Your system user's guide may include a map of system devices, showing
   their IO and memory ranges.  These can be explicitly excluded in
   config.opts.
@@ -1183,13 +1189,13 @@
 
   +o  One of the following messages will appear in the system log:
 
-  RequestIO: Resource in use
-  RequestIRQ: Resource in use
-  RequestWindow: Resource in use
-  GetNextTuple: No more items
-  could not allocate nn IO ports for CardBus socket n
-  could not allocate nnK memory for CardBus socket n
-  could not allocate interrupt for CardBus socket n
+       RequestIO: Resource in use
+       RequestIRQ: Resource in use
+       RequestWindow: Resource in use
+       GetNextTuple: No more items
+       could not allocate nn IO ports for CardBus socket n
+       could not allocate nnK memory for CardBus socket n
+       could not allocate interrupt for CardBus socket n
 
   Interrupt starvation often indicates a problem with the interrupt
   probe (see ``Interrupt scan failures'').  In some cases, the probe
@@ -1204,6 +1210,11 @@
   ``poll_interval=100'.  Or, if you have a CardBus controller and an
   older version of the PCMCIA drivers, try ``pci_csc=1'', which selects
   a PCI interrupt (if available) for card status changes.
+
+  In some cases, kernel misconfiguration can also produce an apparent
+  interrupt shortage.  On later 2.4 and 2.5 kernels, if CONFIG_ISA is
+  not enabled, then the PCMCIA drivers will assume no ISA bus interrupts
+  are available.
 
   IO port starvation is fairly uncommon, but sometimes happens with
   cards that require large, contiguous, aligned regions of IO port
@@ -1294,6 +1305,7 @@
   beep indicates that a card was identified, but could not be configured
   for some reason.  One low beep indicates that a card could not be
   identified.
+
   The cardmgr daemon configures cards based on a database of known card
   types kept in /etc/pcmcia/config.  This file describes the various
   client drivers, then describes how to identify various cards, and
@@ -1325,27 +1337,27 @@
   configuration status of a card.  Here is an example of the output of
   the ``cardctl config'' command:
 
-       Socket 0:
-         not configured
-       Socket 1:
-         Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
-         Card type is memory and I/O
-         IRQ 3 is dynamic shared, level mode, enabled
-         Speaker output is enabled
-         Function 0:
-           Config register base = 0x0800
-             Option = 0x63, status = 0x08
-           I/O window 1: 0x0280 to 0x02bf, auto sized
-           I/O window 2: 0x02f8 to 0x02ff, 8 bit
+  Socket 0:
+    not configured
+  Socket 1:
+    Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
+    Card type is memory and I/O
+    IRQ 3 is dynamic shared, level mode, enabled
+    Speaker output is enabled
+    Function 0:
+      Config register base = 0x0800
+        Option = 0x63, status = 0x08
+      I/O window 1: 0x0280 to 0x02bf, auto sized
+      I/O window 2: 0x02f8 to 0x02ff, 8 bit
 
   Or ``cardctl ident'', to get card identification information:
 
-  Socket 0:
-    no product info available
-  Socket 1:
-    product info: "LINKSYS", "PCMLM336", "A", "0040052D6400"
-    manfid: 0x0143, 0xc0ab
-    function: 0 (multifunction)
+       Socket 0:
+         no product info available
+       Socket 1:
+         product info: "LINKSYS", "PCMLM336", "A", "0040052D6400"
+         manfid: 0x0143, 0xc0ab
+         function: 0 (multifunction)
 
   The ``cardctl suspend'' and ``cardctl resume'' commands can be used to
   shut down a card without unloading its associated drivers.  The
@@ -1501,25 +1513,25 @@
   different purposes, one option would be to configure the cards based
   on socket position, as in:
 
-       case "$ADDRESS" in
-       *,0,*,*)
-           # definitions for network card in socket 0
-           ;;
-       *,1,*,*)
-           # definitions for network card in socket 1
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,0,*,*)
+      # definitions for network card in socket 0
+      ;;
+  *,1,*,*)
+      # definitions for network card in socket 1
+      ;;
+  esac
 
   Alternatively, they could be configured using their hardware
   addresses, as in:
 
-  case "$ADDRESS" in
-  *,*,*,00:80:C8:76:00:B1)
-      # definitions for a D-Link card
-      ;;
-  *,*,*,08:00:5A:44:80:01)
-      # definitions for an IBM card
-  esac
+       case "$ADDRESS" in
+       *,*,*,00:80:C8:76:00:B1)
+           # definitions for a D-Link card
+           ;;
+       *,*,*,08:00:5A:44:80:01)
+           # definitions for an IBM card
+       esac
 
   44..33..11..  NNeettwwoorrkk ddeevviiccee ppaarraammeetteerrss
 
@@ -1795,8 +1807,8 @@
   driver as a module, you must edit /etc/pcmcia/config to indicate that
   this module must be loaded.  Edit the serial device entry to read:
 
-       device "serial_cs"
-         class "serial" module "misc/serial", "serial_cs"
+  device "serial_cs"
+    class "serial" module "misc/serial", "serial_cs"
 
   44..44..11..  SSeerriiaall ddeevviiccee ppaarraammeetteerrss
 
@@ -1809,6 +1821,7 @@
 
      SERIAL_OPTS
         Specifies options to be passed to the setserial command.
+
      INITTAB
         If specified, this will be used to construct an inittab entry
         for the device.
@@ -1921,14 +1934,6 @@
            ;;
        esac
 
-  If you configure your kernel to load the basic Linux parallel port
-  driver as a module, you must edit /etc/pcmcia/config to indicate that
-  the appropriate modules must be loaded.  Edit the parallel device
-  entry to read:
-
-       device "parport_cs"
-         class "parport" module "misc/parport", "misc/parport_pc", "parport_cs"
-
   44..55..11..  PPaarraalllleell ddeevviiccee ppaarraammeetteerrss
 
   The following parameters can be defined in parport.opts:
@@ -2024,10 +2029,7 @@
          class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
 
   would say to load the core SCSI module and the top-level disk driver
-  module before loading the regular PCMCIA driver module.  The PCMCIA
-  Configure script will not automatically detect modularized SCSI
-  modules, so you will need use the manual configure option to enable
-  SCSI support.
+  module before loading the regular PCMCIA driver module.
 
   Always turn on SCSI devices before powering up your laptop, or before
   inserting the adapter card, so that the SCSI bus is properly
@@ -2403,8 +2405,7 @@
   serial driver and an ethernet driver: in fact, the PCMCIA
   specification requires all card functions to share the same interrupt.
   Normally, all card functions are available without having to swap
-  drivers.  Any remotely recent Linux kernel (i.e., 1.3.72 or later)
-  supports this kind of interrupt sharing.
+  drivers.  All Linux kernels support this kind of interrupt sharing.
 
   Simultaneous use of two card functions is ``tricky'' and various
   hardware vendors have implemented interrupt sharing in their own
@@ -2943,7 +2944,7 @@
   information can also be displayed with the ``cardctl ident'' command.
 
   Here is an example of how cardmgr will report an unsupported card in
-  /usr/adm/messages.
+  the system log:
 
        cardmgr[460]: unsupported card in socket 1
        cardmgr[460]: product info: "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
@@ -2987,12 +2988,13 @@
 
   66..22..  AAddddiinngg ssuuppppoorrtt ffoorr aann NNEE22000000--ccoommppaattiibbllee eetthheerrnneett ccaarrdd
 
-  Before you begin: this procedure will only work for simple ethernet
-  cards.  Multifunction cards (i.e., ethernet/modem combo cards) have an
-  extra layer of complexity regarding how the two functions are
-  integrated, and generally cannot be supported without obtaining some
-  configuration information from the card vendor.  Using the following
-  procedure for a multifunction card will not be productive.
+  Before you begin: this procedure will only work for simple 16-bit
+  ethernet cards.  Multifunction cards (i.e., ethernet/modem combo
+  cards) have an extra layer of complexity regarding how the two
+  functions are integrated, and generally cannot be supported without
+  obtaining some configuration information from the card vendor.  Using
+  the following procedure for a multifunction card will not be
+  productive.
 
   First, see if the card is already recognized by cardmgr.  Some cards
   not listed in SUPPORTED.CARDS are actually OEM versions of cards that
@@ -3082,12 +3084,12 @@
      configured.
 
   All the PCMCIA modules and the cardmgr daemon send status messages to
-  the system log.  This will usually be something like /var/log/messages
-  or /usr/adm/messages.  This file should be the first place to look
-  when tracking down a problem.  When submitting a bug report, always
-  include the relevant contents of this file.  If you are having trouble
-  finding your system messages, check /etc/syslog.conf to see how
-  different classes of messages are handled.
+  the system log.  These will usually end up somewhere like
+  /var/log/messages or /var/log/daemon.log.  These files should be the
+  first place to look when tracking down a problem.  When submitting a
+  bug report, always include the relevant contents of these files.  If
+  you are having trouble finding your system messages, check
+  /etc/syslog.conf to see how different classes of messages are handled.
 
   Before submitting a bug report, please check to make sure that you are
   using an up-to-date copy of the driver package.  While it is somewhat
@@ -3183,8 +3185,8 @@
      the text console, which may be helpful if the problem prevents
      klogd from writing to the system log.
 
-  +o  To cause all kernel messages to be sent to the console, for 2.1
-     kernels, if /proc/sys/kernel/printk exists, do:
+  +o  To cause all kernel messages to be sent to the console, for 2.2 and
+     later kernels, if /proc/sys/kernel/printk exists, do:
 
        echo 8 > /proc/sys/kernel/printk
 
@@ -3193,10 +3195,10 @@
      completely unresponsive, and the EIP address can be interpreted as
      for a kernel fault.
 
-  +o  For 2.1 kernels configured with CONFIG_MAGIC_SYSRQ enabled, various
-     emergency functions are available via special <Alt><SysRq> key
-     combinations, documented in Documentation/sysrq.txt in the kernel
-     source tree.
+  +o  For 2.2 and later kernels configured with CONFIG_MAGIC_SYSRQ
+     enabled, various emergency functions are available via special
+     <Alt><SysRq> key combinations, documented in
+     Documentation/sysrq.txt in the kernel source tree.
 
   77..33..  LLooww lleevveell PPCCMMCCIIAA ddeebbuuggggiinngg aaiiddss
 
@@ -3238,8 +3240,8 @@
 
   77..44..  //pprroocc//bbuuss//ppccccaarrdd
 
-  Starting with 2.1.103 kernels, the PCMCIA package will create a tree
-  of status information under /proc/bus/pccard.  Much of the information
+  On 2.2 and later kernels, the PCMCIA package will create a tree of
+  status information under /proc/bus/pccard.  Much of the information
   can only be interpreted using the data sheets for the PCMCIA host
   controller.  Its contents may depend on how the drivers were
   configured, but may include all or some of the following:

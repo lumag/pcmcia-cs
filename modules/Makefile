@@ -1,17 +1,12 @@
 #
 # Copyright (C) 2000 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.122 2002/10/12 19:15:10
+# Makefile 1.123 2002/12/21 08:22:48
 #
 
 # Include site dependent options and kernel configuration
 include ../config.mk
 
-# Don't remove "-O2" or bad things will happen!  We use -O2 rather
-# than -O3 because it yields smaller code; this is not performance
-# critical stuff.
-
-CFLAGS = -O2 -Wall -Wstrict-prototypes -pipe -Wa,--no-warn
 CPPFLAGS += $(PCDEBUG) -D__KERNEL__ -DMODULE
 CC = $(KCC) $(AFLAGS) $(KFLAGS)
 

@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dahinds@users.sourceforge.net.
-  v2.32, 19 July 2002
+  v2.33, 22 January 2003
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -3966,6 +3966,6 @@
   Programming information for various PC Card host controllers is
   available from the corresponding chip vendors.  Generally, data sheets
   are either available on line or can be ordered from each company's web
-  site.  A collection of datasheets can be found at <http:/pcmcia-
+  site.  A collection of datasheets can be found at <http://pcmcia-
   cs.sourceforge.net/specs>.
 
