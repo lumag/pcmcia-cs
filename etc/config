@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.134 2000/08/28 18:13:01 (David Hinds)
+# config 1.138 2000/10/04 00:27:02 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -258,6 +258,10 @@ card "D-Link DFE-650 Ethernet"
 
 card "D-Link DE-660 Ethernet"
   version "D-Link", "DE-660"
+  bind "pcnet_cs"
+
+card "D-Link DE-660+ Ethernet"
+  version "D-Link", "DE-660+"
   bind "pcnet_cs"
 
 card "D-Link DE-650 Ethernet"
@@ -552,6 +556,10 @@ card "PreMax PE-200 Ethernet"
   cis "cis/PE-200.dat"
   bind "pcnet_cs"
 
+card "Pretec CompactLAN Ethernet"
+  version "PRETEC", "Ethernet CompactLAN 10baseT 3.3V"
+  bind "pcnet_cs"
+
 card "Psion Gold Card Ethernet"
   version "Psion Dacom", "Gold Card Ethernet"
   bind "pcnet_cs"
@@ -632,6 +640,7 @@ card "SuperSocket Ethernet"
 
 card "Surecom Ethernet"
   version "TAMARACK", "Ethernet"
+  cis "cis/tamarack.dat"
   bind "pcnet_cs"
 
 card "TDK LAC-CD02x Ethernet"
@@ -1337,6 +1346,10 @@ card "Motorola Mariner Ethernet/Modem"
   manfid 0x0109, 0x0501
   bind "smc91c92_cs", "serial_cs"
 
+card "New Media LANSurfer 10+56 Ethernet/Modem"
+  manfid 0x08a1, 0xc0ab
+  bind "pcnet_cs", "serial_cs"
+
 card "NSC DP83903-based Ethernet/Modem"
   version "*", "*", "*", "NSC MF LAN/Modem"
   cis "cis/DP83903.dat"
@@ -1591,6 +1604,10 @@ card "D-Link DFE-660 Fast Ethernet"
   manfid 0x50c7, 0xcafe
   bind "tulip_cb"
 
+card "Farallon EtherTX 10/100 Fast Ethernet"
+  version "Farallon", "10/100", "Ethernet"
+  bind "tulip_cb"
+
 card "Genius MF3000 Fast Ethernet"
   version "CardBus", "10/100Mbps LanCard"
   bind "tulip_cb"
@@ -1694,6 +1711,10 @@ card "Xircom R2BE-100BTX CardBus 10/100 Ethernet"
 card "Xircom CBEM56G-100 CardBus 10/100 Ethernet + 56K Modem"
   version "Xircom", "*", "CBEM56G"
   bind "tulip_cb" to 0, "serial_cb" to 1
+
+card "Xircom RBM56G Modem"
+  manfid 0x0105, 0x1000
+  bind "serial_cb"
 
 # Include configuration files for add-on drivers
 

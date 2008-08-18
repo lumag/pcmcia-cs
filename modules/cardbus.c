@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.76 2000/07/27 18:40:24
+    cardbus.c 1.77 2000/09/16 05:04:07
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -314,9 +314,11 @@ int cb_alloc(socket_info_t *s)
     u_short vend, v, dev;
     u_char hdr, fn, bus = s->cap.cardbus;
     cb_config_t *c;
-
     struct pci_dev tmp;
     int i;
+
+    if (s->cb_config)
+	return CS_SUCCESS;
     tmp.bus = s->cap.cb_bus; tmp.devfn = 0;
 #ifdef NEWER_LINUX_PCI
     list_add(&tmp.global_list, &pci_devices);

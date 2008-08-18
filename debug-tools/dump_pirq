@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# dump_pirq 1.16 2000/08/08 20:05:03
+# dump_pirq 1.18 2000/09/14 22:39:14
 #
 # A utility to parse the BIOS PCI IRQ Routing Table
 #
@@ -14,11 +14,33 @@ sub dev {
     sprintf "%02x.%d", ($devfn>>3), ($devfn&7);
 }
 
+sub print_mask
+{
+    my($mask) = @_;
+    printf "0x%04x [", $mask;
+    for (my $i = 0; $i < 16; $i++) {
+	next if (!($mask & (1<<$i)));
+	$mask &= ~(1<<$i);
+	print (($mask) ? "$i," : "$i");
+    }
+    print "]\n";
+}
+
 sub row {
     my($tag, $link, $mask) = @_;
     if ($link != 0) {
-	printf "  INT$tag: link 0x%02x, irq mask 0x%04x\n", $link, $mask;
+	printf "  INT$tag: link 0x%02x, irq mask ", $link;
+	print_mask($mask);
     }
+}
+
+sub class_of
+{
+    my($slot) = @_;
+    open(IN, "/sbin/lspci -s $slot |");
+    $_ = <IN>;
+    close(IN);
+    return (/^....... ([^:]+):/) ? $1 : "";
 }
 
 sub parse_pirq
@@ -32,7 +54,8 @@ sub parse_pirq
     printf "Interrupt routing table found at address 0xf%04x:\n", $p;
     printf "  Version $major.$minor, size 0x%04x\n", $size;
     printf "  Interrupt router is device %02x:%s\n", $rbus, dev($rdev);
-    printf "  PCI exclusive interrupt mask: 0x%04x\n", $mask;
+    print "  PCI exclusive interrupt mask: ";
+    print_mask($mask);
     if ($cvd) {
 	printf("  Compatible router: vendor 0x%04x device 0x%04x\n",
 	       ($cvd & 0xffff), ($cvd >> 16));
@@ -44,7 +67,7 @@ sub parse_pirq
 	($bus, $devfn, $la, $ma, $lb, $mb, $lc, $mc, $ld, $md, $slot) =
 	    unpack "CCCSCSCSCSC", substr($buf, $p+$ofs, 15);
 	$s = sprintf "%02x:%s", $bus, dev($devfn);
-	print "\nDevice $s (slot $slot):\n";
+	printf "\nDevice $s (slot $slot): %s\n", class_of($s);
 	row("A", $la, $ma); row("B", $lb, $mb);
 	row("C", $lc, $mc); row("D", $ld, $md);
 	push(@{$dev{$la}}, $s . "1");
@@ -134,6 +157,7 @@ sub dump_router
 	print (($p[4] & 0x40) ? " [continuous]" : " [quiet]");
 	print " [frame=", (($p[4] >> 2) & 15) + 17, "]";
 	print " [pulse=", (($p[4] & 3) * 4 + 4), "]\n";
+	print "  Level mask: "; print_mask((inb(0x4d1)<<8) + inb(0x4d0));
 
     } elsif ((defined $via{$vd}) || (defined $via{$cvd})) {
 

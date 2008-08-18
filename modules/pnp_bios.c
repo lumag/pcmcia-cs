@@ -76,7 +76,7 @@ union pnpbios {
 /*
  * Local Variables
  */
-static asmlinkage struct {
+static struct {
 	u32	offset;
 	u16	segment;
 } pnp_bios_callpoint;
@@ -135,7 +135,7 @@ static void pop_pnp_gdt(void)
  * return to the caller if the call is within the first 64kB, and the linux
  * kernel begins at offset 1MB...
  */
-static asmlinkage u8 pnp_bios_callfunc[] =
+static u8 pnp_bios_callfunc[] =
 {
 	0x52,			              /* push edx */
 	0x51,			              /* push ecx */

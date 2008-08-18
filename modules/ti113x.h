@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.23 2000/06/12 21:29:37
+ * ti113x.h 1.25 2000/09/25 22:35:44
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -80,7 +80,7 @@
 /* Register definitions for TI 113X PCI-to-CardBus bridges */
 
 /* System Control Register */
-#define TI113X_SYSTEM_CONTROL		0x0080	/* 32 bit */
+#define TI113X_SYSTEM_CONTROL		0x80	/* 32 bit */
 #define  TI113X_SCR_SMIROUTE		0x04000000
 #define  TI113X_SCR_SMISTATUS		0x02000000
 #define  TI113X_SCR_SMIENB		0x01000000
@@ -111,21 +111,21 @@
 #define  TI122X_SCR_RIMUX		0x00000001
 
 /* Multimedia Control Register */
-#define TI1250_MULTIMEDIA_CTL		0x0084	/* 8 bit */
+#define TI1250_MULTIMEDIA_CTL		0x84	/* 8 bit */
 #define  TI1250_MMC_ZVOUTEN		0x80
 #define  TI1250_MMC_PORTSEL		0x40
 #define  TI1250_MMC_ZVEN1		0x02
 #define  TI1250_MMC_ZVEN0		0x01
 
-#define TI1250_GENERAL_STATUS		0x0085	/* 8 bit */
-#define TI1250_GPIO0_CONTROL		0x0088	/* 8 bit */
-#define TI1250_GPIO1_CONTROL		0x0089	/* 8 bit */
-#define TI1250_GPIO2_CONTROL		0x008a	/* 8 bit */
-#define TI1250_GPIO3_CONTROL		0x008b	/* 8 bit */
-#define TI122X_IRQMUX			0x008c	/* 32 bit */
+#define TI1250_GENERAL_STATUS		0x85	/* 8 bit */
+#define TI1250_GPIO0_CONTROL		0x88	/* 8 bit */
+#define TI1250_GPIO1_CONTROL		0x89	/* 8 bit */
+#define TI1250_GPIO2_CONTROL		0x8a	/* 8 bit */
+#define TI1250_GPIO3_CONTROL		0x8b	/* 8 bit */
+#define TI12XX_IRQMUX			0x8c	/* 32 bit */
 
 /* Retry Status Register */
-#define TI113X_RETRY_STATUS		0x0090	/* 8 bit */
+#define TI113X_RETRY_STATUS		0x90	/* 8 bit */
 #define  TI113X_RSR_PCIRETRY		0x80
 #define  TI113X_RSR_CBRETRY		0x40
 #define  TI113X_RSR_TEXP_CBB		0x20
@@ -136,7 +136,7 @@
 #define  TI113X_RSR_MEXP_PCI		0x01
 
 /* Card Control Register */
-#define TI113X_CARD_CONTROL		0x0091	/* 8 bit */
+#define TI113X_CARD_CONTROL		0x91	/* 8 bit */
 #define  TI113X_CCR_RIENB		0x80
 #define  TI113X_CCR_ZVENABLE		0x40
 #define  TI113X_CCR_PCI_IRQ_ENA		0x20
@@ -149,7 +149,7 @@
 #define  TI122X_CCR_AUD2MUX		0x04
 
 /* Device Control Register */
-#define TI113X_DEVICE_CONTROL		0x0092	/* 8 bit */
+#define TI113X_DEVICE_CONTROL		0x92	/* 8 bit */
 #define  TI113X_DCR_5V_FORCE		0x40
 #define  TI113X_DCR_3V_FORCE		0x20
 #define  TI113X_DCR_IMODE_MASK		0x06
@@ -160,32 +160,33 @@
 #define  TI12XX_DCR_IMODE_ALL_SERIAL	0x06
 
 /* Buffer Control Register */
-#define TI113X_BUFFER_CONTROL		0x0093	/* 8 bit */
+#define TI113X_BUFFER_CONTROL		0x93	/* 8 bit */
 #define  TI113X_BCR_CB_READ_DEPTH	0x08
 #define  TI113X_BCR_CB_WRITE_DEPTH	0x04
 #define  TI113X_BCR_PCI_READ_DEPTH	0x02
 #define  TI113X_BCR_PCI_WRITE_DEPTH	0x01
 
 /* Diagnostic Register */
-#define TI1250_DIAGNOSTIC		0x0093	/* 8 bit */
+#define TI1250_DIAGNOSTIC		0x93	/* 8 bit */
 #define  TI1250_DIAG_TRUE_VALUE		0x80
 #define  TI1250_DIAG_PCI_IREQ		0x40
 #define  TI1250_DIAG_PCI_CSC		0x20
 #define  TI1250_DIAG_ASYNC_CSC		0x01
 
 /* DMA Registers */
-#define TI113X_DMA_0			0x0094	/* 32 bit */
-#define TI113X_DMA_1			0x0098	/* 32 bit */
+#define TI113X_DMA_0			0x94	/* 32 bit */
+#define TI113X_DMA_1			0x98	/* 32 bit */
 
 /* ExCA IO offset registers */
 #define TI113X_IO_OFFSET(map)		(0x36+((map)<<1))
 
 /* Data structure for tracking vendor-specific state */
 typedef struct ti113x_state_t {
-    u_int		sysctl;		/* TI113X_SYSTEM_CONTROL */
-    u_char		cardctl;	/* TI113X_CARD_CONTROL */
-    u_char		devctl;		/* TI113X_DEVICE_CONTROL */
-    u_char		diag;		/* TI1250_DIAGNOSTIC */
+    u32			sysctl;		/* TI113X_SYSTEM_CONTROL */
+    u8			cardctl;	/* TI113X_CARD_CONTROL */
+    u8			devctl;		/* TI113X_DEVICE_CONTROL */
+    u8			diag;		/* TI1250_DIAGNOSTIC */
+    u32			irqmux;		/* TI12XX_IRQMUX */
 } ti113x_state_t;
 
 #define TI_PCIC_ID \

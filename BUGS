@@ -1,4 +1,4 @@
-Known problems and limitations for the 3.1.20 PCMCIA release
+Known problems and limitations for the 3.1.21 PCMCIA release
 ============================================================
 
 Bug summaries:
@@ -185,14 +185,18 @@ o Xircom CBEM support in the tulip_cb driver seems to be extremely
   some people have reported kernel faults when a Xircom card is shut
   down with "ifconfig down".
 
-  Prognosis: there seem to be multiple revisions of the (apparently)
-  not-quite-tulip-compatible chipset in the Xircom cards, and fixes
-  that seem to help for some cards, break other cards.  Until someone
-  can try to characterize what the revision differences might be, this
-  is not going to get fixed.
+  Prognosis: I used to think that the Xircom inconsistencies had to do
+  with multiple chipset revisions.  After more study, it seems that
+  the receive filter setup on the Xircom chipset is quirky; different
+  network setups kick the filter differently, so many reported
+  differences in card behavior actually reflect different network
+  setups.
 
-  Setting the card to promiscuous mode ("ifconfig eth0 promisc") seems
-  to help in some cases.
+  Temporarily setting the card to promiscuous mode ("ifconfig eth0
+  promisc") or all-multicast mode ("ifconfig eth0 allmulti") seems
+  to help with the packet reception issue in some cases.  The current
+  driver is broken for more than 6 multicast addresses, unless
+  "allmulti" is used.
 
 o A number of "NE2000 compatible" cards use the Asix AX88190 chipset,
   which has several serious bugs and incompatibilities that render the

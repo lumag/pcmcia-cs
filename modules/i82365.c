@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.324 2000/08/30 20:08:37
+    i82365.c 1.326 2000/10/02 20:27:49
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.324 2000/08/30 20:08:37 (David Hinds)";
+"i82365.c 1.326 2000/10/02 20:27:49 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -577,6 +577,7 @@ static void __init ti113x_get_state(socket_info_t *s)
     pci_readb(s, TI113X_CARD_CONTROL, &p->cardctl);
     pci_readb(s, TI113X_DEVICE_CONTROL, &p->devctl);
     pci_readb(s, TI1250_DIAGNOSTIC, &p->diag);
+    pci_readl(s, TI12XX_IRQMUX, &p->irqmux);
 }
 
 static void ti113x_set_state(socket_info_t *s)
@@ -587,6 +588,7 @@ static void ti113x_set_state(socket_info_t *s)
     pci_writeb(s, TI113X_DEVICE_CONTROL, p->devctl);
     pci_writeb(s, TI1250_MULTIMEDIA_CTL, 0);
     pci_writeb(s, TI1250_DIAGNOSTIC, p->diag);
+    pci_writel(s, TI12XX_IRQMUX, p->irqmux);
     i365_set_pair(s, TI113X_IO_OFFSET(0), 0);
     i365_set_pair(s, TI113X_IO_OFFSET(1), 0);
 }
@@ -625,6 +627,7 @@ static u_int __init ti113x_set_opts(socket_info_t *s, char *buf)
     switch (irq_mode) {
     case 0:
 	p->devctl &= ~TI113X_DCR_IMODE_MASK;
+	p->irqmux |= 0x02; /* minimal routing for INTA */
 	break;
     case 1:
 	p->devctl &= ~TI113X_DCR_IMODE_MASK;
@@ -1198,7 +1201,7 @@ static u_int __init test_irq(socket_info_t *s, int irq, int pci)
 	cb_writel(s, CB_SOCKET_EVENT, -1);
 	cb_writel(s, CB_SOCKET_MASK, CB_SM_CSTSCHG);
 	cb_writel(s, CB_SOCKET_FORCE, CB_SE_CSTSCHG);
-	udelay(1000);
+	mdelay(1);
 	cb_writel(s, CB_SOCKET_EVENT, -1);
 	cb_writel(s, CB_SOCKET_MASK, 0);
     } else
@@ -1206,7 +1209,7 @@ static u_int __init test_irq(socket_info_t *s, int irq, int pci)
     {
 	i365_set(s, I365_CSCINT, I365_CSC_DETECT | (csc << 4));
 	i365_bset(s, I365_GENCTL, I365_CTL_SW_IRQ);
-	udelay(1000);
+	mdelay(1);
     }
 
     _free_irq(irq, irq_count);

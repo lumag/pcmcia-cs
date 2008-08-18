@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.73, 22 August 2000
+  v2.77, 18 September 2000
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -355,7 +355,7 @@
   The following things should be installed on your system before you
   begin:
 
-  +o  A 2.0.*, 2.2.*, or 2.3.* series kernel source tree.
+  +o  A 2.0, 2.2, 2.3, or 2.4 series kernel source tree.
 
   +o  An appropriate set of module utilities.
 
@@ -368,9 +368,8 @@
   require you to do so.
 
   Current ``stable'' kernel sources and patches are available from
-  <ftp://sunsite.unc.edu/pub/Linux/kernel/v2.2>, or from
-  <ftp://tsx-11.mit.edu/pub/linux/sources/system/v2.2>.  Development
-  kernels can be found in the corresponding v2.3 subdirectories.
+  <ftp://ftp.us.kernel.org/pub/linux/kernel/v2.2>.  Development kernels
+  can be found in the corresponding v2.3 or v2.4 subdirectories.
   Current module utilities can be found in the same locations.
 
   In the Linux kernel source tree, the Documentation/Changes file
@@ -451,6 +450,7 @@
   accept all the default configuration options.  Be sure to carefully
   check the output of this command in case there are problems.  The
   following options are available:
+
      AAlltteerrnnaattee ttaarrggeett iinnssttaallll ddiirreeccttoorryy??
         If you are compiling the package for installation on another
         machine, specify an alternate target directory when prompted.
@@ -644,6 +644,10 @@
      to specify ``irq_mode=0'' for the i82365 module, to force use of
      PCI interrupts.
 
+  +o  For the ActionTec PC 750 card reader, the i82365 driver requires a
+     ``irq_list=0'' parameter, to indicate that ISA interrupts are
+     unavailable.
+
   22..44..  SSyysstteemm rreessoouurrccee sseettttiinnggss
 
   Card Services should automatically avoid allocating IO ports and
@@ -753,7 +757,6 @@
   that has PCMCIA disabled.  To enable PCMCIA, the ``PCMCIA'' variable
   should be set to ``yes''.  Red Hat's default syslogd configuration
   will record all interesting messages in /var/log/messages.
-
   Red Hat's PCMCIA package contains a replacement for the network setup
   script, /etc/pcmcia/network, which meshes with the Red Hat linuxconf
   configuration system.  This is convenient for the case where just one
@@ -764,8 +767,9 @@
   If you prefer using the Red Hat tools, either use only Red Hat RPM's,
   or replace /etc/pcmcia/network.opts with the following:
 
-       if [ -f /etc/sysconfig/network-scripts/ifcfg-$1 ] ; then
+       if [ -f /etc/sysconfig/network-scripts/ifcfg-$2 ] ; then
            start_fn () {
+               . /etc/sysconfig/network-scripts/ifcfg-$1
                if [ "$ONBOOT" = "yes" ] ; then /sbin/ifup $1 ; fi
            }
            stop_fn () {
@@ -1116,6 +1120,7 @@
   some IBM ThinkPads.  If a device is inactive at probe time, its
   interrupt may also appear to be available.  In these cases, the socket
   driver may pick an interrupt that is used by another device.
+
   With the i82365 and tcic drivers, the irq_list option can be used to
   limit the interrupts that will be tested.  This list limits the set of
   interrupts that can be used by PCMCIA cards as well as for monitoring
@@ -1165,13 +1170,13 @@
 
   +o  One of the following messages will appear in the system log:
 
-       RequestIO: Resource in use
-       RequestIRQ: Resource in use
-       RequestWindow: Resource in use
-       GetNextTuple: No more items
-       could not allocate nn IO ports for CardBus socket n
-       could not allocate nnK memory for CardBus socket n
-       could not allocate interrupt for CardBus socket n
+  RequestIO: Resource in use
+  RequestIRQ: Resource in use
+  RequestWindow: Resource in use
+  GetNextTuple: No more items
+  could not allocate nn IO ports for CardBus socket n
+  could not allocate nnK memory for CardBus socket n
+  could not allocate interrupt for CardBus socket n
 
   Interrupt starvation often indicates a problem with the interrupt
   probe (see ``Interrupt scan failures'').  In some cases, the probe
@@ -1276,7 +1281,6 @@
   beep indicates that a card was identified, but could not be configured
   for some reason.  One low beep indicates that a card could not be
   identified.
-
   The cardmgr daemon configures cards based on a database of known card
   types kept in /etc/pcmcia/config.  This file describes the various
   client drivers, then describes how to identify various cards, and
@@ -1287,6 +1291,7 @@
 
   Cardmgr records device information for each socket in
   /var/lib/pcmcia/stab.  Here is a sample stab listing:
+
        Socket 0: Adaptec APA-1460 SlimSCSI
        0       scsi    aha152x_cs      0       sda     8       0
        0       scsi    aha152x_cs      1       scd0    11      0
@@ -1322,12 +1327,12 @@
 
   Or ``cardctl ident'', to get card identification information:
 
-       Socket 0:
-         no product info available
-       Socket 1:
-         product info: "LINKSYS", "PCMLM336", "A", "0040052D6400"
-         manfid: 0x0143, 0xc0ab
-         function: 0 (multifunction)
+  Socket 0:
+    no product info available
+  Socket 1:
+    product info: "LINKSYS", "PCMLM336", "A", "0040052D6400"
+    manfid: 0x0143, 0xc0ab
+    function: 0 (multifunction)
 
   The ``cardctl suspend'' and ``cardctl resume'' commands can be used to
   shut down a card without unloading its associated drivers.  The
@@ -1553,19 +1558,19 @@
 
   For example:
 
-       case "$ADDRESS" in
-       *,*,*,*)
-           IF_PORT="10base2"
-           BOOTP="n"
-           IPADDR="10.0.0.1"
-           NETMASK="255.255.255.0"
-           NETWORK="10.0.0.0"
-           BROADCAST="10.0.0.255"
-           GATEWAY="10.0.0.1"
-           DOMAIN="domain.org"
-           DNS_1="dns1.domain.org"
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,*,*,*)
+      IF_PORT="10base2"
+      BOOTP="n"
+      IPADDR="10.0.0.1"
+      NETMASK="255.255.255.0"
+      NETWORK="10.0.0.0"
+      BROADCAST="10.0.0.255"
+      GATEWAY="10.0.0.1"
+      DOMAIN="domain.org"
+      DNS_1="dns1.domain.org"
+      ;;
+  esac
 
   To automatically mount and unmount NFS filesystems, first add all
   these filesystems to /etc/fstab, but include noauto in the mount
@@ -1744,16 +1749,16 @@
   one modem, you may want to specify different settings based on socket
   position, as in:
 
-  case "$ADDRESS" in
-  *,0,*)
-      # Options for modem in socket 0
-      LINK=/dev/modem0
-      ;;
-  *,1,*)
-      # Options for modem in socket 1
-      LINK=/dev/modem1
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,0,*)
+           # Options for modem in socket 0
+           LINK=/dev/modem0
+           ;;
+       *,1,*)
+           # Options for modem in socket 1
+           LINK=/dev/modem1
+           ;;
+       esac
 
   If a PCMCIA modem is already configured when Linux boots, it may be
   incorrectly identified as an ordinary built-in serial port.  This is
@@ -1859,6 +1864,7 @@
   devices are accessed via the /dev/lp* special device files.  The
   configuration of a printer device can be examined and modified with
   the tunelp command.
+
   The parport_cs module depends on the parport and parport_pc drivers,
   which may be either compiled into the kernel or compiled as modules.
   The layered driver structure means that any top-level parallel drivers
@@ -1972,6 +1978,7 @@
   device, with a five-field address.  The script should set the PARTS
   variable to a list of partitions.  Then, scsi.opts will be called for
   each partition, with the longer seven-field addresses.
+
   If your kernel does not have a top-level driver (disk, tape, etc) for
   a particular SCSI device, then the device will not be configured by
   the PCMCIA drivers.  As a side effect, the device's name in stab will
@@ -2032,6 +2039,7 @@
      DO_FSCK
         A boolean (y/n) setting: specifies if the filesystem should be
         checked before being mounted, with ``fsck -Ta''.
+
      DO_MOUNT
         A boolean (y/n) setting: specifies if this device should be
         automatically mounted at card insertion time.
@@ -2049,36 +2057,36 @@
   For example, here is a script for configuring a disk device at SCSI ID
   3, with two partitions, and a CD-ROM at SCSI ID 6:
 
-       case "$ADDRESS" in
-       *,sd,*,0,3,0)
-           # This device has two partitions...
-           PARTS="1 2"
-           ;;
-       *,sd,*,0,3,0,1)
-           # Options for partition 1:
-           #  update /etc/fstab, and mount an ext2 fs on /usr1
-           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="ext2"
-           OPTS=""
-           MOUNTPT="/usr1"
-           ;;
-       *,sd,*,0,3,0,2)
-           # Options for partition 2:
-           #  update /etc/fstab, and mount an MS-DOS fs on /usr2
-           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="msdos"
-           OPTS=""
-           MOUNTPT="/usr2"
-           ;;
-       *,sr,*,0,6,0)
-           # Options for CD-ROM at SCSI ID 6
-           PARTS=""
-           DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
-           FSTYPE="iso9660"
-           OPTS="ro"
-           MOUNTPT="/cdrom"
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,sd,*,0,3,0)
+      # This device has two partitions...
+      PARTS="1 2"
+      ;;
+  *,sd,*,0,3,0,1)
+      # Options for partition 1:
+      #  update /etc/fstab, and mount an ext2 fs on /usr1
+      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="ext2"
+      OPTS=""
+      MOUNTPT="/usr1"
+      ;;
+  *,sd,*,0,3,0,2)
+      # Options for partition 2:
+      #  update /etc/fstab, and mount an MS-DOS fs on /usr2
+      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="msdos"
+      OPTS=""
+      MOUNTPT="/usr2"
+      ;;
+  *,sr,*,0,6,0)
+      # Options for CD-ROM at SCSI ID 6
+      PARTS=""
+      DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
+      FSTYPE="iso9660"
+      OPTS="ro"
+      MOUNTPT="/cdrom"
+      ;;
+  esac
 
   44..66..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
 
@@ -2106,7 +2114,7 @@
      frequent source of trouble with tape drives.  To disable this
      ``feature,'' add the following to /etc/pcmcia/config.opts:
 
-       module "aha152x_cs" opts "reconnect=0"
+  module "aha152x_cs" opts "reconnect=0"
 
   +o  Also with the aha152x_cs driver, certain devices seem to require a
      longer startup delay, controlled via the reset_delay module
@@ -2145,6 +2153,7 @@
   used for disk-like access (creating and mounting filesystems, etc).
   The character devices are for "raw" unbuffered reads and writes at
   arbitrary locations.
+
   The device address passed to memory.opts consists of two fields: the
   scheme, and the socket number.  The options are applied to the first
   common memory partition on the corresponding memory card.
@@ -2201,20 +2210,20 @@
   Here is an example of a script that will automatically mount memory
   cards based on which socket they are inserted into:
 
-  case "$ADDRESS" in
-  *,0,0)
-      # Mount filesystem, but don't update /etc/fstab
-      DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="ext2" ; OPTS=""
-      MOUNTPT="/mem0"
-      ;;
-  *,1,0)
-      # Mount filesystem, but don't update /etc/fstab
-      DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="ext2" ; OPTS=""
-      MOUNTPT="/mem1"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,0,0)
+           # Mount filesystem, but don't update /etc/fstab
+           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2" ; OPTS=""
+           MOUNTPT="/mem0"
+           ;;
+       *,1,0)
+           # Mount filesystem, but don't update /etc/fstab
+           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2" ; OPTS=""
+           MOUNTPT="/mem1"
+           ;;
+       esac
 
   44..77..22..  UUssiinngg lliinneeaarr ffllaasshh mmeemmoorryy ccaarrddss
 
@@ -2492,6 +2501,12 @@
         page for the i82365 module for a description of what other
         values mean for different bridge types.
 
+     i82365 module: irq_list=n,n,...
+        This parameter lists which ISA interrupt(s) can be used for
+        PCMCIA.  If no ISA interrupts are available, specify
+        ``irq_list=0''.  Note that ``irq_mode=0'' implies
+        ``irq_list=0''.
+
      i82365 module: pci_irq_list=n,n,...
         This option specifies a list of PCI interrupt numbers to use for
         CardBus sockets.  It differs from cb_pci_irq, because it does
@@ -2536,6 +2551,7 @@
   card at all, and if the system can't detect it, the Linux drivers
   cannot use it.  The only possible resolutions are a BIOS upgrade, or
   using a different motherboard or CardBus adapter.
+
   55..22..33..  PPCCII iinntteerrrruupptt ddeelliivveerryy pprroobblleemmss
 
   Symptoms:
@@ -2571,10 +2587,13 @@
 
   Most PCMCIA card readers that fit in a PCI bus slot only provide PCI
   interrupt routing.  The Linux drivers assume that all bridges have ISA
-  interrupt capability, since that is usually correct.  In this case, it
-  will be necessary to use the irq_mode parameter to specify a ``PCI
-  only'' interrupt delivery mode; the value of the parameter depends on
-  the bridge type, so check the i82365 man page.
+  interrupt capability, since that is generally correct on laptops.
+  With a card reader, it will generally be necessary to use the irq_mode
+  parameter to specify a ``PCI only'' interrupt delivery mode; the value
+  of the parameter depends on the bridge type, so check the i82365 man
+  page.  A few PCI card readers require an irq_mode that permits ISA
+  interrupts, but those interrupts are not actually connected; in that
+  case, use ``irq_list=0''.
 
   Check the system log and verify that the CardBus bridge has a PCI
   interrupt assignment.  If it does not, then resolve that problem
@@ -2648,22 +2667,21 @@
   schemes, called ``home'' and ``work''.  Here is an example of a
   network.opts script with scheme-specific settings:
 
-  case "$ADDRESS" in
-  work,*,*,*)
-      # definitions for network card in work scheme
-      ...
-      ;;
-  home,*,*,*|default,*,*,*)
-      # definitions for network card in home scheme
-      ...
-      ;;
-  esac
+       case "$ADDRESS" in
+       work,*,*,*)
+           # definitions for network card in work scheme
+           ...
+           ;;
+       home,*,*,*|default,*,*,*)
+           # definitions for network card in home scheme
+           ...
+           ;;
+       esac
 
   The first part of a device address is always the configuration scheme.
   In this example, the second ``case'' clause will select for both the
   ``home'' and ``default'' schemes.  So, if the scheme is unset for any
   reason, it will default to the ``home'' setup.
-
   Now, to select between the two sets of settings, run either:
 
        cardctl scheme home
@@ -2694,14 +2712,14 @@
   To save even more keystrokes, schemes can be specified in lilo's
   configuration file.  For instance, you could have:
 
-  root = /dev/hda1
-  read-only
-  image = /boot/vmlinuz
-    label  = home
-    append = "SCHEME=home"
-  image = /boot/vmlinuz
-    label  = work
-    append = "SCHEME=work"
+       root = /dev/hda1
+       read-only
+       image = /boot/vmlinuz
+         label  = home
+         append = "SCHEME=home"
+       image = /boot/vmlinuz
+         label  = work
+         append = "SCHEME=work"
 
   Typing ``home'' or ``work'' at the boot prompt would then boot into
   the appropriate scheme.
@@ -2904,9 +2922,9 @@
 
   or using the more compact product ID codes:
 
-       card "Megahertz XJ2288 V.34 Fax Modem"
-         manfid 0x0101, 0x1234
-         bind "serial_cs"
+  card "Megahertz XJ2288 V.34 Fax Modem"
+    manfid 0x0101, 0x1234
+    bind "serial_cs"
 
   You can use ``*'' to match strings that don't need to match exactly,
   like version numbers.  When making new config entries, be careful to
@@ -3062,13 +3080,13 @@
   on the module's load address.  Let's say that you have the following
   kernel fault:
 
-  Unable to handle kernel NULL pointer dereference
-  current->tss.cr3 = 014c9000, %cr3 = 014c9000
-  *pde = 00000000
-  Oops: 0002
-  CPU:    0
-  EIP:    0010:[<c2026081>]
-  EFLAGS: 00010282
+       Unable to handle kernel NULL pointer dereference
+       current->tss.cr3 = 014c9000, %cr3 = 014c9000
+       *pde = 00000000
+       Oops: 0002
+       CPU:    0
+       EIP:    0010:[<c2026081>]
+       EFLAGS: 00010282
 
   The fault address is 0xc2026081.  Looking at System.map, we see that
   this is past the end of the kernel, i.e., is in a kernel module.  To
@@ -3174,6 +3192,7 @@
   contents of a card's CIS (Card Information Structure), and decodes
   most of the important bits.  And the dump_cisreg utility displays a
   card's local configuration registers.
+
   The memory_cs memory card driver is also sometimes useful for
   debugging problems with 16-bit PC Cards.  It can be bound to any card,
   and does not interfere with other drivers.  It can be used to directly
@@ -3189,7 +3208,6 @@
   can only be interpreted using the data sheets for the PCMCIA host
   controller.  Its contents may depend on how the drivers were
   configured, but may include all or some of the following:
-
      /proc/bus/pccard/{irq,ioport,memory}
         If present, these files contain resource allocation information
         to supplement the normal kernel resource tables.  Recent
@@ -3287,14 +3305,14 @@
   (for example, sample_cs-1.5.tar.gz).  A complete distribution could
   look like:
 
-  sample_cs.mk
-  README.sample_cs
-  modules/sample_cs.c
-  modules/sample_cs.h
-  etc/sample.conf
-  etc/sample
-  etc/sample.opts
-  man/sample_cs.4
+       sample_cs.mk
+       README.sample_cs
+       modules/sample_cs.c
+       modules/sample_cs.h
+       etc/sample.conf
+       etc/sample
+       etc/sample.opts
+       man/sample_cs.4
 
   With this arrangement, when the contributed driver is unpacked, it
   becomes essentially part of the PCMCIA source tree.  It can make use
@@ -3308,7 +3326,6 @@
   with the 3.1.6 release, cardmgr will automatically process any *.conf
   files installed in /etc/pcmcia, so installation of contributed drivers
   should no longer require hand editing configuration files.
-
   I will accept client drivers prepared according to this specification
   and place them in the /pub/pcmcia-cs/contrib directory on
   projects.sourceforge.net.  The README in this directory will describe

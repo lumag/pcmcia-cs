@@ -387,7 +387,7 @@ static struct tulip_chip_table {
 	HAS_MII | HAS_MEDIA_TABLE | ALWAYS_CHECK_MII | HAS_PWRDWN | HAS_NWAY143,
 	t21142_timer },
   { "Xircom Cardbus Adapter (DEC 21143 compatible mode)", 128, 0x0801fbff,
-       HAS_MII | HAS_PWRDWN, tulip_timer }, 
+	HAS_MII | HAS_PWRDWN, tulip_timer }, 
   {0},
 };
 /* This matches the table above.  Note 21142 == 21143. */
@@ -576,7 +576,7 @@ static void outl_CSR6 (u32 newcsr6, long ioaddr, int chip_idx)
 		restore_flags(flags);
 		return;
     }
-    newcsr6 &= 0x726cfeca; /* mask out the reserved CSR6 bits that always */
+    newcsr6 &= 0x726cfecb; /* mask out the reserved CSR6 bits that always */
 			   /* read 0 on the Xircom cards */
     newcsr6 |= 0x320c0000; /* or in the reserved bits that always read 1 */
     currcsr6 = inl(ioaddr + CSR6);
@@ -1562,7 +1562,7 @@ tulip_up(struct net_device *dev)
 			outl(0, ioaddr + 0xAC);
 			outl(0, ioaddr + 0xB0);
 		}
-	} else if (tp->chip_id != X3201_3) {
+	} else {
 		/* This is set_rx_mode(), but without starting the transmitter. */
 		u16 *eaddrs = (u16 *)dev->dev_addr;
 		u16 *setup_frm = &tp->setup_frame[15*6];
@@ -1576,27 +1576,6 @@ tulip_up(struct net_device *dev)
 		/* Put the setup frame on the Tx list. */
 		tp->tx_ring[0].length = cpu_to_le32(0x08000000 | 192);
 		tp->tx_ring[0].buffer1 = virt_to_le32desc(tp->setup_frame);
-		tp->tx_ring[0].status = cpu_to_le32(DescOwned);
-
-		tp->cur_tx++;
-	} else { /* X3201_3 */
-		u16 *eaddrs = (u16 *)dev->dev_addr;
-		u16 *setup_frm = &tp->setup_frame[0*6];
-		
-		/* fill the table with the broadcast address */
-		memset(tp->setup_frame, 0xff, 96*sizeof(u16));
-		/* re-fill the first 14 table entries with our address */
-		for(i=0; i<14; i++) {
-			*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
-			*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
-			*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
-		}
-
-		/* Put the setup frame on the Tx list. */
-		tp->tx_ring[0].length = cpu_to_le32(0x08000000 | 192);
-		/* Lie about the address of our setup frame to make the */
-		/* chip happy */
-		tp->tx_ring[0].buffer1 = (virt_to_le32desc(tp->setup_frame) + 4);
 		tp->tx_ring[0].status = cpu_to_le32(DescOwned);
 
 		tp->cur_tx++;
@@ -2099,6 +2078,10 @@ static void tulip_timer(unsigned long data)
 			}
 			break;
 		}
+		break;
+	case X3201_3:
+		check_duplex(dev);
+		next_tick = 10*HZ;
 		break;
 	case DC21140:  case DC21142: case MX98713: case COMPEX9881: default: {
 		struct medialeaf *mleaf;
@@ -2726,7 +2709,7 @@ tulip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		flag = 0x60000000; /* No interrupt */
 	} else if (tp->cur_tx - tp->dirty_tx == TX_RING_SIZE/2) {
 		flag = 0xe0000000; /* Tx-done intr. */
-	} else if (tp->cur_tx - tp->dirty_tx < TX_RING_SIZE - 2) {
+	} else if (tp->cur_tx - tp->dirty_tx < TX_RING_SIZE - 4) {
 		flag = 0x60000000; /* No Tx-done intr. */
 	} else {		/* Leave room for set_rx_mode() to fill entries. */
 		tp->tx_full = 1;
@@ -2801,6 +2784,9 @@ static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 				if (tp->tx_skbuff[entry] == NULL)
 				  continue;
 
+				if ((tp->chip_id == X3201_3) && tp->full_duplex &&
+					((status & 0xcf86) == 0x8800))
+					status &= ~0x8800;
 				if (status & 0x8000) {
 					/* There was an major error, log it. */
 #ifndef final_version
@@ -2843,7 +2829,7 @@ static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 			}
 #endif
 
-			if (tp->tx_full && tp->cur_tx - dirty_tx  < TX_RING_SIZE - 2) {
+			if (tp->tx_full && tp->cur_tx - dirty_tx  < TX_RING_SIZE - 4) {
 				/* The ring is no longer full, restart queue. */
 				tp->tx_full = 0;
 				netif_wake_queue(dev);
@@ -3320,7 +3306,7 @@ static void set_rx_mode(struct net_device *dev)
 				*setup_frm++ = hash_table[i];
 			}
 			setup_frm = &tp->setup_frame[13*6];
-		} else if(tp->chip_id != X3201_3) {
+		} else if (tp->chip_id != X3201_3) {
 			/* We have <= 14 addresses so we can use the wonderful
 			   16 address perfect filtering of the Tulip. */
 			for (i = 0, mclist = dev->mc_list; i < dev->mc_count;
@@ -3364,7 +3350,7 @@ static void set_rx_mode(struct net_device *dev)
 		*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
 		*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
 		/* Now add this frame to the Tx list. */
-		if (tp->cur_tx - tp->dirty_tx > TX_RING_SIZE - 2) {
+		if (tp->cur_tx - tp->dirty_tx > TX_RING_SIZE - 4) {
 			/* Same setup recently queued, we need not add it. */
 		} else {
 			unsigned long flags;
@@ -3373,7 +3359,16 @@ static void set_rx_mode(struct net_device *dev)
 			save_flags(flags); cli();
 			entry = tp->cur_tx++ % TX_RING_SIZE;
 
-			if (entry != 0) {
+			if (tp->chip_id == X3201_3) {
+				while (entry % 4) {
+					tp->tx_skbuff[entry] = 0;
+					tp->tx_ring[entry].length =
+						(entry == TX_RING_SIZE-1) ? cpu_to_le32(DESC_RING_WRAP) : 0;
+					tp->tx_ring[entry].buffer1 = 0;
+					tp->tx_ring[entry].status = cpu_to_le32(DescOwned);
+					entry = tp->cur_tx++ % TX_RING_SIZE;
+				}
+			} else if (entry != 0) {
 				/* Avoid a chip errata by prefixing a dummy entry. */
 				tp->tx_skbuff[entry] = 0;
 				tp->tx_ring[entry].length =
@@ -3389,12 +3384,9 @@ static void set_rx_mode(struct net_device *dev)
 			if (entry == TX_RING_SIZE-1)
 				tx_flags |= DESC_RING_WRAP;		/* Wrap ring. */
 			tp->tx_ring[entry].length = cpu_to_le32(tx_flags);
-			if(tp->chip_id == X3201_3)
-				tp->tx_ring[entry].buffer1 = (virt_to_le32desc(tp->setup_frame) + 4);
-			else
-				tp->tx_ring[entry].buffer1 = virt_to_le32desc(tp->setup_frame);
+			tp->tx_ring[entry].buffer1 = virt_to_le32desc(tp->setup_frame);
 			tp->tx_ring[entry].status = cpu_to_le32(DescOwned);
-			if (tp->cur_tx - tp->dirty_tx >= TX_RING_SIZE - 2) {
+			if (tp->cur_tx - tp->dirty_tx >= TX_RING_SIZE - 4) {
 				netif_stop_queue(dev);
 				tp->tx_full = 1;
 			}

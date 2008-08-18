@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.27 2000/06/12 21:27:25
+    dummy_cs.c 1.28 2000/10/04 00:31:08
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -70,7 +70,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"dummy_cs.c 1.27 2000/06/12 21:27:25 (David Hinds)";
+"dummy_cs.c 1.28 2000/10/04 00:31:08 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -427,10 +427,9 @@ static void dummy_config(dev_link_t *link)
 		link->io.BasePort2 = io->win[1].base;
 		link->io.NumPorts2 = io->win[1].len;
 	    }
+	    /* This reserves IO space but doesn't actually enable it */
+	    CFG_CHECK(RequestIO, link->handle, &link->io);
 	}
-
-	/* This reserves IO space but doesn't actually enable it */
-	CFG_CHECK(RequestIO, link->handle, &link->io);
 
 	/*
 	  Now set up a common memory window, if needed.  There is room
@@ -450,6 +449,8 @@ static void dummy_config(dev_link_t *link)
 	    req.Attributes |= WIN_ENABLE;
 	    req.Base = mem->win[0].host_addr;
 	    req.Size = mem->win[0].len;
+	    if (req.Size < 0x1000)
+		req.Size = 0x1000;
 	    req.AccessSpeed = 0;
 	    link->win = (window_handle_t)link->handle;
 	    CFG_CHECK(RequestWindow, &link->win, &req);
@@ -460,6 +461,8 @@ static void dummy_config(dev_link_t *link)
 	break;
 	
     next_entry:
+	if (link->io.NumPorts1)
+	    CardServices(ReleaseIO, link->handle, &link->io);
 	CS_CHECK(GetNextTuple, handle, &tuple);
     }
     

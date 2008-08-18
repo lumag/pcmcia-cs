@@ -325,12 +325,14 @@ static int do8bitIO = 0;
 #define EV_ALLOC 0x08
 #define EV_LINK 0x80
 #define EV_AWAKE 0x100
-#define STATUS_INTS ( EV_AWAKE | EV_LINK | EV_TXEXC | EV_TX | EV_RX )
+#define EV_UNKNOWN 0x800
+#define STATUS_INTS ( EV_AWAKE | EV_LINK | EV_TXEXC | EV_TX | EV_RX | EV_UNKNOWN)
 
 /* The RIDs */
 #define RID_WEP_PERM 0xFF16
 #define RID_WEP_TEMP 0xFF15
 #define RID_SSID     0xFF11
+#define RID_APLIST   0xFF12
 #define RID_CONFIG   0xFF10
 #define RID_ACTUALCONFIG 0xFF20 /*readonly*/
 #define RID_MODULATION 0xFF17
@@ -519,6 +521,11 @@ typedef struct {
 
 typedef struct {
 	u16 len;
+	u8 ap[4][6];
+} APListRid;
+
+typedef struct {
+	u16 len;
 	char oui[3];
 	u16 prodNum;
 	char manName[32];
@@ -555,7 +562,7 @@ typedef struct {
 #define BUSY_FID 0x10000
 
 static char *version =
-"airo.c 1.0 2000/08/04 14:49:53 (Benjamin Reed)";
+"airo.c 1.1a 2000/09/14 7:29:09 (Benjamin Reed)";
 
 struct airo_info;
 
@@ -607,6 +614,7 @@ struct airo_info {
 	struct proc_dir_entry proc_status_entry;
 	struct proc_dir_entry proc_config_entry;
 	struct proc_dir_entry proc_SSID_entry;
+	struct proc_dir_entry proc_APList_entry;
 	struct proc_dir_entry proc_wepkey_entry;
 #else
 	struct proc_dir_entry *proc_entry;
@@ -1526,6 +1534,7 @@ static int proc_stats_open( struct inode *inode, struct file *file );
 static int proc_statsdelta_open( struct inode *inode, struct file *file );
 static int proc_status_open( struct inode *inode, struct file *file );
 static int proc_SSID_open( struct inode *inode, struct file *file );
+static int proc_APList_open( struct inode *inode, struct file *file );
 static int proc_config_open( struct inode *inode, struct file *file );
 static int proc_wepkey_open( struct inode *inode, struct file *file );
 
@@ -1551,6 +1560,13 @@ static struct file_operations proc_SSID_ops = {
 	read:          proc_read,
 	write:         proc_write,
 	open:          proc_SSID_open,
+	release:       proc_close
+};
+
+static struct file_operations proc_APList_ops = {
+	read:          proc_read,
+	write:         proc_write,
+	open:          proc_APList_open,
 	release:       proc_close
 };
 
@@ -1580,6 +1596,9 @@ static struct inode_operations proc_inode_status_ops = {
 
 static struct inode_operations proc_inode_SSID_ops = {
 	&proc_SSID_ops};
+
+static struct inode_operations proc_inode_APList_ops = {
+	&proc_APList_ops};
 
 static struct inode_operations proc_inode_config_ops = {
 	&proc_config_ops};
@@ -1676,6 +1695,13 @@ static struct proc_dir_entry SSID_entry = {
 	&proc_inode_SSID_ops, NULL
 };
 
+static struct proc_dir_entry APList_entry = {
+	0, 6, "APList",
+	S_IFREG | S_IRUGO | S_IWUSR, 2, 0, 0,
+	13,
+	&proc_inode_APList_ops, NULL
+};
+
 static struct proc_dir_entry config_entry = {
 	0, 6, "Config",
 	S_IFREG | S_IRUGO | S_IWUSR, 2, 0, 0,
@@ -1740,6 +1766,13 @@ static int setup_proc_entry( struct net_device *dev,
 	PROC_REGISTER( &apriv->proc_entry, 
 		       &apriv->proc_SSID_entry );
 	
+	/* Setup the APList */
+	memcpy( &apriv->proc_APList_entry, &APList_entry, 
+		sizeof( APList_entry ) );
+	apriv->proc_APList_entry.data = dev;
+	PROC_REGISTER( &apriv->proc_entry, 
+		       &apriv->proc_APList_entry );
+	
 	/* Setup the WepKey */
 	memcpy( &apriv->proc_wepkey_entry, &wepkey_entry, 
 		sizeof( wepkey_entry ) );
@@ -1758,6 +1791,7 @@ static int takedown_proc_entry( struct net_device *dev,
 	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_status_entry );
 	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_config_entry );
 	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_SSID_entry );
+	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_APList_entry );
 	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_wepkey_entry );
 	PROC_UNREGISTER( &airo_entry, &apriv->proc_entry );
 	return 0;
@@ -1809,6 +1843,13 @@ static int setup_proc_entry( struct net_device *dev,
 	entry->data = dev;
 	entry->proc_fops = &proc_SSID_ops;
 
+	/* Setup the APList */
+	entry = create_proc_entry("APList",
+				  S_IFREG | S_IRUGO | S_IWUGO,
+				  apriv->proc_entry);
+	entry->data = dev;
+	entry->proc_fops = &proc_APList_ops;
+
 	/* Setup the WepKey */
 	entry = create_proc_entry("WepKey",
 				  S_IFREG | S_IWUSR,
@@ -1827,6 +1868,7 @@ static int takedown_proc_entry( struct net_device *dev,
 	remove_proc_entry("Status",apriv->proc_entry);
 	remove_proc_entry("Config",apriv->proc_entry);
 	remove_proc_entry("SSID",apriv->proc_entry);
+	remove_proc_entry("APList",apriv->proc_entry);
 	remove_proc_entry("WepKey",apriv->proc_entry);
 	remove_proc_entry(dev->name,airo_entry);
 	return 0;
@@ -2346,6 +2388,44 @@ static void proc_SSID_on_close( struct inode *inode, struct file *file ) {
 	do_writerid(ai, RID_SSID, &SSID_rid, sizeof( SSID_rid ));
 }
 
+inline static u8 hexVal(char c) {
+	if (c>='0' && c<='9') return c -= '0';
+	if (c>='a' && c<='f') return c -= 'a'-10;
+	if (c>='A' && c<='F') return c -= 'A'-10;
+	return 0;
+}
+
+static void proc_APList_on_close( struct inode *inode, struct file *file ) {
+	struct proc_data *data = (struct proc_data *)file->private_data;
+	struct proc_dir_entry *dp = inode->u.generic_ip;
+	struct net_device *dev = dp->data;
+	struct airo_info *ai = (struct airo_info*)dev->priv;
+	APListRid APList_rid;
+	int i;
+	
+	if ( !data->writelen ) return;
+	
+	memset( &APList_rid, 0, sizeof(APList_rid) );
+	APList_rid.len = sizeof(APList_rid);
+	
+	for( i = 0; i < 4 && data->writelen >= (i+1)*6*3; i++ ) {
+		int j;
+		for( j = 0; j < 6*3 && data->wbuffer[j+i*6*3]; j++ ) {
+			switch(j%3) {
+			case 0:
+				APList_rid.ap[i][j/3]=
+					hexVal(data->wbuffer[j+i*6*3])<<4;
+				break;
+			case 1:
+				APList_rid.ap[i][j/3]|=
+					hexVal(data->wbuffer[j+i*6*3]);
+				break;
+			}
+		}
+	}
+	do_writerid(ai, RID_APLIST, &APList_rid, sizeof( APList_rid ));
+}
+
 /* This function wraps PC4500_writerid with a MAC disable */
 static int do_writerid( struct airo_info *ai, u16 rid, const void *rid_data,
 			int len ) {
@@ -2376,13 +2456,6 @@ static int set_wep_key(struct airo_info *ai, const char *key, u16 keylen ) {
         if (rc!=SUCCESS) printk(KERN_ERR "airo:  WEP_TEMP set %x\n", rc); 
 	rc = do_writerid(ai, RID_WEP_PERM, &wkr, sizeof(wkr));
         if (rc!=SUCCESS) printk(KERN_ERR "airo:  WEP_PERM set %x\n", rc);
-	return 0;
-}
-
-static u8 hexVal(char c) {
-	if (c>='0' && c<='9') return c -= '0';
-	if (c>='a' && c<='f') return c -= 'a'-10;
-	if (c>='A' && c<='F') return c -= 'A'-10;
 	return 0;
 }
 
@@ -2479,6 +2552,51 @@ static int proc_SSID_open( struct inode *inode, struct file *file ) {
 		}
 		*ptr++ = '\n';
 	}
+	*ptr = '\0';
+	data->readlen = strlen( data->rbuffer );
+	return 0;
+}
+
+static int proc_APList_open( struct inode *inode, struct file *file ) {
+	struct proc_data *data;
+	struct proc_dir_entry *dp = inode->u.generic_ip;
+	struct net_device *dev = dp->data;
+	struct airo_info *ai = (struct airo_info*)dev->priv;
+	int i;
+	char *ptr;
+	APListRid APList_rid;
+
+	MOD_INC_USE_COUNT;
+	
+	dp = (struct proc_dir_entry *) inode->u.generic_ip;
+	
+	file->private_data = kmalloc(sizeof(struct proc_data ), GFP_KERNEL);
+	memset(file->private_data, 0, sizeof(struct proc_data));
+	data = (struct proc_data *)file->private_data;
+	data->rbuffer = kmalloc( 104, GFP_KERNEL );
+	data->writelen = 0;
+	data->maxwritelen = 4*6*3;
+	data->wbuffer = kmalloc( data->maxwritelen, GFP_KERNEL );
+	memset( data->wbuffer, 0, data->maxwritelen );
+	data->on_close = proc_APList_on_close;
+	
+	PC4500_readrid(ai, RID_APLIST, 
+		       &APList_rid, sizeof(APList_rid));
+	ptr = data->rbuffer;
+	for( i = 0; i < 4; i++ ) {
+		// We end when we find a zero MAC
+		if ( !*(int*)APList_rid.ap[i] &&
+		     !*(int*)&APList_rid.ap[i][2]) break;
+		ptr += sprintf(ptr, "%02x:%02x:%02x:%02x:%02x:%02x\n",
+			       (int)APList_rid.ap[i][0],
+			       (int)APList_rid.ap[i][1],
+			       (int)APList_rid.ap[i][2],
+			       (int)APList_rid.ap[i][3],
+			       (int)APList_rid.ap[i][4],
+			       (int)APList_rid.ap[i][5]);
+	}
+        if (i==0) ptr += sprintf(ptr, "Not using specific APs\n");
+
 	*ptr = '\0';
 	data->readlen = strlen( data->rbuffer );
 	return 0;

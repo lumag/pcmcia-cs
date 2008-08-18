@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.128 2000/06/12 21:55:40
+ * k_compat.h 1.130 2000/10/04 01:09:26
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -55,7 +55,7 @@
 #define DEV_ID			dev_id
 #define IRQ_MAP(irq, dev)	do { } while (0)
 
-#if (LINUX_VERSION_CODE < VERSION(2,3,1))
+#if (LINUX_VERSION_CODE < VERSION(2,2,18))
 #if (LINUX_VERSION_CODE < VERSION(2,0,16))
 #define init_waitqueue_head(p)	(*(p) = NULL)
 #else
@@ -143,7 +143,7 @@ typedef int spinlock_t;
 #include <linux/spinlock.h>
 #endif
 #if defined(CONFIG_SMP) || (LINUX_VERSION_CODE > VERSION(2,3,6)) || \
-    (defined(__powerpc__) && (LINUX_VERSION_CODE > VERSION(2,2,12)))
+    (defined(__powerpc__) && (LINUX_VERSION_CODE > VERSION(2,2,11)))
 #define USE_SPIN_LOCKS
 #endif
 #endif
@@ -165,7 +165,7 @@ typedef int spinlock_t;
 #if (LINUX_VERSION_CODE < VERSION(2,1,0))
 #define __set_current_state(n) \
     do { current->state = TASK_INTERRUPTIBLE; } while (0)
-#elif (LINUX_VERSION_CODE < VERSION(2,3,16))
+#elif (LINUX_VERSION_CODE < VERSION(2,2,18))
 #define __set_current_state(n)	do { current->state = (n); } while (0)
 #endif
 

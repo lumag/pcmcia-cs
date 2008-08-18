@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/08/30 21:32:48
+		Last updated: 2000/10/04 00:27:02
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -75,7 +75,7 @@ Ethernet cards:
 	Dayna Communications CommuniCard E
 	Digital DEPCM-AA, PCP78-AC Ethernet
 	Digital EtherWORKS Turbo Ethernet
-	D-Link DE-650, DE-660
+	D-Link DE-650, DE-660, DE-660+
 	DynaLink L10C Ethernet
 	Edimax Technology Ethernet Combo
 	EFA InfoExpress 205, 207 Combo
@@ -125,7 +125,7 @@ Ethernet cards:
 	OvisLink Ethernet
 	Panasonic CF-VEL211P-B
 	Planet SmartCOM 2000, 3500, ENW-3501-T, ENW-3502-T
-	Pretec Ethernet
+	Pretec Ethernet, CompactLAN Ethernet
 	PreMax PE-200 Ethernet
 	Proteon Ethernet
 	Psion Gold Card Ethernet
@@ -232,6 +232,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Billionton LND-100B
 	Compex Linkport TX
 	D-Link DFE-660TX
+	Farallon EtherTX
 	Genius MF3000			[ some do not work?? ]
 	Kingston KNE-CB4TX
 	Laneed LD-10/100CB
@@ -265,6 +266,7 @@ Wireless network adapters:
 	[airo_cs driver]
 	Aironet PC4500, PC4800
 	Cisco 340
+	Xircom Wireless Ethernet Adapter
 
 	[netwave_cs driver] [x86]
 	Breezenet SA-PX
@@ -321,6 +323,9 @@ Modem and serial cards:
 	New Media WinSurfer
 	Paradise CW56K HSP
 	Xircom CBM56G, R2BM56W
+
+	[serial_cb driver]
+	Xircom RBM56G
 	
 Parallel port cards:
 
@@ -415,6 +420,7 @@ Multifunction ethernet/modem cards:
 	IO DATA PCEM-336T
 	Linksys LANmodem 28.8 (PCMLM28), 33.6 (PCMLM336)
 	Linksys EtherFast LANmodem 56K (PCMLM56)
+	New Media LANSurfer 10+56 Combo
 	PREMAX LAN modem
 	Psion V.34 Gold Card
 	Rover ComboCard 33.6
@@ -642,6 +648,7 @@ email just to ask if their status has changed.
 	New Media LiveWire+
 	Nikon CoolPix100
 	Panasonic KXL-D720
+	RATOC SMA01U SmartMedia Adapter
 	SMC 8016 EliteCard
 	Xircom CEM II Ethernet/Modem
 	Xircom CE-10BT Ethernet [ but try xircce_cs contrib driver ]

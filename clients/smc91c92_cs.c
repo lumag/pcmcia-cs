@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.103 2000/08/24 20:36:59
+    smc91c92_cs.c 1.104 2000/08/31 21:25:13
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -641,7 +641,8 @@ static void mot_config(dev_link_t *link)
     mdelay(100);
 }
 
-static int mot_setup(dev_link_t *link) {
+static int mot_setup(dev_link_t *link)
+{
     struct smc_private *smc = link->priv;
     struct net_device *dev = &smc->dev;
     ioaddr_t ioaddr = dev->base_addr;
@@ -656,7 +657,7 @@ static int mot_setup(dev_link_t *link) {
 	SMC_SELECT_BANK(1);
 	outw((CTL_RELOAD | CTL_EE_SELECT), ioaddr + CONTROL);
 
-	for (loop = 0; loop < 200; loop++) {
+	for (loop = wait = 0; loop < 200; loop++) {
 	    udelay(10);
 	    wait = ((CTL_RELOAD | CTL_STORE) & inw(ioaddr + CONTROL));
 	    if (wait == 0) break;
@@ -771,7 +772,7 @@ static int osi_config(dev_link_t *link)
     /* Enable Hard Decode, LAN, Modem */
     link->conf.ConfigIndex = 0x23;
     
-    for (j = 0; j < 4; j++) {
+    for (i = j = 0; j < 4; j++) {
 	link->io.BasePort2 = com[j];
 	i = CardServices(RequestIO, link->handle, &link->io);
 	if (i == CS_SUCCESS) break;

@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2 and Series 100 Flash devices
 
-    iflash2_mtd.c 1.57 2000/07/24 20:41:31
+    iflash2_mtd.c 1.58 2000/10/02 20:38:23
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"iflash2_mtd.c 1.57 2000/07/24 20:41:31 (David Hinds)";
+"iflash2_mtd.c 1.58 2000/10/02 20:38:23 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -305,7 +305,7 @@ static void reset_block(volatile u_short *address)
 	writew(IF_READ_CSR, address);
 	CSR = readw(address);
 	if (CSR != 0xffff) break;
-	udelay(1000);
+	mdelay(1);
     }
 #ifdef PCMCIA_DEBUG
     if (i)

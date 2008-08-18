@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" pcnet_cs.4 1.15 2000/06/12 21:24:48
+.\" pcnet_cs.4 1.16 2000/09/19 17:08:45
 .\"
-.TH PCNET_CS 4 "2000/06/12 21:24:48" "pcmcia-cs"
+.TH PCNET_CS 4 "2000/09/19 17:08:45" "pcmcia-cs"
 
 .SH NAME
 pcnet_cs \- generic NS8390-based PCMCIA Ethernet Driver
@@ -15,6 +15,8 @@ pcnet_cs \- generic NS8390-based PCMCIA Ethernet Driver
 .RB [ if_port=\c
 .IR n ]
 .RB [ use_big_buf=\c
+.IR n ]
+.RB [ use_shmem=\c
 .IR n ]
 .RB [ mem_speed=\c
 .IR n ]
@@ -59,6 +61,10 @@ default is 1 (10baseT).
 .BI use_big_buf= n
 For Socket EA cards, a flag indicating if the driver should use the
 large (64K) packet buffer.  The default is 1 (true).
+.TP
+.BI use_shmem= n
+Selects shared memory versus polled IO mode for packet transfers.  The
+default is -1, meaning to use the card's CIS information to decide.
 .TP
 .BI mem_speed= n
 Sets the access speed of the shared memory window, in nanoseconds.

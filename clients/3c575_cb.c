@@ -1632,7 +1632,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		}
 
 		if (--work_done < 0) {
-			printk(KERN_WARNING "%s: Too much work in interrupt, status "
+			printk(KERN_DEBUG "%s: Too much work in interrupt, status "
 				   "%4.4x.\n", dev->name, status);
 			/* Disable all pending interrupts. */
 			do {

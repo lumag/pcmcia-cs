@@ -2,7 +2,7 @@
 
     Device driver for Databook TCIC-2 PCMCIA controller
 
-    tcic.c 1.116 2000/06/12 21:29:37
+    tcic.c 1.117 2000/10/02 20:27:49
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -64,7 +64,7 @@
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"tcic.c 1.116 2000/06/12 21:29:37 (David Hinds)";
+"tcic.c 1.117 2000/10/02 20:27:49 (David Hinds)";
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 #else
 #define DEBUG(n, args...)
@@ -259,7 +259,7 @@ static u_int __init try_irq(int irq)
     tcic_setb(TCIC_IENA, TCIC_IENA_ERR | TCIC_IENA_CFG_HIGH);
     tcic_setb(TCIC_ICSR, TCIC_ICSR_ERR | TCIC_ICSR_JAM);
 
-    udelay(1000);
+    mdelay(1);
     free_irq(irq, irq_count);
 
     /* Turn off interrupts */

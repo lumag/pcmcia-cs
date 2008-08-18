@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.75 2000/07/07 23:37:10 (David Hinds)
+# network 1.76 2000/09/30 12:58:07 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -58,7 +58,7 @@ case "$ACTION" in
     test "$IF_PORT" && /sbin/ifport $DEVICE $IF_PORT
 
     if is_true $PUMP ; then
-	/sbin/pump -i $DEVICE
+	/sbin/pump -i $DEVICE > /dev/null
     elif is_true $BOOTP ; then
 	bootp_setup
 	if [ -x /sbin/bootpc ] ; then
@@ -69,7 +69,7 @@ case "$ACTION" in
 		set - $GATEWAYS ; GATEWAY=$1
 	    fi
 	elif [ -x /sbin/pump ] ; then
-	    /sbin/pump -i $DEVICE
+	    /sbin/pump -i $DEVICE > /dev/null
 	else
 	    exit 1
 	fi
@@ -99,7 +99,7 @@ case "$ACTION" in
 	elif [ -x /sbin/dhclient ] ; then
 	    /sbin/dhclient $DEVICE >/dev/null 2>&1 || exit 1
 	elif [ -x /sbin/pump ] ; then
-	    /sbin/pump $HN -i $DEVICE
+	    /sbin/pump $HN -i $DEVICE > /dev/null
 	else
 	    exit 1
 	fi

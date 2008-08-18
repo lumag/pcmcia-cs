@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.52 2000/06/12 21:29:37
+ * cs_internal.h 1.53 2000/09/06 22:53:08
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -227,7 +227,6 @@ void read_cis_mem(socket_info_t *s, int attr,
 		  u_int addr, u_int len, void *ptr);
 void write_cis_mem(socket_info_t *s, int attr,
 		   u_int addr, u_int len, void *ptr);
-int setup_cis_mem(socket_info_t *s);
 void release_cis_mem(socket_info_t *s);
 int verify_cis_cache(socket_info_t *s);
 void preload_cis_cache(socket_info_t *s);

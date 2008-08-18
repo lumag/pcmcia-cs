@@ -1,7 +1,7 @@
 .\" Copyright (c) 2000 Benjamin C. Reed <breed@almaden.ibm.com>
 .\" airo.c.4
 .\"
-.TH AIRO 4 "1/17/00" "IBM Almaden Research Center"
+.TH AIRO 4 "9/14/00" "IBM Almaden Research Center"
 
 .SH NAME
 airo \- Driver for the Aironet 802.11 ISA/PCI/PCMCIA 4500 & 4800 and Cisco 340
@@ -116,6 +116,14 @@ to write them separately?)  For example:
 
      echo 12:04:78:9a:bc > /proc/aironet/eth0/WepKey
    
+.TP
+.BI APList
+Contains the list of MACs of the preferred APs.  Each MAC address must be
+separated by a delimiter and each octet of the MAC should be separated by a
+delimiter and each octet should have two digits.  01:02:03:04:05:06 and 
+01-02-03:04:05,06 are valid.  1:2:3:4:5:6 is not.  I usually separate the
+MACs by linefeeds but any character works.
+
 .TP
 .BI SSID
 The SSID file has the list of usable SSIDs. If the list is empty, it

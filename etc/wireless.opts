@@ -29,7 +29,7 @@ case "$ADDRESS" in
 
 # Lucent Wavelan IEEE
 # Note : wvlan_cs driver only, and version 1.0.4+ for encryption support
-*,*,*,00:60:1D:*)
+*,*,*,00:60:1D:*|*,*,*,00:02:2D:*)
     INFO="Wavelan IEEE example (Lucent default settings)"
     ESSID="Wavelan Network"
     MODE="Managed"

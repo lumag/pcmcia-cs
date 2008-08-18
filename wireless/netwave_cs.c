@@ -852,7 +852,7 @@ static void netwave_pcmcia_config(dev_link_t *link) {
      *  If you want, you can also read the card's config table to
      *  pick addresses -- see the serial driver for an example.
      */
-    for (j = 0x0; j < 0x400; j += 0x20) {
+    for (i = j = 0x0; j < 0x400; j += 0x20) {
 	link->io.BasePort1 = j ^ 0x300;
 	i = CardServices(RequestIO, link->handle, &link->io);
 	if (i == CS_SUCCESS) break;

@@ -1,3 +1,23 @@
+[03-Oct-00] Version 3.1.21
+-- Minor tweaks to dummy_cs configuration sequence.
+-- Fixed a udelay() issue introduced in the latest 2.2.18 kernels.
+-- Changed network script to sink output of "pump", to fix a zombie
+   process problem.
+-- Minor changes/cleanups to timer handling in pcmcia_core.
+-- Changed i82365 module to set up the INTA pin for irq_mode=0; this
+   is needed on some Powerbooks.
+-- Fixed bug where if no interrupts are available, CS would pretend to
+   assign irq 0 to cards.
+-- Fixed a big-endian bug affecting multifunction cards, and got rid
+   of a compiler warning on non-ISA platforms.
+-- Added CIS fixup for Surecom/Tamarack NE2000 clone cards.
+-- Update for airo_cs: "weird status" fix, added /proc/aironet/APList.
+-- Fixed headers to accommodate 2.2.18-pre kernel changes.
+-- Added full_duplex parameter to xirc2ps_cs driver.
+-- Fixes for Xircom CardBus cards: fixed a full duplex bug, the
+   carrier error statistics, and tweaked the rx filter setup code.
+-- Tweaked a few things to get rid of spurious gcc warnings.
+
 [30-Aug-00] Version 3.1.20
 -- Backed out the 16-bit CIS window changes, added cis_width parameter
    to pcmcia_core module.

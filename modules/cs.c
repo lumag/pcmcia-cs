@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.266 2000/08/29 01:19:23
+    cs.c 1.271 2000/10/02 20:27:49
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -71,7 +71,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.266 2000/08/29 01:19:23 (David Hinds)";
+"cs.c 1.271 2000/10/02 20:27:49 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -482,8 +482,7 @@ static void setup_socket(u_long i)
 	    printk(KERN_NOTICE "cs: socket %ld voltage interrogation"
 		   " timed out\n", i);
 	} else {
-	    s->setup.expires = jiffies + HZ/10;
-	    add_timer(&s->setup);
+	    mod_timer(&s->setup, jiffies + HZ/10);
 	}
     } else if (val & SS_DETECT) {
 	DEBUG(1, "cs: setup_socket(%ld): applying power\n", i);
@@ -506,8 +505,7 @@ static void setup_socket(u_long i)
 	}
 	s->ss_entry(s->sock, SS_SetSocket, &s->socket);
 	s->setup.function = &reset_socket;
-	s->setup.expires = jiffies + vcc_settle;
-	add_timer(&s->setup);
+	mod_timer(&s->setup, jiffies + vcc_settle);
     } else
 	DEBUG(0, "cs: setup_socket(%ld): no card!\n", i);
 } /* setup_socket */
@@ -532,9 +530,8 @@ static void reset_socket(u_long i)
     s->socket.flags &= ~SS_RESET;
     s->ss_entry(s->sock, SS_SetSocket, &s->socket);
     s->setup_timeout = 0;
-    s->setup.expires = jiffies + unreset_delay;
     s->setup.function = &unreset_socket;
-    add_timer(&s->setup);
+    mod_timer(&s->setup, jiffies + unreset_delay);
 } /* reset_socket */
 
 #define EVENT_MASK \
@@ -563,10 +560,12 @@ static void unreset_socket(u_long i)
 	    s->state &= ~SOCKET_SETUP_PENDING;
 	} else {
 	    send_event(s, CS_EVENT_CARD_RESET, CS_EVENT_PRI_LOW);
-	    s->reset_handle->event_callback_args.info = NULL;
-	    EVENT(s->reset_handle, CS_EVENT_RESET_COMPLETE,
-		  CS_EVENT_PRI_LOW);
-	    s->state &= ~EVENT_MASK;
+	    if (s->reset_handle) {
+		s->reset_handle->event_callback_args.info = NULL;
+		EVENT(s->reset_handle, CS_EVENT_RESET_COMPLETE,
+		      CS_EVENT_PRI_LOW);
+		s->state &= ~EVENT_MASK;
+	    }
 	}
     } else {
 	DEBUG(2, "cs: socket %ld not ready yet\n", i);
@@ -575,8 +574,7 @@ static void unreset_socket(u_long i)
 		   " reset\n", i);
 	    s->state &= ~EVENT_MASK;
 	} else {
-	    s->setup.expires = jiffies + unreset_check;
-	    add_timer(&s->setup);
+	    mod_timer(&s->setup, jiffies + unreset_check);
 	}
     }
 } /* unreset_socket */
@@ -624,8 +622,7 @@ static void do_shutdown(socket_info_t *s)
 	del_timer(&s->setup);
 	s->state &= ~EVENT_MASK;
     }
-    s->shutdown.expires = jiffies + shutdown_delay;
-    add_timer(&s->shutdown);
+    mod_timer(&s->shutdown, jiffies + shutdown_delay);
     s->state &= ~SOCKET_PRESENT;
 }
 
@@ -1666,7 +1663,7 @@ static int request_configuration(client_handle_t handle,
 	    if (!(c->irq.Attributes & IRQ_FORCED_PULSE))
 		c->Option |= COR_LEVEL_REQ;
 	write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &c->Option);
-	udelay(40*1000);
+	mdelay(40);
     }
     if (req->Present & PRESENT_STATUS) {
 	c->Status = req->Status;
@@ -1681,14 +1678,14 @@ static int request_configuration(client_handle_t handle,
 	write_cis_mem(s, 1, (base + CISREG_ESR)>>1, 1, &c->ExtStatus);
     }
     if (req->Present & PRESENT_IOBASE_0) {
-	i = c->io.BasePort1 & 0xff;
-	write_cis_mem(s, 1, (base + CISREG_IOBASE_0)>>1, 1, &i);
-	i = (c->io.BasePort1 >> 8) & 0xff;
-	write_cis_mem(s, 1, (base + CISREG_IOBASE_1)>>1, 1, &i);
+	u_char b = c->io.BasePort1 & 0xff;
+	write_cis_mem(s, 1, (base + CISREG_IOBASE_0)>>1, 1, &b);
+	b = (c->io.BasePort1 >> 8) & 0xff;
+	write_cis_mem(s, 1, (base + CISREG_IOBASE_1)>>1, 1, &b);
     }
     if (req->Present & PRESENT_IOSIZE) {
-	i = c->io.NumPorts1 + c->io.NumPorts2 - 1;
-	write_cis_mem(s, 1, (base + CISREG_IOSIZE)>>1, 1, &i);
+	u_char b = c->io.NumPorts1 + c->io.NumPorts2 - 1;
+	write_cis_mem(s, 1, (base + CISREG_IOSIZE)>>1, 1, &b);
     }
     
     /* Configure I/O windows */
@@ -1795,8 +1792,7 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 {
     socket_info_t *s;
     config_t *c;
-    int try, ret = 0, irq = 0;
-    u_int mask;
+    int ret = 0, irq = 0;
     
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
@@ -1810,21 +1806,22 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 	return CS_IN_USE;
     
     /* Short cut: if there are no ISA interrupts, then it is PCI */
-    if (!s->cap.irq_mask)
+    if (!s->cap.irq_mask) {
 	irq = s->cap.pci_irq;
+	ret = (irq) ? 0 : CS_IN_USE;
 #ifdef CONFIG_ISA
-    else if (s->irq.AssignedIRQ != 0) {
+    } else if (s->irq.AssignedIRQ != 0) {
 	/* If the interrupt is already assigned, it must match */
 	irq = s->irq.AssignedIRQ;
 	if (req->IRQInfo1 & IRQ_INFO2_VALID) {
-	    mask = req->IRQInfo2 & s->cap.irq_mask;
+	    u_int mask = req->IRQInfo2 & s->cap.irq_mask;
 	    ret = ((mask >> irq) & 1) ? 0 : CS_BAD_ARGS;
 	} else
 	    ret = ((req->IRQInfo1&IRQ_MASK) == irq) ? 0 : CS_BAD_ARGS;
     } else {
 	ret = CS_IN_USE;
 	if (req->IRQInfo1 & IRQ_INFO2_VALID) {
-	    mask = req->IRQInfo2 & s->cap.irq_mask;
+	    u_int try, mask = req->IRQInfo2 & s->cap.irq_mask;
 	    for (try = 0; try < 2; try++) {
 		for (irq = 0; irq < 32; irq++)
 		    if ((mask >> irq) & 1) {
@@ -1837,8 +1834,8 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 	    irq = req->IRQInfo1 & IRQ_MASK;
 	    ret = try_irq(req->Attributes, irq, 1);
 	}
-    }
 #endif
+    }
     if (ret != 0) return ret;
 
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
