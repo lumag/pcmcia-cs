@@ -2,7 +2,7 @@
 
     X Windows PCMCIA device control program
 
-    cardinfo.c 1.38 2002/04/10 02:12:33
+    cardinfo.c 1.39 2002/10/09 06:15:11
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -477,7 +477,7 @@ int main(int argc, char *argv[])
     if (setsid() < 0)
 	perror("detaching from tty");
 
-#if (FL_REVISION >= 80)
+#if (FL_VERSION > 0) || (FL_REVISION >= 80)
     fl_flip_yorigin();
     fl_initialize(&argc, argv, "cardinfo", 0, 0);
 #else
@@ -514,7 +514,7 @@ int main(int argc, char *argv[])
     }
 
     event_log = fl_add_browser(FL_NORMAL_BROWSER, 10, 5, 270, 60, "");
-#if (FL_REVISION < 88)
+#if (FL_VERSION == 0) && (FL_REVISION < 88)
     fl_set_browser_leftslider(event_log, 1);
 #endif
     fl_set_browser_fontsize(event_log, FL_SMALL_SIZE);

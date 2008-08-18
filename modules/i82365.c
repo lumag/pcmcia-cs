@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.352 2002/06/29 06:23:09
+    i82365.c 1.353 2002/09/21 05:47:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -138,7 +138,7 @@ INT_MODULE_PARM(pci_int, 1);		/* PCI IO card irqs? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.352 2002/06/29 06:23:09 (David Hinds)";
+"i82365.c 1.353 2002/09/21 05:47:52 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -1517,6 +1517,7 @@ static void __init add_pci_bridge(int type, u_short v, u_short d)
     u_int addr, ns;
 
     pci_enable_device(pci_find_slot(s->bus, s->devfn));
+    pci_writew(s, PCI_COMMAND, CMD_DFLT);
 
     if (type == PCIC_COUNT) type = IS_UNK_PCI;
     pci_readl(s, PCI_BASE_ADDRESS_0, &addr);
@@ -1566,6 +1567,7 @@ static void __init add_cb_bridge(int type, u_short v, u_short d0)
 
 	pci_enable_device(pci_find_slot(bus, devfn));
 	pci_set_power_state(pci_find_slot(bus, devfn), 0);
+	pci_writew(s, PCI_COMMAND, CMD_DFLT);
 
 	/* Set up CardBus register mapping */
 	pci_writel(s, CB_LEGACY_MODE_BASE, 0);

@@ -1397,8 +1397,8 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			    }
 			}
 		    } else {
-			insw_ns(ioaddr+XIRCREG_EDP,
-				skb_put(skb, pktlen), (pktlen+1)>>1);
+			insw(ioaddr+XIRCREG_EDP,
+			     skb_put(skb, pktlen), (pktlen+1)>>1);
 		    }
 		}
 	      #if 0
@@ -1425,8 +1425,8 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		}
 	      #endif
 		else {
-		    insw_ns(ioaddr+XIRCREG_EDP, skb_put(skb, pktlen),
-			    (pktlen+1)>>1);
+		    insw(ioaddr+XIRCREG_EDP, skb_put(skb, pktlen),
+			 (pktlen+1)>>1);
 		}
 		skb->protocol = eth_type_trans(skb, dev);
 		skb->dev = dev;
@@ -1577,7 +1577,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     }
     /* send the packet */
     PutWord(XIRCREG_EDP, (u_short)pktlen);
-    outsw_ns(ioaddr+XIRCREG_EDP, skb->data, pktlen>>1);
+    outsw(ioaddr+XIRCREG_EDP, skb->data, pktlen>>1);
     if (pktlen & 1)
 	PutByte(XIRCREG_EDP, skb->data[pktlen-1]);
 

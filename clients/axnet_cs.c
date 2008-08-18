@@ -11,8 +11,8 @@
 
     Copyright (C) 2001 David A. Hinds -- dahinds@users.sourceforge.net
 
-    axnet_cs.c 1.28 2002/06/29 06:27:37
-    
+    axnet_cs.c 1.30 2002/10/22 02:11:43
+
     The network driver code is based on Donald Becker's NE2000 code:
 
     Written 1992,1993 by Donald Becker.
@@ -37,6 +37,7 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/byteorder.h>
+#include <asm/uaccess.h>
 
 #include <linux/netdevice.h>
 #include "ax8390.h"
@@ -83,7 +84,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"axnet_cs.c 1.28 2002/06/29 06:27:37 (David Hinds)";
+"axnet_cs.c 1.30 2002/10/22 02:11:43 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -488,8 +489,8 @@ static void axnet_config(dev_link_t *link)
 	info->flags |= IS_AX88190;
 
     printk(KERN_INFO "%s: Asix AX88%d90: io %#3lx, irq %d, hw_addr ",
-		dev->name, ((info->flags & IS_AX88790) ? 7 : 1),
-		dev->base_addr, dev->irq);
+	   dev->name, ((info->flags & IS_AX88790) ? 7 : 1),
+	   dev->base_addr, dev->irq);
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
 
@@ -857,8 +858,8 @@ static void get_8390_hdr(struct net_device *dev,
     outb_p(ring_page, nic_base + EN0_RSARHI);
     outb_p(E8390_RREAD+E8390_START, nic_base + AXNET_CMD);
 
-    insw_ns(nic_base + AXNET_DATAPORT, hdr,
-	    sizeof(struct e8390_pkt_hdr)>>1);
+    insw(nic_base + AXNET_DATAPORT, hdr,
+	 sizeof(struct e8390_pkt_hdr)>>1);
     /* Fix for big endian systems */
     hdr->count = le16_to_cpu(hdr->count);
 
@@ -881,7 +882,7 @@ static void block_input(struct net_device *dev, int count,
     outb_p(ring_offset >> 8, nic_base + EN0_RSARHI);
     outb_p(E8390_RREAD+E8390_START, nic_base + AXNET_CMD);
 
-    insw_ns(nic_base + AXNET_DATAPORT,buf,count>>1);
+    insw(nic_base + AXNET_DATAPORT,buf,count>>1);
     if (count & 0x01)
 	buf[count-1] = inb(nic_base + AXNET_DATAPORT), xfer_count++;
 
@@ -908,7 +909,7 @@ static void block_output(struct net_device *dev, int count,
     outb_p(0x00, nic_base + EN0_RSARLO);
     outb_p(start_page, nic_base + EN0_RSARHI);
     outb_p(E8390_RWRITE+E8390_START, nic_base + AXNET_CMD);
-    outsw_ns(nic_base + AXNET_DATAPORT, buf, count>>1);
+    outsw(nic_base + AXNET_DATAPORT, buf, count>>1);
 }
 
 /*====================================================================*/
@@ -963,7 +964,6 @@ module_exit(exit_axnet_cs);
   PCMCIA ones either) it is easy to break some card by what seems like
   a simple innocent change. Please contact me or Donald if you think
   you have found something that needs changing. -- PG
-
 
   Changelog:
 
@@ -1069,8 +1069,6 @@ static void do_set_multicast_list(struct net_device *dev);
  *	them.
  */
  
-
-
 /**
  * ax_open - Open/initialize the board.
  * @dev: network device to initialize
@@ -1126,17 +1124,17 @@ static int ax_open(struct net_device *dev)
  */
 int ax_close(struct net_device *dev)
 {
-        unsigned long flags;
+	unsigned long flags;
 
-        /*
-         *      Hold the page lock during close
-         */
+	/*
+	 *      Hold the page lock during close
+	 */
 
 	spin_lock_irqsave(&dev_lock(dev), flags);
-        AX88190_init(dev, 0);
+	AX88190_init(dev, 0);
 	spin_unlock_irqrestore(&dev_lock(dev), flags);
-        netif_stop_queue(dev);
-        return 0;
+	netif_stop_queue(dev);
+	return 0;
 }
 
 /**
@@ -1213,7 +1211,6 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&ei_local->page_lock, flags);
 	outb_p(0x00, e8390_base + EN0_IMR);
 	spin_unlock_irqrestore(&ei_local->page_lock, flags);
-	
 	
 	/*
 	 *	Slow phase with lock held.
@@ -1307,7 +1304,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
     
 	return 0;
 }
-
+
 /**
  * ax_interrupt - handle the interrupts from an 8390
  * @irq: interrupt number
@@ -1838,8 +1835,6 @@ static int axdev_init(struct net_device *dev)
         
 	return 0;
 }
-
-
 
 /* This page of functions should be 8390 generic */
 /* Follow National Semi's recommendations for initializing the "NIC". */

@@ -90,7 +90,7 @@ static int pci_claim_resources(void)
     struct pci_dev *dev;
     int r;
     unsigned long flags;
-#if (LINUX_VERSION_CODE < VERSION(2,3,13))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,13))
     unsigned long a;
     u32 b, sz, idx;
     u16 cmd, tmp;
@@ -110,7 +110,7 @@ static int pci_claim_resources(void)
 		PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 	if (dev->irq)
 	    alloc_pnp_irq(dev->irq, name);
-#if (LINUX_VERSION_CODE < VERSION(2,3,13))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,13))
 	/* Disable IO and memory while we fiddle */
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	tmp = cmd & ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY);

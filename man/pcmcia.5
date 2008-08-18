@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" pcmcia.5 1.29 2002/07/13 18:11:04
+.\" pcmcia.5 1.30 2002/08/19 03:27:33
 .\"
-.TH PCMCIA 5 "2002/07/13 18:11:04" "pcmcia-cs"
+.TH PCMCIA 5 "2002/08/19 03:27:33" "pcmcia-cs"
 .SH NAME
 /etc/pcmcia/config \- PCMCIA card configuration database
 
@@ -154,11 +154,24 @@ can either be a number, or one of the following predefined functions:
 \fBfixed_disk\fR, \fBvideo_adapter\fR, \fBnetwork_adapter\fR, and
 \fBaims_card\fR.
 .PP
+For situations where several cards share the same driver but need to
+be configured differently, card bindings can also override the default
+device class associated with a driver, as in:
+.sp
+.RS
+.nf
+card "Bluetooth Serial Card"
+  manfid 0x1234, 0x5678
+  bind "serial_cs" class "bluetooth"
+.RE
+.fi
+.sp
+.PP
 Finally, the configuration file can specify that Card Services should
 use a replacement for the configuration information found on a card.
 This can be useful if a card's configuration information is
 particularly incomplete or inaccurate.  The new information is read
-from a file as in this example:
+from a binary data file as in this example:
 .sp
 .RS
 .nf

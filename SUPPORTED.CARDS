@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2002/07/21 04:14:09
+		Last updated: 2002/10/25 07:38:21
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -66,7 +66,7 @@ Ethernet cards:
 	Atelco ethernet
 	Belkin F5D5020
 	Billionton LNT-10TB, LNT-10TN
-	Buffalo LPC2-CLT
+	Buffalo LPC2-CLT, LPC3-CLT
 	CADMUS Micro LNT-10T2C
 	California Access LAN Adapter
 	CeLAN EPCMCIA
@@ -99,7 +99,6 @@ Ethernet cards:
 	Genius ME3000II Ethernet
 	Grey Cell Ethernet
 	GVC NIC-2000P Ethernet Combo
-	Hamlet LM560
 	Hawking PN650TX
 	Hypertec HyperNet
 	IBM CreditCard Ethernet Adapter
@@ -208,7 +207,9 @@ Fast Ethernet (10/100baseT) adapters:
 	Alloy FE-6305M
 	AnyCom ECO Ethernet 10/100
 	Apollo Fast Ethernet
+	Aprotech Fast Ethernet
 	Ark Sky Link Express PA2600
+	Belkin F5D5020
 	COMPU-SHACK FASTline 10/100
 	Corega FastEther PCC-TX, FEther PCC-TXF
 	CyQ've ELA-110E 10/100
@@ -216,7 +217,7 @@ Fast Ethernet (10/100baseT) adapters:
 	D-Link DFE-650, DFE-670-TXD, DRP-16TX
 	EXP ThinLan 100
 	Fiberline Fast Ethernet
-	Hamlet FE1000 10/100
+	Hamlet FE1000, FE1500 10/100
 	Hawking PN652TX
 	IO DATA PCET/TX
 	iPort 10/100 Ethernet
@@ -258,20 +259,23 @@ Fast Ethernet (10/100baseT) adapters:
 	Toshiba IPC5008A, Advanced Network 10/100
 	Xircom CreditCard CE3-100, CE3B, RE-100, R2E-100BTX, XE2000
 
-	[3c575_cb driver] [x86]
+	[pcmcia-cs driver: 3c575_cb] [x86]
+	[2.4+ kernel driver: 3c59x]
 	3Com 3c575TX
 	3Com Megahertz 3CCFE575BT, 3CXFE575BT, 3CCFE575CT, 3CXFE575CT
 	3Com Megahertz 3C3FE575CT
 
-	[eepro100_cb driver] [x86]
+	[pcmcia-cs driver: eepro100_cb] [x86]
+	[2.4+ kernel driver: eepro100]
 	Fujitsu FMV-J185
 	Intel EtherExpress PRO/100 CardBus II
 
-	[epic_cb driver] [x86]
-	[somewhat experimental]
+	[pcmcia-cs driver: epic_cb] [x86]
+	[2.4+ kernel driver: epic100]
 	Ositech Seven of Spades CardBus
 
-	[tulip_cb driver] [x86,ppc]
+	[pcmcia-cs driver: tulip_cb] [x86,ppc]
+	[2.4+ kernel driver: tulip]
 	Accton EN2220 CardBus
 	Allied Telesyn AT-2800
 	AmbiCom AMB8100, CB100-EZ EzPort
@@ -291,6 +295,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Linksys PCMPC200 EtherFast CardBus
 	Macsense MPC-200
 	NDC Communications Sohoware NCB100
+	Neteasy DRP-32TXD
 	NetGear FA510C, FA511
 	OvisLink LFS PCM 32
 	PLANET ENW-3502-FC
@@ -304,6 +309,7 @@ Fast Ethernet (10/100baseT) adapters:
 	TRENDnet TE100-PCBUSR
 	UMAX Technologies UMAX250
 	ZEUS CardBus 10/100 LAN
+	[2.4+ kernel driver: xircom_cb]
 	[ Not recommended: support is experimental and unreliable ]
 	IBM 10/100 EtherJet CardBus
 	Intel EtherExpress PRO/100 CardBus
@@ -356,6 +362,7 @@ Wireless network adapters:
 	Melco WLI-PCM-L11, WLI-PCM-L11G
 	NCR WaveLAN/IEEE 802.11
 	Netgear MA401RA
+	Nortel Networks eMobility
 	PLANEX GeoWave/GW-CF110
 	Proxim Harmony 802.11b
 	Safeway Wireless
@@ -366,7 +373,7 @@ Wireless network adapters:
 	Belkin F5D6020
 	Compaq WL100
 	Dell TrueMobile 1150 Series
-	D-Link DWL-650, DRC-650
+	D-Link DWL-650, DRC-650, DCF-650W
 	Farallon SkyLINE
 	HyperLink Wireless
 	LA4111 Spectrum24 Wireless LAN
@@ -402,7 +409,8 @@ Modem and serial cards:
 	Socket Communications dual RS-232 card
 	Trimble Mobile GPS
 
-	[serial_cb driver] [x86]
+	[pcmcia-cs driver: serial_cb] [x86]
+	[2.4+ kernel driver: serial]
 	Xircom RBM56G, CBM56G
 
 	[ The following cards are WinModems and are NOT supported by
@@ -477,10 +485,10 @@ SCSI adapters:
 	Raven CD-Note 4X
 	RATOC REX-9530 SCSI-2
 	Toshiba NWB0107ABK, SCSC200A, SCSC200B
+	IO DATA PCSC-II, PCSC-II-L
 
 	[not sure which driver]
 	Digital SCSI II adapter
-	IO DATA PCSC-II, PCSC-II-L
 	IO DATA CDG-PX44/PCSC CD-ROM
 	Logitec LPM-SCSI2
 	Logitec LCD-601 CD-ROM
@@ -488,24 +496,30 @@ SCSI adapters:
 	Pioneer PCP-PR1W, PCP-PR2W CD-ROM
 	Taxan ICD-400PN
 
-	[apa1480_cb driver] [x86,ppc,smp]
-	[recommend 2.2 or later kernel]
+	[pcmcia-cs driver: apa1480_cb] [x86,ppc,smp]
+	[2.4+ kernel driver: aic7xxx]
+	[ recommend 2.2 or later kernels.  With 2.4.19 or later
+	kernels, you must use the kernel PCMCIA subsystem and the hot
+	plug PCI aic7xxx driver ]
 	Adaptec SlimSCSI 1480 CardBus
 
 IEEE 1394 (FireWire) cards:
 
 	[ These only work for a limited range of 2.2 and 2.4 kernel
-	versions, due to kernel driver API drift.  With recent 2.4.*
-	kernels, use the hot plug PCI IEEE1394 drivers (and the kernel
-	PCMCIA support) instead. ]
+	versions, due to kernel driver API drift.  With 2.4.19 or
+	later kernels, use the hot plug PCI IEEE1394 drivers (and the
+	kernel PCMCIA subsystem) instead. ]
 
-	[pcilynx_cb driver] [x86,ppc]
+	[pcmcia-cs driver: pcilynx_cb] [x86,ppc]
+	[2.4+ kernel driver: pcilynx]
 	Newer Technology FireWire 2 Go
 
-	[ohci1394_cb driver] [x86,ppc]
+	[pcmcia-cs driver: ohci1394_cb] [x86,ppc]
+	[2.4+ kernel driver: ohci1394]
 	Belkin F5U512
 	Cherri IEEE-1394
 	Evergreen Technologies fireLINE CardBus Kit
+	Good Man VT6306
 	Margi 1394-to-Go Adapter
 	Orange Micro OrangeLink
 	Western Digital 1394 Adapter
@@ -528,17 +542,20 @@ Multifunction ethernet/modem cards:
 	ActionTec ComNet 33.6
 	AnyCom Fast Ethernet + 56K Combo
 	Asus combo card
+	Azia LM560
 	Billionton LM5LT-10B
 	Dayna Communicard
 	D-Link DME-336T, DMF-560TX, DMF-560TXD
 	Dynalink L1433 VQC 33.6K
 	Grey Cell GCS3400
 	GVC LAN modem
+	Hamlet LM560
 	IBM Home and Away
 	IBM Home and Away 28.8
 	IO DATA PCEM-336T
 	Linksys LANmodem 28.8 (PCMLM28), 33.6 (PCMLM336)
 	Linksys EtherFast LANmodem 56K (PCMLM56)
+	Net-Lynx LM560
 	New Media LANSurfer 10+56 Combo
 	PLANET ENW-3503
 	PREMAX LAN modem
@@ -563,19 +580,22 @@ Multifunction ethernet/modem cards:
 	Xircom CreditCard CEM28, CEM33, CEM56, XEM5600
 	Xircom RealPort REM10BT, REM56G-100
 
-	[3c575_cb driver] [x86]
+	[pcmcia-cs driver: 3c575_cb] [x86]
+	[2.4+ kernel driver: 3c59x]
 	[ ethernet only: the modem is a WinModem! ]
 	3Com 3CCFEM656B, 3CXFEM656C
 
-	[eepro100_cb driver] [x86]
+	[pcmcia-cs driver: eepro100_cb] [x86]
+	[2.4+ kernel driver: eepro100]
 	Intel EtherExpress PRO/100 CardBus LAN/Modem
 
-	[epic_cb driver] [x86]
-	[requires a 2.2 kernel, experimental!]
+	[pcmcia-cs driver: epic_cb] [x86]
+	[2.4+ kernel driver: epic100]
 	Ositech Jack of Spades CardBus
 	Psion Gold Card Netglobal 56K+10/100Mb
 
-	[tulip_cb driver] [x86,ppc]
+	[pcmcia-cs driver: tulip_cb] [x86,ppc]
+	[2.4+ kernel driver: xircom_cb]
 	[ ethernet only ]
 	Silicom FEM56 Fast Ethernet
 	[ Not recommended: support is experimental and unreliable ]
@@ -584,7 +604,7 @@ Multifunction ethernet/modem cards:
 
 ATA/IDE card drives:
 
-	[ide_cs driver] [x86,ppc,smp]
+	[ide-cs driver] [x86,ppc,smp]
 	Most cards should work fine, including adapters for external
 	IDE devices.  Both Flash-ATA cards and 	rotating-media cards
 	are supported, including "Smartmedia" flash and Compact flash
@@ -595,7 +615,7 @@ ATA/IDE card drives:
 
 ATA/IDE Interface Cards:
 
-	[ide_cs driver] [x86,ppc,smp]
+	[ide-cs driver] [x86,ppc,smp]
 	Apricorn ATA card, EZ-GIG transfer kit
 	Archos Zip100 MiniDrive
 	Argosy PnPIDE card, HD530 HardDisk
@@ -612,7 +632,7 @@ ATA/IDE Interface Cards:
 
 ATA/IDE CD-ROM and DVD adapters:
 
-	[ide_cs driver] [x86,ppc,smp]
+	[ide-cs driver] [x86,ppc,smp]
 	Archos 24x MiniCD
 	Argosy EIDE CD-ROM
 	Caravelle CD-36N

@@ -3406,9 +3406,9 @@ orinoco_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 		/* We need the xmit lock because it protects the
 		   multicast list which orinoco_reset() reads */
-		spin_lock_bh(&dev->xmit_lock);
+		netif_xmit_lock(dev);
 		orinoco_reset(priv);
-		spin_unlock_bh(&dev->xmit_lock);
+		netif_xmit_unlock(dev);
 		break;
 
 	case SIOCIWFIRSTPRIV + 0x2: /* set_port3 */
@@ -3496,9 +3496,9 @@ orinoco_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (! err && changed && netif_running(dev)) {
 		/* We need the xmit lock because it protects the
 		   multicast list which orinoco_reset() reads */
-		spin_lock_bh(&dev->xmit_lock);
+		netif_xmit_lock(dev);
 		err = orinoco_reset(priv);
-		spin_unlock_bh(&dev->xmit_lock);
+		netif_xmit_unlock(dev);
 		if (err) {
 			/* Ouch ! What are we supposed to do ? */
 			printk(KERN_ERR "orinoco_cs: Failed to set parameters on %s\n",

@@ -1,17 +1,17 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.138 2002/06/29 05:49:24
+# Makefile 1.141 2002/10/13 01:09:33
 #
 
 # Include site dependent options and kernel configuration
 include ../config.mk
 
 # For files in kernel source tree, so that we can override config flags
-XFLAGS := -O2 $(CPPFLAGS) -D__KERNEL__ -DEXPORT_SYMTAB $(MFLAG)
+XFLAGS := -O2 $(CPPFLAGS) -D__KERNEL__ -Wa,--no-warn -pipe
 
 # Don't remove "-O3" or bad things will happen!
-CFLAGS = -O3 -Wall -Wstrict-prototypes -pipe
+CFLAGS = -O3 -Wall -Wstrict-prototypes -Wa,--no-warn -pipe
 CPPFLAGS += $(PCDEBUG) -D__KERNEL__ -DMODULE
 CC = $(KCC) $(AFLAGS) $(KFLAGS)
 
@@ -65,8 +65,8 @@ endif
 endif
 
 ifdef DO_IDE
-SRCS    += ide_cs.c
-MODULES += ide_cs.o
+SRCS    += ide-cs.c
+MODULES += ide-cs.o
 endif
 
 ifdef DO_PARPORT

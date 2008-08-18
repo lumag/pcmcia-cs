@@ -124,7 +124,7 @@ INT_MODULE_PARM(auto_polarity, 1);
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c574_cs.c 1.68 2002/06/29 06:27:37 Donald Becker/David Hinds, becker@scyld.com.\n";
+"3c574_cs.c 1.69 2002/10/22 02:11:06 Donald Becker/David Hinds, becker@scyld.com.\n";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -915,7 +915,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	outw(skb->len, ioaddr + TX_FIFO);
 	outw(0, ioaddr + TX_FIFO);
-	outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
+	outsl(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
 
 	dev->trans_start = jiffies;
 
@@ -1188,8 +1188,8 @@ static int el3_rx(struct net_device *dev, int worklimit)
 			if (skb != NULL) {
 				skb->dev = dev;
 				skb_reserve(skb, 2);
-				insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
-						((pkt_len+3)>>2));
+				insl(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
+					 ((pkt_len+3)>>2));
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
 				dev->last_rx = jiffies;

@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.88 2002/06/29 06:23:09
+    rsrc_mgr.c 1.89 2002/07/27 05:46:02
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -436,7 +436,7 @@ static int do_mem_probe(u_long base, u_long num,
 	   base, base+num-1);
     bad = fail = 0;
     step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
-    for (i = base; i < base+num; i = j + step) {
+    for (i = j = base; i < base+num; i = j + step) {
 	if (!fail) {	
 	    for (j = i; j < base+num; j += step)
 		if ((check_mem_region(j, step) == 0) && is_valid(j))

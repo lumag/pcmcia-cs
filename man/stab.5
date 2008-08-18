@@ -1,25 +1,25 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" stab.5 1.13 2000/06/12 21:24:48
+.\" stab.5 1.15 2002/11/01 06:38:24
 .\"
-.TH STAB 5 "2000/06/12 21:24:48" "pcmcia-cs"
+.TH STAB 5 "2002/11/01 06:38:24" "pcmcia-cs"
 .SH NAME
 stab \- current PCMCIA socket status
 
 .SH DESCRIPTION
-The \fIstab\fR file is created by \fBcardmgr\fR
-and contains identification and device driver information for PCMCIA
-cards.  Each socket is described by one header line, followed by one
-or more device driver lines.  The header gives the card name as given
-in \fI/etc/pcmcia/config\fR.
-Device driver lines consist of a series of tab-separated fields.  The
-first field is the socket number.  The second field is the device
-class, which identifies which script in \fI/etc/pcmcia\fR
-is used to configure or shut down this device.
-The third field is the driver name.
-The fourth field is used to number devices when a single
-card has several devices associated with the same driver.  The fifth
-field is the device name, and the final two fields are major and minor
-device numbers for this device, if appropriate.
+The \fIstab\fR file is created by \fBcardmgr\fR and contains
+identification and device driver information for PCMCIA cards.  Each
+socket is described by one header line, followed by one or more device
+descriptions.  The header gives the card name as given in
+\fI/etc/pcmcia/config\fR.  Device lines consist of a series of
+tab-separated fields.  For each device, the fields correspond to
+socket number, device class, driver name, instance, device name, and
+major and minor numbers.  The device class identifies which script in
+\fI/etc/pcmcia\fR is used to configure or shut down this device.  The
+instance is used to number devices when a single card has several
+devices associated with the same driver.  The device name may either
+a filename in \fI/dev\fR or be a network interface name.  The major
+and minor numbers are only present if appropriate for this device
+type.
 .PP
 The file is updated by \fBcardmgr\fR whenever a card is inserted or
 ejected, and when \fBcardmgr\fR receives a \fBSIGHUP\fR signal.
@@ -31,4 +31,4 @@ but if that directory is unavailable, it will be found in
 .SH AUTHOR
 David Hinds \- dahinds@users.sourceforge.net
 .SH "SEE ALSO"
-cardmgr(8), pcmcia(5), cardinfo(1).
+cardmgr(8), cardctl(8), pcmcia(5).

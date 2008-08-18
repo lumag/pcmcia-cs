@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.67 2001/12/01 01:19:22
+    cardctl.c 1.68 2002/08/19 03:19:56
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -337,15 +337,38 @@ static void print_ident(int fd)
 	       config.ConfigBase >> 16);
 }
 
+static void print_info(int fd)
+{
+    ds_ioctl_arg_t arg;
+    cistpl_vers_1_t *vers = &arg.tuple_parse.parse.version_1;
+    cistpl_manfid_t *manfid = &arg.tuple_parse.parse.manfid;
+    cistpl_funcid_t *funcid = &arg.tuple_parse.parse.funcid;
+    config_info_t config;
+    int i;
+
+    vers->ns = 0;
+    get_tuple(fd, CISTPL_VERS_1, &arg);
+    for (i = 0; i < 4; i++)
+	printf("PRODID_%d=\"%s\"\n", i+1,
+	       (i < vers->ns) ? vers->str+vers->ofs[i] : "");
+    *manfid = (cistpl_manfid_t) { 0, 0 };
+    get_tuple(fd, CISTPL_MANFID, &arg);
+    printf("MANFID=%04x,%04x\n", manfid->manf, manfid->card);
+    *funcid = (cistpl_funcid_t) { 0xff, 0xff };
+    get_tuple(fd, CISTPL_FUNCID, &arg);
+    printf("FUNCID=%d\n", funcid->func);
+    config.Function = config.ConfigBase = 0;
+}
+
 /*====================================================================*/
 
 typedef enum cmd_t {
-    C_STATUS, C_CONFIG, C_IDENT, C_SUSPEND,
+    C_STATUS, C_CONFIG, C_IDENT, C_INFO, C_SUSPEND,
     C_RESUME, C_RESET, C_EJECT, C_INSERT
 } cmd_t;
 
 static char *cmdname[] = {
-    "status", "config", "ident", "suspend",
+    "status", "config", "ident", "info", "suspend",
     "resume", "reset", "eject", "insert"
 };
 
@@ -393,7 +416,11 @@ static int do_cmd(int fd, int cmd)
     case C_IDENT:
 	print_ident(fd);
 	break;
-	
+
+    case C_INFO:
+	print_info(fd);
+	break;
+
     case C_SUSPEND:
 	ret = ioctl(fd, DS_SUSPEND_CARD);
 	break;

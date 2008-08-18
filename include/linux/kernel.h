@@ -3,14 +3,12 @@
 
 #include <linux/version.h>
 
-#define VERSION(v,p,s)		(((v)<<16)+(p<<8)+s)
-
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,1,16))
 #define AUTOCONF_INCLUDED
 #define EXPORT_SYMTAB
 #define register_symtab(x)
 #endif
-#ifdef CONFIG_MODVERSIONS
+#if defined(CONFIG_MODVERSIONS) && !defined(MODVERSIONS)
 #define MODVERSIONS		1
 #include <linux/modversions.h>
 #endif

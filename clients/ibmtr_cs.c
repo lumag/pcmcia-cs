@@ -374,7 +374,7 @@ static void ibmtr_config(dev_link_t *link)
     mem.CardOffset = (TR_OLD ? req.Base : mmiobase);
     mem.Page = 0;
     CS_CHECK(MapMemPage, link->win, &mem);
-    ti->mmio = (u_long)ioremap(req.Base, req.Size);
+    (void *)(ti->mmio) = ioremap(req.Base, req.Size);
 
     /* Allocate the SRAM memory window */
     req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;

@@ -1,3 +1,41 @@
+[03-Nov-02] Version 3.2.2
+-- Added GTK+ 'gpccard' card status monitor tool.
+-- Added Xaw toolkit based version of cardinfo, named xcardinfo, from
+   TANAKA Katsunori.
+-- Updated HOWTO for some 2.4 kernel PCMCIA subsystem stuff.
+-- Updated Configure script for preemptive kernel support.
+-- Updated Configure script for 2.4.20-pre2-ac2 changes.
+-- Updated Configure script to test for availability of wordexp().
+-- Fixed a few miscellaneous script and compiler warnings.
+-- Fixed Configure script to use right test for SMP on 2.4+ kernels.
+-- Fixed startup bug most prominently affecting card identification
+   after an unclean shutdown.
+-- Fixed some compiler warnings due to compatibility header stuff.
+-- Fixed parport_cs to work with 2.4 kernels.
+-- Fixed Configure to work with Red Hat 8.0 patched kernel.
+-- Fixed cardinfo to build with xforms-1.0.
+-- Fixed Configure script to do a better test for forms library.
+-- Fixed bug in netdevice.h from Sebastian Hanigk.
+-- Fixed i82365 driver to do a better job of initializing PCI bridges
+   on 2.4.* kernels.
+
+[21-Aug-02] Version 3.2.1
+-- Removed explicit dependency information from default config file,
+   as modprobe should do a better job.
+-- Changed cardmgr to allow a device's class to be overriden by an
+   individual card definition.
+-- Changed cardmgr to export card identification stuff to the config
+   scripts, via environment variables MANFID, FUNCID, PRODID_[1234].
+-- Added "cardctl info" command, like "cardctl ident", but producing
+   sh-style environment variable definitions.
+-- Changed ide_cs to ide-cs, yielding to kernel braindamage.
+-- Added support for another KXLC005 variant.
+-- Reverted broken cardbus /proc change from 3.2.0.
+-- Fixed filename expansion bug in cardmgr's 'source' command.
+-- Fixed ide_cs to share irq's properly on new (2.4.19) kernels.
+-- Fixed orinoco driver for pre-2.4 SMP kernel configurations.
+-- Fixed cardmgr for pre-2.1 versions of glibc.
+
 [23-Jul-02] Version 3.2.0
 -- Some documentation updates.
 -- Renamed "probe" to "pcic_probe", added "-k" option which, with

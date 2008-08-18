@@ -1145,9 +1145,9 @@ static void speedo_timer(unsigned long data)
 		(jiffies - dev->trans_start) > TX_TIMEOUT  &&
 		(jiffies - sp->last_cmd_time) > TX_TIMEOUT) {
 
-		 printk(KERN_DEBUG "%d %d %d %d\n", 
-			 sp->cur_tx - sp->dirty_tx,
-		     jiffies - dev->trans_start,
+		 printk(KERN_DEBUG "%d %ld %ld %d\n", 
+				sp->cur_tx - sp->dirty_tx,
+				jiffies - dev->trans_start,
 				jiffies - sp->last_cmd_time,
 				TX_TIMEOUT);
 
@@ -1980,9 +1980,6 @@ static void eepro100_detach(dev_node_t *node)
 	}
 
 	if (*devp) {
-		struct net_device *dev = *devp;
-		struct speedo_private *tp = dev->priv;
-
 		kfree(node);
 		MOD_DEC_USE_COUNT;
 	}
@@ -2009,7 +2006,6 @@ int init_module(void)
 	register_driver(&eepro100_ops);
 	return 0;
 #else
-
 	cards_found = pci_drv_register(&eepro100_drv_id, NULL);
 	if (cards_found < 0)
 		printk(KERN_INFO "eepro100: No cards found, driver not installed.\n");

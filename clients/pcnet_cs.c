@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.149 2002/06/29 06:27:37
+    pcnet_cs.c 1.151 2002/10/22 02:11:43
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -40,6 +40,7 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/byteorder.h>
+#include <asm/uaccess.h>
 
 #include <linux/netdevice.h>
 #include <../drivers/net/8390.h>
@@ -64,7 +65,7 @@
 #define SOCKET_START_PG	0x01
 #define SOCKET_STOP_PG	0xff
 
-#define PCNET_RDC_TIMEOUT 0x02	/* Max wait in jiffies for Tx RDC */
+#define PCNET_RDC_TIMEOUT (2*HZ/100)	/* Max wait in jiffies for Tx RDC */
 
 static char *if_names[] = { "auto", "10baseT", "10base2"};
 
@@ -73,7 +74,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.149 2002/06/29 06:27:37 (David Hinds)";
+"pcnet_cs.c 1.151 2002/10/22 02:11:43 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -1255,8 +1256,8 @@ static void dma_get_8390_hdr(struct net_device *dev,
     outb_p(ring_page, nic_base + EN0_RSARHI);
     outb_p(E8390_RREAD+E8390_START, nic_base + PCNET_CMD);
 
-    insw_ns(nic_base + PCNET_DATAPORT, hdr,
-	    sizeof(struct e8390_pkt_hdr)>>1);
+    insw(nic_base + PCNET_DATAPORT, hdr,
+	 sizeof(struct e8390_pkt_hdr)>>1);
     /* Fix for big endian systems */
     hdr->count = le16_to_cpu(hdr->count);
 
@@ -1291,7 +1292,7 @@ static void dma_block_input(struct net_device *dev, int count,
     outb_p(ring_offset >> 8, nic_base + EN0_RSARHI);
     outb_p(E8390_RREAD+E8390_START, nic_base + PCNET_CMD);
 
-    insw_ns(nic_base + PCNET_DATAPORT,buf,count>>1);
+    insw(nic_base + PCNET_DATAPORT,buf,count>>1);
     if (count & 0x01)
 	buf[count-1] = inb(nic_base + PCNET_DATAPORT), xfer_count++;
 
@@ -1364,7 +1365,7 @@ static void dma_block_output(struct net_device *dev, int count,
     outb_p(start_page, nic_base + EN0_RSARHI);
 
     outb_p(E8390_RWRITE+E8390_START, nic_base + PCNET_CMD);
-    outsw_ns(nic_base + PCNET_DATAPORT, buf, count>>1);
+    outsw(nic_base + PCNET_DATAPORT, buf, count>>1);
 
     dma_start = jiffies;
 

@@ -1,5 +1,5 @@
 /*
- * cardmgr.h 1.37 2001/08/24 12:19:20
+ * cardmgr.h 1.38 2002/08/19 03:21:20
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -87,6 +87,7 @@ typedef struct card_info_t {
     int			bindings;
     device_info_t	*device[MAX_BINDINGS];
     int			dev_fn[MAX_BINDINGS];
+    char		*class[MAX_BINDINGS];
     char		*cis_file;
     int			refs;
     struct card_info_t	*next;

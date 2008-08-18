@@ -5,7 +5,7 @@
     This driver supports the Adaptec AHA-1460, the New Media Bus
     Toaster, and the New Media Toast & Jam.
     
-    aha152x_cs.c 1.59 2002/06/29 06:27:37
+    aha152x_cs.c 1.60 2002/10/12 18:59:24
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -46,6 +46,12 @@
 #include <linux/major.h>
 #include <linux/blk.h>
 
+#include <pcmcia/version.h>
+#include <pcmcia/cs_types.h>
+#include <pcmcia/cs.h>
+#include <pcmcia/cistpl.h>
+#include <pcmcia/ds.h>
+
 #include <../drivers/scsi/scsi.h>
 #include <../drivers/scsi/hosts.h>
 #include <scsi/scsi_ioctl.h>
@@ -56,12 +62,6 @@
 #elif (LINUX_VERSION_CODE >= VERSION(2,0,14))
 #define aha152x_reset(ptr) aha152x_reset(ptr, 0)
 #endif
-
-#include <pcmcia/version.h>
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
 
 /*====================================================================*/
 
@@ -92,7 +92,7 @@ INT_MODULE_PARM(debug,		0);
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"aha152x_cs.c 1.59 2002/06/29 06:27:37 (David Hinds)";
+"aha152x_cs.c 1.60 2002/10/12 18:59:24 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

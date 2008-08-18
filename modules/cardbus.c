@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.85 2002/06/29 06:23:09
+    cardbus.c 1.87 2002/10/24 06:11:41
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -274,8 +274,8 @@ void cb_release_cis_mem(socket_info_t *s)
     
 =====================================================================*/
 
-void read_cb_mem(socket_info_t *s, u_char fn, int space,
-		 u_int addr, u_int len, void *ptr)
+int read_cb_mem(socket_info_t *s, u_char fn, int space,
+		u_int addr, u_int len, void *ptr)
 {
     cb_config_t *c = s->cb_config;
     DEBUG(3, "cs: read_cb_mem(%d, %#x, %u)\n", space, addr, len);
@@ -294,10 +294,10 @@ void read_cb_mem(socket_info_t *s, u_char fn, int space,
 	for (; len; addr++, ptr++, len--)
 	    *(u_char *)ptr = readb(s->cb_cis_virt+addr);
     }
-    return;
+    return 0;
  fail:
     memset(ptr, 0xff, len);
-    return;
+    return -1;
 }
 
 /*=====================================================================
@@ -375,7 +375,7 @@ int cb_alloc(socket_info_t *s)
 #ifdef NEW_LINUX_PCI
 	c[i].dev.hdr_type = hdr;
 #endif
-#ifdef HAS_PROC_BUS
+#if defined(HAS_PROC_PCI) && !defined(NEWER_LINUX_PCI)
 	pci_proc_attach_device(&c[i].dev);
 #endif
     }

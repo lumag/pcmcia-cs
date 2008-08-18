@@ -47,6 +47,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
+#include <linux/crc32.h>
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -58,6 +59,10 @@
 /*====================================================================*/
 
 /* Module parameters */
+
+MODULE_DESCRIPTION("fmvj18x and compatible PCMCIA ethernet driver");
+MODULE_LICENSE("GPL");
+
 #define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 
 /* Bit map of interrupts to choose from */
@@ -105,11 +110,8 @@ static struct net_device_stats *fjn_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static void fjn_tx_timeout(struct net_device *dev);
 
-static int mfc_try_io_port(dev_link_t *link);
-static int ungermann_try_io_port(dev_link_t *link);
-
 static dev_info_t dev_info = "fmvj18x_cs";
-static dev_link_t *dev_list = NULL;
+static dev_link_t *dev_list;
 
 /*
     card type
@@ -117,10 +119,6 @@ static dev_link_t *dev_list = NULL;
 typedef enum { MBH10302, MBH10304, TDK, CONTEC, LA501, UNGERMANN, 
 	       XXX10304
 } cardtype_t;
-
-#define MANFID_UNGERMANN 0x02c0
-
-#define PRODID_TDK_GN3410    0x4815 /* TDK Global Networker 3410 */
 
 /*
     driver specific data structure
@@ -458,8 +456,6 @@ static void fmvj18x_config(dev_link_t *link)
 
     link->conf.ConfigBase = parse.config.base; 
     link->conf.Present = parse.config.rmask[0];
-    link->io.BasePort2 = 0;
-    link->io.NumPorts2 = 0;
 
     tuple.DesiredTuple = CISTPL_FUNCE;
     tuple.TupleOffset = 0;
@@ -485,7 +481,7 @@ static void fmvj18x_config(dev_link_t *link)
 		    link->conf.Vcc = 33; /* inserted in 3.3V slot */
 	    } else if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410) {
 		/* MultiFunction Card */
-		link->conf.ConfigBase = 0x800; 
+		link->conf.ConfigBase = 0x800;
 		link->conf.ConfigIndex = 0x47;
 		link->io.NumPorts2 = 8;
 	    }
@@ -556,13 +552,13 @@ static void fmvj18x_config(dev_link_t *link)
     ioaddr = dev->base_addr;
 
     /* Reset controller */
-    if( sram_config == 0 ) 
+    if (sram_config == 0) 
 	outb(CONFIG0_RST, ioaddr + CONFIG_0);
     else
 	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
 
     /* Power On chip and select bank 0 */
-    if(cardtype == MBH10302)
+    if (cardtype == MBH10302)
 	outb(BANK_0, ioaddr + CONFIG_1);
     else
 	outb(BANK_0U, ioaddr + CONFIG_1);
@@ -975,7 +971,7 @@ static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	udelay(1);
 
 	outw(length, ioaddr + DATAPORT);
-	outsw_ns(ioaddr + DATAPORT, buf, (length + 1) >> 1);
+	outsw(ioaddr + DATAPORT, buf, (length + 1) >> 1);
 
 	lp->tx_queue++;
 	lp->tx_queue_len += ((length+3) & ~1);
@@ -1028,7 +1024,7 @@ static void fjn_reset(struct net_device *dev)
 	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
 
     /* Power On chip and select bank 0 */
-    if( lp->cardtype == MBH10302)
+    if (lp->cardtype == MBH10302)
 	outb(BANK_0, ioaddr + CONFIG_1);
     else
 	outb(BANK_0U, ioaddr + CONFIG_1);
@@ -1043,7 +1039,7 @@ static void fjn_reset(struct net_device *dev)
         outb(dev->dev_addr[i], ioaddr + NODE_ID + i);
 
     /* Switch to bank 1 */
-    if ( lp->cardtype == MBH10302 )
+    if (lp->cardtype == MBH10302)
 	outb(BANK_1, ioaddr + CONFIG_1);
     else
 	outb(BANK_1U, ioaddr + CONFIG_1);
@@ -1053,7 +1049,7 @@ static void fjn_reset(struct net_device *dev)
         outb(0x00, ioaddr + MAR_ADR + i);
 
     /* Switch to bank 2 (runtime mode) */
-    if ( lp->cardtype == MBH10302 )
+    if (lp->cardtype == MBH10302)
 	outb(BANK_2, ioaddr + CONFIG_1);
     else
 	outb(BANK_2U, ioaddr + CONFIG_1);
@@ -1085,16 +1081,16 @@ static void fjn_reset(struct net_device *dev)
     outb(0xff, ioaddr + TX_STATUS);
     outb(0xff, ioaddr + RX_STATUS);
 
-    if( lp->cardtype == MBH10302 ) 
-    		outb(INTR_OFF, ioaddr + LAN_CTRL);
+    if (lp->cardtype == MBH10302)
+	outb(INTR_OFF, ioaddr + LAN_CTRL);
 
     /* Turn on Rx interrupts */
     outb(D_TX_INTR, ioaddr + TX_INTR);
     outb(D_RX_INTR, ioaddr + RX_INTR);
 
     /* Turn on interrupts from LAN card controller */
-    if( lp->cardtype == MBH10302 ) 
-		outb(INTR_ON, ioaddr + LAN_CTRL);
+    if (lp->cardtype == MBH10302)
+	outb(INTR_ON, ioaddr + LAN_CTRL);
 } /* fjn_reset */
 
 /*====================================================================*/
@@ -1148,8 +1144,8 @@ static void fjn_rx(struct net_device *dev)
 	    skb->dev = dev;
 
 	    skb_reserve(skb, 2);
-	    insw_ns(ioaddr + DATAPORT, skb_put(skb, pkt_len),
-		    (pkt_len + 1) >> 1);
+	    insw(ioaddr + DATAPORT, skb_put(skb, pkt_len),
+		 (pkt_len + 1) >> 1);
 	    skb->protocol = eth_type_trans(skb, dev);
 
 #ifdef PCMCIA_DEBUG
@@ -1176,7 +1172,7 @@ static void fjn_rx(struct net_device *dev)
 	   has done a netif_wake_queue() for us and will work on them
 	   when we get to the bottom-half routine. */
 /*
-    if( lp->cardtype != TDK ) {
+    if (lp->cardtype != TDK) {
 	int i;
 	for (i = 0; i < 20; i++) {
 	    if ((inb(ioaddr + RX_MODE) & F_BUF_EMP) == F_BUF_EMP)
@@ -1252,7 +1248,7 @@ static int fjn_close(struct net_device *dev)
     outb(CHIP_OFF ,ioaddr + CONFIG_1);
 
     /* Set the ethernet adaptor disable IRQ */
-    if( lp->cardtype == MBH10302 ) 
+    if (lp->cardtype == MBH10302)
 	outb(INTR_OFF, ioaddr + LAN_CTRL);
 
     link->open--;
@@ -1277,33 +1273,12 @@ static struct net_device_stats *fjn_get_stats(struct net_device *dev)
   Set the multicast/promiscuous mode for this adaptor.
 */
 
-/* The little-endian AUTODIN II ethernet CRC calculation.
-   N.B. Do not use for bulk data, use a table-based routine instead.
-   This is common code and should be moved to net/core/crc.c */
-static unsigned const ethernet_polynomial_le = 0xedb88320U;
-static inline unsigned ether_crc_le(int length, unsigned char *data)
-{
-    unsigned int crc = 0xffffffff;	/* Initial value. */
-    while(--length >= 0) {
-	unsigned char current_octet = *data++;
-	int bit;
-	for (bit = 8; --bit >= 0; current_octet >>= 1) {
-	    if ((crc ^ current_octet) & 1) {
-		crc >>= 1;
-		crc ^= ethernet_polynomial_le;
-	    } else
-		crc >>= 1;
-	}
-    }
-    return crc;
-}
-
 static void set_rx_mode(struct net_device *dev)
 {
     ioaddr_t ioaddr = dev->base_addr;
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
-    unsigned char mc_filter[8];		 /* Multicast hash filter */
-    long flags;
+    u_char mc_filter[8];		 /* Multicast hash filter */
+    u_long flags;
     int i;
     
     if (dev->flags & IFF_PROMISC) {

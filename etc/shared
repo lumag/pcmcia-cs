@@ -1,5 +1,5 @@
 #
-# shared 1.30 2002/05/12 18:07:26 (David Hinds)
+# shared 1.31 2002/08/19 03:21:11 (David Hinds)
 #
 
 usage ()
@@ -145,7 +145,7 @@ chk_parts ()
 grep_stab ()
 {
     # this should be cheaper than invoking "grep"
-    local CLASS DEV
+    local DEV
     while read SOCKET CLASS DRIVER INSTANCE DEV MAJOR MINOR ; do
 	if [ "$SOCKET" != "Socket" -a "$1" = "$DEV" ] ; then return 0 ; fi
     done
@@ -154,18 +154,21 @@ grep_stab ()
 
 get_info ()
 {
-    if [ -d /var/lib/pcmcia ] ; then
-	STAB=/var/lib/pcmcia/stab
-    else
-	STAB=/var/run/stab
-    fi
     if [ -f /var/lib/pcmcia/scheme ] ; then
 	SCHEME=`cat /var/lib/pcmcia/scheme`
     elif [ -f /var/run/pcmcia-scheme ] ; then
 	SCHEME=`cat /var/run/pcmcia-scheme`
     fi	
     if [ -z "$SCHEME" ] ; then SCHEME="default" ; fi
-    grep_stab $1 < $STAB || usage
+    if [ -z "$CLASS" -o -z "$MANFID" ] ; then
+	if [ -d /var/lib/pcmcia ] ; then
+	    STAB=/var/lib/pcmcia/stab
+	else
+	    STAB=/var/run/stab
+	fi
+	grep_stab $1 < $STAB || usage
+	eval `/sbin/cardctl info $SOCKET`
+    fi
 }
 
 # A bit of stuff to do right away...

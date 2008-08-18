@@ -23,9 +23,6 @@ static const char version[] = "tulip.c:v0.91g-ppc 7/16/99 becker@scyld.com (modi
 
 /* A few user-configurable values. */
 
-/* Maximum events (Rx packets, etc.) to handle at each interrupt. */
-static int max_interrupt_work = 25;
-
 #define MAX_UNITS 8
 /* Used to pass the full-duplex flag, etc. */
 static int full_duplex[MAX_UNITS] = {0, };
@@ -39,13 +36,6 @@ static const char * const medianame[] = {
 	"100baseFx-FD", "MII 10baseT", "MII 10baseT-FD", "MII",
 	"10baseT(forced)", "MII 100baseTx", "MII 100baseTx-FD", "MII 100baseT4",
 };
-
-/* Set if the PCI BIOS detects the chips on a multiport board backwards. */
-#ifdef REVERSE_PROBE_ORDER
-static int reverse_probe = 1;
-#else
-static int reverse_probe = 0;
-#endif
 
 /* Keep the ring sizes a power of two for efficiency.
    Making the Tx ring too large decreases the effectiveness of channel
@@ -135,8 +125,6 @@ MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Digital 21*4* Tulip ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_PARM(debug, "i");
-MODULE_PARM(max_interrupt_work, "i");
-MODULE_PARM(reverse_probe, "i");
 MODULE_PARM(rx_copybreak, "i");
 MODULE_PARM(csr0, "i");
 MODULE_PARM(options, "1-" __MODULE_STRING(MAX_UNITS) "i");

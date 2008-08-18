@@ -1085,7 +1085,7 @@ static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev)
     /* Put out the word header [must be an outw()] . . . */
     outw(skb->len, ioaddr + AM2150_XMT);
     /* . . . and the packet [may be any combination of outw() and outb()] */
-    outsw_ns(ioaddr + AM2150_XMT, skb->data, skb->len >> 1);
+    outsw(ioaddr + AM2150_XMT, skb->data, skb->len >> 1);
     if (skb->len & 1) {
       /* Odd byte transfer */
       outb(skb->data[skb->len-1], ioaddr + AM2150_XMT);
@@ -1308,7 +1308,7 @@ static int mace_rx(struct net_device *dev, unsigned char RxCnt)
 	skb->dev = dev;
 
 	skb_reserve(skb, 2);
-	insw_ns(ioaddr + AM2150_RCV, skb_put(skb, pkt_len), pkt_len>>1);
+	insw(ioaddr + AM2150_RCV, skb_put(skb, pkt_len), pkt_len>>1);
 	if (pkt_len & 1)
 	    *(skb->tail-1) = inb(ioaddr + AM2150_RCV);
 	skb->protocol = eth_type_trans(skb, dev);

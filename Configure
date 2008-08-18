@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.208 2002/05/26 17:36:37
+# Configure 1.224 2002/11/03 19:09:43
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -269,8 +269,17 @@ SRC_RELEASE=$VERSION.$PATCHLEVEL.$SUBLEVEL$EXTRAVERSION
 SRC_BASE=$VERSION.$PATCHLEVEL.$SUBLEVEL
 VERSION_CODE=`version $VERSION $PATCHLEVEL $SUBLEVEL`
 echo "The kernel source tree is version $SRC_RELEASE."
+
 if [ $VERSION_CODE -lt `version 2 0 0` ] ; then
     echo "This package requires at least a 2.0 series kernel."
+    fail
+elif [ $VERSION_CODE -ge `version 2 1 0` -a \
+     $VERSION_CODE -lt `version 2 2 0` ] ; then
+    echo "2.1 kernels are not supported.  Upgrade to 2.2."
+    fail
+elif [ $VERSION_CODE -ge `version 2 3 0` -a \
+     $VERSION_CODE -lt `version 2 4 0` ] ; then
+    echo "2.3 kernels are not supported.  Upgrade to 2.4."
     fail
 fi
 
@@ -337,7 +346,7 @@ elif [ $MATCH = 2 ] ; then
     CONF_SRC=3 # Use source tree when safe to do so
 elif [ $MATCH = 1 -a ! -r $LINUX/.config ] ; then
     CONF_SRC=1 # Use running kernel if tree is not configured
-else
+elif [ "$PROMPT" = "y" ] ; then
     echo ""
     echo "The PCMCIA drivers need to be compiled to match the kernel they"
     echo "will be used with, or some or all of the modules may fail to load."
@@ -418,6 +427,10 @@ printflag() {
 }
 
 x86_config_tweak () {
+    CONFIG_X86_L1_CACHE_BYTES=32
+    write_int CONFIG_X86_L1_CACHE_BYTES
+    CONFIG_X86_L1_CACHE_SHIFT=5
+    write_int CONFIG_X86_L1_CACHE_SHIFT
     if [ $VERSION_CODE -ge `version 2 2 0` ] ; then
 	if [ $CONFIG_SMP = "y" ] ; then
 	    CONFIG_X86_LOCAL_APIC=y
@@ -430,6 +443,54 @@ x86_config_tweak () {
 	    write_bool CONFIG_PCI_QUIRKS
 	fi
     fi
+    if [ $VERSION_CODE -ge `version 2 4 0` ] ; then
+	write_bool CONFIG_EISA
+	CONFIG_X86_CMPXCHG=y
+	if [ "$CONFIG_RWSEM_GENERIC_SPINLOCK" = "y" ] ; then
+	    CONFIG_X86_CMPXCHG=n
+	fi
+	write_bool CONFIG_X86_CMPXCHG
+    fi
+    if [ "$BIGMEM" ] ; then
+	if [ "$CONFIG_3GB" = "y" ] ; then MEMMAX=3GB
+	elif [ "$CONFIG_2GB" = "y" ] ; then MEMMAX=2GB
+	else MEMMAX=1GB ; fi
+	echo "    Maximum physical memory: $MEMMAX"
+	echo "MEMMAX=$MEMMAX" >> $CONFIG
+	write_bool CONFIG_1GB
+	write_bool CONFIG_2GB
+	write_bool CONFIG_3GB
+    fi
+}
+
+alpha_config_tweak () {
+    if [ $VERSION_CODE -lt `version 2 2 0` ] ; then
+	CONFIG_ALPHA_LCA=y
+	write_bool CONFIG_ALPHA_LCA
+    else
+	CONFIG_ALPHA_GENERIC=y
+	write_bool CONFIG_ALPHA_GENERIC
+    fi
+}
+
+ppc_config_tweak () {
+    printflag "MPC8xx architecture" CONFIG_8xx
+    printflag "IBM 4xx processor" CONFIG_4xx
+    printflag "Embedded Planet LITE platform" CONFIG_RPXLITE
+    printflag "Embedded Planet CLASSIC platfom" CONFIG_RPXCLASSIC
+    printflag "MPC823 processor" CONFIG_MPC823
+    printflag "MPC850 processor" CONFIG_MPC850
+    printflag "MPC860 processor" CONFIG_MPC860
+    printflag "MPC860T processor" CONFIG_MPC860T
+    if [ $VERSION_CODE -gt `version 2 4 0` ] ; then
+	CONFIG_ALL_PPC=y
+	write_bool CONFIG_ALL_PPC
+    fi
+}
+
+arm_config_tweak () {
+    printflag "Brutus architecture" CONFIG_ARCH_BRUTUS
+    printflag "Itsy target platform" CONFIG_ITSY
 }
 
 printconfig () {
@@ -438,8 +499,15 @@ printconfig () {
 	printflag "Kernel-tree PCMCIA support" CONFIG_PCMCIA
     fi
     printflag "Symmetric multiprocessing support" CONFIG_SMP
+    if [ "$CONFIG_SMP" = "y" ] ; then
+	echo "#define __SMP__ 1" >> $CONFIG_H
+    fi
+    printflag "Preemptive kernel support" CONFIG_PREEMPT
+    if [ "$NEED_HZ" = "y" ] ; then
+	echo "    Timer frequency (HZ) for the kernel is $CONFIG_HZ."
+	write_int CONFIG_HZ
+    fi
     printflag "PCI BIOS support" CONFIG_PCI
-    x86_config_tweak
     printflag "Power management (APM) support" CONFIG_PM
     printflag "SCSI support" CONFIG_SCSI
     printflag "IEEE 1394 (FireWire) support" CONFIG_IEEE1394
@@ -458,50 +526,12 @@ printconfig () {
     if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
     fi
-    if [ $ARCH = "i386" ] ; then
-	CONFIG_X86_L1_CACHE_BYTES=32
-	write_int CONFIG_X86_L1_CACHE_BYTES
-	CONFIG_X86_L1_CACHE_SHIFT=5
-	write_int CONFIG_X86_L1_CACHE_SHIFT
-    fi
-    if [ $ARCH = "alpha" ] ; then
-	if [ $VERSION_CODE -lt `version 2 2 0` ] ; then
-	    CONFIG_ALPHA_LCA=y
-	    write_bool CONFIG_ALPHA_LCA
-	else
-	    CONFIG_ALPHA_GENERIC=y
-	    write_bool CONFIG_ALPHA_GENERIC
-	fi
-    fi
-    if [ $ARCH = "arm" ] ; then
-	printflag "Brutus architecture" CONFIG_ARCH_BRUTUS
-	printflag "Itsy target platform" CONFIG_ITSY
-    fi
-    if [ $ARCH = "ppc" ] ; then
-    	printflag "MPC8xx architecture" CONFIG_8xx
-	printflag "IBM 4xx processor" CONFIG_4xx
-    	printflag "Embedded Planet LITE platform" CONFIG_RPXLITE
-    	printflag "Embedded Planet CLASSIC platfom" CONFIG_RPXCLASSIC
-    	printflag "MPC823 processor" CONFIG_MPC823
-    	printflag "MPC850 processor" CONFIG_MPC850
-    	printflag "MPC860 processor" CONFIG_MPC860
-   	printflag "MPC860T processor" CONFIG_MPC860T
-	if [ $VERSION_CODE -gt `version 2 4 0` ] ; then
-	    CONFIG_ALL_PPC=y
-	    write_bool CONFIG_ALL_PPC
-	fi
-    fi
     printflag "/proc filesystem support" CONFIG_PROC_FS
-    if [ "$BIGMEM" ] ; then
-	if [ "$CONFIG_3GB" = "y" ] ; then MEMMAX=3GB
-	elif [ "$CONFIG_2GB" = "y" ] ; then MEMMAX=2GB
-	else MEMMAX=1GB ; fi
-	echo "    Maximum physical memory: $MEMMAX"
-	echo "MEMMAX=$MEMMAX" >> $CONFIG
-	write_bool CONFIG_1GB
-	write_bool CONFIG_2GB
-	write_bool CONFIG_3GB
-    fi
+    case $ARCH in
+    i386)	x86_config_tweak	; ;;
+    alpha)	alpha_config_tweak	; ;;
+    ppc)	ppc_config_tweak	; ;;
+    esac
     if [ $VERSION_CODE -ge `version 2 4 0` ] ; then
 	write_bool CONFIG_RWSEM_GENERIC_SPINLOCK
 	write_bool CONFIG_RWSEM_XCHGADD_ALGORITHM
@@ -512,10 +542,11 @@ echo "" >> $CONFIG
 echo "" >> $CONFIG_MK
 echo "" >> $CONFIG_H
 
-if [ $ARCH = "i386" ] && \
-    grep -qs CONFIG_1GB $LINUX/include/asm-i386/page_offset.h ; then
-    BIGMEM=y
+if [ $ARCH = "i386" ] ; then
+    grep -qs CONFIG_1GB $LINUX/include/asm-i386/page_offset.h && BIGMEM=y
+    grep -qs CONFIG_HZ $LINUX/include/asm-i386/param.h && NEED_HZ=y
 fi
+
 CONFIG_PCMCIA=n
 
 case $CONF_SRC in
@@ -539,7 +570,12 @@ case $CONF_SRC in
 	else
 	    symcheck PCMCIA dead_socket pcmcia_core
 	fi
-	symcheck SMP smp_invalidate_needed
+	if [ $VERSION_CODE -lt `version 2 2 0` ] ; then
+	    symcheck SMP smp_invalidate_needed
+	else
+	    symcheck SMP smp_num_cpus
+	fi
+	symcheck PREEMPT preempt_schedule
 	symcheck PCI pcibios
 	if [ $VERSION_CODE -lt `version 2 3 43` ] ; then
 	    symcheck PM apm_register_callback
@@ -579,7 +615,9 @@ case $CONF_SRC in
 	     $CONFIG_MEMLEAK = "y" ] ; then
 	    CONFIG_DEBUG_KERNEL=y
 	fi
-	if [ $ARCH = "ppc" ] ; then
+	if [ $ARCH = "i386" ] ; then
+	    symcheck EISA_bus EISA
+	elif [ $ARCH = "ppc" ] ; then
 	    symcheck _prep_type ALL_PPC
 	fi
 	if [ $VERSION_CODE -ge `version 2 4 0` ] ; then
@@ -593,6 +631,16 @@ case $CONF_SRC in
 	    awk '{ printf "#define %s\t%s_R%s\n", $1, $1, $2 }' \
 	    >> $MODVER
 	echo "#endif" >> $MODVER
+	if [ "$NEED_HZ" = "y" ] ; then
+	    echo "#include <linux/module.h>" > tmp.c
+	    echo "#include <linux/sched.h>" >> tmp.c
+	    echo "int init_module(void)" >> tmp.c
+	    echo '{printk("<7>jif=%lu\n",jiffies);return-1;}' >> tmp.c
+	    $KCC -DMODULE -D__KERNEL__ -Iinclude -I$LINUX/include -c tmp.c
+	    /sbin/insmod tmp.o >/dev/null 2>&1
+	    TICKS=`dmesg | sed -ne 's/^jif=//p' | tail -1`
+	    CONFIG_HZ=`awk '{printf "%.0f",'$TICKS'/$1}' /proc/uptime`
+	fi
 	;;
     2|3)
 	AUTOCONF=$LINUX/.config
@@ -628,9 +676,12 @@ case $CONF_SRC in
 	for C in PCI SCSI SERIAL INET NET_FASTROUTE NET_RADIO NET_DIVERT \
 	    TR MODVERSIONS PROC_FS PARPORT PARPORT_PC PARPORT_PC_PCMCIA \
 	    IEEE1394 NET_PCMCIA_RADIO KERNEL_DEBUGGING MEMLEAK PREEMPT \
-	    DEBUG_KERNEL DEBUG_SPINLOCK ; do
+	    DEBUG_KERNEL DEBUG_SPINLOCK PREEMPT ; do
 	    configcheck $C
 	done
+	if [ "$NEED_HZ" = "y" ] ; then
+	    eval `grep "^CONFIG_HZ=" $AUTOCONF`
+	fi
 	if grep "^CONFIG_PARPORT_PC=y" $AUTOCONF >/dev/null ; then
 	    CONFIG_PARPORT_PC=n
 	fi
@@ -640,11 +691,12 @@ case $CONF_SRC in
 	if [ $CONFIG_NET_RADIO = "y" ] ; then
 	    CONFIG_NET_PCMCIA_RADIO=y
 	fi
-	if [ $ARCH = "arm" ] ; then
+	if [ $ARCH = "i386" ] ; then
+	    configcheck EISA
+	elif [ $ARCH = "arm" ] ; then
 	    configcheck ARCH_BRUTUS
 	    configcheck ITSY
-	fi
-	if [ $ARCH = "ppc" ] ; then
+	elif [ $ARCH = "ppc" ] ; then
 	    for C in 8xx 4xx RPXLITE RPXCLASSIC MPC823 MPC850 MPC860 \
 		MPC860T ALL_PPC ; do
 		configcheck $C
@@ -662,7 +714,7 @@ if [ "$FORCE" = "y" -a "$CONFIG_PCMCIA" = "y" ] ; then
     CONFIG_PCMCIA=n
 fi
 if [ "$USE_PM" != "y" ] ; then CONFIG_PM=n ; fi
-if [ ! -r ${LINUX}/include/linux/wireless.h ] ; then
+if [ ! -r $LINUX/include/linux/wireless.h ] ; then
     CONFIG_NET_PCMCIA_RADIO=n
 fi
 if ! grep get_lynx_template $LINUX/drivers/ieee1394/pcilynx.c \
@@ -675,7 +727,7 @@ echo ""
 #=======================================================================
 
 if [ "$CONFIG_PCI" != "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
-    echo "Cardbus support requires kernel PCI BIOS support!"
+    echo "Cardbus support requires kernel PCI bus support!"
     echo "    To fix, re-run 'make config' and disable Cardbus support."
     fail
 fi
@@ -730,12 +782,8 @@ if [ $CONF_SRC != 1 -a "$CONFIG_MODVERSIONS" = "y" ] ; then
 else
     # We may need at least an empty modversions.h file
     touch $MODVER
-    MODVER="../$MODVER"
 fi
 
-if [ "$CONFIG_SMP" = "y" ] ; then
-    echo "#define __SMP__ 1" >> $CONFIG_H
-fi
 
 echo "" >> $CONFIG
 echo "" >> $CONFIG_MK
@@ -744,11 +792,6 @@ echo "" >> $CONFIG_H
 #=======================================================================
 
 HAS_PROC_BUS=n
-if [ "$CONFIG_MODVERSIONS" = "y" ] ; then
-    echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
-else
-    echo "MFLAG=" >> $CONFIG_MK
-fi
 if [ "$CONFIG_PCMCIA" = "y" ] ; then
     # Use our kernel config, then kernel headers, then our headers
     CPPFLAGS="-I../include/static -I\$(LINUX)/include -I../include"
@@ -757,20 +800,6 @@ else
     CPPFLAGS="-I../include -I\$(LINUX)/include"
 fi
 echo "CPPFLAGS=$CPPFLAGS" >> $CONFIG_MK
-
-if [ $VERSION_CODE -ge `version 2 1 31` -a \
-     $VERSION_CODE -le `version 2 1 34` ] ; then
-    echo "Kernel versions 2.1.31-33 are broken.  Upgrade to 2.1.34."
-    fail
-fi
-if [ $VERSION_CODE -ge `version 2 1 90` -a \
-     $VERSION_CODE -le `version 2 1 102` ] ; then
-    echo "Kernel versions 2.1.90-2.1.102 are broken.  Upgrade to 2.2."
-    fail
-fi
-if [ $VERSION_CODE -gt `version 2 1 104` ] ; then
-    HAS_PROC_BUS=$CONFIG_PROC_FS
-fi
 
 write_str UTS_RELEASE
 write_str UTS_VERSION
@@ -810,16 +839,30 @@ if [ "$CONFIG_SCSI" = "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
     if grep ADAPTEC_1480A $SCSI/aic7xxx.c >/dev/null 2>&1 ; then
 	echo "DO_APA1480=y" >> $CONFIG_MK
 	NEW_AIC7XXX=n
-    fi
-    if [ -r $SCSI/aic7xxx/aic7xxx.c ] ; then
+    elif [ -r $SCSI/aic7xxx/aic7xxx.c ] ; then
 	echo "DO_APA1480=y" >> $CONFIG_MK
 	NEW_AIC7XXX=y
+    elif [ "$CONFIG_PCMCIA" = "n" ] ; then
+	echo "The standalone Adaptec APA1480 CardBus driver is not" \
+	     "supported with"
+	echo "    this kernel.  If you need it, use the kernel" \
+	     "PCMCIA subsystem."
+	echo ""
     fi
     write_bool NEW_AIC7XXX
     for f in aic7xxx.h aic7xxx/aic7xxx{,_linux,_osm}.h ; do
 	if [ -r $SCSI/$f ] ; then AIC7XXX_H=$f ; fi
     done
     echo "#define AIC7XXX_H <../drivers/scsi/$AIC7XXX_H>" >> $CONFIG_H
+fi
+
+if ! grep get_lynx_template $LINUX/drivers/ieee1394/pcilynx.c \
+     >/dev/null 2>&1 && [ "$CONFIG_PCMCIA" = "n" ] ; then
+    echo "The standalone IEEE 1394 CardBus drivers are not" \
+	 "supported with this"
+    echo "    kernel.  If you need them, use the kernel" \
+	 "PCMCIA subsystem."
+    echo ""
 fi
 
 #=======================================================================
@@ -866,8 +909,8 @@ if [ "$PREFIX" = "" ] ; then
 #	else
 #	    echo "Your 'lilo' installation appears to be OK."
 	fi
-    else
-	echo "It doesn't look like you are using 'lilo'."
+#   else
+#	echo "It doesn't look like you are using 'lilo'."
     fi
 fi
 
@@ -904,52 +947,72 @@ else
     fi
 fi
 
-echo ""
-
 #=======================================================================
 
 # Optional stuff
 
 HAS_FORMS=n
-if [ -r /usr/include/X11/Xlib.h -o \
-     -r /usr/X11R6/include/X11/Xlib.h ] ; then
-    echo "X Window System include files found."
-    for f in /usr/{X11/,X11R6/,local/,}lib/libforms.{so,a} ; do
-	if [ -r $f ] ; then break ; fi
-    done
-    for g in /usr/{X11/,X11R6/,local/,}include/{,X11/}forms.h ; do
-	if [ -r $g ] ; then break ; fi
-    done
-    if [ -r $f -a -r $g ] ; then
-	echo "$f and $g found."
-	HAS_FORMS=y
-	FLIBS="-L/usr/X11R6/lib -L/usr/X11/lib -lforms -lX11"
-	if nm $f | grep 'U Xpm' >/dev/null ; then
-	    FLIBS="$FLIBS -lXpm"
-	fi
-    else
-	echo "Forms library not installed."
-    fi
-else
-    echo "X Window System include files not installed."
-fi
-
-if [ "$HAS_FORMS" != "y" ] ; then
-    echo "    If you wish to build the 'cardinfo' control panel, you need" \
-	 "the Forms"
-    echo "    library and the X Window System include files.  See the HOWTO" \
-	 "for details."
-    HAS_FORMS=n
+echo "#include <forms.h>" > tmp.c
+echo "int main(void) { void *x = &fl_initialize; return 0; }" >> tmp.c
+XINCS="-I/usr/X11R6/include -I/usr/X11/include -I/usr/X11R6/include/X11"
+FLIBS="-L/usr/X11R6/lib -L/usr/X11/lib -lforms -lX11 -lm"
+if $UCC $UFLAGS $XINCS tmp.c $FLIBS 2>/dev/null ; then
+    HAS_FORMS=y
+elif $UCC $UFLAGS $XINCS tmp.c $FLIBS -lXpm 2>/dev/null ; then
+    FLIBS="$FLIBS -lXpm"
+    HAS_FORMS=y
 fi
 write_bool HAS_FORMS
 if [ "$HAS_FORMS" = "y" ] ; then write_str FLIBS ; fi
+if [ "$HAS_FORMS" != "y" ] ; then
+    echo "The Forms library is not available."
+fi
 
-#=======================================================================
+HAS_XAW=n
+echo "#include <X11/Xaw/XawInit.h>" > tmp.c
+echo "int main() { void *x = &XawInitializeWidgetSet; return 0; }" >> tmp.c
+if $UCC $UFLAGS $XINCS tmp.c -L/usr/X11R6/lib -L/usr/X11/lib \
+    -lX11 -lXaw 2>/dev/null ; then
+    HAS_XAW=y
+else
+    echo "The X11/Xaw libraries are not available."
+fi
+write_bool HAS_XAW
+
+HAS_GTK=n
+echo "#include <gtk/gtk.h>" > tmp.c
+echo "int main(void) { void *x = &gtk_init; return 0; }" >> tmp.c
+if $UCC $UFLAGS `gtk-config --cflags 2>/dev/null` tmp.c \
+    `gtk-config --libs 2>/dev/null` 2>/dev/null ; then
+    HAS_GTK=y
+else
+    echo "The GTK+ library is not available."
+fi
+write_bool HAS_GTK
+
+HAS_WORDEXP=n
+echo "#include <wordexp.h>" > tmp.c
+$UCC $UFLAGS -c tmp.c 2>/dev/null && HAS_WORDEXP=y
+write_bool HAS_WORDEXP
+if [ "$HAS_WORDEXP" != "y" ] ; then
+    echo ""
+    echo "Your libc does not support wordexp()."
+    echo "    Without wordexp(), cardmgr will not do command" \
+         "substitution or"
+    echo "    environment variable expansion when parsing 'source'" \
+	 "commands in"
+    echo "    config files.  To gain this feature, upgrade to a" \
+	 "more recent"
+    echo "    version of glibc."
+fi
+rm -f tmp.c tmp.o a.out
 
 if [ ! -d /var/run ] ; then
     echo "WARNING: /var/run not found."
     echo "    To fix, do 'mkdir /var/run'."
 fi
+
+#=======================================================================
 
 # Where do man pages go?
 
@@ -969,7 +1032,7 @@ write_str XMANDIR
 echo "" >> $CONFIG_H
 echo "#endif /* _PCMCIA_CONFIG_H */" >> $CONFIG_H
 
-mv $CONFIG config.out
+mv -f $CONFIG config.out
 
 touch .prereq.ok
 

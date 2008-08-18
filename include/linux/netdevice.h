@@ -88,4 +88,12 @@ static inline struct net_device *alloc_etherdev(int sz)
 }
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
+#define netif_xmit_lock(dev)	do { } while (0)
+#define netif_xmit_unlock(dev)	do { } while (0)
+#else
+#define netif_xmit_lock(dev)	spin_lock_bh(&dev->xmit_lock)
+#define netif_xmit_unlock(dev)	spin_unlock_bh(&dev->xmit_lock)
+#endif
+
 #endif /* _COMPAT_NETDEVICE_H */

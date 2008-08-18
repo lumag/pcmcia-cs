@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" cardctl.8 1.17 2000/12/13 16:50:26
+.\" cardctl.8 1.18 2002/08/19 03:08:44
 .\"
-.TH CARDCTL 8 "2000/12/13 16:50:26" "pcmcia-cs"
+.TH CARDCTL 8 "2002/08/19 03:08:44" "pcmcia-cs"
 .SH NAME
 cardctl \- PCMCIA card control utility
 
@@ -41,6 +41,10 @@ and I/O window settings, and configuration registers.
 .B ident
 Display card identification information, including product
 identification strings, manufacturer ID codes, and function ID codes.
+.TP
+.B info
+Much like the \fBident\fR command, but its output is formatted as a
+series of Bourne-stype shell variable definitions for use in scripts.
 .TP
 .B suspend
 Shut down and then disable power for a socket.

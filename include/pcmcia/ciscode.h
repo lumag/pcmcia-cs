@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.48 2001/08/24 12:16:12
+ * ciscode.h 1.56 2002/10/25 06:37:30
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -61,7 +61,8 @@
 #define PRODID_INTEL_2PLUS		0x8422
 
 #define MANFID_KME			0x0032
-#define PRODID_KME_KXLC005		0x0704
+#define PRODID_KME_KXLC005_A		0x0704
+#define PRODID_KME_KXLC005_B		0x2904
 
 #define MANFID_LINKSYS			0x0143
 #define PRODID_LINKSYS_PCMLM28		0xc0ab
@@ -97,6 +98,8 @@
 #define PRODID_OSITECH_JACK_336		0x0007
 #define PRODID_OSITECH_SEVEN		0x0008
 
+#define MANFID_OXSEMI			0x0279
+
 #define MANFID_PIONEER			0x000b
 
 #define MANFID_PSION			0x016c
@@ -111,7 +114,6 @@
 #define PRODID_QUATECH_DUAL_RS422	0x000e
 #define PRODID_QUATECH_QUAD_RS422	0x0045
 
-
 #define MANFID_SMC			0x0108
 #define PRODID_SMC_ETHER		0x0105
 
@@ -125,11 +127,12 @@
 
 #define MANFID_TDK			0x0105
 #define PRODID_TDK_CF010		0x0900
+#define PRODID_TDK_GN3410		0x4815
 
 #define MANFID_TOSHIBA			0x0098
 
-#define MANFID_XIRCOM			0x0105
+#define MANFID_UNGERMANN 0x02c0
 
-#define MANFID_OXSEMI			0x0279
+#define MANFID_XIRCOM			0x0105
 
 #endif /* _LINUX_CISCODE_H */

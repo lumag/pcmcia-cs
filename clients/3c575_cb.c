@@ -1518,7 +1518,6 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int entry;
 	struct boom_tx_desc *prev_entry;
 	unsigned long flags;
-	int i;
 
 	tx_timeout_check(dev, vortex_tx_timeout);
 

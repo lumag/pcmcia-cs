@@ -1,5 +1,5 @@
 /*
- * ricoh.h 1.14 2001/08/24 12:15:34
+ * ricoh.h 1.16 2002/08/13 15:17:14
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -85,6 +85,9 @@
 #ifndef PCI_DEVICE_ID_RICOH_RL5C476
 #define PCI_DEVICE_ID_RICOH_RL5C476	0x0476
 #endif
+#ifndef PCI_DEVICE_ID_RICOH_RL5C477
+#define PCI_DEVICE_ID_RICOH_RL5C477	0x0477
+#endif
 #ifndef PCI_DEVICE_ID_RICOH_RL5C478
 #define PCI_DEVICE_ID_RICOH_RL5C478	0x0478
 #endif
@@ -145,13 +148,14 @@ typedef struct ricoh_state_t {
 } ricoh_state_t;
 
 #define RICOH_PCIC_ID \
-    IS_RL5C465, IS_RL5C466, IS_RL5C475, IS_RL5C476, IS_RL5C478
+    IS_RL5C465, IS_RL5C466, IS_RL5C475, IS_RL5C476, IS_RL5C477, IS_RL5C478
 
 #define RICOH_PCIC_INFO \
     { "Ricoh RL5C465", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C465) }, \
     { "Ricoh RL5C466", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C466) }, \
     { "Ricoh RL5C475", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C475) }, \
     { "Ricoh RL5C476", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C476) }, \
+    { "Ricoh RL5C477", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C477) }, \
     { "Ricoh RL5C478", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C478) }
 
 #endif /* _LINUX_RICOH_H */

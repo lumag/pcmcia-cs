@@ -1,4 +1,4 @@
-Known problems and limitations for the 3.2.0 PCMCIA release
+Known problems and limitations for the 3.2.2 PCMCIA release
 ============================================================
 
 Bug summaries:
@@ -67,6 +67,10 @@ o On the Sony VAIO PCG-N505VE, after a suspend, no interrupts are
   state of the CardBus bridge correctly, and the PCI interrupt router
   is also configured properly.  But no interrupts get through.  The
   problem is not triggered by suspend-to-disk.
+
+  I'm told that with current (2.4/2.5) kernels, using the kernel
+  PCMCIA subsystem, that reloading the yenta_socket driver after a
+  suspend restores proper operation.
 
 o All of the SCSI drivers, and most of the CardBus drivers, do not
   implement suspend/resume handling.  The only workaround now is to
@@ -147,9 +151,8 @@ o The linux IDE driver generates spurious interrupts when it probes
   happens when the PCMCIA subsystem is configured to use only PCI
   interrupts for card status changes as well as card interrupts.
 
-  Prognosis: the IDE device probe needs to be rewritten; I don't know
-  when that might happen.  In some situations, you can work around the
-  issue by using startup options like:
+  This is fixed in 2.4.19.  For older kernels, you may be able to work
+  around the issue using startup options like:
 
     PCIC_OPTS="irq_mode=0 pci_csc=0"
 

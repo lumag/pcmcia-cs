@@ -2,7 +2,7 @@
 
     PCMCIA bridge device probe
 
-    pcic_probe.c 1.1 2002/07/17 06:27:30
+    pcic_probe.c 1.2 2002/08/13 15:20:03
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -59,6 +59,7 @@ pci_id_t pci_id[] = {
     { 0x1180, 0x0466, "yenta_socket", "Ricoh RL5C466" },
     { 0x1180, 0x0475, "yenta_socket", "Ricoh RL5C475" },
     { 0x1180, 0x0476, "yenta_socket", "Ricoh RL5C476" },
+    { 0x1180, 0x0477, "yenta_socket", "Ricoh RL5C477" },
     { 0x1180, 0x0478, "yenta_socket", "Ricoh RL5C478" },
     { 0x104c, 0xac12, "yenta_socket", "Texas Instruments PCI1130" }, 
     { 0x104c, 0xac13, "yenta_socket", "Texas Instruments PCI1031" }, 
@@ -91,7 +92,8 @@ pci_id_t pci_id[] = {
     { 0x1179, 0x060f, "yenta_socket", "Toshiba ToPIC97" }, 
     { 0x1179, 0x0617, "yenta_socket", "Toshiba ToPIC100" }, 
     { 0x119b, 0x1221, "i82365", "Omega Micro 82C092G" }, 
-    { 0x8086, 0x1221, "i82092", "Intel 82092AA" }, 
+    { 0x8086, 0x1221, "i82092", "Intel 82092AA_0" }, 
+    { 0x8086, 0x1222, "i82092", "Intel 82092AA_1" }, 
 };
 #define PCI_COUNT (sizeof(pci_id)/sizeof(pci_id_t))
 

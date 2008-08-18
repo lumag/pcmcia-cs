@@ -2,7 +2,7 @@
 
     A driver for the Adaptec APA1480 CardBus SCSI Host Adapter
 
-    apa1480_cb.c 1.31 2002/06/29 06:27:37
+    apa1480_cb.c 1.32 2002/10/12 19:05:00
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -70,7 +70,7 @@ MODULE_PARM(aic7xxx, "s");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"apa1480_cb.c 1.31 2002/06/29 06:27:37 (David Hinds)";
+"apa1480_cb.c 1.32 2002/10/12 19:05:00 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -97,7 +97,7 @@ static dev_node_t *apa1480_attach(dev_locator_t *loc)
     dev_node_t *node;
     u_int io;
     int n = 0;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,75))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,1,75))
     struct Scsi_Host *host;
 #endif
     
@@ -106,7 +106,7 @@ static dev_node_t *apa1480_attach(dev_locator_t *loc)
     printk(KERN_INFO "apa1480_attach(device %02x:%02x.%d)\n",
 	   bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
-#if (LINUX_VERSION_CODE >= VERSION(2,1,23))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,1,23))
     driver_template.module = &__this_module;
 #else
     driver_template.usage_count = &GET_USE_COUNT(__this_module);
@@ -128,7 +128,7 @@ static dev_node_t *apa1480_attach(dev_locator_t *loc)
     scsi_register_module(MODULE_SCSI_HA, &driver_template);
 
     node = kmalloc(7 * sizeof(dev_node_t), GFP_KERNEL);
-#if (LINUX_VERSION_CODE < VERSION(2,1,75))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,1,75))
     for (dev = scsi_devices; dev; dev = dev->next)
 	if (dev->host->hostt == &driver_template) {
 #else

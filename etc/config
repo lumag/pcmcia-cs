@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.205 2002/07/21 04:14:01 (David Hinds)
+# config 1.210 2002/10/25 07:38:21 (David Hinds)
 #
 
 # config.opts is now included at the very end.  In general, it is a
@@ -26,13 +26,15 @@ device "nmclan_cs"
   class "network" module "nmclan_cs"
 
 device "orinoco_cs"
-  class "network" module "hermes", "orinoco", "orinoco_cs"
+  #class "network" module "hermes", "orinoco", "orinoco_cs"
+  class "network" module "orinoco_cs"
 
 device "oti12_cs"
   class "cdrom" module "oti12_cs"
 
 device "pcnet_cs"
-  class "network" module "net/8390", "pcnet_cs"
+  #class "network" module "net/8390", "pcnet_cs"
+  class "network" module "pcnet_cs"
 
 device "smc91c92_cs"
   class "network" module "smc91c92_cs"
@@ -67,8 +69,8 @@ device "fdomain_cs"
 device "sym53c500_cs"
   class "scsi" module "sym53c500_cs"
 
-device "ide_cs"
-  class "ide" module "ide_cs"
+device "ide-cs"
+  class "ide" module "ide-cs"
 
 device "fmvj18x_cs"
   class "network" module "fmvj18x_cs" 
@@ -87,6 +89,13 @@ device "3c574_cs"
 
 device "teles_cs"
   class "teles" module "teles_cs"
+
+device "ray_cs"
+  class "network" module "ray_cs"
+
+device "airo_cs"
+  #class "network" module "airo", "airo_cs"
+  class "network" module "airo_cs"
 
 device "3c575_cb"
   class "network" module "cb_enabler", "3c575_cb"
@@ -108,12 +117,6 @@ device "eepro100_cb"
 
 device "serial_cb"
   class "serial" module "cb_enabler", "serial_cb"
-
-device "ray_cs"
-  class "network" module "ray_cs"
-
-device "airo_cs"
-  class "network" module "airo", "airo_cs"
 
 device "pcilynx_cb"
   class "ieee1394" module "cb_enabler", "pcilynx_cb"
@@ -169,6 +172,10 @@ card "AmbiCom AMB8010 Ethernet"
   version "AmbiCom Inc", "AMB8010"
   bind "pcnet_cs"
 
+card "AmbiCom AMB8010 Ethernet"
+  version "AmbiCom", "AMB8010"
+  bind "pcnet_cs"
+
 card "AmbiCom AMB8610 Ethernet"
   version "AmbiCom", "AMB8610"
   bind "pcnet_cs"
@@ -203,6 +210,10 @@ card "Billionton LNT-10TN"
 
 card "Buffalo LPC2-CLT Ethernet"
   manfid 0x026f, 0x0300
+  bind "pcnet_cs"
+
+card "Buffalo LPC3-CLT Ethernet"
+  manfid 0x026f, 0x030a
   bind "pcnet_cs"
 
 card "California Access Ethernet"
@@ -533,6 +544,7 @@ card "Megahertz CC10BT/2 Ethernet"
 
 card "Melco LPC2-T Ethernet"
   manfid 0x01bf, 0x2216
+  version "MELCO", "LPC2-T"
   bind "pcnet_cs"
 
 card "Microdyne NE4200 Ethernet"
@@ -774,10 +786,10 @@ card "Argosy EN220 Fast Ethernet"
   version "ARGOSY", "Fast Ethernet PCCard"
   bind "smc91c92_cs"
 
-# this is not specific enough:
-#card "Ark Sky Link Express PA2600"
-#  manfid 0xffff, 0x1090
-#  bind "pcnet_cs"
+card "NE2000 Compatible Fast Ethernet"
+  version "PCMCIA", "10/100Mbps Ethernet Card"
+  #manfid 0xffff, 0x1090
+  bind "pcnet_cs"
 
 card "Asix AX88190 Fast Ethernet"
   version "Fast Ethernet", "16-bit PC Card", "*", "AX88190"
@@ -798,6 +810,10 @@ card "Asix AX88190 Fast Ethernet"
   version "PCMCIA", "100BASE"
   #manfid 0xffff, 0x1090
   bind "axnet_cs"
+
+card "Belkin F5D5020 Fast Ethernet"
+  manfid 0x01bf, 0x2328
+  bind "pcnet_cs"
 
 card "Billionton LNA-100B"
   version "Billionton", "LNA-100B"
@@ -1010,6 +1026,7 @@ card "WiseCom iPort 10/100 Fast Ethernet"
   bind "pcnet_cs"
 
 card "Xircom CompactCard Ethernet"
+  #manfid 0x0105, 0x010a
   version "Xircom", "*", "CFE-10"
   bind "pcnet_cs"
 
@@ -1030,9 +1047,10 @@ card "Xircom XE2000 10/100 Fast Ethernet"
   version "Xircom", "*", "XE2000"
   bind "xirc2ps_cs"
 
-card "Xircom XE2000 10/100 Fast Ethernet"
-  manfid 0x0105, 0x010a
-  bind "xirc2ps_cs"
+# also matches CFE-10 cards!
+#card "Xircom XE2000 10/100 Fast Ethernet"
+#  manfid 0x0105, 0x010a
+#  bind "xirc2ps_cs"
 
 #
 # Wireless network adapters
@@ -1143,6 +1161,10 @@ card "NCR WaveLAN/IEEE Adapter"
 
 card "Netgear MA401RA Wireless Adapter"
   version "NETGEAR MA401RA Wireless PC", "Card"
+  bind "orinoco_cs"
+
+card "Nortel Networks eMobility 802.11 Wireless Adapter"
+  manfid 0x01eb, 0x080a
   bind "orinoco_cs"
 
 card "PLANEX GeoWave/GW-CF110"
@@ -1524,6 +1546,10 @@ card "Noteworthy Bus Toaster SCSI"
   version "NOTEWORTHY", "SCSI", "Bus Toaster"
   bind "aha152x_cs"
 
+card "Noteworthy NWCOMBO2 SCSI/Audio"
+  version "NOTEWORTHY", "NWCOMBO2 SCSI/AUDIO COMBO CARD"
+  bind "aha152x_cs"
+
 card "New Media BASICS SCSI"
   version "BASICS by New Media Corporation", "SCSI Sym53C500"
   bind "sym53c500_cs"
@@ -1586,6 +1612,10 @@ card "Cherri IEEE-1394"
 
 card "Belkin F5U512 FireWire Adapter"
   pci 0x1033, 0x00cd
+  bind "ohci1394_cb"
+
+card "Good Man VT6306 FireWire Adapter"
+  pci 0x1106, 0x3044
   bind "ohci1394_cb"
 
 card "Margi 1394-to-Go OHCI Adapter"
@@ -1832,115 +1862,108 @@ card "Xircom XEM5600 Ethernet/Modem"
 #
 card "ATA/IDE Fixed Disk"
   function fixed_disk
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "ACE DoubleFlash 20MB"
   version "IBM", "IBM17JSSFP20"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Argosy EIDE CD-ROM"
   version "ARGOSY", "CD-ROM"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Argosy PnPIDE"
   version "ARGOSY", "PnPIDE"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Caravelle CD-36N/CD-36E CD-ROM"
   version "Caravelle", "PSC-IDE ", "PSC000"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "CNF CARDport CD-ROM"
   version "CNF CD-M", "CD-ROM"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Creative Technology CD-ROM"
   version "Creative Technology Ltd.", "PCMCIA CD-ROM Interface Card"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Digital Mobile Media CD-ROM"
   version "Digital Equipment Corporation.", "Digital Mobile Media CD-ROM"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "EXP CD940 CD-ROM"
   version "EXP   ", "CD-ROM"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "EXP PnPIDE"
   version "EXP   ", "PnPIDE"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "EXP Traveler 620 CD-ROM"
   version "EXP", "CD+GAME", "C1"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Freecom IQ-drive"
   version "FREECOM", "PCCARD-IDE"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Generic ATAPI CD-ROM"
   version "PCMCIA", "CD-ROM"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "IBM Max Portable CD-ROM"
   manfid 0x00a4, 0x002d
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "IBM Portable Drive Bay"
   version "PCMCIA", "IDE CARD", "F1"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "IO DATA CDP-TX/PCIDE"
   version "IO DATA", "PCIDE"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "IO DATA PCIDE II"
   version "IO DATA", "PCIDEII"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "IO DATA CBIDE"
   version "WIT", "IDE16"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "IO DATA CBIDE2"
   version "IO DATA", "CBIDE2      "
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "KME KXLC005 CD-ROM"
   #version "KME", "KXLC005"
   manfid 0x0032, 0x0704
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "MCD601p CD-ROM"
   version "CDROM", "IDE", "MCD-601p"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Ninja ATA"
   version " ", "NinjaATA-"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "PCMCIA PnPIDE"
   version "PCMCIA", "PnPIDE"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Simple Tech Compact Flash"
   version "STI Flash"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Toshiba MK2001MPL Drive"
   version "TOSHIBA", "MK2001MPL"
-  bind "ide_cs"
+  bind "ide-cs"
 
 card "Toshiba CD-ROM"
   version "LOOKMEET", "CBIDE2      "
-  bind "ide_cs"
-
-#
-# Non-ATA/IDE CD-ROM's
-#
-card "Innovative Communications CyberRom CD"
-  version "Innovative Communications", "CyberRom CD"
-  bind "oti12_cs"
+  bind "ide-cs"
 
 #
 # Miscellaneous card definitions
@@ -1949,7 +1972,7 @@ card "Innovative Communications CyberRom CD"
 #  version "Canon Electronics INC.", "FDCard Ver. 1.00"
 #
 #card "New Media .WAVjammer"
-#version "New Media Corporation", ".WAVjammer"
+#  version "New Media Corporation", ".WAVjammer"
 
 card "IBM Smart Capture Card"
   version "IBM Corp.", "Video Capture"

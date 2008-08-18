@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.40 2002/06/29 06:39:00
+    ide-cs.c 1.3 2002/10/26 05:45:31
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -31,8 +31,8 @@
     
 ======================================================================*/
 
-#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -40,9 +40,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
-#ifndef CONFIG_BLK_DEV_IDE
-#define CONFIG_BLK_DEV_IDE
-#endif
+#include <linux/ide.h>
 #include <linux/hdreg.h>
 #include <linux/major.h>
 #include <asm/io.h>
@@ -75,7 +73,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.40 2002/06/29 06:39:00 (David Hinds)";
+"ide-cs.c 1.3 2002/10/26 05:45:31 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -100,7 +98,7 @@ static void ide_release(u_long arg);
 static int ide_event(event_t event, int priority,
 		     event_callback_args_t *args);
 
-static dev_info_t dev_info = "ide_cs";
+static dev_info_t dev_info = "ide-cs";
 
 static dev_link_t *ide_attach(void);
 static void ide_detach(dev_link_t *);
@@ -228,6 +226,19 @@ while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 #define CFG_CHECK(fn, args...) \
 if (CardServices(fn, args) != 0) goto next_entry
 
+static int idecs_register(int io, int ctl, int irq)
+{
+#if (LINUX_VERSION_CODE >= VERSION(2,4,19))
+    hw_regs_t hw;
+    ide_init_hwif_ports(&hw, (ide_ioreg_t)io, (ide_ioreg_t)ctl, NULL);
+    hw.irq = irq;
+    hw.chipset = ide_pci;
+    return ide_register_hw(&hw, NULL);
+#else
+    return ide_register(io, ctl, irq);
+#endif
+}
+
 void ide_config(dev_link_t *link)
 {
     client_handle_t handle = link->handle;
@@ -257,7 +268,8 @@ void ide_config(dev_link_t *link)
 	!CardServices(GetTupleData, handle, &tuple) &&
 	!CardServices(ParseTuple, handle, &tuple, &parse))
 	is_kme = ((parse.manfid.manf == MANFID_KME) &&
-		  (parse.manfid.card == PRODID_KME_KXLC005));
+		  ((parse.manfid.card == PRODID_KME_KXLC005_A) ||
+		   (parse.manfid.card == PRODID_KME_KXLC005_B)));
 
     /* Configure card */
     link->state |= DEV_CONFIG;
@@ -344,11 +356,12 @@ void ide_config(dev_link_t *link)
 
     /* retry registration in case device is still spinning up */
     for (hd = -1, i = 0; i < 10; i++) {
-	hd = ide_register(io_base, ctl_base, link->irq.AssignedIRQ);
+	hd = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ);
 	if (hd >= 0) break;
 	if (link->io.NumPorts1 == 0x20) {
-	    hd = ide_register(io_base+0x10, ctl_base+0x10,
-			      link->irq.AssignedIRQ);
+	    outb(0x02, ctl_base+0x10);
+	    hd = idecs_register(io_base+0x10, ctl_base+0x10,
+				link->irq.AssignedIRQ);
 	    if (hd >= 0) {
 		io_base += 0x10; ctl_base += 0x10;
 		break;
@@ -359,7 +372,7 @@ void ide_config(dev_link_t *link)
     }
     
     if (hd < 0) {
-	printk(KERN_NOTICE "ide_cs: ide_register() at 0x%3x & 0x%3x"
+	printk(KERN_NOTICE "ide-cs: ide_register() at 0x%3x & 0x%3x"
 	       ", irq %u failed\n", io_base, ctl_base,
 	       link->irq.AssignedIRQ);
 	goto failed;
@@ -372,7 +385,7 @@ void ide_config(dev_link_t *link)
     info->node.minor = 0;
     info->hd = hd;
     link->dev = &info->node;
-    printk(KERN_INFO "ide_cs: %s: Vcc = %d.%d, Vpp = %d.%d\n",
+    printk(KERN_INFO "ide-cs: %s: Vcc = %d.%d, Vpp = %d.%d\n",
 	   info->node.dev_name, link->conf.Vcc/10, link->conf.Vcc%10,
 	   link->conf.Vpp1/10, link->conf.Vpp1%10);
 
@@ -475,7 +488,7 @@ static int __init init_ide_cs(void)
     DEBUG(0, "%s\n", version);
     CardServices(GetCardServicesInfo, &serv);
     if (serv.Revision != CS_RELEASE_CODE) {
-	printk(KERN_NOTICE "ide_cs: Card Services release "
+	printk(KERN_NOTICE "ide-cs: Card Services release "
 	       "does not match!\n");
 	return -EINVAL;
     }
@@ -485,7 +498,7 @@ static int __init init_ide_cs(void)
 
 static void __exit exit_ide_cs(void)
 {
-    DEBUG(0, "ide_cs: unloading\n");
+    DEBUG(0, "ide-cs: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	ide_detach(dev_list);

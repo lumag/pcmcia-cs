@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.176 2002/07/03 06:45:54
+    cardmgr.c 1.180 2002/10/13 19:18:10
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -41,6 +41,7 @@
 #include <syslog.h>
 #include <getopt.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
@@ -65,6 +66,9 @@ typedef struct socket_info_t {
     card_info_t		*card;
     bind_info_t		*bind[MAX_BINDINGS];
     mtd_ident_t		*mtd[2*CISTPL_MAX_DEVICES];
+    cistpl_funcid_t	funcid;
+    cistpl_manfid_t	manfid;
+    cistpl_vers_1_t	prodid;
 } socket_info_t;
 
 #define SOCKET_PRESENT	0x01
@@ -122,6 +126,8 @@ static int one_pass = 0;
 
 /* Extra message logging? */
 static int verbose = 0;
+
+#define EITHER_OR(a, b) ((a) ? (a) : (b))
 
 /*====================================================================*/
 
@@ -191,8 +197,7 @@ int open_sock(int sock, int mode)
 
 #include <linux/major.h>
 #include <scsi/scsi.h>
-#define VERSION(v,p,s) (((v)<<16)+(p<<8)+s)
-#if (LINUX_VERSION_CODE < VERSION(2,1,126))
+#ifndef SCSI_DISK0_MAJOR
 #define SCSI_DISK0_MAJOR SCSI_DISK_MAJOR
 #endif
 
@@ -305,7 +310,8 @@ static void write_stab(void)
 		for (k = 0, bind = s->bind[j];
 		     bind != NULL;
 		     k++, bind = bind->next) {
-		    char *class = s->card->device[j]->class;
+		    char *class = s->card->class[j];
+		    if (!class) class = s->card->device[j]->class;
 		    fprintf(f, "%d\t%s\t%s\t%d\t%s",
 			    i, (class ? class : "none"),
 			    bind->dev_info, k, bind->name);
@@ -346,9 +352,8 @@ static int get_tuple(int ns, cisdata_t code, ds_ioctl_arg_t *arg)
 
 /*======================================================================
 
-    Code to fetch a 2.4 kernel's hot plug PCI driver list
-
-    This is distasteful but is the best I could come up with.
+    For configurations with the standalone PCMCIA modules, this is
+    used to get PCI device ID's for CardBus cards.
 
 ======================================================================*/
 
@@ -373,10 +378,7 @@ static int get_pci_id(int ns, pci_id_t *id)
 
 /*====================================================================*/
 
-static void log_card_info(cistpl_vers_1_t *vers,
-			  cistpl_manfid_t *manfid,
-			  cistpl_funcid_t *funcid,
-			  pci_id_t *pci_id)
+static void log_card_info(socket_info_t *s, pci_id_t *pci_id)
 {
     char v[256] = "";
     int i;
@@ -385,21 +387,21 @@ static void log_card_info(cistpl_vers_1_t *vers,
 	"video", "network", "AIMS", "SCSI"
     };
     
-    if (vers) {
-	for (i = 0; i < vers->ns; i++)
+    if (s->prodid.ns) {
+	for (i = 0; i < s->prodid.ns; i++)
 	    sprintf(v+strlen(v), "%s\"%s\"",
-		    (i>0) ? ", " : "", vers->str+vers->ofs[i]);
+		    (i>0) ? ", " : "", s->prodid.str+s->prodid.ofs[i]);
 	syslog(LOG_INFO, "  product info: %s", v);
     } else {
 	syslog(LOG_INFO, "  no product info available");
     }
     *v = '\0';
-    if (manfid->manf != 0)
+    if (s->manfid.manf != 0)
 	sprintf(v, "  manfid: 0x%04x, 0x%04x",
-		manfid->manf, manfid->card);
-    if (funcid->func != 0xff)
-	sprintf(v+strlen(v), "  function: %d (%s)", funcid->func,
-		fn[funcid->func]);
+		s->manfid.manf, s->manfid.card);
+    if (s->funcid.func != 0xff)
+	sprintf(v+strlen(v), "  function: %d (%s)", s->funcid.func,
+		fn[s->funcid.func]);
     if (strlen(v) > 0) syslog(LOG_INFO, "%s", v);
     if (pci_id->vendor != 0)
 	syslog(LOG_INFO, "  PCI id: 0x%04x, 0x%04x",
@@ -411,12 +413,13 @@ static card_info_t *lookup_card(int ns)
     socket_info_t *s = &socket[ns];
     card_info_t *card = NULL;
     ds_ioctl_arg_t arg;
-    cistpl_vers_1_t *vers = NULL;
-    cistpl_manfid_t manfid = { 0, 0 };
     pci_id_t pci_id = { 0, 0 };
-    cistpl_funcid_t funcid = { 0xff, 0xff };
     cs_status_t status;
     int i, ret, has_cis = 0;
+
+    s->manfid = (cistpl_manfid_t) { 0, 0 };
+    s->funcid = (cistpl_funcid_t) { 0xff, 0xff };
+    s->prodid = (cistpl_vers_1_t) { 0, 0, 0 };
 
     /* Do we have a CIS structure? */
     ret = ioctl(s->fd, DS_VALIDATE_CIS, &arg);
@@ -427,15 +430,13 @@ static card_info_t *lookup_card(int ns)
 	/* rule of thumb: cards with no FUNCID, but with common memory
 	   device geometry information, are probably memory cards */
 	if (get_tuple(ns, CISTPL_FUNCID, &arg) == 0)
-	    memcpy(&funcid, &arg.tuple_parse.parse.funcid,
-		   sizeof(funcid));
+	    s->funcid = arg.tuple_parse.parse.funcid;
 	else if (get_tuple(ns, CISTPL_DEVICE_GEO, &arg) == 0)
-	    funcid.func = CISTPL_FUNCID_MEMORY;
+	    s->funcid.func = CISTPL_FUNCID_MEMORY;
 	if (get_tuple(ns, CISTPL_MANFID, &arg) == 0)
-	    memcpy(&manfid, &arg.tuple_parse.parse.manfid,
-		   sizeof(manfid));
+	    s->manfid = arg.tuple_parse.parse.manfid;
 	if (get_tuple(ns, CISTPL_VERS_1, &arg) == 0)
-	    vers = &arg.tuple_parse.parse.version_1;
+	    s->prodid = arg.tuple_parse.parse.version_1;
 
 	for (card = root_card; card; card = card->next) {
 
@@ -444,15 +445,15 @@ static card_info_t *lookup_card(int ns)
 		continue;
 
 	    if (card->ident_type & VERS_1_IDENT) {
-		if (vers == NULL)
+		if (!s->prodid.ns)
 		    continue;
 		for (i = 0; i < card->id.vers.ns; i++) {
 		    if (strcmp(card->id.vers.pi[i], "*") == 0)
 			continue;
-		    if (i >= vers->ns)
+		    if (i >= s->prodid.ns)
 			break;
 		    if (strcmp(card->id.vers.pi[i],
-			       vers->str+vers->ofs[i]) != 0)
+			       s->prodid.str+s->prodid.ofs[i]) != 0)
 			break;
 		}
 		if (i < card->id.vers.ns)
@@ -460,8 +461,8 @@ static card_info_t *lookup_card(int ns)
 	    }
 	    
 	    if (card->ident_type & MANFID_IDENT) {
-		if ((manfid.manf != card->manfid.manf) ||
-		    (manfid.card != card->manfid.card))
+		if ((s->manfid.manf != card->manfid.manf) ||
+		    (s->manfid.card != card->manfid.card))
 		    continue;
 	    }
 		
@@ -505,25 +506,25 @@ static card_info_t *lookup_card(int ns)
     }
 
     /* Try for a FUNCID match */
-    if (!card && (funcid.func != 0xff)) {
+    if (!card && (s->funcid.func != 0xff)) {
 	for (card = root_func; card; card = card->next)
-	    if (card->id.func.funcid == funcid.func)
+	    if (card->id.func.funcid == s->funcid.func)
 		break;
     }
 
     if (card) {
 	syslog(LOG_INFO, "socket %d: %s", ns, card->name);
 	beep(BEEP_TIME, BEEP_OK);
-	if (verbose) log_card_info(vers, &manfid, &funcid, &pci_id);
+	if (verbose) log_card_info(s, &pci_id);
 	return card;
     }
 
     if (!blank_card || (status.CardState & CS_EVENT_CB_DETECT) ||
-	manfid.manf || manfid.card || pci_id.vendor || vers) {
+	s->manfid.manf || s->manfid.card || s->prodid.ns || pci_id.vendor) {
 	syslog(LOG_INFO, "unsupported card in socket %d", ns);
 	if (one_pass) return NULL;
 	beep(BEEP_TIME, BEEP_ERR);
-	log_card_info(vers, &manfid, &funcid, &pci_id);
+	log_card_info(s, &pci_id);
 	write_stab();
 	return NULL;
     } else {
@@ -568,6 +569,9 @@ static void free_card(card_info_t *card)
 	default:
 	    break;
 	}
+	for (i = 0; i < card->bindings; i++)
+	    if (card->class[i])
+		free(card->class[i]);
 	free(card);
     }
 }
@@ -668,14 +672,48 @@ static int execute_on_dev(char *action, char *class, char *dev)
     return execute(msg, cmd);
 }
 
+static void eprintf(char *name, char *fmt, ...)
+{
+    va_list args;
+    char s[32];
+    va_start(args, fmt);
+    vsprintf(s, fmt, args);
+    setenv(name, s, 1);
+    va_end(args);
+}
+
 static int execute_on_all(char *cmd, char *class, int sn, int fn)
 {
     socket_info_t *s = &socket[sn];
     bind_info_t *bind;
-    int ret = 0;
-    for (bind = s->bind[fn]; bind != NULL; bind = bind->next)
-	if (bind->name[0] && (bind->name[2] != '#'))
+    int i, k, ret = 0;
+    char m[10];
+
+    eprintf("MANFID", "%04x,%04x", s->manfid.manf, s->manfid.card);
+    eprintf("FUNCID", "%d", s->funcid.func);
+    for (i = 0; i < 4; i++) {
+	sprintf(m, "PRODID_%d", i+1);
+	if (i < s->prodid.ns)
+	    setenv(m, s->prodid.str+s->prodid.ofs[i], 1);
+	else
+	    unsetenv(m);
+    }
+    eprintf("SOCKET", "%d", sn);
+
+    for (k = 0, bind = s->bind[fn]; bind != NULL; k++, bind = bind->next)
+	if (bind->name[0] && (bind->name[2] != '#')) {
+	    setenv("CLASS", class, 1);
+	    setenv("DRIVER", bind->dev_info, 1);
+	    eprintf("INSTANCE", "%d", k);
+	    if (bind->major) {
+		eprintf("MAJOR", "%d", bind->major);
+		eprintf("MINOR", "%d", bind->minor);
+	    } else {
+		unsetenv("MAJOR");
+		unsetenv("MINOR");
+	    }
 	    ret |= execute_on_dev(cmd, class, bind->name);
+	}
     return ret;
 }
 
@@ -990,9 +1028,11 @@ static void do_insert(int sn)
     }
 
     /* Run "start" commands */
-    for (i = ret = 0; i < card->bindings; i++)
-	if (dev[i]->class)
-	    ret |= execute_on_all("start", dev[i]->class, sn, i);
+    for (i = ret = 0; i < card->bindings; i++) {
+	char *class = EITHER_OR(card->class[i], dev[i]->class);
+	if (class)
+	    ret |= execute_on_all("start", class, sn, i);
+    }
     beep(BEEP_TIME, (ret) ? BEEP_ERR : BEEP_OK);
     
 }
@@ -1004,7 +1044,7 @@ static int do_check(int sn)
     socket_info_t *s = &socket[sn];
     card_info_t *card;
     device_info_t **dev;
-    int i, ret;
+    int i;
 
     card = s->card;
     if (card == NULL)
@@ -1013,11 +1053,9 @@ static int do_check(int sn)
     /* Run "check" commands */
     dev = card->device;
     for (i = 0; i < card->bindings; i++) {
-	if (dev[i]->class) {
-	    ret = execute_on_all("check", dev[i]->class, sn, i);
-	    if (ret != 0)
-		return CS_IN_USE;
-	}
+	char *class = EITHER_OR(card->class[i], dev[i]->class);
+	if (class && execute_on_all("check", class, sn, i))
+	    return CS_IN_USE;
     }
     return 0;
 }
@@ -1041,9 +1079,9 @@ static void do_remove(int sn)
     /* Run "stop" commands */
     dev = card->device;
     for (i = 0; i < card->bindings; i++) {
-	if (dev[i]->class) {
-	    execute_on_all("stop", dev[i]->class, sn, i);
-	}
+	char *class = EITHER_OR(card->class[i], dev[i]->class);
+	if (class)
+	    execute_on_all("stop", class, sn, i);
     }
 
     /* unbind driver instances */
@@ -1095,18 +1133,16 @@ static void do_suspend(int sn)
     socket_info_t *s = &socket[sn];
     card_info_t *card;
     device_info_t **dev;
-    int i, ret;
+    int i;
     
     card = s->card;
     if (card == NULL)
 	return;
     dev = card->device;
     for (i = 0; i < card->bindings; i++) {
-	if (dev[i]->class) {
-	    ret = execute_on_all("suspend", dev[i]->class, sn, i);
-	    if (ret != 0)
-		beep(BEEP_TIME, BEEP_ERR);
-	}
+	char *class = EITHER_OR(card->class[i], dev[i]->class);
+	if (class && execute_on_all("suspend", class, sn, i))
+	    beep(BEEP_TIME, BEEP_ERR);
     }
 }
 
@@ -1117,18 +1153,16 @@ static void do_resume(int sn)
     socket_info_t *s = &socket[sn];
     card_info_t *card;
     device_info_t **dev;
-    int i, ret;
+    int i;
     
     card = s->card;
     if (card == NULL)
 	return;
     dev = card->device;
     for (i = 0; i < card->bindings; i++) {
-	if (dev[i]->class) {
-	    ret = execute_on_all("resume", dev[i]->class, sn, i);
-	    if (ret != 0)
-		beep(BEEP_TIME, BEEP_ERR);
-	}
+	char *class = EITHER_OR(card->class[i], dev[i]->class);
+	if (class && execute_on_all("resume", class, sn, i))
+	    beep(BEEP_TIME, BEEP_ERR);
     }
 }
 

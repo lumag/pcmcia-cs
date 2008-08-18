@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.31 2002/07/02 07:54:47
+    pci_fixup.c 1.33 2002/10/12 19:02:59
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -23,6 +23,7 @@
 #include "yenta.h"
 #include "i82365.h"
 
+#define VERSION KERNEL_VERSION
 #if (LINUX_VERSION_CODE < VERSION(2,3,24))
 
 /* Default memory base addresses for CardBus controllers */
@@ -528,9 +529,6 @@ static void setup_cb_bridge(struct pci_dev *dev)
     }
 }
 
-#define CMD_DFLT (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | \
-		  PCI_COMMAND_MASTER | PCI_COMMAND_WAIT)
-
 #ifdef __i386__
 
 static u8 pirq_init(struct pci_dev *router, struct pirq_pin *pin)
@@ -582,7 +580,6 @@ static void setup_cb_bridge_irq(struct pci_dev *dev)
 
 int pci_enable_device(struct pci_dev *dev)
 {
-    pci_write_config_word(dev, PCI_COMMAND, CMD_DFLT);
     if ((dev->class >> 8) == PCI_CLASS_BRIDGE_CARDBUS) {
 	setup_cb_bridge(dev);
     }

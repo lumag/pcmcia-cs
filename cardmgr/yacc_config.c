@@ -15,7 +15,7 @@ static int yygrowstack();
 #define YYPREFIX "yy"
 #line 2 "yacc_config.y"
 /*
- * yacc_config.y 1.56 2002/05/16 06:07:40
+ * yacc_config.y 1.57 2002/08/19 03:19:56
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -66,7 +66,7 @@ extern int current_lineno;
 
 void yyerror(char *msg, ...);
 
-static int add_binding(card_info_t *card, char *name, int fn);
+static int add_binding(card_info_t *card, char *name, char *class, int fn);
 static int add_module(device_info_t *card, char *name);
 
 #line 65 "yacc_config.y"
@@ -114,29 +114,32 @@ const short yylhs[] = {                                        -1,
     1,    1,    1,    2,    2,    2,    3,    3,    3,    3,
     7,    7,    7,    7,    7,    7,    7,    7,    7,    8,
     9,   10,   11,   12,   12,   13,   15,   14,   14,   14,
-   14,    4,   21,    5,    5,    5,    6,   16,   16,   16,
-   16,   18,   17,   19,   20,   20,   22,
+   14,   14,   14,   14,   14,    4,   21,    5,    5,    5,
+    6,   16,   16,   16,   16,   18,   17,   19,   20,   20,
+   22,
 };
 const short yylen[] = {                                         2,
     0,    2,    2,    2,    2,    2,    2,    2,    2,    2,
     2,    2,    3,    2,    4,    4,    2,    1,    1,    1,
     2,    1,    1,    1,    1,    1,    1,    1,    1,    2,
-    7,    5,    5,    3,    3,    3,    3,    3,    5,    3,
-    5,    2,    4,    3,    3,    3,    3,    2,    1,    1,
-    1,    3,    4,    2,    3,    3,    4,
+    7,    5,    5,    3,    3,    3,    3,    3,    5,    5,
+    7,    3,    5,    5,    7,    2,    4,    3,    3,    3,
+    3,    2,    1,    1,    1,    3,    4,    2,    3,    3,
+    4,
 };
 const short yydefred[] = {                                      1,
     0,    9,    0,    0,    0,    0,    0,    0,    0,    0,
     8,    0,    0,   18,    0,   20,    0,   22,   23,   24,
-   25,    0,   27,    0,   29,    0,   50,   49,   51,    0,
-    6,    7,   17,   21,    0,   48,    0,    0,    0,    0,
-   10,   11,   12,    0,   42,    0,    0,    0,    0,   30,
+   25,    0,   27,    0,   29,    0,   54,   53,   55,    0,
+    6,    7,   17,   21,    0,   52,    0,    0,    0,    0,
+   10,   11,   12,    0,   46,    0,    0,    0,    0,   30,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,   54,    0,    0,    0,    0,   14,    0,    0,   13,
-   44,   47,   45,   46,    0,    0,   34,   36,    0,    0,
-   37,   35,    0,    0,   52,   55,   56,   43,   57,    0,
-    0,    0,    0,    0,    0,    0,   53,   15,   16,    0,
-   32,   33,   39,   41,    0,   31,
+    0,   58,    0,    0,    0,    0,   14,    0,    0,   13,
+   48,   51,   49,   50,    0,    0,   34,   36,    0,    0,
+   37,   35,    0,    0,   56,   59,   60,   47,   61,    0,
+    0,    0,    0,    0,    0,    0,    0,    0,   57,   15,
+   16,    0,   32,   33,   40,    0,   44,    0,    0,    0,
+    0,   31,   41,   45,
 };
 const short yydgoto[] = {                                       1,
    12,   41,   13,   14,   15,   16,   17,   18,   19,   20,
@@ -144,22 +147,23 @@ const short yydgoto[] = {                                       1,
    31,   32,
 };
 const short yysindex[] = {                                      0,
- -252,    0, -276, -267, -261, -260, -255, -246, -246, -246,
-    0,  -15, -250,    0,  -44,    0, -251,    0,    0,    0,
-    0,  -14,    0,  -12,    0, -235,    0,    0,    0, -228,
-    0,    0,    0,    0, -227,    0, -226, -238, -237, -236,
-    0,    0,    0, -246,    0, -234, -233, -232, -231,    0,
- -230, -229, -225, -224, -222, -220, -219, -218, -217, -216,
- -215,    0, -213, -212, -211, -210,    0,    8,   11,    0,
-    0,    0,    0,    0,   13,   15,    0,    0,   23, -193,
-    0,    0, -191, -207,    0,    0,    0,    0,    0, -206,
- -205, -204, -203, -202, -201, -200,    0,    0,    0,   41,
-    0,    0,    0,    0, -197,    0,
+ -251,    0, -283, -275, -266, -261, -240, -245, -245, -245,
+    0,  -11, -239,    0,  -42,    0, -250,    0,    0,    0,
+    0,    2,    0,    3,    0, -234,    0,    0,    0, -226,
+    0,    0,    0,    0, -222,    0, -221, -233, -232, -231,
+    0,    0,    0, -245,    0, -229, -228, -227, -225,    0,
+ -224, -220, -218, -217, -216, -214, -213, -212, -211, -210,
+ -208,    0, -206, -205, -204, -203,    0,    5,   12,    0,
+    0,    0,    0,    0,   15,   18,    0,    0,   19, -248,
+    0,    0, -247, -202,    0,    0,    0,    0,    0, -201,
+ -200, -199, -198, -197, -196, -194, -192, -193,    0,    0,
+    0,   22,    0,    0,    0, -186,    0, -174, -189, -188,
+ -187,    0,    0,    0,
 };
 const short yyrindex[] = {                                      0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,  132,  183,    0,  115,    0,  149,    0,    0,    0,
-    0,   61,    0,   91,    0,    0,    0,    0,    0,  166,
+    0,  192,  243,    0,  175,    0,  209,    0,    0,    0,
+    0,  121,    0,  151,    0,    0,    0,    0,    0,  226,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
@@ -167,24 +171,31 @@ const short yyrindex[] = {                                      0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    1,
     0,    0,   31,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,   61,    0,   91,    0,    0,
+    0,    0,    0,    0,
 };
 const short yygindex[] = {                                      0,
-    0,   -7,    0,    0,    0,    0,    0,    0,    0,    0,
+    0,   -6,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,
 };
-#define YYTABLESIZE 468
-const short yytable[] = {                                      49,
-   38,   42,   43,    2,    3,    4,   33,   50,   51,   52,
-   53,   54,   55,   56,   57,   34,    5,   45,   46,    6,
-   47,   35,   36,    7,    8,    9,   10,   37,   44,   58,
-   40,   59,   11,   38,   39,   40,   70,   60,   61,   62,
-   63,   64,   65,   66,   38,   67,   68,   69,   71,   72,
-   73,   74,   90,   75,   76,   91,   92,   77,   93,   78,
-   26,   79,   80,   81,   82,   83,   94,   84,   85,   86,
-   87,   88,   89,   95,   40,   96,   97,   98,   99,  100,
-  101,  102,  103,  104,  105,  106,    0,    0,    0,    0,
+#define YYTABLESIZE 528
+const short yytable[] = {                                      33,
+   38,   49,   42,   43,    2,    3,    4,   34,   50,   51,
+   52,   53,   54,   55,   56,   57,   35,    5,   95,   97,
+    6,   36,   96,   98,    7,    8,    9,   10,   45,   46,
+   42,   47,   44,   11,   38,   39,   40,   70,   60,   61,
+   62,   63,   37,   64,   38,   58,   59,   65,   66,   90,
+   67,   68,   69,   71,   72,   73,   91,   74,   92,   75,
+   39,   93,   94,   76,   77,  109,   78,   79,   80,   81,
+   82,   83,    0,   84,   42,   85,   86,   87,   88,   89,
+  110,   99,  100,  101,  102,  103,  104,  105,  106,  108,
+   43,  107,  111,  112,    0,  113,  114,    0,    0,    0,
+    0,    0,    0,    0,   39,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+   26,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,   43,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
    28,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,   19,    0,    0,    0,    0,    0,
@@ -192,22 +203,22 @@ const short yytable[] = {                                      49,
     0,    2,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    5,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    4,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,    4,    0,   48,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    3,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,   48,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,   38,   38,   38,   38,
    38,   38,   38,   38,   38,   38,   38,    0,    0,   38,
     0,    0,   38,    0,    0,    0,   38,   38,   38,   38,
-    0,    0,    0,    0,    0,   38,   40,   40,   40,   40,
-   40,   40,   40,   40,   40,   40,   40,    0,    0,   40,
-    0,    0,   40,    0,    0,    0,   40,   40,   40,   40,
-    0,    0,    0,    0,    0,   40,   26,   26,   26,   26,
+    0,    0,    0,    0,    0,   38,   42,   42,   42,   42,
+   42,   42,   42,   42,   42,   42,   42,    0,    0,   42,
+    0,    0,   42,    0,    0,    0,   42,   42,   42,   42,
+    0,    0,    0,    0,    0,   42,   39,   39,   39,   39,
+   39,   39,   39,   39,   39,   39,   39,    0,    0,   39,
+    0,    0,   39,    0,    0,    0,   39,   39,   39,   39,
+    0,    0,    0,    0,    0,   39,   43,   43,   43,   43,
+   43,   43,   43,   43,   43,   43,   43,    0,    0,   43,
+    0,    0,   43,    0,    0,    0,   43,   43,   43,   43,
+    0,    0,    0,    0,    0,   43,   26,   26,   26,   26,
    26,   26,   26,   26,   26,   26,   26,    0,    0,   26,
     0,    0,   26,    0,    0,    0,   26,   26,   26,   26,
     0,    0,    0,    0,    0,   26,   28,   28,   28,   28,
@@ -224,16 +235,22 @@ const short yytable[] = {                                      49,
     4,    0,    0,    0,    3,    0,    0,    0,    3,    3,
     3,    3,    0,    0,    0,    0,    0,    3,
 };
-const short yycheck[] = {                                      44,
-    0,    9,   10,  256,  257,  258,  283,  259,  260,  261,
-  262,  263,  264,  265,  266,  283,  269,  268,  269,  272,
-  271,  283,  283,  276,  277,  278,  279,  283,   44,   44,
-    0,   44,  285,  280,  281,  282,   44,  273,  274,  275,
-  276,  270,  270,  270,   44,  284,  284,  284,  283,  283,
-  283,  283,   45,  284,  284,   45,   44,  283,   44,  284,
-    0,  284,  283,  283,  283,  283,   44,  284,  284,  283,
-  283,  283,  283,  267,   44,  267,  284,  284,  284,  284,
-  284,  284,  284,  284,   44,  283,   -1,   -1,   -1,   -1,
+const short yycheck[] = {                                     283,
+    0,   44,    9,   10,  256,  257,  258,  283,  259,  260,
+  261,  262,  263,  264,  265,  266,  283,  269,  267,  267,
+  272,  283,  271,  271,  276,  277,  278,  279,  268,  269,
+    0,  271,   44,  285,  280,  281,  282,   44,  273,  274,
+  275,  276,  283,  270,   44,   44,   44,  270,  270,   45,
+  284,  284,  284,  283,  283,  283,   45,  283,   44,  284,
+    0,   44,   44,  284,  283,   44,  284,  284,  283,  283,
+  283,  283,   -1,  284,   44,  284,  283,  283,  283,  283,
+  267,  284,  284,  284,  284,  284,  284,  284,  283,  283,
+    0,  284,  267,  283,   -1,  284,  284,   -1,   -1,   -1,
+   -1,   -1,   -1,   -1,   44,   -1,   -1,   -1,   -1,   -1,
+   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+    0,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+   -1,   -1,   -1,   -1,   44,   -1,   -1,   -1,   -1,   -1,
+   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
     0,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,    0,   -1,   -1,   -1,   -1,   -1,
@@ -241,16 +258,16 @@ const short yycheck[] = {                                      44,
    -1,    0,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,    0,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,    0,   -1,   -1,   -1,   -1,
+   -1,   -1,   -1,   -1,   -1,    0,   -1,  270,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,    0,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,  270,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,  256,  257,  258,  259,
+  260,  261,  262,  263,  264,  265,  266,   -1,   -1,  269,
+   -1,   -1,  272,   -1,   -1,   -1,  276,  277,  278,  279,
+   -1,   -1,   -1,   -1,   -1,  285,  256,  257,  258,  259,
+  260,  261,  262,  263,  264,  265,  266,   -1,   -1,  269,
+   -1,   -1,  272,   -1,   -1,   -1,  276,  277,  278,  279,
+   -1,   -1,   -1,   -1,   -1,  285,  256,  257,  258,  259,
   260,  261,  262,  263,  264,  265,  266,   -1,   -1,  269,
    -1,   -1,  272,   -1,   -1,   -1,  276,  277,  278,  279,
    -1,   -1,   -1,   -1,   -1,  285,  256,  257,  258,  259,
@@ -332,9 +349,13 @@ const char * const yyrule[] = {
 "function : card FUNCTION NUMBER",
 "cis : card CIS STRING",
 "bind : card BIND STRING",
+"bind : card BIND STRING CLASS STRING",
 "bind : card BIND STRING TO NUMBER",
+"bind : card BIND STRING CLASS STRING TO NUMBER",
 "bind : bind ',' STRING",
+"bind : bind ',' STRING CLASS STRING",
 "bind : bind ',' STRING TO NUMBER",
+"bind : bind ',' STRING CLASS STRING TO NUMBER",
 "needs_mtd : device NEEDS_MTD",
 "opts : MODULE STRING OPTS STRING",
 "module : device MODULE STRING",
@@ -380,7 +401,7 @@ short *yyss;
 short *yysslim;
 YYSTYPE *yyvs;
 int yystacksize;
-#line 470 "yacc_config.y"
+#line 490 "yacc_config.y"
 void yyerror(char *msg, ...)
 {
      va_list ap;
@@ -398,7 +419,7 @@ void yyerror(char *msg, ...)
      va_end(ap);
 }
 
-static int add_binding(card_info_t *card, char *name, int fn)
+static int add_binding(card_info_t *card, char *name, char *class, int fn)
 {
     device_info_t *dev = root_device;
     if (card->bindings == MAX_BINDINGS) {
@@ -413,6 +434,8 @@ static int add_binding(card_info_t *card, char *name, int fn)
     }
     card->device[card->bindings] = dev;
     card->dev_fn[card->bindings] = fn;
+    if (class)
+	card->class[card->bindings] = strdup(class);
     card->bindings++;
     free(name);
     return 0;
@@ -443,7 +466,7 @@ void main(int argc, char *argv[])
 	parse_configfile(argv[1]);
 }
 #endif
-#line 447 "y.tab.c"
+#line 470 "y.tab.c"
 /* allocate initial stack or double stack size, up to YYMAXDEPTH */
 static int yygrowstack()
 {
@@ -863,39 +886,67 @@ break;
 case 38:
 #line 301 "yacc_config.y"
 {
-		    if (add_binding(yyvsp[-2].card, yyvsp[0].str, 0) != 0)
+		    if (add_binding(yyvsp[-2].card, yyvsp[0].str, NULL, 0) != 0)
 			YYERROR;
 		}
 break;
 case 39:
 #line 306 "yacc_config.y"
 {
-		    if (add_binding(yyvsp[-4].card, yyvsp[-2].str, yyvsp[0].num) != 0)
+		    if (add_binding(yyvsp[-4].card, yyvsp[-2].str, yyvsp[0].str, 0) != 0)
 			YYERROR;
 		}
 break;
 case 40:
 #line 311 "yacc_config.y"
 {
-		    if (add_binding(yyvsp[-2].card, yyvsp[0].str, 0) != 0)
+		    if (add_binding(yyvsp[-4].card, yyvsp[-2].str, NULL, yyvsp[0].num) != 0)
 			YYERROR;
 		}
 break;
 case 41:
 #line 316 "yacc_config.y"
 {
-		    if (add_binding(yyvsp[-4].card, yyvsp[-2].str, yyvsp[0].num) != 0)
+		    if (add_binding(yyvsp[-6].card, yyvsp[-4].str, yyvsp[-2].str, yyvsp[0].num) != 0)
 			YYERROR;
 		}
 break;
 case 42:
-#line 323 "yacc_config.y"
+#line 321 "yacc_config.y"
+{
+		    if (add_binding(yyvsp[-2].card, yyvsp[0].str, NULL, 0) != 0)
+			YYERROR;
+		}
+break;
+case 43:
+#line 326 "yacc_config.y"
+{
+		    if (add_binding(yyvsp[-4].card, yyvsp[-2].str, yyvsp[0].str, 0) != 0)
+			YYERROR;
+		}
+break;
+case 44:
+#line 331 "yacc_config.y"
+{
+		    if (add_binding(yyvsp[-4].card, yyvsp[-2].str, NULL, yyvsp[0].num) != 0)
+			YYERROR;
+		}
+break;
+case 45:
+#line 336 "yacc_config.y"
+{
+		    if (add_binding(yyvsp[-6].card, yyvsp[-4].str, yyvsp[-2].str, yyvsp[0].num) != 0)
+			YYERROR;
+		}
+break;
+case 46:
+#line 343 "yacc_config.y"
 {
 		    yyvsp[-1].device->needs_mtd = 1;
 		}
 break;
-case 43:
-#line 329 "yacc_config.y"
+case 47:
+#line 349 "yacc_config.y"
 {
 		    device_info_t *d;
 		    int i, found = 0;
@@ -916,15 +967,15 @@ case 43:
 		    }
 		}
 break;
-case 44:
-#line 351 "yacc_config.y"
+case 48:
+#line 371 "yacc_config.y"
 {
 		    if (add_module(yyvsp[-2].device, yyvsp[0].str) != 0)
 			YYERROR;
 		}
 break;
-case 45:
-#line 356 "yacc_config.y"
+case 49:
+#line 376 "yacc_config.y"
 {
 		    if (yyvsp[-2].device->opts[yyvsp[-2].device->modules-1] == NULL) {
 			yyvsp[-2].device->opts[yyvsp[-2].device->modules-1] = yyvsp[0].str;
@@ -935,15 +986,15 @@ case 45:
 		    }
 		}
 break;
-case 46:
-#line 366 "yacc_config.y"
+case 50:
+#line 386 "yacc_config.y"
 {
 		    if (add_module(yyvsp[-2].device, yyvsp[0].str) != 0)
 			YYERROR;
 		}
 break;
-case 47:
-#line 373 "yacc_config.y"
+case 51:
+#line 393 "yacc_config.y"
 {
 		    if (yyvsp[-2].device->class != NULL) {
 			yyerror("extra class string '%s'", yyvsp[0].str);
@@ -952,16 +1003,16 @@ case 47:
 		    yyvsp[-2].device->class = yyvsp[0].str;
 		}
 break;
-case 48:
-#line 383 "yacc_config.y"
+case 52:
+#line 403 "yacc_config.y"
 {
 		    yyval.mtd = calloc(sizeof(mtd_ident_t), 1);
 		    yyval.mtd->refs = 1;
 		    yyval.mtd->name = yyvsp[0].str;
 		}
 break;
-case 52:
-#line 394 "yacc_config.y"
+case 56:
+#line 414 "yacc_config.y"
 {
 		    if (yyvsp[-2].mtd->mtd_type) {
 			yyerror("ID method already defined for '%s'", yyvsp[-2].mtd->name);
@@ -971,8 +1022,8 @@ case 52:
 		    yyvsp[-2].mtd->dtype = yyvsp[0].num;
 		}
 break;
-case 53:
-#line 405 "yacc_config.y"
+case 57:
+#line 425 "yacc_config.y"
 {
 		    if (yyvsp[-3].mtd->mtd_type) {
 			yyerror("ID method already defined for '%s'", yyvsp[-3].mtd->name);
@@ -983,8 +1034,8 @@ case 53:
 		    yyvsp[-3].mtd->jedec_info = yyvsp[0].num;
 		}
 break;
-case 54:
-#line 417 "yacc_config.y"
+case 58:
+#line 437 "yacc_config.y"
 {
 		    if (yyvsp[-1].mtd->mtd_type) {
 			yyerror("ID method already defined for '%s'", yyvsp[-1].mtd->name);
@@ -998,8 +1049,8 @@ case 54:
 		    default_mtd = yyvsp[-1].mtd;
 		}
 break;
-case 55:
-#line 432 "yacc_config.y"
+case 59:
+#line 452 "yacc_config.y"
 {
 		    if (yyvsp[-2].mtd->module != NULL) {
 			yyerror("extra MTD entry for '%s'", yyvsp[-2].mtd->name);
@@ -1008,8 +1059,8 @@ case 55:
 		    yyvsp[-2].mtd->module = yyvsp[0].str;
 		}
 break;
-case 56:
-#line 440 "yacc_config.y"
+case 60:
+#line 460 "yacc_config.y"
 {
 		    if (yyvsp[-2].mtd->opts == NULL) {
 			yyvsp[-2].mtd->opts = yyvsp[0].str;
@@ -1019,8 +1070,8 @@ case 56:
 		    }
 		}
 break;
-case 57:
-#line 451 "yacc_config.y"
+case 61:
+#line 471 "yacc_config.y"
 {
 		    mtd_ident_t *m;
 		    int found = 0;
@@ -1038,7 +1089,7 @@ case 57:
 		    }
 		}
 break;
-#line 1042 "y.tab.c"
+#line 1093 "y.tab.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

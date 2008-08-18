@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_config.y 1.56 2002/05/16 06:07:40
+ * yacc_config.y 1.57 2002/08/19 03:19:56
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -51,7 +51,7 @@ extern int current_lineno;
 
 void yyerror(char *msg, ...);
 
-static int add_binding(card_info_t *card, char *name, int fn);
+static int add_binding(card_info_t *card, char *name, char *class, int fn);
 static int add_module(device_info_t *card, char *name);
 
 %}
@@ -299,22 +299,42 @@ cis:	  card CIS STRING
 
 bind:	  card BIND STRING
 		{
-		    if (add_binding($1, $3, 0) != 0)
+		    if (add_binding($1, $3, NULL, 0) != 0)
+			YYERROR;
+		}
+	| card BIND STRING CLASS STRING
+		{
+		    if (add_binding($1, $3, $5, 0) != 0)
 			YYERROR;
 		}
 	| card BIND STRING TO NUMBER
 		{
-		    if (add_binding($1, $3, $5) != 0)
+		    if (add_binding($1, $3, NULL, $5) != 0)
+			YYERROR;
+		}
+	| card BIND STRING CLASS STRING TO NUMBER
+		{
+		    if (add_binding($1, $3, $5, $7) != 0)
 			YYERROR;
 		}
 	| bind ',' STRING
 		{
-		    if (add_binding($1, $3, 0) != 0)
+		    if (add_binding($1, $3, NULL, 0) != 0)
+			YYERROR;
+		}
+	| bind ',' STRING CLASS STRING
+		{
+		    if (add_binding($1, $3, $5, 0) != 0)
 			YYERROR;
 		}
 	| bind ',' STRING TO NUMBER
 		{
-		    if (add_binding($1, $3, $5) != 0)
+		    if (add_binding($1, $3, NULL, $5) != 0)
+			YYERROR;
+		}
+	| bind ',' STRING CLASS STRING TO NUMBER
+		{
+		    if (add_binding($1, $3, $5, $7) != 0)
 			YYERROR;
 		}
 	;
@@ -484,7 +504,7 @@ void yyerror(char *msg, ...)
      va_end(ap);
 }
 
-static int add_binding(card_info_t *card, char *name, int fn)
+static int add_binding(card_info_t *card, char *name, char *class, int fn)
 {
     device_info_t *dev = root_device;
     if (card->bindings == MAX_BINDINGS) {
@@ -499,6 +519,8 @@ static int add_binding(card_info_t *card, char *name, int fn)
     }
     card->device[card->bindings] = dev;
     card->dev_fn[card->bindings] = fn;
+    if (class)
+	card->class[card->bindings] = strdup(class);
     card->bindings++;
     free(name);
     return 0;

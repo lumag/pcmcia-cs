@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.102, 04 July 2002
+  v2.106, 09 October 2002
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -19,22 +19,21 @@
      1.5 What cards are supported?
      1.6 When will my favorite (unsupported) card become supported?
      1.7 Mailing lists and other information sources
-     1.8 Why don't you distribute binaries?
-     1.9 Why is the package so darned big?
 
   2. Compilation and installation
 
      2.1 Prerequisites and kernel setup
-     2.2 Installation
-     2.3 Startup options
-        2.3.1 Card readers for desktop systems
-     2.4 System resource settings
-        2.4.1 PowerBook specific settings
-     2.5 Notes about specific Linux distributions
-        2.5.1 Debian
-        2.5.2 Red Hat, Caldera, Mandrake
-        2.5.3 Slackware
-        2.5.4 SuSE
+     2.2 Kernel PCMCIA support
+     2.3 Installation
+     2.4 Startup options
+        2.4.1 Card readers for desktop systems
+     2.5 System resource settings
+        2.5.1 PowerBook specific settings
+     2.6 Notes about specific Linux distributions
+        2.6.1 Debian
+        2.6.2 Red Hat, Caldera, Mandrake
+        2.6.3 Slackware
+        2.6.4 SuSE
 
   3. Resolving installation and configuration problems
 
@@ -157,19 +156,19 @@
 
   11..33..  WWhhaatt iiss tthhee llaatteesstt vveerrssiioonn,, aanndd wwhheerree ccaann II ggeett iitt??
 
-  The current major release of Card Services is version 3.1, and minor
-  updates or bug fixes are numbered 3.1.1, 3.1.2, and so on.
+  The current major release of Card Services is version 3.2, and minor
+  updates or bug fixes are numbered 3.2.1, 3.2.2, and so on.
 
   Source code for the latest version is available on the web at
-  <http://pcmcia-cs.sourceforge.net>, as pcmcia-cs-3.1.?.tar.gz.  You
+  <http://pcmcia-cs.sourceforge.net>, as pcmcia-cs-3.2.?.tar.gz.  You
   may find more than one release number here.  It is up to you to decide
   which version is more appropriate, but the CHANGES file will summarize
   the most important differences.
 
-  If you do not feel up to compiling the drivers from scratch, pre-
-  compiled drivers are included with current releases of most of the
-  major Linux distributions, including Slackware, Debian, Red Hat,
-  Caldera, and SuSE, among others.
+  Pre-compiled drivers are included with current releases of essentially
+  all major Linux distributions, including Slackware, Debian, Red Hat,
+  Caldera, and SuSE, among others.  So generally there is no need to
+  compile the drivers from scratch.
 
   11..44..  WWhhaatt ssyysstteemmss aarree ssuuppppoorrtteedd??
 
@@ -193,7 +192,8 @@
 
   +o  Omega Micro 82C365G, 82C092G
 
-  +o  Ricoh RF5C296, RF5C396, RL5C465, RL5C466, RL5C475, RL5C476, RL5C478
+  +o  Ricoh RF5C296, RF5C396, RL5C465, RL5C466, RL5C475, RL5C476,
+     RL5C477, RL5C478
 
   +o  SMC 34C90
 
@@ -225,7 +225,9 @@
   datasheets have been available, a few idiosyncracies of the ToPIC
   chips were not adequately explained.  Toshiba has given some direct
   technical help on some of these issues, and I think the major ones
-  have been resolved.
+  have been resolved.  However, with the introduction of kernel PCMCIA
+  support in 2.4.* and later kernels, some new Toshiba bugs may have
+  cropped up in the new socket driver code.
 
   The Motorola 6AHC05GA controller used in some Hyundai laptops is not
   supported.  The custom host controller in the HP Omnibook 600 is also
@@ -276,43 +278,6 @@
   system configuration information, and pointers to a variety of laptop-
   related mailing lists.
 
-  11..88..  WWhhyy ddoonn''tt yyoouu ddiissttrriibbuuttee bbiinnaarriieess??
-
-  For me, distributing binaries would be a significant hassle.  It is
-  complicated because some features can only be selected at compile
-  time, and because the modules are somewhat dependent on having the
-  ``right'' kernel configuration.  So, I would probably need to
-  distribute precompiled modules along with matching kernels.  Beyond
-  this, the greatest need for precompiled modules is when installing
-  Linux on a clean system.  This typically requires setting up drivers
-  so they can be used in the installation process for a particular Linux
-  distribution.  Each Linux distribution has its own ideosyncracies, and
-  it is not feasible for me to provide boot and root disks for even just
-  the common combinations of drivers and distributions.
-
-  PCMCIA support is included in virtually all modern Linux
-  distributions,
-
-  11..99..  WWhhyy iiss tthhee ppaacckkaaggee ssoo ddaarrnneedd bbiigg??
-
-  Well, first of all, it isn't actually that large.  Most of the package
-  consists of drivers for specific cards.  The utility programs add up
-  to about 200K, and the scripts in /etc/pcmcia are about 130K.  The
-  core driver modules take up about 60K of system memory.  The cardmgr
-  daemon will generally be swapped out except when cards are inserted or
-  removed.  The total package size is comparable to DOS/Windows Card
-  Services implementations.
-
-  Compared to DOS ``point enablers'', this may still seem like a lot of
-  overhead, especially for people that don't plan on using many of the
-  features of PCMCIA, such as power management or hot swapping.  Point
-  enablers can be tiny because they generally support only one or a
-  small set of cards, and also generally support a restricted set of
-  host controllers.  If someone were to write a genuinely ``generic''
-  modem enabler, it would end up incorporating much of the functionality
-  of Card Services, to handle cards from different vendors and the full
-  range of host controller variants.
-
   22..  CCoommppiillaattiioonn aanndd iinnssttaallllaattiioonn
 
   22..11..  PPrreerreeqquuiissiitteess aanndd kkeerrnneell sseettuupp
@@ -328,7 +293,8 @@
 
   The following things should be installed on your system before you
   begin:
-  +o  A 2.0, 2.2, or 2.4 series kernel source tree.
+
+  +o  A 2.0, 2.2, 2.4, or 2.5 series kernel source tree.
 
   +o  An appropriate set of module utilities.
 
@@ -361,11 +327,7 @@
 
   If you want to use SLIP, PPP, or PLIP, you do need to either configure
   your kernel with these enabled, or use the loadable module versions of
-  these drivers.  There is an unfortunate deficiency in the kernel
-  config process in 1.2.X kernels, in that it is not possible to set
-  configuration options (like SLIP compression) for a loadable module,
-  so it is probably better to just link SLIP into the kernel if you need
-  it.
+  these drivers.
 
   In order to use a PCMCIA token ring adapter, your kernel should be
   configured with ``Token Ring driver support'' (CONFIG_TR) enabled,
@@ -390,13 +352,46 @@
   and libraries before configuring the PCMCIA package.  This tool is
   completely optional.
 
-  22..22..  IInnssttaallllaattiioonn
+  22..22..  KKeerrnneell PPCCMMCCIIAA ssuuppppoorrtt
+
+  PCMCIA driver support is included in the 2.4 and later linux kernel
+  trees.  While it shares most of the same code with the standalone
+  PCMCIA driver package, there are some important differences.  The
+  kernel PCMCIA support is also still evolving.
+
+  The kernel PCMCIA code has the same functionality as the driver side
+  of the pcmcia-cs package.  It does not eliminate the need to install
+  the pcmcia-cs package, since it requires the same user tools (cardmgr,
+  cardctl, /etc/pcmcia/* files).  The drivers in pcmcia-cs can still be
+  built for 2.4 kernels, so you have a choice of using either the in-
+  kernel PCMCIA drivers, or the drivers included in pcmcia-cs.  With 2.5
+  and later kernels, the standalone drivers cannot be used.
+
+  To use the kernel PCMCIA drivers, configure the kernel with
+  CONFIG_HOTPLUG, CONFIG_PCMCIA, and usually CONFIG_CARDBUS enabled.
+  The drivers can either be built into the kernel or built as modules.
+  PCMCIA client driver options are listed in their regular driver
+  categories; thus, PCMCIA network drivers are in a submenu of network
+  drivers, and PCMCIA serial drivers are in a submenu of character
+  drivers.
+
+  In the standalone pcmcia-cs drivers, the i82365 module supports both
+  ISA-to-PCMCIA, PCI-to-PCMCIA, and PCI-to-CardBus bridges.  The CardBus
+  socket driver in the 2.4 tree is the yenta_socket driver.  It is
+  selected by the CONFIG_CARDBUS option.  In your PCMCIA startup
+  options, this driver should be specified in place of the i82365
+  driver.  The kernel version of the i82365 driver, selected by
+  CONFIG_I82365, only supports ISA-to-PCMCIA bridges.  PCI-to-PCMCIA
+  bridges that are not CardBus capable, like the Cirrus PD6729, are not
+  supported at all by the kernel PCMCIA drivers.
+
+  22..33..  IInnssttaallllaattiioonn
 
   Here is a synopsis of the installation process:
 
-  +o  Unpack pcmcia-cs-3.1.?.tar.gz in /usr/src.
+  +o  Unpack pcmcia-cs-3.2.?.tar.gz in /usr/src.
 
-  +o  Run ``make config'' in the new pcmcia-cs-3.1.? directory.
+  +o  Run ``make config'' in the new pcmcia-cs-3.2.? directory.
 
   +o  Run ``make all'', then ``make install''.
 
@@ -476,23 +471,25 @@
   given an *.O extension.
 
   If you don't know what kind of host controller your system uses, you
-  can use the probe utility in the cardmgr/ subdirectory to determine
-  this.  There are two major types: the Databook TCIC-2 type and the
-  Intel i82365SL-compatible type.
+  can use the pcic_probe utility in the cardmgr/ subdirectory to
+  determine this.  There are several major types: the Databook TCIC-2
+  type and the Intel i82365SL-compatible type.  With the kernel PCMCIA
+  subsystem, Intel compatible controllers are further subdivided into
+  ISA-bus 16-bit bridges, and PCI-based CardBus bridges.
 
-  In a few cases, the probe command will be unable to determine your
-  controller type automatically.  If you have a Halikan NBD 486 system,
-  it has a TCIC-2 controller at an unusual location: you'll need to edit
-  rc.pcmcia to load the tcic module, and also set the PCIC_OPTS
+  In a few cases, the pcic_probe command will be unable to determine
+  your controller type automatically.  If you have a Halikan NBD 486
+  system, it has a TCIC-2 controller at an unusual location: you'll need
+  to edit rc.pcmcia to load the tcic module, and also set the PCIC_OPTS
   parameter to ``tcic_base=0x02c0''.
 
   On some old pre-PCI systems using Cirrus controllers, including the
   NEC Versa M, the BIOS puts the controller in a special suspended state
-  at system startup time.  On these systems, the probe command will fail
-  to find any known host controller.  If this happens, edit rc.pcmcia
-  and set PCIC to i82365, and PCIC_OPTS to ``wakeup=1''.
+  at system startup time.  On these systems, the pcic_probe command will
+  fail to find any known host controller.  If this happens, edit
+  rc.pcmcia and set PCIC to i82365, and PCIC_OPTS to ``wakeup=1''.
 
-  22..33..  SSttaarrttuupp ooppttiioonnss
+  22..44..  SSttaarrttuupp ooppttiioonnss
 
   The PCMCIA startup script recognizes several groups of startup
   options, set via environment variables.  Multiple options should be
@@ -509,9 +506,11 @@
 
      PCIC
         This identifies the PC Card Interface Controller driver module.
-        There are two options: ``tcic'' or ``i82365''.  Virtually all
-        current controllers are in the ``i82365'' group.  This is the
-        only mandatory option setting.
+        There are several options: ``tcic'', ``i82365'', and (for the
+        kernel PCMCIA subsystem) ``yenta-socket''.  Virtually all
+        current controllers are in the ``i82365'' group for the
+        standalone drivers, and ``yenta-socket'' for the kernel drivers.
+        This is the only mandatory option setting.
 
      PCIC_OPTS
         This specifies options for the PCIC module.  Some host
@@ -573,7 +572,7 @@
      extra_sockets parameter set to 1.  This should not be necessary for
      detection of PCI-to-PCMCIA or PCI-to-CardBus bridges.
 
-  Here are some timing settings for specific systems:
+  Here are some timing settings for a few old systems:
 
   +o  On the ARM Pentium-90 or Midwest Micro Soundbook Plus, use
      ``freq_bypass=1 cmd_time=8''.
@@ -585,12 +584,14 @@
 
   +o  On a Samsung SENS 810, use ``fast_pci=1''.
 
-  22..33..11..  CCaarrdd rreeaaddeerrss ffoorr ddeesskkttoopp ssyysstteemmss
+  22..44..11..  CCaarrdd rreeaaddeerrss ffoorr ddeesskkttoopp ssyysstteemmss
 
   While almost all PCMCIA card readers and card docks work fine under
   Linux, some require special startup options because they do not behave
   exactly like laptop PCMCIA bridges.  PCI card readers, in particular,
-  may handle interrupts differently.
+  may handle interrupts differently.  Some of the following parameter
+  settings are only available for the i82365 module in the standalone
+  drivers; the kernel's yenta-socket driver is not configurable.
 
   +o  The Linksys ProConnect PCMRDWR and Antec DataChute ISA card readers
      are ``ISA Plug and Play'' devices.  To use these, you must first
@@ -628,7 +629,7 @@
      them look like ordinary PCI devices.  These devices are not
      supported.
 
-  22..44..  SSyysstteemm rreessoouurrccee sseettttiinnggss
+  22..55..  SSyysstteemm rreessoouurrccee sseettttiinnggss
 
   Card Services should automatically avoid allocating IO ports and
   interrupts already in use by other standard devices.  It will also
@@ -640,6 +641,7 @@
   list with suspicion: it may give useful hints for solving problems,
   but it is inevitably out of date and certainly contains mistakes.
   Corrections and additions are welcome.
+
   +o  On the AMS SoundPro, exclude irq 10.
 
   +o  On some AMS TravelPro 5300 models, use memory 0xc8000-0xcffff.
@@ -705,7 +707,7 @@
   +o  On an MPC 800 Series, exclude irq 5, port 0x300-0x30f for the CD-
      ROM.
 
-  22..44..11..  PPoowweerrBBooookk ssppeecciiffiicc sseettttiinnggss
+  22..55..11..  PPoowweerrBBooookk ssppeecciiffiicc sseettttiinnggss
 
   On PowerPC based PowerBook systems, the default system resources in
   /etc/pcmcia/config.opts file are no good at all.  Replace all the IO
@@ -714,11 +716,11 @@
        include port 0x100-0x4ff, port 0x1000-0x17ff
        include memory 0x80000000-0x80ffffff
 
-  22..55..  NNootteess aabboouutt ssppeecciiffiicc LLiinnuuxx ddiissttrriibbuuttiioonnss
+  22..66..  NNootteess aabboouutt ssppeecciiffiicc LLiinnuuxx ddiissttrriibbuuttiioonnss
 
   This section is incomplete.  Corrections and additions are welcome.
 
-  22..55..11..  DDeebbiiaann
+  22..66..11..  DDeebbiiaann
 
   Debian uses a System V boot script arrangement.  The PCMCIA startup
   script is installed as /etc/init.d/pcmcia.  New packages use
@@ -738,7 +740,7 @@
   commands to configure a network card based on settings in
   /etc/network/interfaces.
 
-  22..55..22..  RReedd HHaatt,, CCaallddeerraa,, MMaannddrraakkee
+  22..66..22..  RReedd HHaatt,, CCaallddeerraa,, MMaannddrraakkee
 
   These distributions use a System V boot script organization.  The
   PCMCIA startup script is installed as /etc/rc.d/init.d/pcmcia, and
@@ -758,15 +760,15 @@
   If you prefer using the Red Hat tools, either use only Red Hat RPM's,
   or replace /etc/pcmcia/network.opts with the following:
 
-  if [ -f /etc/sysconfig/network-scripts/ifcfg-$2 ] ; then
-      start_fn () {
-          . /etc/sysconfig/network-scripts/ifcfg-$1
-          if [ "$ONBOOT" = "yes" ] ; then /sbin/ifup $1 ; fi
-      }
-      stop_fn () {
-          /sbin/ifdown $1
-      }
-  fi
+       if [ -f /etc/sysconfig/network-scripts/ifcfg-$2 ] ; then
+           start_fn () {
+               . /etc/sysconfig/network-scripts/ifcfg-$1
+               if [ "$ONBOOT" = "yes" ] ; then /sbin/ifup $1 ; fi
+           }
+           stop_fn () {
+               /sbin/ifdown $1
+           }
+       fi
 
   Starting with the 3.1.22 release, the PCMCIA installation script will
   automatically append a variant of this to the default network.opts
@@ -792,14 +794,14 @@
   includes a mis-configured PCMCIA source tree; if you want to use it,
   delete their PCMCIA config.out file and re-do "make config".
 
-  22..55..33..  SSllaacckkwwaarree
+  22..66..33..  SSllaacckkwwaarree
 
   Slackware uses a BSD boot script arrangement.  The PCMCIA startup
   script is installed as /etc/rc.d/rc.pcmcia, and boot options are
   specified in rc.pcmcia itself.  The PCMCIA startup script is invoked
   from /etc/rc.d/rc.S.
 
-  22..55..44..  SSuuSSEE
+  22..66..44..  SSuuSSEE
 
   SuSE uses a System V init script arrangement, with init scripts stored
   under /etc/init.d.  The PCMCIA startup script is installed as
@@ -808,6 +810,11 @@
   early SuSE releases (pre-5.3), the PCMCIA startup script was somewhat
   limited and did not allow PCMCIA startup variables to be overridden
   from the lilo boot prompt.
+
+  SuSE 8.0 includes both the standalone PCMCIA modules, and the 2.4
+  kernel PCMCIA subsystem modules.  A new variable, PCMCIA_SYSTEM, is
+  available in /etc/sysconfig/pcmcia to choose between these.  It can be
+  set to either ``kernel'' or ``external''.
 
   To look up current PCMCIA issues in SuSE's support database, go to
   <http://sdb.suse.de/cgi-bin/sdbsearch_en.cgi?stichwort=PCMCIA>.
@@ -818,6 +825,7 @@
   PCMCIA subsystem.  Try to match your symptoms against the examples.
   This section only describes general failures that are not specific to
   a particular client driver or type of card.
+
   Before trying to diagnose a problem, you have to know where your
   system log is kept (see ``Notes about specific Linux distributions'').
   You should also be familiar with basic diagnostic tools like dmesg and
@@ -1107,7 +1115,7 @@
   allocate windows in high memory for CardBus bridges, if both low and
   high memory windows are defined in config.opts.  The default
   config.opts includes several candidate high memory windows, one of
-  which will work in most cases
+  which will work in most cases.
 
   33..66..  FFaaiilluurree ttoo ddeetteecctt ccaarrdd iinnsseerrttiioonnss aanndd rreemmoovvaallss
 
@@ -1441,12 +1449,19 @@
   scheme'' command.  The default if no scheme is set is ``default''.
 
   There are a few additional shell variables that can be used in *.opts
-  files in addition to ADDRESS.  The most useful are DEVICE, the current
-  device name or network interface name; and DRIVER, the driver name,
-  sometimes useful for distinguishing different sorts of network
-  devices.  As the *.opts files are just shell scripts, it is not
-  required that they follow the form of the examples, which just return
-  settings based on ADDRESS.
+  files in addition to ADDRESS:
+
+     SOCKET, CLASS, DRIVER, INSTANCE, DEVICE, MAJOR, MINOR
+        These correspond to individual fields from one line in the stab
+        file.  See its man page for details.
+
+     PRODID_1, PRODID_2, PRODID_3, PRODID_4, MANFID, FUNCID
+        These are equivalent to the output of ``cardctl info'' and give
+        more detailed card identification information.
+
+  As the *.opts files are just shell scripts, it is not required that
+  they follow the form of the examples, which just return settings based
+  on ADDRESS.
 
   As a general rule, when configuring Linux for a laptop, PCMCIA devices
   should only be configured from the PCMCIA device scripts.  Do not try
@@ -1498,13 +1513,13 @@
   Alternatively, they could be configured using their hardware
   addresses, as in:
 
-       case "$ADDRESS" in
-       *,*,*,00:80:C8:76:00:B1)
-           # definitions for a D-Link card
-           ;;
-       *,*,*,08:00:5A:44:80:01)
-           # definitions for an IBM card
-       esac
+  case "$ADDRESS" in
+  *,*,*,00:80:C8:76:00:B1)
+      # definitions for a D-Link card
+      ;;
+  *,*,*,08:00:5A:44:80:01)
+      # definitions for an IBM card
+  esac
 
   44..33..11..  NNeettwwoorrkk ddeevviiccee ppaarraammeetteerrss
 
@@ -1794,7 +1809,6 @@
 
      SERIAL_OPTS
         Specifies options to be passed to the setserial command.
-
      INITTAB
         If specified, this will be used to construct an inittab entry
         for the device.
@@ -1807,11 +1821,11 @@
 
   For example:
 
-  case "$ADDRESS" in
-  *,*,*,*)
-      LINK="/dev/modem"
-      SERIAL_OPTS=""
-      INITTAB="/sbin/getty"
+       case "$ADDRESS" in
+       *,*,*,*)
+           LINK="/dev/modem"
+           SERIAL_OPTS=""
+           INITTAB="/sbin/getty"
 
   44..44..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
 
@@ -2440,6 +2454,12 @@
 
   55..22..  PPCCII iinntteerrrruupptt ccoonnffiigguurraattiioonn pprroobblleemmss aanndd ssoolluuttiioonnss
 
+  Most of the following discussion applies to 2.2 and earlier kernels.
+  With 2.4 and later kernels, the PCI subsystem has more complete
+  responsibility for PCI interrupt management.  The following tips may
+  help diagnose a problem, though some workarounds described here may
+  not be available.
+
   55..22..11..  AAnn oovveerrvviieeww ooff PPCCII iinntteerrrruupptt rroouuttiinngg iissssuueess
 
   Each PCI slot has four PCI interrupt pins, INTA through INTD.  Single
@@ -2697,6 +2717,7 @@
   In this example, the second ``case'' clause will select for both the
   ``home'' and ``default'' schemes.  So, if the scheme is unset for any
   reason, it will default to the ``home'' setup.
+
   Now, to select between the two sets of settings, run either:
 
        cardctl scheme home
@@ -2738,7 +2759,6 @@
 
   Typing ``home'' or ``work'' at the boot prompt would then boot into
   the appropriate scheme.
-
   55..44..  BBoooottiinngg ffrroomm aa PPCCMMCCIIAA ddeevviiccee
 
   Having the root filesystem on a PCMCIA device is tricky because the
