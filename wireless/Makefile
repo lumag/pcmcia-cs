@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.9 2001/03/17 00:54:50
+# Makefile 1.11 2001/07/03 01:55:57
 #
 
 # Include site dependent options and kernel configuration
@@ -33,8 +33,6 @@ wvlan_cs.o: wvlan_cs.c wvlan_hcf.o wvlan_hcfio.o
 clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d
 
-install: $(MODULES)
-	@mkdir -p $(PREFIX)$(MODDIR)/pcmcia
-	cp $(MODULES) $(PREFIX)$(MODDIR)/pcmcia
+install: install-modules
 
 include ../rules.mk

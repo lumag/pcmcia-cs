@@ -1,4 +1,4 @@
-Known problems and limitations for the 3.1.26 PCMCIA release
+Known problems and limitations for the 3.1.27 PCMCIA release
 ============================================================
 
 Bug summaries:
@@ -19,8 +19,7 @@ o IDE driver shutdown bug in certain 2.2.*, 2.3.* kernels
 o Tedious IDE probes for nonexistent slave devices
 o IDE driver does not share PCI interrupts properly
 o SuSE 6.4 IDE driver problem
-o Xircom CardBus driver instability
-o NE2000 compatible cards based on the Asix AX88190 are unsupported
+o Multicast filter problem with xirc2ps_cs driver
 
 Bug details:
 
@@ -162,32 +161,7 @@ o The SuSE 6.4 version of the 2.2.14 kernel has a broken IDE probe
   Prognosis: substitute drivers/block/ide-probe.c from SuSE's 2.2.13
   kernel or from a virgin 2.2.14 source tree.
 
-o Xircom CBEM support in the tulip_cb driver seems to be extremely
-  unreliable.  A wide range of symptoms are reported, ranging from no
-  packet reception, to correct operation at certain speed/duplex
-  combinations but not others, to frequent missed interrupts.  Also,
-  some people have reported kernel faults when a Xircom card is shut
-  down with "ifconfig down".
+o Multicast filter problem with xirc2ps_cs driver
 
-  Prognosis: The receive filter in the Xircom chipset is screwed up
-  and I have not been able to deduce all the rules for how to set it
-  up successfully.  The current code seems to work fine for some but
-  not all network setups.  I have not had any luck asking Xircom for
-  help on this issue, so I have no idea when or if it will ever be
-  fixed properly.
-
-  Temporarily setting the card to promiscuous mode ("ifconfig eth0
-  promisc") or all-multicast mode ("ifconfig eth0 allmulti") seems
-  to help with the packet reception issue in some cases.  The current
-  driver is broken for more than 6 multicast addresses, unless
-  "allmulti" is used.
-
-o A number of "NE2000 compatible" cards use the Asix AX88190 chipset,
-  which has several serious bugs and incompatibilities that render the
-  regular pcnet_cs driver unusable.  The pcnet_cs driver will identify
-  and refuse to deal with these cards.
-
-  Prognosis: a Linux driver is available from the Asix web site at
-  http://www.asix.com.tw/driver2.htm and I'm investigating how to best
-  deal with the issue in the regular pcnet_cs driver.  It is a tricky
-  issue and I'm not sure when a better fix will be available.
+I have some reports that multicast filtering doesn't work properly in
+the xirc2ps_cs driver.  I have not investigated further.

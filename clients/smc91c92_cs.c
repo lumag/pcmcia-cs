@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.109 2001/03/01 00:56:25
+    smc91c92_cs.c 1.110 2001/06/25 13:38:45
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -120,6 +120,8 @@ struct smc_private {
     int				watchdog, tx_err;
     u_short			media_status;
     u_short			fast_poll;
+    u_short			link_status;
+    int				phy_id;
 };
 
 /* Special definitions for Megahertz multifunction cards */
@@ -247,6 +249,7 @@ enum RxCfg { RxAllMulti = 0x0004, RxPromisc = 0x0002,
 #define	MULTICAST2	2
 #define	MULTICAST4	4
 #define	MULTICAST6	6
+#define MGMT    	8 
 #define REVISION	0x0a
 
 /* Transmit status bits. */
@@ -288,6 +291,9 @@ static int s9k_config(struct net_device *dev, struct ifmap *map);
 static void smc_set_xcvr(struct net_device *dev, int if_port);
 static void smc_reset(struct net_device *dev);
 static void media_check(u_long arg);
+static void mdio_sync(ioaddr_t addr);
+static int mdio_read(ioaddr_t addr, int phy_id, int loc);
+static void mdio_write(ioaddr_t addr, int phy_id, int loc, int value);
 
 /*======================================================================
 
@@ -910,7 +916,8 @@ static void smc91c92_config(dev_link_t *link)
     cisparse_t parse;
     u_short buf[32];
     char *name;
-    int i, rev;
+    int i, j, rev;
+    ioaddr_t ioaddr;
 
     DEBUG(0, "smc91c92_config(0x%p)\n", link);
     
@@ -1008,9 +1015,10 @@ static void smc91c92_config(dev_link_t *link)
 	   dev->irq);
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+
+    ioaddr = dev->base_addr;
     if (rev > 0) {
 	u_long mir, mcr;
-	ioaddr_t ioaddr = dev->base_addr;
 	SMC_SELECT_BANK(0);
 	mir = inw(ioaddr + MEMINFO) & 0xff;
 	if (mir == 0xff) mir++;
@@ -1032,6 +1040,23 @@ static void smc91c92_config(dev_link_t *link)
 	       "MII" : if_names[dev->if_port]);
     }
     
+    if (smc->cfg & CFG_MII_SELECT) {
+	SMC_SELECT_BANK(3);
+
+	for (i = 0; i < 32; i++) {
+	    j = mdio_read(dev->base_addr + MGMT, i, 1);
+	    if ((j != 0) && (j != 0xffff)) break;
+	}
+	smc->phy_id = (i < 32) ? i : -1;
+	if (i < 32) {
+	    DEBUG(0, "  MII transceiver at index %d, status %x.\n", i, j);
+	} else {
+    	    printk(KERN_NOTICE "  No MII transceivers found!\n");
+	}
+
+	SMC_SELECT_BANK(0);
+    }
+
     return;
     
 config_undo:
@@ -1090,7 +1115,8 @@ static int smc91c92_event(event_t event, int priority,
     dev_link_t *link = args->client_data;
     struct smc_private *smc = link->priv;
     struct net_device *dev = &smc->dev;
-    
+    int i;   
+ 
     DEBUG(1, "smc91c92_event(0x%06x)\n", event);
 
     switch (event) {
@@ -1132,6 +1158,16 @@ static int smc91c92_event(event_t event, int priority,
 		set_bits(0x0300, dev->base_addr-0x10+OSITECH_AUI_PWR);
 		set_bits(0x0300, dev->base_addr-0x10+OSITECH_RESET_ISR);
 	    }
+	    if (((smc->manfid == MANFID_OSITECH) &&
+	 	(smc->cardid == PRODID_OSITECH_SEVEN)) ||
+		((smc->manfid == MANFID_PSION) &&
+	 	(smc->cardid == PRODID_PSION_NET100))) {
+		/* Download the Seven of Diamonds firmware */
+		for (i = 0; i < sizeof(__Xilinx7OD); i++) {
+	    	    outb(__Xilinx7OD[i], link->io.BasePort1+2);
+	   	    udelay(50);
+		}
+	    }
 	    if (link->open) {
 		smc_reset(dev);
 		netif_device_attach(dev);
@@ -1141,6 +1177,63 @@ static int smc91c92_event(event_t event, int priority,
     }
     return 0;
 } /* smc91c92_event */
+
+/*======================================================================
+
+    MII interface support for SMC91cXX based cards
+======================================================================*/
+
+#define MDIO_SHIFT_CLK		0x04
+#define MDIO_DATA_OUT		0x01
+#define MDIO_DIR_WRITE		0x08
+#define MDIO_DATA_WRITE0	(MDIO_DIR_WRITE)
+#define MDIO_DATA_WRITE1	(MDIO_DIR_WRITE | MDIO_DATA_OUT)
+#define MDIO_DATA_READ		0x02
+
+static void mdio_sync(ioaddr_t addr)
+{
+    int bits;
+    for (bits = 0; bits < 32; bits++) {
+	outb(MDIO_DATA_WRITE1, addr);
+	outb(MDIO_DATA_WRITE1 | MDIO_SHIFT_CLK, addr);
+    }
+}
+
+static int mdio_read(ioaddr_t addr, int phy_id, int loc)
+{
+    u_int cmd = (0x06<<10)|(phy_id<<5)|loc;
+    int i, retval = 0;
+
+    mdio_sync(addr);
+    for (i = 13; i >= 0; i--) {
+	int dat = (cmd&(1<<i)) ? MDIO_DATA_WRITE1 : MDIO_DATA_WRITE0;
+	outb(dat, addr);
+	outb(dat | MDIO_SHIFT_CLK, addr);
+    }
+    for (i = 19; i > 0; i--) {
+	outb(0, addr);
+	retval = (retval << 1) | ((inb(addr) & MDIO_DATA_READ) != 0);
+	outb(MDIO_SHIFT_CLK, addr);
+    }
+    return (retval>>1) & 0xffff;
+}
+
+static void mdio_write(ioaddr_t addr, int phy_id, int loc, int value)
+{
+    u_int cmd = (0x05<<28)|(phy_id<<23)|(loc<<18)|(1<<17)|value;
+    int i;
+
+    mdio_sync(addr);
+    for (i = 31; i >= 0; i--) {
+	int dat = (cmd&(1<<i)) ? MDIO_DATA_WRITE1 : MDIO_DATA_WRITE0;
+	outb(dat, addr);
+	outb(dat | MDIO_SHIFT_CLK, addr);
+    }
+    for (i = 1; i >= 0; i--) {
+	outb(0, addr);
+	outb(MDIO_SHIFT_CLK, addr);
+    }
+}
 
 /*======================================================================
   
@@ -1848,6 +1941,17 @@ static void smc_reset(struct net_device *dev)
 	 TCR_ENABLE | TCR_PAD_EN, ioaddr + TCR);
     set_rx_mode(dev);
 
+    if (smc->cfg & CFG_MII_SELECT) {
+	SMC_SELECT_BANK(3);
+
+	/* Reset MII */
+	mdio_write(ioaddr + MGMT, smc->phy_id, 0, 0x8000);
+
+	/* Restart MII autonegotiation */
+	mdio_write(ioaddr + MGMT, smc->phy_id, 0, 0x0000);
+	mdio_write(ioaddr + MGMT, smc->phy_id, 0, 0x1200);
+    }
+
     /* Enable interrupts. */
     SMC_SELECT_BANK(2);
     outw((IM_EPH_INT | IM_RX_OVRN_INT | IM_RCV_INT) << 8,
@@ -1866,18 +1970,20 @@ static void media_check(u_long arg)
     struct net_device *dev = &smc->dev;
     ioaddr_t ioaddr = dev->base_addr;
     u_short i, media, saved_bank;
+    ioaddr_t mii_addr = dev->base_addr + MGMT;
+    u_short link;
+
+    saved_bank = inw(ioaddr + BANK_SELECT);
 
     if (!netif_device_present(dev))
 	goto reschedule;
 
-    saved_bank = inw(ioaddr + BANK_SELECT);
     SMC_SELECT_BANK(2);
     i = inw(ioaddr + INTERRUPT);
     SMC_SELECT_BANK(0);
     media = inw(ioaddr + EPH) & EPH_LINK_OK;
     SMC_SELECT_BANK(1);
     media |= (inw(ioaddr + CONFIG) & CFG_AUI_SELECT) ? 2 : 1;
-    SMC_SELECT_BANK(saved_bank);
     
     /* Check for pending interrupt with watchdog flag set: with
        this, we can limp along even if the interrupt is blocked */
@@ -1891,7 +1997,35 @@ static void media_check(u_long arg)
 	smc->fast_poll--;
 	smc->media.expires = jiffies + 1;
 	add_timer(&smc->media);
+	SMC_SELECT_BANK(saved_bank);
 	return;
+    }
+
+    if (smc->cfg & CFG_MII_SELECT) {
+	if (smc->phy_id < 0)
+	    goto reschedule;
+
+	SMC_SELECT_BANK(3);
+	link = mdio_read(mii_addr, smc->phy_id, 1);
+	if (!link || (link == 0xffff)) {
+  	    printk(KERN_INFO "%s: MII is missing!\n", dev->name);
+	    smc->phy_id = -1;
+	    goto reschedule;
+	}
+
+	link &= 0x0004;
+	if (link != smc->link_status) {
+	    u_short p = mdio_read(mii_addr, smc->phy_id, 5);
+	    printk(KERN_INFO "%s: %s link beat\n", dev->name,
+		(link) ? "found" : "lost");
+	    if (link) {
+	        printk(KERN_INFO "%s: autonegotiation complete: "
+	   	    "%sbaseT-%cD selected\n", dev->name,
+		    ((p & 0x0180) ? "100" : "10"),
+		    (((p & 0x0100) || ((p & 0x1c0) == 0x40)) ? 'F' : 'H'));
+	    }
+	    smc->link_status = link;
+	}
     }
 
     if (smc->cfg & CFG_MII_SELECT)
@@ -1934,7 +2068,9 @@ static void media_check(u_long arg)
 reschedule:
     smc->media.expires = jiffies + HZ;
     add_timer(&smc->media);
+    SMC_SELECT_BANK(saved_bank);
 }
+
 
 /*====================================================================*/
 

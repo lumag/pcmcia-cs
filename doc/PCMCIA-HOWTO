@@ -1,12 +1,11 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.90, 10 May 2001
+  v2.91, 29 May 2001
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
-  version of this document can always be found at <ftp://pro-
-  jects.sourceforge.net/pub/pcmcia-cs/doc>.  An HTML version is at
-  <http://pcmcia-cs.sourceforge.net>.
+  version of this document can always be found at <http://pcmcia-
+  cs.sourceforge.net>.
   ______________________________________________________________________
 
   Table of Contents
@@ -162,15 +161,11 @@
   The current major release of Card Services is version 3.1, and minor
   updates or bug fixes are numbered 3.1.1, 3.1.2, and so on.
 
-  Source code for the latest version is available by FTP at
-  projects.sourceforge.net in the /pub/pcmcia-cs directory, as pcmcia-
-  cs-3.1.?.tar.gz.  There will usually be several versions here.  I
-  generally only keep the latest minor release for a given major
-  release.  New major releases may contain relatively untested code, so
-  I also keep the latest version of the previous major release as a
-  relatively stable fallback; the current fallback is 3.0.14.  It is up
-  to you to decide which version is more appropriate, but the CHANGES
-  file will summarize the most important differences.
+  Source code for the latest version is available on the web at
+  <http://pcmcia-cs.sourceforge.net>, as pcmcia-cs-3.1.?.tar.gz.  You
+  may find more than one release number here.  It is up to you to decide
+  which version is more appropriate, but the CHANGES file will summarize
+  the most important differences.
 
   The Linux PCMCIA FTP site is mirrored at sunsite.unc.edu (and all
   sunsite mirror sites) in /pub/Linux/kernel/pcmcia.
@@ -369,9 +364,9 @@
   require you to do so.
 
   Current ``stable'' kernel sources and patches are available from
-  <ftp://ftp.us.kernel.org/pub/linux/kernel/v2.2>.  Development kernels
-  can be found in the corresponding v2.3 or v2.4 subdirectories.
-  Current module utilities can be found in the same locations.
+  <ftp://ftp.kernel.org/pub/linux/kernel/v2.2>.  Development kernels can
+  be found in the corresponding v2.3 or v2.4 subdirectories.  Current
+  module utilities can be found in the same locations.
 
   In the Linux kernel source tree, the Documentation/Changes file
   describes the versions of all sorts of other system components that
@@ -703,7 +698,6 @@
 
   +o  On IBM ThinkPad 600 and 770 models with internal modems, exclude
      port 0x2f8-0x2ff.
-
   +o  On the IBM ThinkPad 600E and 770Z, change the high memory window to
      0x60000000-0x60ffffff.
 
@@ -1299,7 +1293,6 @@
 
   If the modules are all loaded correctly, the output of the lsmod
   command should look like the following, when no cards are inserted:
-
        Module                  Size  Used by
        ds                      5640   2
        i82365                 15452   2
@@ -1645,10 +1638,10 @@
   ifport command can be used to check or set the current transceiver
   type.  For example:
 
-       # ifport eth0 10base2
-       #
-       # ifport eth0
-       eth0    2 (10base2)
+  # ifport eth0 10base2
+  #
+  # ifport eth0
+  eth0    2 (10base2)
 
   The current (3.0.10 or later) 3c589 driver should quickly autodetect
   transceiver changes at any time.  Earlier releases of the 3c589 driver
@@ -1699,8 +1692,8 @@
      the Linux drivers.  One workaround is to boot DOS and use the
      vendor-supplied utility to select the transceiver, then warm boot
      Linux.  Alternatively, a Linux utility to perform this function is
-     available at  <ftp://projects.sourceforge.net/pub/pcmcia-
-     cs/extras/dlport.c>.
+     available at  <http://pcmcia-
+     cs.sourceforge.net/ftp/extras/dlport.c>.
 
   +o  16-bit PCMCIA cards have a maximum performance of 1.5-2 MB/sec.
      That means that any 16-bit 100baseT card (i.e., any card that uses
@@ -1820,8 +1813,8 @@
   driver as a module, you must edit /etc/pcmcia/config to indicate that
   this module must be loaded.  Edit the serial device entry to read:
 
-       device "serial_cs"
-         class "serial" module "misc/serial", "serial_cs"
+  device "serial_cs"
+    class "serial" module "misc/serial", "serial_cs"
 
   44..44..11..  SSeerriiaall ddeevviiccee ppaarraammeetteerrss
 
@@ -1871,7 +1864,6 @@
      to your /etc/pcmcia/config file so that it will be identified
      properly.  See the ``Configuring unrecognized cards'' section for
      details.
-
   +o  Is the modem configured successfully by serial_cs?  Again, check
      the system log and look for messages from the serial_cs driver.  If
      you see ``register_serial() failed'', you may have an I/O port
@@ -1930,16 +1922,16 @@
   one such card, you may want to specify different settings based on
   socket position, as in:
 
-       case "$ADDRESS" in
-       *,0,*)
-           # Options for card in socket 0
-           LINK=/dev/printer0
-           ;;
-       *,1,*)
-           # Options for card in socket 1
-           LINK=/dev/printer1
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,0,*)
+      # Options for card in socket 0
+      LINK=/dev/printer0
+      ;;
+  *,1,*)
+      # Options for card in socket 1
+      LINK=/dev/printer1
+      ;;
+  esac
 
   If you configure your kernel to load the basic Linux parallel port
   driver as a module, you must edit /etc/pcmcia/config to indicate that
@@ -2040,8 +2032,8 @@
   to tell cardmgr which extra modules need to be loaded when your
   adapter is configured.  For example:
 
-       device "aha152x_cs"
-         class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
+  device "aha152x_cs"
+    class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
 
   would say to load the core SCSI module and the top-level disk driver
   module before loading the regular PCMCIA driver module.  The PCMCIA

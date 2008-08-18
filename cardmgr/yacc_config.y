@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_config.y 1.51 2000/06/12 21:33:02
+ * yacc_config.y 1.52 2001/06/22 04:17:17
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -240,13 +240,13 @@ tuple:	  card TUPLE NUMBER ',' NUMBER ',' STRING
 
 manfid:	  card MANFID NUMBER ',' NUMBER
 		{
-		    if ($1->ident_type != 0) {
+		    if ($1->ident_type & EXCL_IDENT) {
 			yyerror("ID method already defined");
 			YYERROR;
 		    }
 		    $1->ident_type = MANFID_IDENT;
-		    $1->id.manfid.manf = $3;
-		    $1->id.manfid.card = $5;
+		    $1->manfid.manf = $3;
+		    $1->manfid.card = $5;
 		}
 
 pci:	  card PCI NUMBER ',' NUMBER
@@ -256,13 +256,13 @@ pci:	  card PCI NUMBER ',' NUMBER
 			YYERROR;
 		    }
 		    $1->ident_type = PCI_IDENT;
-		    $1->id.manfid.manf = $3;
-		    $1->id.manfid.card = $5;
+		    $1->manfid.manf = $3;
+		    $1->manfid.card = $5;
 		}
 
 version:  card VERSION STRING
 		{
-		    if ($1->ident_type != 0) {
+		    if ($1->ident_type & EXCL_IDENT) {
 			yyerror("ID method already defined\n");
 			YYERROR;
 		    }

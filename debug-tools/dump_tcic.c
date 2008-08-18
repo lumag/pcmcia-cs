@@ -2,7 +2,7 @@
 
     Register dump for the Databook TCIC-2 controller family
 
-    dump_tcic.c 1.21 2000/06/12 21:34:19
+    dump_tcic.c 1.22 2001/06/04 23:31:12
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -34,6 +34,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef __MSDOS__
 

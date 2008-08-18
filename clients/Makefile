@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.134 2001/03/17 00:54:42
+# Makefile 1.137 2001/07/03 01:55:57
 #
 
 # Include site dependent options and kernel configuration
@@ -50,9 +50,9 @@ endif
 
 ifdef CONFIG_INET
 MODULES += pcnet_cs.o 3c589_cs.o nmclan_cs.o fmvj18x_cs.o smc91c92_cs.o \
-	   xirc2ps_cs.o 3c574_cs.o
+	   xirc2ps_cs.o 3c574_cs.o axnet_cs.o
 SRCS    += pcnet_cs.c 3c589_cs.c nmclan_cs.c fmvj18x_cs.c smc91c92_cs.c \
-	   xirc2ps_cs.c 3c574_cs.c
+	   xirc2ps_cs.c 3c574_cs.c axnet_cs.c
 SRCS    += 8390.c
 EXTRA   += 8390.o
 I_EXTRA += install-8390
@@ -129,12 +129,9 @@ ohci1394_cb.o: ohci1394_stub.o ohci1394.o
 clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d
 
-install-modules: $(MODULES)
-	@mkdir -p $(PREFIX)$(MODDIR)/pcmcia
-	cp $(MODULES) $(PREFIX)$(MODDIR)/pcmcia
-
 install-8390: 8390.o
 	@mkdir -p $(PREFIX)$(MODDIR)/net
+	@rm -f $(PREFIX)$(MODDIR)/net/8390.o
 	cp 8390.o $(PREFIX)$(MODDIR)/net
 
 install: install-modules $(I_EXTRA)

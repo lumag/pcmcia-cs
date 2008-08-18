@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.26 2001/03/16 02:27:17
+    pci_fixup.c 1.27 2001/06/22 04:17:24
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -457,12 +457,20 @@ static void setup_cb_bridge(struct pci_dev *dev)
 	sib = pci_find_slot(dev->bus->number, dev->devfn+1);
 	if (sib) {
 	    u8 a, b;
+	    u32 c, d;
 	    /* Check for bad PCI bus numbering */
 	    pci_read_config_byte(dev, CB_CARDBUS_BUS, &a);
 	    pci_read_config_byte(sib, CB_CARDBUS_BUS, &b);
 	    if (a == b) {
 		pci_write_config_byte(dev, CB_CARDBUS_BUS, 0);
 		pci_write_config_byte(sib, CB_CARDBUS_BUS, 0);
+	    }
+	    /* check for bad register mapping */
+	    pci_read_config_dword(dev, PCI_BASE_ADDRESS_0, &c);
+	    pci_read_config_dword(sib, PCI_BASE_ADDRESS_0, &d);
+	    if ((c != 0) && (c == d)) {
+		pci_write_config_dword(dev, PCI_BASE_ADDRESS_0, 0);
+		pci_write_config_dword(sib, PCI_BASE_ADDRESS_0, 0);
 	    }
 	}
     }

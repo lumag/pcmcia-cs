@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.36 2001/02/28 03:50:07 (David Hinds)
+# rc.pcmcia 1.37 2001/07/02 23:39:59 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -141,7 +141,7 @@ for x in "1" ; do
 	;;
 
     status)
-	pid=`pidof cardmgr`
+	pid=`/sbin/pidof cardmgr`
 	if [ "$pid" != "" ] ; then
 	    echo "cardmgr (pid $pid) is running..."
 	    EXITCODE=0

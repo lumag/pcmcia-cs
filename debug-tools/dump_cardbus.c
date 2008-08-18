@@ -2,7 +2,7 @@
 
     Dump CardBus socket registers
 
-    dump_cardbus.c 1.2 2000/06/12 21:34:19
+    dump_cardbus.c 1.3 2001/06/04 23:32:05
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -121,7 +121,7 @@ static char *event[] = {
 static void print_events(char *tag, u_int val)
 {
     int i;
-    printf("  %s:%*s 0x%08x", tag, 15-strlen(tag), "", val);
+    printf("  %s:%*s 0x%08x", tag, 15-(int)strlen(tag), "", val);
     if (val)
 	printf("\n   ");
     for (i = 0; i < 32; i++)

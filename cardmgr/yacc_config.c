@@ -10,7 +10,7 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #define YYPREFIX "yy"
 #line 2 "yacc_config.y"
 /*
- * yacc_config.y 1.51 2000/06/12 21:33:02
+ * yacc_config.y 1.52 2001/06/22 04:17:17
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -726,13 +726,13 @@ break;
 case 31:
 #line 242 "yacc_config.y"
 {
-		    if (yyvsp[-4].card->ident_type != 0) {
+		    if (yyvsp[-4].card->ident_type & EXCL_IDENT) {
 			yyerror("ID method already defined");
 			YYERROR;
 		    }
 		    yyvsp[-4].card->ident_type = MANFID_IDENT;
-		    yyvsp[-4].card->id.manfid.manf = yyvsp[-2].num;
-		    yyvsp[-4].card->id.manfid.card = yyvsp[0].num;
+		    yyvsp[-4].card->manfid.manf = yyvsp[-2].num;
+		    yyvsp[-4].card->manfid.card = yyvsp[0].num;
 		}
 break;
 case 32:
@@ -743,14 +743,14 @@ case 32:
 			YYERROR;
 		    }
 		    yyvsp[-4].card->ident_type = PCI_IDENT;
-		    yyvsp[-4].card->id.manfid.manf = yyvsp[-2].num;
-		    yyvsp[-4].card->id.manfid.card = yyvsp[0].num;
+		    yyvsp[-4].card->manfid.manf = yyvsp[-2].num;
+		    yyvsp[-4].card->manfid.card = yyvsp[0].num;
 		}
 break;
 case 33:
 #line 264 "yacc_config.y"
 {
-		    if (yyvsp[-2].card->ident_type != 0) {
+		    if (yyvsp[-2].card->ident_type & EXCL_IDENT) {
 			yyerror("ID method already defined\n");
 			YYERROR;
 		    }

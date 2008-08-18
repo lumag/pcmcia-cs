@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2001/05/10 03:17:47
+		Last updated: 2001/07/02 02:08:53
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -52,7 +52,7 @@ Ethernet cards:
 	Addtron Ethernet
 	AIBrain EPCM-T
 	Allied Telesis CentreCOM CE6001, LA-PCM, LA-PCM V2
-	AmbiCom AMB8002, AMB8002T, AMB8010
+	AmbiCom AMB8002, AMB8002T, AMB8010, AMB8610
 	AnyCom ECO Ethernet
 	Apollo RE450CT
 	Archtek Ethernet
@@ -169,9 +169,18 @@ Ethernet cards:
 
 Fast Ethernet (10/100baseT) adapters:
 
-	[3c574_cs driver] [x86]
+	[3c574_cs driver] [x86,ppc]
 	3Com 3c574TX
 	3Com Megahertz 3CCFE574BT, 3CXFE574BT, 3CCSH572BT, 3CXSH572BT
+
+	[axnet_cs driver]
+	AmbiCom AMB8110
+	KingMax Fast Ethernet
+	Melco LPC3-TX
+	New Media LiveWire 10/100
+	[not yet working]
+	Linksys NP100 Network Everywhere v2
+	Linksys PCMPC100 EtherFast v3
 
 	[pcnet_cs driver] [x86,ppc,axp]
 	Abocom LinkMate FE1000, FE1500
@@ -194,15 +203,15 @@ Fast Ethernet (10/100baseT) adapters:
 	KTI KF-C16
 	Laneed LD-10/100CD
 	LevelOne FPC-0100TX
-	Linksys PCMPC100 EtherFast	[ NOT the v3 cards! ]
-	Linksys PCM100H1 HomeLink 10/100 [ HPNA is not supported! ]
-	Linksys NP100 Network Everywhere [ NOT the v2 ones! ]
+	Linksys PCMPC100 EtherFast
+	Linksys PCM100H1 HomeLink 10/100
+	Linksys NP100 Network Everywhere
 	Logitec LPM-LN100TX
 	Melco LPC2-TX
 	Microcom TravelCard 10/100
 	Micronet EtherFast Adapter
 	Micronet SP162A
-	NetGear FA410TXC
+	NetGear FA410TXC, FA411
 	New Media LiveWire 10/100
 	Planex FNW-3600T
 	WiseCom iPort 10/100
@@ -264,6 +273,7 @@ Fast Ethernet (10/100baseT) adapters:
 	PLANET ENW-3502-FC
 	PrimeXpress Fast Ethernet
 	RATOC REX-CB80
+	Silicom Fast Ethernet
 	SMC EZ CardBus 10/100 Ethernet
 	SVEC FD606 10/100 Ethernet
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
@@ -325,10 +335,12 @@ Modem and serial cards:
 
 	[ Virtually all modem cards, simple serial port cards, and
 	digital cellular modems should work.  The only exceptions are
-	so-called "WinModems" that require special Windows drivers.
-	ISDN modems that emulate a standard UART are also supported.
-	For more information about WinModems and current lists, see
-	http://www.o2.net/~gromitkc/winmodem.html ]
+	so-called "WinModems" that require special drivers.  ISDN
+	modems that emulate a standard UART are also supported.  Some
+	Winmodem drivers do exist (i.e., the ltmodem driver for Lucent
+	chipsets).  For more information about WinModems, drivers,
+	etc, see either http://www.o2.net/~gromitkc/winmodem.html,
+	http://www.linmodems.org, or http://linmodems.technion.ac.il ]
 
 	[serial_cs driver] [x86,axp,ppc,smp]
 	Advantech COMpad-32/85 dual port, COMpad-32/85B-4 quad port
@@ -346,7 +358,8 @@ Modem and serial cards:
 	[serial_cb driver] [x86]
 	Xircom RBM56G, CBM56G
 
-	[ The following cards are WinModems and are NOT supported ]
+	[ The following cards are WinModems and are NOT supported by
+	  the serial drivers included in the PCMCIA package ]
 	3Com/Megahertz 3CXM356/3CCM356, 3CXM656/3CCM656
 	3Com/Megahertz XJ/CC2560, 3013, 3014
 	3Com/USRobotics 3014A, 3056, 3057
@@ -442,6 +455,7 @@ IEEE 1394 (FireWire) cards:
 	[requires kernel ieee1394 patches, experimental!]
 	Cherri IEEE-1394
 	Evergreen Technologies fireLINE CardBus Kit
+	Margi 1394-to-Go Adapter
 	Western Digital 1394 Adapter
 
 Multifunction ethernet/modem cards:
@@ -451,7 +465,7 @@ Multifunction ethernet/modem cards:
 	3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B, 3C3FEM556C
 	Motorola Marquis
 
-	[3c574_cs driver] [x86]
+	[3c574_cs driver] [x86,ppc]
 	3Com Megahertz 3CCFEM556B
 
 	[pcnet_cs driver] [x86,axp]
@@ -472,6 +486,7 @@ Multifunction ethernet/modem cards:
 	PREMAX LAN modem
 	Psion V.34 Gold Card
 	Rover ComboCard 33.6
+	SMC 8034TX-56K 10/100
 	Socket Communications ES-1000 (E-I/O) Ethernet/RS-232
 	TDK 3000/3400/5670
 	TDK DFL5610WS Fast Ethernet/Modem
@@ -535,10 +550,12 @@ ATA/IDE Interface Cards:
 	MCE DataShuttle
 	Shining Technology CitiDISK 250PE, PMIDE-ASC
 	Sicon Periperal Micro Mate
+	Sony MSAC-PC2 Memory Stick Adapter
 
 ATA/IDE CD-ROM and DVD adapters:
 
 	[ide_cs driver] [x86,ppc,smp]
+	Archos 24x MiniCD
 	Argosy EIDE CD-ROM
 	Caravelle CD-36N
 	CNF CARDport CD-ROM		[ 6/10/20/32X, but NOT 2X! ]
@@ -698,6 +715,7 @@ People are working on the following cards:
 	CyberRom CD-ROM (David Rowntree <rowntree@dircon.co.uk>)
 	DAQCard-AI-16E-4 (Shao Zhang <shao@linuxfreak.com>,
 			  Cyrus Patel <cyrus@linuxfan.com>)
+	Quatech DAQP-308 (Michael Richards <michael@fastmail.ca>)
 	IO DATA PCSC-II (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)
 	Macnica mPS-1x0 (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)
 	Proxim RangeLAN/2 (Jim Duchek <jimducheck@primary.net>
@@ -713,7 +731,6 @@ email just to ask if their status has changed.
 
 	Adaptec/Trantor APA-460 SlimSCSI
 	Eiger Labs SCSI w/FCC ID K36...
-	Melco LPC3-TX
 	New Media .WAVjammer and all other sound cards
 	New Media LiveWire+
 	Nikon CoolPix100
@@ -736,5 +753,5 @@ help, that their cards are likely to be better supported under Linux.
 	Linksys		[ ethernet and multifunction cards ]
 	Ositech		[ ethernet/modem combo cards ]
 	Sandisk		[ ATA/IDE flash cards ]
-	Quatech		[ parallel port adapters ]
+	Quatech		[ parallel port, data acquisition cards ]
 	Xircom		[ ethernet and multifunction cards ]

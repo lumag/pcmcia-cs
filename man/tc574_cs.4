@@ -1,5 +1,5 @@
 .\" Copyright (c) 1998 Donald Becker and David Hinds.
-.\" tc574_cs.4 1.6 2000/06/14 23:31:08
+.\" tc574_cs.4 1.7 2001/06/22 01:12:38
 .\"
 .TH 3C574_CS 4 "$Date" "pcmcia-cs"
 
@@ -12,6 +12,7 @@
 [\fBif_port=\fIn\fR]
 [\fBirq_list=\fIi,j,...\fR]
 [\fBfull_duplex=\fIn\fR]
+[\fBauto_polarity=\fIn\fR]
 [\fBmax_interrupt_work=\fIn\fR]
 
 .SH DESCRIPTION
@@ -44,6 +45,11 @@ The default is all normally-usable IRQs.
 .BI full_duplex= n
 This flag determines if only full-duplex modes are advertised.  It
 defaults to 0 (false).
+.TP auto_polarity= n
+This flag can be used to control the transceiver's auto polarity
+detection capability.  Some Cisco Catalyst switches are known to
+interact badly with this feature in 10baseT mode.  It defaults to 1
+(enabled).
 .TP
 .BI max_interrupt_work= work-limit
 This option selects the maximum amount of work handled during each

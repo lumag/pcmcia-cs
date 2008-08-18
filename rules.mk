@@ -11,6 +11,12 @@ YFLAGS = -d
 %.s : %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S $<
 
+MD=$(PREFIX)$(MODDIR)/pcmcia
+install-modules: $(MODULES)
+	@mkdir -p $(MD)
+	@for F in $(MODULES) ; do rm -f $(MD)/$$F ; done
+	cp $(MODULES) $(MD)
+
 # Stuff to automatically maintain dependency files
 
 %.o : %.c

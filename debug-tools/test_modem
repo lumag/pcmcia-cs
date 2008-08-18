@@ -56,6 +56,12 @@ sub checkout
 	print "    The detected UART is odd: maybe an IO port conflict?\n";
     }
     $irq = $1 if $set =~ /IRQ: (\d+)/;
+    if ($irq > 0) {
+	$pci = `/sbin/lspci -v`;
+	$proc = `grep " $irq:" /proc/interrupts`;
+	$shared_irq = ($pci =~ m/IRQ $irq\b/s) || ($proc =~ m/i82365/s);
+    }
+
     sysopen(MODEM, "/dev/$dev", O_RDWR|O_NONBLOCK) ||
 	die "sysopen(): $!\n";
     init_tty();
@@ -68,7 +74,9 @@ sub checkout
 	close(MODEM);
     } else {
 	close(MODEM);
-	print "  Modem query timed out: trying polled mode...\n";
+	print "  Modem query timed out!\n";
+	return if ($shared_irq);
+	print "  Trying polled mode...\n";
 	system("setserial /dev/$dev irq 0");
 	sysopen(MODEM, "/dev/$dev", O_RDWR|O_NONBLOCK) ||
 	    die "sysopen(): $!\n";

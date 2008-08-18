@@ -55,6 +55,9 @@ static int use_hw_csums = 1;
 /* For Cyclone,Tornado cards, polling interval for DownListPtr */
 static int down_poll_rate = 20;
 
+/* Autodetect link polarity reversal? */
+static int auto_polarity = 1;
+
 /* Operational parameters that are set at compile time. */
 
 /* Keep the ring sizes a power of two for compile efficiency.
@@ -1044,6 +1047,11 @@ static void set_media_type(struct net_device *dev)
 			printk(KERN_INFO "%s: MII #%d status %4.4x, link partner capability %4.4x,"
 				   " setting %s-duplex.\n", dev->name, vp->phys[0],
 				   mii_reg1, mii_reg5, vp->full_duplex ? "full" : "half");
+		if (!auto_polarity) {
+			/* works for TDK 78Q2120 series MII's */
+			int i = mdio_read(ioaddr, vp->phys[0], 16) | 0x20;
+			mdio_write(ioaddr, vp->phys[0], 16, i);
+		}
 	}
 	if (dev->if_port == XCVR_10base2)
 		/* Start the thinnet transceiver. We should really wait 50ms...*/

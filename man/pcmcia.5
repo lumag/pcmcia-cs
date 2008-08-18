@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" pcmcia.5 1.27 2000/10/16 16:37:38
+.\" pcmcia.5 1.28 2001/06/20 04:28:08
 .\"
-.TH PCMCIA 5 "2000/10/16 16:37:38" "pcmcia-cs"
+.TH PCMCIA 5 "2001/06/20 04:28:08" "pcmcia-cs"
 .SH NAME
 /etc/pcmcia/config \- PCMCIA card configuration database
 
@@ -101,8 +101,9 @@ using its PCI device ID's, the \fBtuple\fR method matches a card using
 any string embedded in any arbitrary CIS tuple, the \fBfunction\fR
 method matches a card using its function ID, and the \fBanonymous\fR
 method matches any card that does not have a CIS.  This last method
-is only intended to be used for old-style Type I memory cards.  For
-example:
+is only intended to be used for old-style Type I memory cards.  The
+\fBmanfid\fR and \fBversion\fR methods can be combined to provide more
+discrimination; the other methods cannot be combined.  For example:
 .sp
 .RS
 .nf

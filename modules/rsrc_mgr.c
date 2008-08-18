@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.81 2001/03/04 21:11:43
+    rsrc_mgr.c 1.82 2001/06/04 12:47:58
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -421,6 +421,10 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     
     /* First, what does a floating port look like? */
     b = kmalloc(256, GFP_KERNEL);
+    if (!b) {
+	printk(KERN_INFO " kmalloc failed!\n");
+	return;
+    }
     memset(b, 0, 256);
     for (i = base, most = 0; i < base+num; i += 8) {
 	if (check_region(i, 8) || check_io_region(i, 8))

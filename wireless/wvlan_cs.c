@@ -1561,7 +1561,9 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					wrq->u.bitrate.fixed = 1;
 
 				wrq->u.bitrate.value = brate * 500000;
+#if WIRELESS_EXT > 8
 				wrq->u.bitrate.disabled = 0;
+#endif
 			}
 			break;
 

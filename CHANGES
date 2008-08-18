@@ -1,3 +1,24 @@
+Version 3.1.27
+-- Extended config file format, so that manfid and product strings can
+   both be specified for a card, to help resolve ambiguities.
+-- Added another PCI fixup, for when the BIOS configures a bridge so
+   that the two sockets' registers conflict with each other.
+-- Added Asix AX88190 driver, axnet_cs.
+-- Added auto_polarity parameter to 3c574_cs and 3c575_cb drivers for
+   control of MII auto polarity detection capability.
+-- Added HomePNA support to pcnet_cs, with help from Wilson Chen.
+-- Removed tempnam() calls from debug-tools.
+-- Added MII support code for 100baseT cards, and resume code for
+   Seven of Diamonds, to smc91c92_cs, from Komuro.
+-- Fixed Makefiles to clean up broken links in /lib/modules/*/pcmcia
+   when installing over the kernel PCMCIA modules.
+-- Fixed several ibmtr_cs build problems.
+-- Fixed test_modem to not try the polled-mode test if a modem seems
+   to be sharing a PCI interrupt.
+-- Fixed Xircom CardBus receive filter setup bug, from Ion Badulescu.
+-- Fixed Configure script to do a better job of locating man pages on
+   non-English distributions.
+
 [12-May-01] Version 3.1.26
 -- Added support for TI 4410, 4410A, and 1451A bridges.
 -- Changed cardmgr, cardinfo, cardctl not to use tempnam().

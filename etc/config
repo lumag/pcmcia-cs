@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.167 2001/05/10 03:17:35 (David Hinds)
+# config 1.170 2001/06/23 13:48:47 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -11,6 +11,9 @@
 #
 device "3c589_cs"
   class "network" module "3c589_cs"
+
+device "axnet_cs"
+  class "network" module "axnet_cs"
 
 device "ibmtr_cs"
   class "network" module "ibmtr_cs"
@@ -157,6 +160,10 @@ card "AmbiCom AMB8002T Ethernet"
 
 card "AmbiCom AMB8010 Ethernet"
   version "AmbiCom Inc", "AMB8010"
+  bind "pcnet_cs"
+
+card "AmbiCom AMB8610 Ethernet"
+  version "AmbiCom", "AMB8610"
   bind "pcnet_cs"
 
 card "AnyCom ECO Ethernet"
@@ -708,7 +715,7 @@ card "Allied Telesis CentreCOM LA100-PCM-T V2"
 
 card "AmbiCom AMB8110 Fast Ethernet"
   manfid 0x021b, 0x0202
-  bind "pcnet_cs"
+  bind "axnet_cs"
 
 card "AnyCom ECO 10/100 Fast Ethernet"
   version "AnyCom", "ECO Ethernet 10/100"
@@ -782,6 +789,16 @@ card "Linksys EtherFast 10/100 Fast Ethernet"
   version "Linksys", "EtherFast 10/100 PC Card (PCMPC100)"
   bind "pcnet_cs"
 
+card "Linksys EtherFast PCMPC100 V3 Fast Ethernet"
+  version "Linksys", "EtherFast 10/100 PC Card (PCMPC100 V3)"
+  #manfid 0x0149, 0xc1ab
+  bind "axnet_cs"
+
+card "Linksys NP100 Network Everywhere Ethernet"
+  version "Network Everywhere", "*", "*", "AX88190"
+  #manfid 0x0149, 0xc1ab
+  bind "axnet_cs"
+
 card "Logitec LPM-LN100TX Fast Ethernet"
   version "Logitec", "LPM-LN100TX"
   bind "pcnet_cs"
@@ -794,6 +811,10 @@ card "Melco/SMC LPC-TX Fast Ethernet"
   version "MELCO/SMC", "LPC-TX"
   bind "smc91c92_cs"
 
+card "Melco LPC3-TX Fast Ethernet"
+  version "MELCO", "LPC3-TX"
+  bind "axnet_cs"
+
 card "Microcom C.E. Travel Card 10/100 Fast Ethernet"
   version "Microcom C.E.", "Travel Card LAN 10/100"
   bind "pcnet_cs"
@@ -802,13 +823,24 @@ card "NetGear FA410TXC Fast Ethernet"
   version "NETGEAR", "FA410TX"
   bind "pcnet_cs"
 
+card "NetGear FA411 Fast Ethernet"
+  version "NETGEAR", "FA411"
+  bind "pcnet_cs"
+
 card "NE2000 Compatible Fast Ethernet"
   manfid 0x0149, 0x0230
   bind "pcnet_cs"
 
-card "NE2000 Compatible Fast Ethernet"
-  version "PCMCIA", "10/100 Ethernet Card"
-  bind "pcnet_cs"
+card "Asix AX88190 Fast Ethernet"
+  #version "PCMCIA", "10/100 Ethernet Card"
+  #version "NEWMEDIA", "LIVEWIRE 10/100"
+  manfid 0x8a01, 0xc1ab
+  bind "axnet_cs"
+
+# Too generic?
+#card "NE2000 Compatible Fast Ethernet"
+#  version "PCMCIA", "10/100 Ethernet Card"
+#  bind "pcnet_cs"
 
 card "NE2000 Compatible Fast Ethernet"
   version "PCMCIA", "FAST ETHERNET CARD"
@@ -1311,6 +1343,10 @@ card "Newer Technology FireWire 2 Go"
   pci 0x104c, 0x8000
   bind "pcilynx_cb"
 
+card "Margi 1394-to-Go OHCI Adapter"
+  pci 0x1033, 0x0063
+  bind "ohci1394_cb"
+
 card "Western Digital 1394 Adapter"
   pci 0x1033, 0x00cd
   bind "ohci1394_cb"
@@ -1479,6 +1515,10 @@ card "Psion Gold Card V34 Ethernet"
 card "Psion Gold Card Netglobal 56K+10Mb Ethernet"
   manfid 0x016c, 0x0020
   bind "smc91c92_cs" to 0, "serial_cs" to 1
+
+card "Reliable Combo-L/M-56K"
+  manfid 0x0213, 0x2452
+  bind "pcnet_cs"
 
 card "Rover ComboCard Ethernet/Modem"
   version "PCMCIAs", "ComboCard"
@@ -1799,6 +1839,10 @@ card "NetGear FA510C Fast Ethernet"
   manfid 0x9513, 0x0081
   bind "tulip_cb"
 
+card "NetGear FA510C Fast Ethernet"
+  pci 0x1011, 0x0019
+  bind "tulip_cb"
+
 card "PLANET ENW-3502-FC"
   version "PLANET", "ENW-3502-FC"
   bind "tulip_cb"
@@ -1809,6 +1853,10 @@ card "PrimeXPress 10/100 Fast Ethernet"
 
 card "RATOC REX-CB80 Fast Ethernet"
   version "RATOC Systems,Inc.", "CardBus LAN 01"
+  bind "tulip_cb"
+
+card "Silicom Fast Ethernet"
+  manfid 0x01da, 0x0081
   bind "tulip_cb"
 
 card "Silicom FEM56 Fast Ethernet"

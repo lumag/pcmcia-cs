@@ -108,6 +108,7 @@ MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
 MODULE_PARM(max_interrupt_work, "i");
 MODULE_PARM(full_duplex, "i");
+MODULE_PARM(auto_polarity, "i");
 
 /* Now-standard PC card module parameters. */
 static u_int irq_mask = 0xdeb8;			/* IRQ3,4,5,7,9,10,11,12,14,15 */
@@ -121,6 +122,9 @@ static int max_interrupt_work = 32;
 
 /* Force full duplex modes? */
 static int full_duplex = 0;
+
+/* Autodetect link polarity reversal? */
+static int auto_polarity = 1;
 
 /* To minimize the size of the driver source and make the driver more
    readable not all constants are symbolically defined.
@@ -201,7 +205,7 @@ struct el3_private {
 	dev_node_t node;
 	struct net_device_stats stats;
 	u16 advertising, partner;			/* NWay media advertisement */
-	unsigned char phys[2];				/* MII device addresses. */
+	unsigned char phys;					/* MII device address */
 	unsigned int
 	  autoselect:1, default_media:3;	/* Read from the EEPROM/Wn3_Config. */
 	/* for transceiver monitoring */
@@ -514,7 +518,7 @@ static void tc574_config(dev_link_t *link)
 	}
 
 	{
-		int phy, phy_idx = 0;
+		int phy;
 		
 		/* Roadrunner only: Turn on the MII transceiver */
 		outw(0x8040, ioaddr + Wn3_Options);
@@ -526,29 +530,30 @@ static void tc574_config(dev_link_t *link)
 		outw(0x8040, ioaddr + Wn3_Options);
 		
 		EL3WINDOW(4);
-		for (phy = 1; phy <= 32 && phy_idx < sizeof(lp->phys); phy++) {
+		for (phy = 1; phy <= 32; phy++) {
 			int mii_status;
 			mdio_sync(ioaddr, 32);
 			mii_status = mdio_read(ioaddr, phy & 0x1f, 1);
 			if (mii_status != 0xffff) {
-				lp->phys[phy_idx++] = phy & 0x1f;
+				lp->phys = phy & 0x1f;
 				DEBUG(0, "  MII transceiver at index %d, status %x.\n",
 					  phy, mii_status);
 				if ((mii_status & 0x0040) == 0)
 					mii_preamble_required = 1;
+				break;
 			}
 		}
-		if (phy_idx == 0) {
+		if (phy > 32) {
 			printk(KERN_NOTICE "  No MII transceivers found!\n");
 			goto failed;
 		}
-		i = mdio_read(ioaddr, lp->phys[0], 16) | 0x40;
-		mdio_write(ioaddr, lp->phys[0], 16, i);
-		lp->advertising = mdio_read(ioaddr, lp->phys[0], 4);
+		i = mdio_read(ioaddr, lp->phys, 16) | 0x40;
+		mdio_write(ioaddr, lp->phys, 16, i);
+		lp->advertising = mdio_read(ioaddr, lp->phys, 4);
 		if (full_duplex) {
 			/* Only advertise the FD media types. */
 			lp->advertising &= ~0x02a0;
-			mdio_write(ioaddr, lp->phys[0], 4, lp->advertising);
+			mdio_write(ioaddr, lp->phys, 4, lp->advertising);
 		}
 	}
 
@@ -812,7 +817,12 @@ static void tc574_reset(struct net_device *dev)
 	outw(0x0040, ioaddr + Wn4_NetDiag);
 	/* .. re-sync MII and re-fill what NWay is advertising. */
 	mdio_sync(ioaddr, 32);
-	mdio_write(ioaddr, lp->phys[0], 4, lp->advertising);
+	mdio_write(ioaddr, lp->phys, 4, lp->advertising);
+	if (!auto_polarity) {
+		/* works for TDK 78Q2120 series MII's */
+		int i = mdio_read(ioaddr, lp->phys, 16) | 0x20;
+		mdio_write(ioaddr, lp->phys, 16, i);
+	}
 
 	/* Switch to register set 1 for normal use, just for TxFree. */
 	EL3WINDOW(1);
@@ -1047,8 +1057,8 @@ static void media_check(u_long arg)
 	outw(0, ioaddr + RunnerRdCtrl);
 #endif
 	EL3WINDOW(4);
-	media = mdio_read(ioaddr, lp->phys[0], 1);
-	partner = mdio_read(ioaddr, lp->phys[0], 5);
+	media = mdio_read(ioaddr, lp->phys, 1);
+	partner = mdio_read(ioaddr, lp->phys, 5);
 	EL3WINDOW(1);
 	restore_flags(flags);
 
@@ -1204,7 +1214,7 @@ static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	ioaddr_t ioaddr = dev->base_addr;
 	u16 *data = (u16 *)&rq->ifr_data;
-	int phy = lp->phys[0] & 0x1f;
+	int phy = lp->phys & 0x1f;
 
 	DEBUG(2, "%s: In ioct(%-.6s, %#4.4x) %4.4x %4.4x %4.4x %4.4x.\n",
 		  dev->name, rq->ifr_ifrn.ifrn_name, cmd,

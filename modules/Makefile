@@ -1,7 +1,7 @@
 #
 # Copyright (C) 2000 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.119 2001/02/07 00:41:40
+# Makefile 1.121 2001/07/03 01:55:58
 #
 
 # Include site dependent options and kernel configuration
@@ -60,9 +60,7 @@ pcmcia_core.o: $(CORE)
 	$(LD) -r -o $@ $(CORE)
 	chmod -x $@
 
-install install-modules: $(MODULES)
-	@mkdir -p $(PREFIX)$(MODDIR)/pcmcia
-	cp $(MODULES) $(PREFIX)$(MODDIR)/pcmcia
+install: install-modules
 
 include ../rules.mk
 

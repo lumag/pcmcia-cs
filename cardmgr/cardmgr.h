@@ -1,5 +1,5 @@
 /*
- * cardmgr.h 1.35 2000/06/12 21:33:03
+ * cardmgr.h 1.36 2001/06/22 04:17:17
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -67,18 +67,23 @@ typedef struct device_info_t {
     struct device_info_t *next;
 } device_info_t;
 
+#define VERS_1_IDENT	0x0001
+#define MANFID_IDENT	0x0002
+#define TUPLE_IDENT	0x0010
+#define FUNC_IDENT	0x0020
+#define BLANK_IDENT	0x0040
+#define PCI_IDENT	0x0080
+#define EXCL_IDENT	0x00f0
+
 typedef struct card_info_t {
     char		*name;
-    enum {
-	VERS_1_IDENT=1, MANFID_IDENT, TUPLE_IDENT, FUNC_IDENT,
-	BLANK_IDENT, PCI_IDENT
-    } ident_type;
+    int			ident_type;
     union {
 	vers_ident_t	vers;
-	manfid_ident_t	manfid;
 	tuple_ident_t	tuple;
 	func_ident_t	func;
     } id;
+    manfid_ident_t	manfid;
     int			bindings;
     device_info_t	*device[MAX_BINDINGS];
     int			dev_fn[MAX_BINDINGS];

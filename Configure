@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.184 2001/05/12 04:47:59
+# Configure 1.185 2001/06/12 00:26:40
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -414,7 +414,7 @@ printconfig () {
     printflag " Frame Diverter" CONFIG_NET_DIVERT
     printflag "Module version checking" CONFIG_MODVERSIONS
     printflag "Kernel debugging support" CONFIG_KERNEL_DEBUGGING
-    if [ $CONFIG_KERNEL_DEBUGGING = "y" ] ; then
+    if [ "$CONFIG_KERNEL_DEBUGGING" = "y" ] ; then
 	printflag " Memory leak detection support" CONFIG_MEMLEAK
     fi
     if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
@@ -889,14 +889,8 @@ fi
 
 md ()
 {
-    L=`man -w $1 2>/dev/null`
-    if [ -f "$L" ] ; then
-	M=`dirname $L 2>/dev/null`
-	MD=`dirname $M 2>/dev/null`
-	if [ -d "$MD" ] ; then echo $MD ; else echo $2 ; fi
-    else
-	echo $2
-    fi
+    L=`env LANG=en_US man -w $1 2>/dev/null | sed -ne 's+/man/.*+/man/+p'`
+    if [ -f "$L" ] ; then echo $L ; else echo $2 ; fi
 }
 
 MANDIR=`md ls /usr/man`

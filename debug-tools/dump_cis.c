@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.55 2001/02/14 03:28:38
+    dump_cis.c 1.56 2001/05/14 23:32:48
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -92,13 +92,14 @@ static int open_sock(int sock)
 	"/var/lib/pcmcia", "/var/run", "/dev", "/tmp", NULL
     };
     int fd;
-    char **p, *fn;
+    char **p, fn[64];
     dev_t dev = (major<<8) + sock;
 
-    for (p = paths; *p; p++)
-	if ((fn = tempnam(*p, "dc")) &&
-	    (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) == 0))
+    for (p = paths; *p; p++) {
+	sprintf(fn, "%s/dc%d", *p, getpid());
+	if (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) == 0)
 	    break;
+    }
     if (!*p)
 	return -1;
     fd = open(fn, O_RDONLY);

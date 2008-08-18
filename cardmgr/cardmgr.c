@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.158 2001/05/12 22:45:59
+    cardmgr.c 1.159 2001/06/22 04:17:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -484,8 +484,7 @@ static card_info_t *lookup_card(int ns)
     pci_id_t pci_id = { 0, 0 };
     cistpl_funcid_t funcid = { 0xff, 0xff };
     cs_status_t status;
-    int i, ret, match;
-    int has_cis = 0;
+    int i, ret, has_cis = 0;
 
     /* Do we have a CIS structure? */
     ret = ioctl(s->fd, DS_VALIDATE_CIS, &arg);
@@ -506,13 +505,15 @@ static card_info_t *lookup_card(int ns)
 	if (get_tuple(ns, CISTPL_VERS_1, &arg) == 0)
 	    vers = &arg.tuple_parse.parse.version_1;
 
-	match = 0;
 	for (card = root_card; card; card = card->next) {
-	    switch (card->ident_type) {
-		
-	    case VERS_1_IDENT:
+
+	    if (card->ident_type &
+		~(VERS_1_IDENT|MANFID_IDENT|TUPLE_IDENT))
+		continue;
+
+	    if (card->ident_type & VERS_1_IDENT) {
 		if (vers == NULL)
-		    break;
+		    continue;
 		for (i = 0; i < card->id.vers.ns; i++) {
 		    if (strcmp(card->id.vers.pi[i], "*") == 0)
 			continue;
@@ -523,36 +524,30 @@ static card_info_t *lookup_card(int ns)
 			break;
 		}
 		if (i < card->id.vers.ns)
-		    break;
-		match = 1;
-		break;
-
-	    case MANFID_IDENT:
-		if ((manfid.manf == card->id.manfid.manf) &&
-		    (manfid.card == card->id.manfid.card))
-		    match = 1;
-		break;
+		    continue;
+	    }
+	    
+	    if (card->ident_type & MANFID_IDENT) {
+		if ((manfid.manf != card->manfid.manf) ||
+		    (manfid.card != card->manfid.card))
+		    continue;
+	    }
 		
-	    case TUPLE_IDENT:
+	    if (card->ident_type & TUPLE_IDENT) {
 		arg.tuple.DesiredTuple = card->id.tuple.code;
 		arg.tuple.Attributes = 0;
 		ret = ioctl(s->fd, DS_GET_FIRST_TUPLE, &arg);
-		if (ret != 0) break;
+		if (ret != 0) continue;
 		arg.tuple.TupleOffset = card->id.tuple.ofs;
 		ret = ioctl(s->fd, DS_GET_TUPLE_DATA, &arg);
-		if (ret != 0) break;
+		if (ret != 0) continue;
 		if (strncmp((char *)arg.tuple_parse.data,
 			    card->id.tuple.info,
 			    strlen(card->id.tuple.info)) != 0)
-		    break;
-		match = 1;
-		break;
-
-	    default:
-		/* Skip */
-		break;
+		    continue;
 	    }
-	    if (match) break;
+
+	    break; /* we have a match */
 	}
     }
 
@@ -562,8 +557,8 @@ static card_info_t *lookup_card(int ns)
 	if (!card) {
 	    for (card = root_card; card; card = card->next)
 		if ((card->ident_type == PCI_IDENT) &&
-		    (pci_id.vendor == card->id.manfid.manf) &&
-		    (pci_id.device == card->id.manfid.card))
+		    (pci_id.vendor == card->manfid.manf) &&
+		    (pci_id.device == card->manfid.card))
 		    break;
 	}
 	for (p = hotplug_list; p; p = p->next)

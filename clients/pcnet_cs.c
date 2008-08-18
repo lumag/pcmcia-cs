@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.134 2001/04/15 04:08:21
+    pcnet_cs.c 1.137 2001/07/03 00:29:12
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -76,7 +76,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.134 2001/04/15 04:08:21 (David Hinds)";
+"pcnet_cs.c 1.137 2001/07/03 00:29:12 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -105,13 +105,14 @@ MODULE_PARM(hw_addr, "6i");
 
 /*====================================================================*/
 
+static void mii_phy_probe(struct net_device *dev); /* +Wilson 30.05.2001 */
 static void pcnet_config(dev_link_t *link);
 static void pcnet_release(u_long arg);
 static int pcnet_event(event_t event, int priority,
 		       event_callback_args_t *args);
 static int pcnet_open(struct net_device *dev);
 static int pcnet_close(struct net_device *dev);
-static int do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs);
 static void ei_watchdog(u_long arg);
 static void pcnet_reset_8390(struct net_device *dev);
@@ -143,6 +144,14 @@ typedef struct hw_info_t {
 #define IS_DL10022	0x20
 #define HAS_MII		0x40
 #define USE_SHMEM	0x80	/* autodetected */
+
+/* +Wilson 30.05.2001 */
+#define AM79C9XX_HOME_PHY	0x00006B90  /* HomePNA PHY */
+#define AM79C9XX_ETH_PHY	0x00006B70  /* 10baseT PHY */
+#define MII_PHYID_REV_MASK	0xfffffff0
+#define MII_PHYID_REG1		0x02
+#define MII_PHYID_REG2		0x03
+/* +Wilson */
 
 static hw_info_t hw_info[] = {
     { /* Accton EN2212 */ 0x0ff0, 0x00, 0x00, 0xe8, DELAY_OUTPUT }, 
@@ -220,7 +229,10 @@ typedef struct pcnet_dev_t {
     caddr_t		base;
     struct timer_list	watchdog;
     int			stale, fast_poll;
+    u_char		phy_id;
+    u_char		eth_phy, pna_phy;
     u_short		link_status;
+    u_long		mii_reset;
 } pcnet_dev_t;
 
 /*======================================================================
@@ -754,10 +766,13 @@ static void pcnet_config(dev_link_t *link)
     link->state &= ~DEV_CONFIG_PENDING;
 
     if (info->flags & (IS_DL10019|IS_DL10022)) {
-	dev->do_ioctl = &do_ioctl;
+	dev->do_ioctl = &ei_ioctl;
 	printk(KERN_INFO "%s: NE2000 (DL100%d rev %02x): ",
 	       dev->name, ((info->flags & IS_DL10022) ? 22 : 19),
 	       inb(dev->base_addr + 0x1a));
+	mii_phy_probe(dev);
+	if (info->pna_phy)
+	    printk("PNA, ");
     } else
 	printk(KERN_INFO "%s: NE2000 Compatible: ", dev->name);
     printk("io %#3lx, irq %d,", dev->base_addr, dev->irq);
@@ -959,14 +974,39 @@ static void set_misc_reg(struct net_device *dev)
 	outb_p(tmp, nic_base + PCNET_MISC);
     }
     if (info->flags & IS_DL10022) {
-	mdio_reset(nic_base + DLINK_GPIO, 0);
+	mdio_reset(nic_base + DLINK_GPIO, info->eth_phy);
 	/* Restart MII autonegotiation */
-	mdio_write(nic_base + DLINK_GPIO, 0, 0, 0x0000);
-	mdio_write(nic_base + DLINK_GPIO, 0, 0, 0x1200);
+	mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 0, 0x0000);
+	mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 0, 0x1200);
+	info->mii_reset = jiffies;
     }
 }
 
 /*====================================================================*/
+
+static void mii_phy_probe(struct net_device *dev)
+{
+    pcnet_dev_t *info = (pcnet_dev_t *)dev;	
+    ioaddr_t mii_addr = dev->base_addr + DLINK_GPIO;
+    int i;
+    u_int tmp;
+    u_long phyid;
+
+    for (i = 31; i >= 0; i--) {
+	tmp = mdio_read(mii_addr, i, 1);
+	if ((tmp == 0) || (tmp == 0xffff))
+	    continue;
+	tmp = mdio_read(mii_addr, i, MII_PHYID_REG1);
+	phyid = tmp << 16;
+	phyid |= mdio_read(mii_addr, i, MII_PHYID_REG2);
+	phyid &= MII_PHYID_REV_MASK;
+	if (phyid == AM79C9XX_HOME_PHY) {
+	    info->pna_phy = i;
+	} else if (phyid != AM79C9XX_ETH_PHY) {
+	    info->eth_phy = i;
+	}
+    }
+}
 
 static int pcnet_open(struct net_device *dev)
 {
@@ -984,6 +1024,7 @@ static int pcnet_open(struct net_device *dev)
     set_misc_reg(dev);
     request_irq(dev->irq, ei_irq_wrapper, SA_SHIRQ, dev_info, dev);
 
+    info->phy_id = info->eth_phy;
     info->link_status = 0x00;
     info->watchdog.function = &ei_watchdog;
     info->watchdog.data = (u_long)info;
@@ -1080,6 +1121,7 @@ static void ei_watchdog(u_long arg)
     pcnet_dev_t *info = (pcnet_dev_t *)(arg);
     struct net_device *dev = &info->dev;
     ioaddr_t nic_base = dev->base_addr;
+    ioaddr_t mii_addr = nic_base + DLINK_GPIO;
     u_short link;
 
     if (!netif_device_present(dev)) goto reschedule;
@@ -1103,7 +1145,8 @@ static void ei_watchdog(u_long arg)
     if (!(info->flags & HAS_MII))
 	goto reschedule;
 
-    link = mdio_read(dev->base_addr + DLINK_GPIO, 0, 1);
+    mdio_read(mii_addr, info->phy_id, 1);
+    link = mdio_read(mii_addr, info->phy_id, 1);
     if (!link || (link == 0xffff)) {
 	printk(KERN_INFO "%s: MII is missing!\n", dev->name);
 	info->flags &= ~HAS_MII;
@@ -1112,25 +1155,42 @@ static void ei_watchdog(u_long arg)
 
     link &= 0x0004;
     if (link != info->link_status) {
-	u_short p = mdio_read(dev->base_addr + DLINK_GPIO, 0, 5);
+	u_short p = mdio_read(mii_addr, info->phy_id, 5);
 	printk(KERN_INFO "%s: %s link beat\n", dev->name,
 	       (link) ? "found" : "lost");
 	if (link && (info->flags & IS_DL10022)) {
 	    /* Disable collision detection on full duplex links */
-	    outb((p & 0x0140) ? 4 : 0, dev->base_addr + DLINK_DIAG);
+	    outb((p & 0x0140) ? 4 : 0, nic_base + DLINK_DIAG);
 	}
 	if (link) {
-	    if (p)
-		printk(KERN_INFO "%s: autonegotiation complete: "
-		       "%sbaseT-%cD selected\n", dev->name,
-		       ((p & 0x0180) ? "100" : "10"),
-		       ((p & 0x0140) ? 'F' : 'H'));
-	    else
-		printk(KERN_INFO "%s: link partner did not autonegotiate\n",
-		       dev->name);
+	    if (info->phy_id == info->eth_phy) {
+		if (p)
+		    printk(KERN_INFO "%s: autonegotiation complete: "
+			   "%sbaseT-%cD selected\n", dev->name,
+			   ((p & 0x0180) ? "100" : "10"),
+			   ((p & 0x0140) ? 'F' : 'H'));
+		else
+		    printk(KERN_INFO "%s: link partner did not "
+			   "autonegotiate\n", dev->name);
+	    }
 	    NS8390_init(dev, 1);
 	}
 	info->link_status = link;
+    }
+    if (info->pna_phy && (jiffies - info->mii_reset > 6*HZ)) {
+	link = mdio_read(mii_addr, info->eth_phy, 1) & 0x0004;
+	if (((info->phy_id == info->pna_phy) && link) ||
+	    ((info->phy_id != info->pna_phy) && !link)) {
+	    /* isolate this MII and try flipping to the other one */
+	    mdio_write(mii_addr, info->phy_id, 0, 0x0400);
+	    info->phy_id ^= info->pna_phy ^ info->eth_phy;
+	    printk(KERN_INFO "%s: switched to %s transceiver\n", dev->name,
+		   (info->phy_id == info->eth_phy) ? "ethernet" : "PNA");
+	    mdio_write(mii_addr, info->phy_id, 0,
+		       (info->phy_id == info->eth_phy) ? 0x1000 : 0);
+	    info->link_status = 0;
+	    info->mii_reset = jiffies;
+	}
     }
 
 reschedule:
@@ -1140,20 +1200,21 @@ reschedule:
 
 /*====================================================================*/
 
-static int do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
+    pcnet_dev_t *info = (pcnet_dev_t *)dev;
     u16 *data = (u16 *)&rq->ifr_data;
-    ioaddr_t addr = dev->base_addr + DLINK_GPIO;
+    ioaddr_t mii_addr = dev->base_addr + DLINK_GPIO;
     switch (cmd) {
     case SIOCDEVPRIVATE:
-	data[0] = 0;
+	data[0] = info->phy_id;
     case SIOCDEVPRIVATE+1:
-	data[3] = mdio_read(addr, data[0], data[1] & 0x1f);
+	data[3] = mdio_read(mii_addr, data[0], data[1] & 0x1f);
 	return 0;
     case SIOCDEVPRIVATE+2:
 	if (!capable(CAP_NET_ADMIN))
 	    return -EPERM;
-	mdio_write(addr, data[0], data[1] & 0x1f, data[2]);
+	mdio_write(mii_addr, data[0], data[1] & 0x1f, data[2]);
 	return 0;
     }
     return -EOPNOTSUPP;

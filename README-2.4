@@ -69,6 +69,9 @@ SCSI low-level drivers:
   fdomain_cs   Future Domain             CONFIG_PCMCIA_FDOMAIN
   apa1480_cb   Adaptec APA1480 CardBus   CONFIG_PCMCIA_APA1480
 
+Other drivers:
+  ide_cs       ATA/IDE devices           CONFIG_BLK_DEV_IDECS
+
 The CardBus network drivers (3c575_cb, tulip_cb, epic_cb) have been
 folded into the corresponding PCI drivers using the new "hot plug PCI"
 interface.  The tulip_cb driver has been partially merged into the
@@ -84,6 +87,12 @@ about this new facility.
 
 Known problems and limitations:
 
+o Someone changed the name of the "ide_cs" driver in the 2.4 tree to
+  "ide-cs".  To deal with this annoyance, edit /etc/pcmcia/config and
+  change every instance of "ide_cs" to "ide-cs".  Yes this means that
+  the same config file won't work for 2.2 kernels.  No you cannot just
+  rename the module or add an alias to /etc/modules.conf; the string
+  is also embedded in the module.
 o Some of the less widely used client drivers, like the memory card
   drivers, have not been ported into the 2.4 driver tree yet.
 o The yenta_socket driver does not have the /proc interface of the

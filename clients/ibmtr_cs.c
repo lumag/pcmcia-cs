@@ -88,8 +88,7 @@ static char *version =
 #define DEBUG(n, args...)
 #endif
 
-/* Dumb test for new ibmtr driver */
-#ifdef BLOCKSZ
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,2,17))
 #define TR_OLD 0
 #else
 #define TR_OLD 1
@@ -468,6 +467,9 @@ static void ibmtr_release(u_long arg)
     if (link->win) {
 	struct tok_info *ti = dev->priv;
 	iounmap((void *)ti->mmio);
+#if !(TR_OLD)
+	iounmap((void *)ti->sram_virt);
+#endif
 	CardServices(ReleaseWindow, link->win);
 	CardServices(ReleaseWindow, info->sram_win_handle);
     }
