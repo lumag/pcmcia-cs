@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# etc/install-etc 1.12 2000/08/25 19:21:46 (David Hinds)
+# etc/install-etc 1.13 2000/10/23 19:52:22 (David Hinds)
 #
 # This handles updating the PCMCIA startup and device configuration
 # scripts.  I used to do this in the Makefile, but it is really much
@@ -22,17 +22,23 @@ install_clients ()
 	cp *.conf $ETC
     fi
     for f in *.opts ; do
+	[ -r $ETC/$f ] || cp $f $ETC/$f
 	b=`basename $f .opts`
 	cmp -s $b $ETC/$b && continue
 	[ -r $ETC/$b ] && mv $ETC/$b $ETC/$b.O
 	cp $b $ETC/$b
-	[ -r $ETC/$f ] || cp $f $ETC/$f
     done
     for f in shared ; do
 	cmp -s $f $ETC/$f && continue
 	[ -r $ETC/$f ] && mv $ETC/$f $ETC/$f.O
 	cp $f $ETC/$f
     done
+    # Tweak network.opts for Red Hat
+    if [ -f /etc/redhat-release ] && \
+	cmp -s network.opts $ETC/network.opts ; then
+	echo "->   Configuring /etc/pcmcia/network.opts for Red Hat"
+	cat network.rh >> $ETC/network.opts
+    fi
 }
 
 install_sysv ()

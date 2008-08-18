@@ -1,5 +1,5 @@
 #
-# cardmgr/Makefile 1.81 2000/05/11 02:33:24 (David Hinds)
+# cardmgr/Makefile 1.82 2000/11/07 19:00:35 (David Hinds)
 #
 
 # Include site dependent options
@@ -58,7 +58,7 @@ parser: lex_config.o yacc_config.c
 	$(CC) -O $(CPPFLAGS) -DYYDEBUG=1 -o $@ yacc_config.c lex_config.o
 
 cardinfo: cardinfo.o
-	$(CC) $< -o $@ -L/usr/X11R6/lib -L/usr/X11/lib -lforms -lX11 -lm
+	$(CC) $< -o $@ $(FLIBS) -lm
 
 install-cardinfo: cardinfo
 	@mkdir -p $(PREFIX)/usr/X11R6/bin

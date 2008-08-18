@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.45 2000/08/12 02:08:23
+ * ciscode.h 1.46 2000/10/27 19:33:26
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -112,6 +112,7 @@
 #define PRODID_SOCKET_DUAL_RS232	0x0006
 #define PRODID_SOCKET_EIO		0x000a
 #define PRODID_SOCKET_LPE		0x000d
+#define PRODID_SOCKET_LPE_CF		0x0075
 
 #define MANFID_SUNDISK			0x0045
 

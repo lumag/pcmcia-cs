@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.76 2000/09/30 12:58:07 (David Hinds)
+# network 1.77 2000/10/26 16:26:50 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -213,7 +213,7 @@ case "$ACTION" in
 	    if [ "$STATE" != "FIN_WAIT1" -a "$STATE" != "FIN_WAIT2" \
 		-a "$STATE" != "CLOSE_WAIT" -a "$STATE" != "TIME_WAIT" \
 		-a "$HOST" != "127.0.0.1" -a "$HOST" != "0.0.0.0" \
-		-a "$PORT" != "*" ] ; then
+		-a "$STATE" != "CLOSE" -a "$PORT" != "*" ] ; then\
 		echo $HOST
 	    fi
 	done

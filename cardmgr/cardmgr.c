@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.145 2000/08/30 00:09:15
+    cardmgr.c 1.148 2000/11/07 19:15:53
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -489,9 +489,8 @@ static card_info_t *lookup_card(int ns)
 
     /* Check PCI vendor/device info */
     status.Function = config.Function = config.ConfigBase = 0;
-    if ((ioctl(s->fd, DS_GET_STATUS, &status) == 0) &&
-	(status.CardState & CS_EVENT_CB_DETECT) &&
-	(ioctl(s->fd, DS_GET_CONFIGURATION_INFO, &config) == 0)) {
+    if ((ioctl(s->fd, DS_GET_CONFIGURATION_INFO, &config) == 0) &&
+	(config.IntType == INT_CARDBUS)) {
 	pci_id.vendor = config.ConfigBase & 0xffff;
 	pci_id.device = config.ConfigBase >> 16;
 	if (!card) {
@@ -889,6 +888,7 @@ static void bind_mtd(int sn)
     /* Now bind each unique MTD as a normal client of this socket */
     for (i = 0; i < nr; i++) {
 	strcpy(bind.dev_info, s->mtd[i]->module);
+	bind.function = 0;
 	if (ioctl(s->fd, DS_BIND_REQUEST, &bind) != 0)
 	    syslog(LOG_INFO, "bind MTD '%s' to socket %d failed: %m",
 		   (char *)bind.dev_info, sn);
@@ -1083,6 +1083,7 @@ static void do_remove(int sn)
     for (i = 0; (s->mtd[i] != NULL); i++) {
 	bind_info_t b;
 	strcpy(b.dev_info, s->mtd[i]->module);
+	b.function = 0;
 	if (ioctl(s->fd, DS_UNBIND_REQUEST, &b) != 0)
 	    syslog(LOG_INFO, "unbind MTD '%s' from socket %d failed: %m",
 		   s->mtd[i]->module, sn);

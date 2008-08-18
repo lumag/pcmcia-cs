@@ -36,9 +36,9 @@
  *
  * SMP
  * ---
- *	We now *should* be SMP compliant.
- *	I don't have a SMP box to verify that (my Pentium 133 is not), so
- *	someone has to certify that from me.
+ *	We now are SMP compliant (I eventually fixed the remaining bugs).
+ *	The driver has been tested on a dual P6-150 and survived my usual
+ *	set of torture tests.
  *	Anyway, I spent enough time chasing interrupt re-entrancy during
  *	errors or reconfigure, and I designed the locked/unlocked sections
  *	of the driver with great care, and with the recent addition of
@@ -384,6 +384,10 @@
  *	- Re-sync kernel/pcmcia versions (not much actually)
  *	- A few other cleanups (David & me)...
  *
+ * Changes made for release in 3.1.22 :
+ * ----------------------------------
+ *	- Check that SMP works, remove annoying log message
+ *
  * Wishes & dreams:
  * ----------------
  *	- Cleanup and integrate the roaming code
@@ -504,7 +508,7 @@
 /************************ CONSTANTS & MACROS ************************/
 
 #ifdef DEBUG_VERSION_SHOW
-static const char *version = "wavelan_cs.c : v22 (wireless extensions) 23/02/00\n";
+static const char *version = "wavelan_cs.c : v23 (wireless extensions) 10/10/00\n";
 #endif
 
 /* Watchdog temporisation */

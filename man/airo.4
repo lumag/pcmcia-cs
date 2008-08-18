@@ -1,7 +1,7 @@
 .\" Copyright (c) 2000 Benjamin C. Reed <breed@almaden.ibm.com>
 .\" airo.c.4
 .\"
-.TH AIRO 4 "9/14/00" "IBM Almaden Research Center"
+.TH AIRO 4 "10/25/00" "IBM Almaden Research Center"
 
 .SH NAME
 airo \- Driver for the Aironet 802.11 ISA/PCI/PCMCIA 4500 & 4800 and Cisco 340
@@ -106,16 +106,20 @@ Can be cck or mok.  Sets the modulation type for speeds above 2mbs.
 
 .TP
 .BI WepKey
-This file allows the WepKey to be set.  I don't use Wep, so I can't
-really test it. The key is set by writing the key as a string
+This file allows all four wep keys to be set. 
+The key is set by writing the index (0 == first key) of the key to be set,
+followed by a space,
+followed by the key as a string
 to the file.  Each octet must be written in hexadecimal with
 leading zeros and separated by colons.  For security reasons the key
 cannot be read from the card.  Writing to this file sets both the
 permanent and temporary key.  (Anyone have a need for being able
 to write them separately?)  For example:
 
-     echo 12:04:78:9a:bc > /proc/aironet/eth0/WepKey
+     echo 0 12:04:78:9a:bc > /proc/aironet/eth0/WepKey
    
+When the file is read, it shows the length of the keys that are set and
+the index of the key that is set as the transmit key.
 .TP
 .BI APList
 Contains the list of MACs of the preferred APs.  Each MAC address must be
@@ -172,9 +176,12 @@ default), it is not used.  Units are in 512kbs.  Older cards could only
 do 2mbs (n=4) when doing encryption, even though they could do 11 mbs
 without encryption.
 .TP
-.BI auto_wep = 1
+.BI auto_wep = n
 Turns on logic to cycle through the different WEP settings until the card
-is able to associate.
+is able to associate.  It will also cycle through the wep keys.  n is the
+number of keys to cycle through.  Note, it only cycles through the keys
+for shared mode.  When encrypt is tried, it will use the permanent key
+index.  (See WepKey.)
 .TP
 .BI aux_bap = 1
 Enables logic that gets around bus timing problems on older cards with

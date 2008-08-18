@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.165 2000/08/17 19:17:11
+# Configure 1.172 2000/11/07 19:00:37
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -375,7 +375,7 @@ printflag() {
     write_bool $2
 }
 
-tweak () {
+x86_config_tweak () {
     if [ $VERSION_CODE -ge `version 2 2 0` ] ; then
 	if [ $CONFIG_SMP = "y" ] ; then
 	    CONFIG_X86_LOCAL_APIC=y
@@ -397,13 +397,15 @@ printconfig () {
     fi
     printflag "Symmetric multiprocessing support" CONFIG_SMP
     printflag "PCI BIOS support" CONFIG_PCI
-    tweak
+    x86_config_tweak
     printflag "Power management (APM) support" CONFIG_PM
     printflag "SCSI support" CONFIG_SCSI
+    printflag "IEEE 1394 (FireWire) support" CONFIG_IEEE1394
     printflag "Networking support" CONFIG_INET
     printflag " Radio network interface support" CONFIG_NET_PCMCIA_RADIO
     printflag " Token Ring device support" CONFIG_TR
     printflag " Fast switching" CONFIG_NET_FASTROUTE
+    printflag " Frame Diverter" CONFIG_NET_DIVERT
     printflag "Module version checking" CONFIG_MODVERSIONS
     if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
@@ -411,6 +413,8 @@ printconfig () {
     if [ $ARCH = "i386" ] ; then
 	CONFIG_X86_L1_CACHE_BYTES=32
 	write_int CONFIG_X86_L1_CACHE_BYTES
+	CONFIG_X86_L1_CACHE_SHIFT=5
+	write_int CONFIG_X86_L1_CACHE_SHIFT
     fi
     if [ $ARCH = "alpha" ] ; then
 	if [ $VERSION_CODE -lt `version 2 2 0` ] ; then
@@ -424,6 +428,15 @@ printconfig () {
     if [ $ARCH = "arm" ] ; then
 	printflag "Brutus architecture" CONFIG_ARCH_BRUTUS
 	printflag "Itsy target platform" CONFIG_ITSY
+    fi
+    if [ $ARCH = "ppc" ] ; then
+    	printflag "MPC8xx architecture" CONFIG_8xx
+    	printflag "Embedded Planet LITE platform" CONFIG_RPXLITE
+    	printflag "Embedded Planet CLASSIC platfom" CONFIG_RPXCLASSIC
+    	printflag "MPC823 processor" CONFIG_MPC823
+    	printflag "MPC850 processor" CONFIG_MPC850
+    	printflag "MPC860 processor" CONFIG_MPC860
+   	printflag "MPC860T processor" CONFIG_MPC860T
     fi
     printflag "/proc filesystem support" CONFIG_PROC_FS
     if [ "$BIGMEM" ] ; then
@@ -477,11 +490,14 @@ case $CONF_SRC in
 	    symcheck CONFIG_PM pm_register
 	fi
 	symcheck CONFIG_SCSI scsi_register scsi_mod
+	symcheck CONFIG_IEEE1394 hpsb_register_lowlevel ieee1394
 	symcheck CONFIG_SERIAL register_serial serial
 	symcheck CONFIG_PARPORT parport_register parport
 	symcheck CONFIG_PARPORT_PC parport_pc_ops parport_pc
+	symcheck CONFIG_PARPORT_PC_PCMCIA parport_pc_probe_port parport_pc
 	symcheck CONFIG_INET register_netdev
 	symcheck CONFIG_NET_FASTROUTE dev_fastroute_stat
+	symcheck CONFIG_NET_DIVERT divert_ioctl
 	if [ -r /proc/net/wireless ] ; then
 	    CONFIG_NET_PCMCIA_RADIO=y
 	else
@@ -540,9 +556,10 @@ case $CONF_SRC in
 	    configcheck CONFIG_PM
 	fi
 	for C in CONFIG_PCI CONFIG_SCSI CONFIG_SERIAL CONFIG_INET \
-	    CONFIG_NET_FASTROUTE CONFIG_NET_RADIO CONFIG_TR \
-	    CONFIG_MODVERSIONS CONFIG_PROC_FS CONFIG_PARPORT \
-	    CONFIG_PARPORT_PC CONFIG_NET_PCMCIA_RADIO ; do
+	    CONFIG_NET_FASTROUTE CONFIG_NET_RADIO CONFIG_NET_DIVERT \
+	    CONFIG_TR CONFIG_MODVERSIONS CONFIG_PROC_FS CONFIG_PARPORT \
+	    CONFIG_PARPORT_PC CONFIG_PARPORT_PC_PCMCIA \
+	    CONFIG_NET_PCMCIA_RADIO CONFIG_IEEE1394 ; do
 	    configcheck $C
 	done
 	if [ $CONFIG_NET_RADIO = "y" ] ; then
@@ -551,6 +568,15 @@ case $CONF_SRC in
 	if [ $ARCH = "arm" ] ; then
 	    configcheck CONFIG_ARCH_BRUTUS
 	    configcheck CONFIG_ITSY
+	fi
+	if [ $ARCH = "ppc" ] ; then
+	    configcheck CONFIG_8xx
+	    configcheck CONFIG_RPXLITE
+	    configcheck CONFIG_RPXCLASSIC
+	    configcheck CONFIG_MPC823
+	    configcheck CONFIG_MPC850
+	    configcheck CONFIG_MPC860
+	    configcheck CONFIG_MPC860T
 	fi
 	if [ "$BIGMEM" ] ; then
 	    configcheck CONFIG_1GB
@@ -692,8 +718,10 @@ if [ $VERSION_CODE -ge `version 2 1 7` -o \
     echo "DO_IDE=y" >> $CONFIG_MK
 fi
 
-if [ $CONFIG_PARPORT_PC = "y" -a $VERSION_CODE -ge `version 2 2 0` -a \
-     $VERSION_CODE -lt `version 2 3 6` ] ; then
+if [ $VERSION_CODE -ge `version 2 3 6` ] ; then
+    CONFIG_PARPORT_PC=$CONFIG_PARPORT_PC_PCMCIA
+fi
+if [ $CONFIG_PARPORT_PC = "y" -a $VERSION_CODE -ge `version 2 2 0` ] ; then
     echo "DO_PARPORT=y" >> $CONFIG_MK
 fi
 
@@ -810,6 +838,10 @@ if [ -r /usr/include/X11/Xlib.h -o \
     if [ -r $f -a -r $g ] ; then
 	echo "$f and $g found."
 	HAS_FORMS=y
+	FLIBS="-L/usr/X11R6/lib -L/usr/X11/lib -lforms -lX11"
+	if nm $f | grep 'U Xpm' >/dev/null ; then
+	    FLIBS="$FLIBS -lXpm"
+	fi
     else
 	echo "Forms library not installed."
     fi
@@ -825,6 +857,7 @@ if [ "$HAS_FORMS" != "y" ] ; then
     HAS_FORMS=n
 fi
 write_bool HAS_FORMS
+if [ "$HAS_FORMS" = "y" ] ; then write_str FLIBS ; fi
 
 #=======================================================================
 

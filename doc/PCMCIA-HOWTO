@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.77, 18 September 2000
+  v2.79, 05 November 2000
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -777,6 +777,10 @@
            }
        fi
 
+  Starting with the 3.1.22 release, the PCMCIA installation script will
+  automatically append a variant of this to the default network.opts
+  file, so this problem should no longer be an issue.
+
   If you do use linuxconf (or netconf) to configure your network
   interface, leave the ``kernel module'', ``I/O port'', and ``irq''
   parameters blank.  Setting these parameters may interfere with proper
@@ -938,7 +942,6 @@
 
   +o  The network client drivers require that CONFIG_INET is enabled.
      Kernel networking support cannot be compiled as a module.
-
   +o  The token-ring client requires that the kernel be compiled with
      CONFIG_TR enabled.
 
@@ -1112,7 +1115,6 @@
 
   +o  The drivers do not respond to insertion and removal events, either
      by recording events in the system log, or by beeping.
-
   In most cases, the socket driver (i82365 or tcic) will automatically
   probe and select an appropriate interrupt to signal card status
   changes.  The automatic interrupt probe doesn't work on some Intel-
@@ -2130,8 +2132,8 @@
      then disable the kernel's CONFIG_SCSI_MULTI_LUN option.
 
   +o  If you have compiled SCSI support as modules (CONFIG_SCSI is
-     ``m''), you must modify /etc/pcmcia/config to load the SCSI modules
-     before the appropriate *_cs driver is loaded.
+     ``m''), you may need to modify /etc/pcmcia/config to load the SCSI
+     modules before the appropriate *_cs driver is loaded.
 
   +o  If you get ``aborting command due to timeout'' messages when the
      SCSI bus is probed, you almost certainly have an interrupt

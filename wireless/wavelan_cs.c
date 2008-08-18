@@ -4022,16 +4022,18 @@ wavelan_interrupt(int		irq,
   lp = (net_local *) dev->priv;
   base = dev->base_addr;
 
-#ifdef DEBUG_INTERRUPT_ERROR
+#ifdef DEBUG_INTERRUPT_INFO
   /* Check state of our spinlock (it should be cleared) */
   if(spin_is_locked(&lp->spinlock))
-    printk(KERN_INFO
+    printk(KERN_DEBUG
 	   "%s: wavelan_interrupt(): spinlock is already locked !!!\n",
 	   dev->name);
 #endif
 
-  /* Prevent reentrancy. It is safe because wv_splhi disable interrupts
-   * before aquiring the spinlock */
+  /* Prevent reentrancy. We need to do that because we may have
+   * multiple interrupt handler running concurently.
+   * It is safe because wv_splhi() disable interrupts before aquiring
+   * the spinlock. */
   spin_lock(&lp->spinlock);
 
   /* Treat all pending interrupts */

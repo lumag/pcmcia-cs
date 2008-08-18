@@ -217,7 +217,9 @@ MODULE_PARM(rates,"1-8i");
 MODULE_PARM(ssids,"1-3s");
 MODULE_PARM(auto_wep,"i");
 MODULE_PARM_DESC(auto_wep, "If non-zero, the driver will keep looping through \
-the authentication options until an association is made.");
+the authentication options until an association is made.  The value of \
+auto_wep is number of the wep keys to check.  A value of 2 will try using \
+the key at index 0 and index 1.");
 MODULE_PARM(aux_bap,"i");
 MODULE_PARM_DESC(aux_bap, "If non-zero, the driver will switch into a mode \
 than seems to work better for older cards with some older buses.  Before \
@@ -562,7 +564,7 @@ typedef struct {
 #define BUSY_FID 0x10000
 
 static char *version =
-"airo.c 1.1a 2000/09/14 7:29:09 (Benjamin Reed)";
+"airo.c 1.2 2000/10/19 14:12:32 (Benjamin Reed)";
 
 struct airo_info;
 
@@ -605,7 +607,9 @@ struct airo_info {
 	int                           fids[MAX_FIDS];
 	int registered;
 	ConfigRid config;
-	u16 authtype;
+	u16 authtype; // Used with auto_wep 
+	char keyindex; // Used with auto wep
+	char defindex; // Used with auto wep
 	struct timer_list timer;
 #if (LINUX_VERSION_CODE < 0x20311)
 	struct proc_dir_entry proc_entry;
@@ -807,7 +811,6 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 			 &((struct airo_info*)dev->priv)->config) 
 	     != SUCCESS ) {
 		printk( KERN_ERR "airo: MAC could not be enabled\n" );
-		goto init_undo;
 	} else {
 		printk( KERN_INFO "airo: MAC enabled %s %x:%x:%x:%x:%x:%x\n",
 			dev->name,
@@ -818,18 +821,15 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 			dev->dev_addr[4],
 			dev->dev_addr[5]
 			);
-		/* Allocate the transmit buffers */
-		for( i = 0; i < MAX_FIDS; i++ ) {
-			ai->fids[i] = transmit_allocate( ai, 2000 );
-		}
+	}
+	/* Allocate the transmit buffers */
+	for( i = 0; i < MAX_FIDS; i++ ) {
+		ai->fids[i] = transmit_allocate( ai, 2000 );
 	}
 	
 	setup_proc_entry( dev, (struct airo_info*)dev->priv );
 	netif_start_queue(dev);
 	return dev;
- init_undo:
-	stop_airo_card( dev );
-	return 0;
 }
 
 int reset_airo_card( struct net_device *dev ) {
@@ -889,7 +889,7 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 		   monitor hook in, do it here.  (Remember that
 		   interrupts are still disabled!)
 		*/
-		/*u16 newStatus = */IN4500(apriv, LINKSTAT);
+		u16 newStatus = IN4500(apriv, LINKSTAT);
 		/* Here is what newStatus means: */
 #define NOBEACON 0x8000 /* Loss of sync - missed beacons */
 #define MAXRETRIES 0x8001 /* Loss of sync - max retries */
@@ -919,6 +919,12 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 			  leaving BSS */
 #define RC_NOAUTH 9 /* Station requesting (Re)Association is not
 		       Authenticated with the responding station */
+		if (newStatus != ASSOCIATED) {
+			if (auto_wep && !timer_pending(&apriv->timer)) {
+				apriv->timer.expires = RUN_AT(HZ*3);
+	      			add_timer(&apriv->timer);
+			}
+		}
 	}
 	
 	/* Check to see if there is something to recieve */
@@ -1085,6 +1091,9 @@ static u16 setup_card(struct airo_info *ai, u8 *mac,
 	int status;
 	int i;
 	SsidRid mySsid;
+	u16 lastindex;
+	WepKeyRid wkr;
+	int rc;
 
 	memset( &mySsid, 0, sizeof( mySsid ) );
 
@@ -1145,6 +1154,7 @@ static u16 setup_card(struct airo_info *ai, u8 *mac,
 				}
 			}
 		}
+		cfg.authType = ai->authtype;
 		*config = cfg;
 	}
 	
@@ -1168,7 +1178,21 @@ static u16 setup_card(struct airo_info *ai, u8 *mac,
 	status = PC4500_writerid(ai, RID_SSID, &mySsid, sizeof(mySsid));
 	if ( status != SUCCESS ) return ERROR;
 	
+	/* Grab the initial wep key, we gotta save it for auto_wep */
+	rc = PC4500_readrid(ai, RID_WEP_TEMP, &wkr, sizeof(wkr));
+	if (rc == SUCCESS) do {
+		lastindex = wkr.kindex;
+		if (wkr.kindex == 0xffff) {
+			ai->defindex = wkr.mac[0];
+		}
+	        PC4500_readrid(ai, RID_WEP_PERM, &wkr, sizeof(wkr));
+	} while(lastindex != wkr.kindex);
+	
 	status = enable_MAC(ai, &rsp);
+	if (auto_wep && !timer_pending(&ai->timer)) {
+		ai->timer.expires = RUN_AT(HZ*3);
+		add_timer(&ai->timer);
+	}
 	if (status != SUCCESS || (rsp.status & 0xFF00) != 0) {
 		int reason = rsp.rsp0;
 		int badRidNumber = rsp.rsp1;
@@ -2442,20 +2466,37 @@ static int do_writerid( struct airo_info *ai, u16 rid, const void *rid_data,
 	return rc;
 }
 
-static int set_wep_key(struct airo_info *ai, const char *key, u16 keylen ) {
+static int set_wep_key(struct airo_info *ai, u16 index,
+		       const char *key, u16 keylen, int perm ) {
 	static const unsigned char macaddr[6] = { 0x01, 0, 0, 0, 0, 0 };
 	WepKeyRid wkr;
         int rc;
 
-	wkr.len = cpu_to_le16(sizeof(wkr));
-	wkr.kindex = cpu_to_le16(0);
-	wkr.klen = cpu_to_le16(keylen);
-	memcpy( wkr.key, key, keylen );
-	memcpy( wkr.mac, macaddr, 6 );
+	memset(&wkr, 0, sizeof(wkr));
+	if (keylen == 0) {
+		// We are selecting which key to use
+		wkr.len = cpu_to_le16(sizeof(wkr));
+		wkr.kindex = cpu_to_le16(0xffff);
+		wkr.mac[0] = (char)index;
+		if (perm) printk(KERN_INFO "Setting transmit key to %d\n", index);
+		if (perm) ai->defindex = (char)index;
+	} else {
+		// We are actually setting the key
+		wkr.len = cpu_to_le16(sizeof(wkr));
+		wkr.kindex = cpu_to_le16(index);
+		wkr.klen = cpu_to_le16(keylen);
+		memcpy( wkr.key, key, keylen );
+	        memcpy( wkr.mac, macaddr, 6 );
+		printk(KERN_INFO "Setting key %d\n", index);
+	}
 	rc = do_writerid(ai, RID_WEP_TEMP, &wkr, sizeof(wkr));
         if (rc!=SUCCESS) printk(KERN_ERR "airo:  WEP_TEMP set %x\n", rc); 
-	rc = do_writerid(ai, RID_WEP_PERM, &wkr, sizeof(wkr));
-        if (rc!=SUCCESS) printk(KERN_ERR "airo:  WEP_PERM set %x\n", rc);
+	if (perm) {
+		rc = do_writerid(ai, RID_WEP_PERM, &wkr, sizeof(wkr));
+		if (rc!=SUCCESS) {
+			printk(KERN_ERR "airo:  WEP_PERM set %x\n", rc);
+		}
+	}
 	return 0;
 }
 
@@ -2466,6 +2507,8 @@ static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	int i;
 	char key[16];
+	u16 index = 0;
+	int j = 0;
 
 	memset(key, 0, sizeof(key));
 	
@@ -2473,17 +2516,30 @@ static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 	data = (struct proc_data *)file->private_data;
 	if ( !data->writelen ) return;
 	
-	for( i = 0; i < 16*3 && data->wbuffer[i]; i++ ) {
+	if (data->wbuffer[0] >= '0' && data->wbuffer[0] <= '3' &&
+	    (data->wbuffer[1] == ' ' || data->wbuffer[1] == '\n')) {
+		index = data->wbuffer[0] - '0';
+		if (data->wbuffer[1] == '\n') {
+			set_wep_key(ai, index, 0, 0, 1);
+			return;
+		}
+		j = 2;
+	} else {
+		printk(KERN_ERR "airo:  WepKey passed invalid key index\n");
+		return;
+	}
+
+	for( i = 0; i < 16*3 && data->wbuffer[i+j]; i++ ) {
 		switch(i%3) {
 		case 0:
-			key[i/3] = hexVal(data->wbuffer[i])<<4;
+			key[i/3] = hexVal(data->wbuffer[i+j])<<4;
 			break;
 		case 1:
-			key[i/3] |= hexVal(data->wbuffer[i]);
+			key[i/3] |= hexVal(data->wbuffer[i+j]);
 			break;
 		}
 	}
-	set_wep_key(ai, key, i/3);
+	set_wep_key(ai, index, key, i/3, 1);
 }
 
 static int proc_wepkey_open( struct inode *inode, struct file *file ) {
@@ -2493,6 +2549,9 @@ static int proc_wepkey_open( struct inode *inode, struct file *file ) {
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	char *ptr;
 	WepKeyRid wkr;
+	u16 lastindex;
+	int j=0;
+	int rc;
 	
 	MOD_INC_USE_COUNT;
 	
@@ -2502,16 +2561,29 @@ static int proc_wepkey_open( struct inode *inode, struct file *file ) {
 	memset(file->private_data, 0, sizeof(struct proc_data));
 	memset(&wkr, 0, sizeof(wkr));
 	data = (struct proc_data *)file->private_data;
-	data->rbuffer = kmalloc( 80, GFP_KERNEL );
+	data->rbuffer = kmalloc( 180, GFP_KERNEL );
+	memset(data->rbuffer, 0, 180);
 	data->writelen = 0;
 	data->maxwritelen = 80;
 	data->wbuffer = kmalloc( 80, GFP_KERNEL );
 	memset( data->wbuffer, 0, 80 );
 	data->on_close = proc_wepkey_on_close;
 	
-	PC4500_readrid(ai, RID_WEP_PERM, &wkr, sizeof(wkr));
 	ptr = data->rbuffer;
-	sprintf(ptr, "The wep key cannot be read\n");
+	strcpy(ptr, "No wep keys\n");
+	rc = PC4500_readrid(ai, RID_WEP_TEMP, &wkr, sizeof(wkr));
+	if (rc == SUCCESS) do {
+		lastindex = wkr.kindex;
+		if (wkr.kindex == 0xffff) {
+			j += sprintf(ptr+j, "Tx key = %d\n",
+			             (int)wkr.mac[0]);
+		} else {
+		        j += sprintf(ptr+j, "Key %d set with length = %d\n",
+                                     (int)wkr.kindex, (int)wkr.klen);
+                }
+	        PC4500_readrid(ai, RID_WEP_PERM, &wkr, sizeof(wkr));
+	} while((lastindex != wkr.kindex) && (j < 180-30));
+
 	data->readlen = strlen( data->rbuffer );
 	return 0;
 }
@@ -2636,7 +2708,6 @@ static void timer_func( u_long data ) {
 	
 	if (linkstat != 0x400 ) {
 		/* We don't have a link so try changing the authtype */
-		struct timer_list *timer = &apriv->timer;
 		ConfigRid config = apriv->config;
 
 		switch(apriv->authtype) {
@@ -2646,9 +2717,18 @@ static void timer_func( u_long data ) {
 			apriv->authtype = AUTH_OPEN;
 			break;
 		case AUTH_SHAREDKEY:
-			/* Drop to ENCRYPT */
-			config.authType = AUTH_ENCRYPT;
-			apriv->authtype = AUTH_ENCRYPT;
+			if (apriv->keyindex < auto_wep) {
+				set_wep_key(apriv, apriv->keyindex, 0, 0, 0);
+				config.authType = AUTH_SHAREDKEY;
+				apriv->authtype = AUTH_SHAREDKEY;
+			        apriv->keyindex++;
+			} else {
+			        /* Drop to ENCRYPT */
+			        apriv->keyindex = 0;
+			        set_wep_key(apriv, apriv->defindex, 0, 0, 0);
+			        config.authType = AUTH_ENCRYPT;
+			        apriv->authtype = AUTH_ENCRYPT;
+			}
 			break;
 		default:  /* We'll escalate to SHAREDKEY */
 			config.authType = AUTH_SHAREDKEY;
@@ -2656,14 +2736,12 @@ static void timer_func( u_long data ) {
 		}
 		checkThrottle(&config);
 		do_writerid(apriv, RID_CONFIG, &config, sizeof(config));
-		timer->expires = RUN_AT(HZ*5);  /*Check every 5 secs
-						  until everything is OK*/
-	} else {
-		struct timer_list *timer = &apriv->timer;
-		timer->expires = RUN_AT(HZ*60);  /*Check every 60 secs
-						   until everything is OK*/
+		if (!timer_pending(&apriv->timer)) {
+			/* Schedule check to see if the change worked */
+			apriv->timer.expires = RUN_AT(HZ*3);
+	      		add_timer(&apriv->timer);
+		}
 	}
-	add_timer(&apriv->timer);
 }
 
 static void add_airo_dev( struct net_device *dev ) {
@@ -2673,15 +2751,14 @@ static void add_airo_dev( struct net_device *dev ) {
 		printk( KERN_ERR "airo_pci:  Out of memory\n" );
 	} else {
 		if ( auto_wep ) {
+	                struct airo_info *apriv=(struct airo_info *)dev->priv;
 			struct timer_list *timer = 
 				&((struct airo_info*)dev->priv)->timer;
 			
 			timer->function = timer_func;
 			timer->data = (u_long)dev;
 			init_timer(timer);
-			/*Start off checking 5 secs */
-			timer->expires = RUN_AT( HZ * 5 );  
-			add_timer(timer);
+			apriv->authtype = AUTH_SHAREDKEY;
 		}
 		
 		node->dev = dev;

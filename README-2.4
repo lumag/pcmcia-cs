@@ -5,11 +5,14 @@ PCMCIA kernel driver support is now included in the 2.4 linux kernel
 tree.  While it shares most of the same code with the standalone
 PCMCIA driver package, there are some important differences.  The
 kernel PCMCIA support is also still evolving.  This README is up to
-date as of the 2.4test7-pre* kernels.
+date as of the 2.4test9-pre* kernels.
 
-The kernel PCMCIA support does not eliminate the need to install the
-pcmcia-cs package.  Kernel PCMCIA still requires the same user tools
-(cardmgr, cardctl, /etc/pcmcia/* files).
+The kernel PCMCIA code has the same functionality as the driver side
+of the pcmcia-cs package.  It does not eliminate the need to install
+the pcmcia-cs package, since it requires the same user tools (cardmgr,
+cardctl, /etc/pcmcia/* files).  For now, the drivers in pcmcia-cs can
+still be built for 2.4 kernels, so you have a choice of using either
+the in-kernel PCMCIA drivers, or the drivers included in pcmcia-cs.
 
 To use the kernel PCMCIA drivers, configure the kernel with
 CONFIG_PCMCIA ("CardBus support") enabled.  In this case, "CardBus"
@@ -28,13 +31,14 @@ specified in place of the old i82365 driver.
 
 When compiling the standalone PCMCIA package, the Configure script
 decides whether or not to build any kernel modules by looking at the
-value of the CONFIG_PCMCIA option.  If CONFIG_PCMCIA is enabled, then
-no kernel components are built.  If CONFIG_PCMCIA is disabled, then
-all the modules will be built and installed.  It is safe to compile
-the user tools (cardmgr, cardctl, etc) in a PCMCIA package whose
-version number differs from the PCMCIA version number in the kernel
-source tree.  The kernel PCMCIA header files take precedence over the
-ones included in the PCMCIA package, if CONFIG_PCMCIA is enabled.
+value of the CONFIG_PCMCIA option in your kernel configuration.  If
+CONFIG_PCMCIA is enabled, then no driver components are built.  If
+CONFIG_PCMCIA is disabled, then all the modules will be built and
+installed.  It is safe to compile the user tools (cardmgr, cardctl,
+etc) in a PCMCIA package whose version number differs from the PCMCIA
+version number in the kernel source tree.  The kernel PCMCIA header
+files take precedence over the ones included in the PCMCIA package, if
+CONFIG_PCMCIA is enabled.
 
 The following tables show the correspondence between PCMCIA client
 driver names, and kernel configuration options.

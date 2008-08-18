@@ -1,3 +1,30 @@
+[07-Nov-00] Version 3.1.22
+-- Added TI 4451 CardBus bridge support.
+-- Added PCI fixups for Intel 82801BA and 82801BAM bridges.
+-- Changed 'cardctl ident' to also show PCI ID's for CardBus cards.
+-- Updated spin lock handling in 3c575_cb, and fixed a tx underrun
+   recovery bug affecting the Tornado chipset (3CCFE575CT etc).
+-- Changed PCMCIA startup/shutdown script to kill 'CardBus Watcher'
+   threads at shutdown, for 2.4 kernels.
+-- Added IEEE 1394 CardBus driver, pcilynx_cb, from Albrecht Dreﬂ.
+-- Update to WepKey handling in airo driver, from Ben Reed.
+-- Update to ibmtr_cs, for a new ibmtr release that fixes the obscure 
+   ISA memory window limits, from Mike Phillips and Burt Silverman.
+-- Added socket driver for mpc8xx systems, from Magnus Damm.
+-- Updated parport_cs for 2.4 kernels (but untested).
+-- Changed Configure to set CONFIG_X86_L1_CACHE_SHIFT, for the latest
+   2.4.0-test10-pre kernels.
+-- Added network.rh script fixup to handle getting network settings
+   from the Red Hat network scripts automatically.
+-- Big wvlan_cs patch: fixed SMP, multiple card support; ad-hoc mode
+   should now interoperate with Windows.
+-- Minor update to wavelan_cs to remove warnings about SMP usage.
+-- Updated fmvj18x_cs for the Access/CARD.
+-- Fixed bug in MTD bind/unbind code in cardmgr introduced in 3.1.19.
+-- Fixed network script to skip closed sockets when checking for
+   active network connections.
+-- Fixed Configure to test for network frame diverter kernel option.
+
 [03-Oct-00] Version 3.1.21
 -- Minor tweaks to dummy_cs configuration sequence.
 -- Fixed a udelay() issue introduced in the latest 2.2.18 kernels.

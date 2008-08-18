@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.77 2000/09/16 05:04:07
+    cardbus.c 1.78 2000/10/26 20:10:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -194,7 +194,7 @@ static u_int xlate_rom_addr(u_char *b, u_int addr)
     
 =====================================================================*/
 
-int cb_setup_cis_mem(socket_info_t *s, int space)
+static int cb_setup_cis_mem(socket_info_t *s, int space)
 {
     cb_bridge_map *m = &s->cb_cis_map;
     cb_config_t *c = s->cb_config;

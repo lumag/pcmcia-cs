@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.55 2000/06/12 21:33:02
+    cardctl.c 1.57 2000/11/07 21:19:39
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -313,12 +313,13 @@ static void print_ident(int fd)
     cistpl_vers_1_t *vers = &arg.tuple_parse.parse.version_1;
     cistpl_manfid_t *manfid = &arg.tuple_parse.parse.manfid;
     cistpl_funcid_t *funcid = &arg.tuple_parse.parse.funcid;
+    config_info_t config;
     int i;
     static char *fn[] = {
 	"multifunction", "memory", "serial", "parallel",
 	"fixed disk", "video", "network", "AIMS", "SCSI"
     };
-    
+
     if (get_tuple(fd, CISTPL_VERS_1, &arg) == 0) {
 	printf("  product info: ");
 	for (i = 0; i < vers->ns; i++)
@@ -334,6 +335,12 @@ static void print_ident(int fd)
     if (get_tuple(fd, CISTPL_FUNCID, &arg) == 0)
 	printf("  function: %d (%s)\n", funcid->func,
 	       fn[funcid->func]);
+    config.Function = config.ConfigBase = 0;
+    if ((ioctl(fd, DS_GET_CONFIGURATION_INFO, &config) == 0) &&
+	(config.IntType == INT_CARDBUS) && config.ConfigBase)
+	printf("  PCI id: 0x%04x, 0x%04x\n",
+	       config.ConfigBase & 0xffff,
+	       config.ConfigBase >> 16);
 }
 
 /*====================================================================*/

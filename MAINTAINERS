@@ -1,6 +1,6 @@
 		Linux PCMCIA Maintainers List
 
-		Last updated: 2000/07/14 23:33:50
+		Last updated: 2000/10/27 22:15:40
 
 The following PCMCIA driver components have active maintainers.  Bug
 reports and questions are often best addressed to the maintainer of
@@ -17,13 +17,23 @@ http://www.scyld.com/network
 
 [airo_cs]
 Ben Reed <breed@almaden.ibm.com>
+http://www.cse.ucsc.edu/~breed/airo.html
+
+[fmvj18x_cs]
+Jun Komuro <komujun@nifty.com>
 
 [ibmtr_cs]
 Mike Phillips <phillim@amtrak.com>
 http://www.linuxtr.org
 
+[m8xx-pcmcia]
+Matthew Locke <mlocke@mvista.com>
+
 [netwave_cs]
 Dag Brattli <dagb@cs.uit.no>
+
+[pcilynx_cb]
+Albrecht Dreﬂ <ad@mpifr-bonn.mpg.de>
 
 [ray_cs]
 Corey Thomas <coreythomas@charter.net>
@@ -44,4 +54,4 @@ The following PCMCIA sub-projects need maintainers.  If you would be
 interested in helping out, let me know.
 
 o PCMCIA on Amiga, PowerPC, Alpha platforms
-o fmvj18x_cs, nmclan_cs, xirc2ps_cs client drivers
+o nmclan_cs, xirc2ps_cs client drivers

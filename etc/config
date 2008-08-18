@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.138 2000/10/04 00:27:02 (David Hinds)
+# config 1.145 2000/11/07 21:20:05 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -104,6 +104,10 @@ device "ray_cs"
 
 device "airo_cs"
   class "network" module "airo", "airo_cs"
+
+device "pcilynx_cb"
+  class "ieee1394" module "cb_enabler", "pcilynx_cb"
+  
 #
 # Ethernet adapter definitions
 #
@@ -114,6 +118,10 @@ card "2412LAN Ethernet"
 card "3Com 589 Ethernet"
   manfid 0x0101, 0x0589
   bind "3c589_cs"
+
+card "Access/CARD Ethernet"
+  version "UBKK,V2.0"
+  bind "fmvj18x_cs"
 
 card "Accton EN2212 Ethernet"
   version "ACCTON", "EN2212"
@@ -210,6 +218,10 @@ card "CONTEC Ethernet"
 
 card "Corega PCC-T Ethernet"
   version "corega K.K.", "corega Ether PCC-T"
+  bind "pcnet_cs"
+
+card "Corega PCC-T Ethernet"
+  version "corega K.K.", "corega EtherII PCC-T"
   bind "pcnet_cs"
 
 card "Corega PCC-T Ethernet"
@@ -519,6 +531,10 @@ card "NE2000 Compatible Ethernet"
   bind "pcnet_cs"
 
 card "NE2000 Compatible Ethernet"
+  version "PCMCIA", "PCMCIA-ETHERNET-CARD", "UE2620"
+  bind "pcnet_cs"
+
+card "NE2000 Compatible Ethernet"
   manfid 0x0149, 0xc1ab
   bind "pcnet_cs"
 
@@ -556,7 +572,7 @@ card "PreMax PE-200 Ethernet"
   cis "cis/PE-200.dat"
   bind "pcnet_cs"
 
-card "Pretec CompactLAN Ethernet"
+card "PRETEC CompactLAN Ethernet"
   version "PRETEC", "Ethernet CompactLAN 10baseT 3.3V"
   bind "pcnet_cs"
 
@@ -681,6 +697,10 @@ card "AnyCom ECO 10/100 Fast Ethernet"
 card "Argosy EN220 Fast Ethernet"
   version "ARGOSY", "Fast Ethernet PCCard"
   bind "smc91c92_cs"
+
+card "Buffalo LPC3-CLX Fast Ethernet"
+  manfid 0x026f, 0x0301
+  bind "pcnet_cs"
 
 card "COMPU-SHACK FASTline 10/100 Fast Ethernet"
   version "COMPU-SHACK", "FASTline PCMCIA 10/100 Fast-Ethernet"
@@ -821,9 +841,17 @@ card "Digital RoamAbout/DS"
   version "Digital", "RoamAbout/DS"
   bind "wavelan_cs"
 
+card "ELSA AirLancer MC-11"
+  version "ELSA", "AirLancer MC-11"
+  bind "wvlan_cs"
+
 card "Lucent Technologies WaveLAN Adapter"
   version "Lucent Technologies", "WaveLAN/PCMCIA"
   bind "wavelan_cs"
+
+card "D-Link DWL-650 11 Mbps Wireless Adapter"
+  manfid 0x0156, 0x0002
+  bind "wvlan_cs"
 
 card "Lucent Technologies WaveLAN/IEEE Adapter"
   version "Lucent Technologies", "WaveLAN/IEEE"
@@ -1217,6 +1245,13 @@ card "Toshiba SCSC200B SCSI"
   bind "qlogic_cs"
 
 #
+# IEEE1394/FireWire cards
+#
+card "Newer Technology FireWire 2 Go"
+  pci 0x104c, 0x8000
+  bind "pcilynx_cb"
+
+#
 # Multifunction cards
 #
 card "3Com 3c562/3c563 Ethernet/Modem"
@@ -1608,6 +1643,14 @@ card "Farallon EtherTX 10/100 Fast Ethernet"
   version "Farallon", "10/100", "Ethernet"
   bind "tulip_cb"
 
+card "Fujitsu FMV-J184 Fast Ethernet"
+  version "FUJITSU", "LAN Card(100BASE-TX)(FMV-J184)"
+  bind "tulip_cb"
+
+card "Fujitsu FMV-J185 Fast Ethernet"
+  version "FUJITSU", "LAN Card(100BASE-TX)(FMV-J185)"
+  bind "eepro100_cb"
+
 card "Genius MF3000 Fast Ethernet"
   version "CardBus", "10/100Mbps LanCard"
   bind "tulip_cb"
@@ -1648,6 +1691,10 @@ card "Linksys EtherFast 10/100"
   manfid 0x0149, 0xc2ab
   bind "tulip_cb"
 
+card "NDC Communications Sohoware NCB100 Fast Ethernet"
+  version "NDC Communications, Inc.", "NCB100"
+  bind "tulip_cb"
+
 card "NetGear FA510C Fast Ethernet"
   manfid 0x9513, 0x0081
   bind "tulip_cb"
@@ -1658,6 +1705,10 @@ card "PLANET ENW-3502-FC"
 
 card "PrimeXPress 10/100 Fast Ethernet"
   manfid 0x021b, 0x0510
+  bind "tulip_cb"
+
+card "Silicom FEM56 Fast Ethernet"
+  manfid 0x01da, 0x0090
   bind "tulip_cb"
 
 card "SMC EZ 10/100 Fast Ethernet"

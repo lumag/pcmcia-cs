@@ -17,12 +17,29 @@
  *
  * TODO
  *		We should use multiple Tx buffers to gain performance.
- *		Move configuration settings to private device data
- *			(Current version has problems with multiple
- *			cards when a card reset is necessary).
  *		Have a closer look to the endianess (PPC problems).
  *
  * HISTORY
+ *	v1.0.5	19/10/2000 - David Hinds, Jean II and others
+ *		Support for 6.00 firmware (remove fragmentation - ? + me)
+ *		Add Microwave Oven Robustness support (me)
+ *		Fix a bug preventing RARP from working (?)
+ *		---
+ *		Fix SMP support (fix all those spinlocks - me)
+ *		Add IBSS support, to enable 802.11 ad-hoc mode (Ross Finlayson)
+ *		Integrate IBSS support with Wireless Extensions (me)
+ *		Clean-up Wireless Extensions (#define and other stuff - me)
+ *		Multi-card support for Wireless Extensions (me)
+ *		Firmware madness support - Arghhhhh !!!!!! (me)
+ *		---
+ *		Proper firmware detection routines (me)
+ *		Aggregate configuration change when closed (me)
+ *		wireless.opts now works on old firmware (me)
+ *		Integrate MWO robust to frag setting (me)
+ *		copy_to/from in ioctl with irq on (me, requested by Alan)
+ *		Add a few "static" and "inline" there and there (me)
+ *		Update to new module init/cleanup procedures (me)
+ *
  *	v1.0.4	2000/02/26
  *		Some changes to fit into kernel 2.3.x.
  *		Some changes to better fit into the new net API.
@@ -192,6 +209,7 @@
 #include <linux/malloc.h>
 #include <linux/string.h>
 #include <linux/timer.h>
+#include <linux/init.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -221,8 +239,15 @@
 #endif
 
 #include <linux/wireless.h>
-#if WIRELESS_EXT < 5
-#error "Wireless extension v5 or newer required"
+/* Note : v6 is included in : 2.0.37+ and 2.2.4+, adds ESSID */
+/* Note : v8 is included in : 2.2.11+ and 2.3.14+, adds frag/rts/rate/nick */
+/* Note : v9 is included in : 2.2.14+ and 2.3.25+, adds mode/ps/wep */
+#if WIRELESS_EXT < 6
+#warning "Wireless extension v8 or newer required - please upgrade your kernel"
+#undef WIRELESS_EXT
+#endif
+#if WIRELESS_EXT < 9
+#warning "Wireless extension v9 or newer prefered - please upgrade your kernel"
 #endif
 #define WIRELESS_SPY		// enable iwspy support
 #undef HISTOGRAM		// disable histogram of signal levels
@@ -257,11 +282,10 @@ MODULE_PARM(pc_debug, "i");
 #define DEBUG_CALLTRACE		4
 #define DEBUG_INTERRUPT		5
 
-
 /********************************************************************
  * MISC
  */
-static char *version = "1.0.4";
+static char *version = "1.0.5";
 static dev_info_t dev_info = "wvlan_cs";
 static dev_link_t *dev_list = NULL;
 
@@ -271,26 +295,25 @@ static dev_link_t *dev_list = NULL;
 // referencing by the dev_list index (to add).
 static u_int irq_mask = 0xdeb8;				// Interrupt mask
 static int irq_list[4] = { -1 };			// Interrupt list (alternative)
+// Note : those parameters can be also modified through Wireless Extension,
+// and other parameters are also available this way...
 static int port_type = 1;				// Port-type [1]
-static char station_name[IW_ESSID_MAX_SIZE+1] = "\0";	// Name of station []
+static int allow_ibss = 0;				// Allow a IBSS [0]
 static char network_name[IW_ESSID_MAX_SIZE+1] = "\0";	// Name of network []
 static int channel = 3;					// Channel [3]
-static int ap_density = 1;				// AP density [1]
-static int medium_reservation = 2347;			// RTS threshold [2347]
-static int transmit_rate = 3;				// Transmit rate [3]
 static int eth = 0;
 static int mtu = 1500;
 MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
 MODULE_PARM(port_type, "i");
-MODULE_PARM(station_name, "c" __MODULE_STRING(IW_ESSID_MAX_SIZE));
+MODULE_PARM(allow_ibss, "i");
 MODULE_PARM(network_name, "c" __MODULE_STRING(IW_ESSID_MAX_SIZE));
 MODULE_PARM(channel, "i");
-MODULE_PARM(ap_density, "i");
-MODULE_PARM(medium_reservation, "i");
-MODULE_PARM(transmit_rate, "i");
 MODULE_PARM(eth, "i");
 MODULE_PARM(mtu, "i");
+// Backward compatibility - This one is obsolete and will be removed soon
+static char station_name[IW_ESSID_MAX_SIZE+1] = "\0";	// Name of station []
+MODULE_PARM(station_name, "c" __MODULE_STRING(IW_ESSID_MAX_SIZE));
 
 // Useful macros we have in pcmcia-cs but not in the kernel
 #ifndef __IN_PCMCIA_PACKAGE__
@@ -337,13 +360,36 @@ struct net_local {
 	dev_link_t		*link;		// backtrack link
 	spinlock_t		slock;		// spinlock
 	int			interrupt;	// interrupt
-	IFB_STRCT		ifb;		// WaveLAN structure
+	IFB_STRCT		ifb;		// WaveLAN HCF structure
 	struct net_device_stats	stats;		// device stats
 	u_char			promiscuous;	// Promiscuous mode
 	u_char			allmulticast;	// All multicast mode
 	int			mc_count;	// Number of multicast addrs
+	int			need_commit;	// Need to set config
+	/* Capabilities : what the firmware do support */
+	int			has_port3;	// Ad-Hoc demo mode
+	int			has_ibssid;	// IBSS Ad-Hoc mode
+	int			has_mwo;	// MWO robust support
+	int			has_wep;	// WEP support
+	int			has_pm;		// Power Management support
+	/* Configuration : what is the current state of the hardware */
+	int			port_type;	// Port-type [1]
+	int			allow_ibss;	// Allow a IBSS [0]
+	char	network_name[IW_ESSID_MAX_SIZE+1];	// Name of network []
+	int			channel;	// Channel [3]
 #ifdef WIRELESS_EXT
-	struct iw_statistics	wstats;		// wireless stats
+	char	station_name[IW_ESSID_MAX_SIZE+1];	// Name of station []
+	int			ap_density;	// AP density [1]
+	int	medium_reservation;		// RTS threshold [2347]
+	int			frag_threshold;	// Frag. threshold [2346]
+	int			mwo_robust;	// MWO robustness [0]
+	int			transmit_rate;	// Transmit rate [3]
+	int			wep_on;		// WEP enabled
+	int			transmit_key;	// Key used for transmissions
+	KEY_STRCT		key[MAX_KEYS];	// WEP keys & size
+	int			pm_on;		// Power Management enabled
+	int			pm_multi;	// Receive multicasts
+	int			pm_period;	// Power Management period
 #ifdef WIRELESS_SPY
 	int			spy_number;
 	u_char			spy_address[IW_MAX_SPY][MAC_ADDR_SIZE];
@@ -354,9 +400,7 @@ struct net_local {
 	u_char			his_range[16];
 	u_long			his_sum[16];
 #endif
-	int			wep_on;		// WEP enabled
-	int			transmit_key;	// Key used for transmissions
-	KEY_STRCT		key[MAX_KEYS];	// WEP keys & size
+	struct iw_statistics	wstats;		// wireless stats
 #endif /* WIRELESS_EXT */
 };
 
@@ -378,41 +422,42 @@ static void cs_error (client_handle_t handle, int func, int ret)
 /********************************************************************
  * FUNCTION PROTOTYPES
  */
-int wvlan_hw_setmaxdatalen (IFBP ifbp, int maxlen);
-int wvlan_hw_getmacaddr (IFBP ifbp, char *mac, int len);
-int wvlan_hw_getchannellist (IFBP ifbp);
-int wvlan_hw_setporttype (IFBP ifbp, int ptype);
-int wvlan_hw_getporttype (IFBP ifbp);
-int wvlan_hw_setstationname (IFBP ifbp, char *name);
-int wvlan_hw_getstationname (IFBP ifbp, char *name, int len);
-int wvlan_hw_setssid (IFBP ifbp, char *name);
-int wvlan_hw_getssid (IFBP ifbp, char *name, int len, int cur);
-int wvlan_hw_getbssid (IFBP ifbp, char *mac, int len);
-int wvlan_hw_setchannel (IFBP ifbp, int channel);
-int wvlan_hw_getchannel (IFBP ifbp);
-int wvlan_hw_getcurrentchannel (IFBP ifbp);
-int wvlan_hw_setthreshold (IFBP ifbp, int thrh, int cmd);
-int wvlan_hw_getthreshold (IFBP ifbp, int cmd);
-int wvlan_hw_setbitrate (IFBP ifbp, int brate);
-int wvlan_hw_getbitrate (IFBP ifbp, int cur);
-int wvlan_hw_getratelist (IFBP ifbp, char *brlist);
+static int wvlan_hw_setmaxdatalen (IFBP ifbp, int maxlen);
+static int wvlan_hw_getmacaddr (IFBP ifbp, char *mac, int len);
+static int wvlan_hw_getchannellist (IFBP ifbp);
+static int wvlan_hw_setporttype (IFBP ifbp, int ptype);
+static int wvlan_hw_getporttype (IFBP ifbp);
+static int wvlan_hw_setallowibssflag (IFBP ifbp, int flag);
+static int wvlan_hw_getallowibssflag (IFBP ifbp);
+static int wvlan_hw_setstationname (IFBP ifbp, char *name);
+static int wvlan_hw_getstationname (IFBP ifbp, char *name, int len);
+static int wvlan_hw_setssid (IFBP ifbp, char *name, int ptype);
+static int wvlan_hw_getssid (IFBP ifbp, char *name, int len, int cur, int ptype);
+static int wvlan_hw_getbssid (IFBP ifbp, char *mac, int len);
+static int wvlan_hw_setchannel (IFBP ifbp, int channel);
+static int wvlan_hw_getchannel (IFBP ifbp);
+static int wvlan_hw_getcurrentchannel (IFBP ifbp);
+static int wvlan_hw_setthreshold (IFBP ifbp, int thrh, int cmd);
+static int wvlan_hw_getthreshold (IFBP ifbp, int cmd);
+static int wvlan_hw_setbitrate (IFBP ifbp, int brate);
+static int wvlan_hw_getbitrate (IFBP ifbp, int cur);
+static int wvlan_hw_getratelist (IFBP ifbp, char *brlist);
 #ifdef WIRELESS_EXT
-int wvlan_hw_getfrequencylist (IFBP ifbp, iw_freq *list, int max);
-int wvlan_getbitratelist (IFBP ifbp, __s32 *list, int max);
+static int wvlan_hw_getfrequencylist (IFBP ifbp, iw_freq *list, int max);
+static int wvlan_getbitratelist (IFBP ifbp, __s32 *list, int max);
+static int wvlan_hw_setpower (IFBP ifbp, int enabled, int cmd);
+static int wvlan_hw_getpower (IFBP ifbp, int cmd);
+static int wvlan_hw_setpmsleep (IFBP ifbp, int duration);
+static int wvlan_hw_getpmsleep (IFBP ifbp);
+static int wvlan_hw_getprivacy (IFBP ifbp);
+static int wvlan_hw_setprivacy (IFBP ifbp, int mode, int transmit, KEY_STRCT *keys);
 #endif /* WIRELESS_EXT */
-#if WIRELESS_EXT > 8
-int wvlan_hw_setpower (IFBP ifbp, int enabled, int cmd);
-int wvlan_hw_getpower (IFBP ifbp, int cmd);
-int wvlan_hw_setpmsleep (IFBP ifbp, int duration);
-int wvlan_hw_getpmsleep (IFBP ifbp);
-int wvlan_hw_getprivacy (IFBP ifbp);
-int wvlan_hw_setprivacy (IFBP ifbp, int mode, int transmit, KEY_STRCT *keys);
-#endif /* WIRELESS_EXT > 8 */
 static int wvlan_hw_setpromisc (IFBP ifbp, int promisc);
+static int wvlan_hw_getfirmware (IFBP ifbp, int *first, int *major, int *minor);
 
-int wvlan_hw_config (struct net_device *dev);
-int wvlan_hw_shutdown (struct net_device *dev);
-int wvlan_hw_reset (struct net_device *dev);
+static int wvlan_hw_config (struct net_device *dev);
+static int wvlan_hw_shutdown (struct net_device *dev);
+static int wvlan_hw_reset (struct net_device *dev);
 
 struct net_device_stats *wvlan_get_stats (struct net_device *dev);
 #ifdef WIRELESS_EXT
@@ -445,18 +490,53 @@ static void wvlan_detach (dev_link_t *link);
 
 static int wvlan_event (event_t event, int priority, event_callback_args_t *args);
 
-extern int init_module (void);
-extern void cleanup_module (void);
+extern int init_wvlan_cs (void);
+extern void exit_wvlan_cs (void);
 
+
+/********************** SPIN LOCK SUBROUTINES **********************/
+/*
+ * These 2 routines help to see what's happening with spinlock.
+ * They are inline, so optimised away ;-)
+ */
+
+/*------------------------------------------------------------------*/
+/*
+ * Wrapper for disabling interrupts. Useful for debugging ;-)
+ * (note : inline, so optimised away)
+ */
+static inline void
+wv_driver_lock(struct net_local *	local,
+	       unsigned long *		pflags)
+{
+  /* Disable interrupts and aquire the lock */
+  spin_lock_irqsave(&local->slock, *pflags);
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * Wrapper for re-enabling interrupts.
+ */
+static inline void
+wv_driver_unlock(struct net_local *	local,
+		 unsigned long *	pflags)
+{
+  /* Release the lock and reenable interrupts */
+  spin_unlock_irqrestore(&local->slock, *pflags);
+}
 
 /********************************************************************
  * HARDWARE SETTINGS
  */
+/* Note : most function below are called once in the code, so I added
+ * the "inline" modifier. If a function is used more than once, please
+ * remove the "inline"...
+ * Jean II */
 // Stupid constants helping clarity
 #define WVLAN_CURRENT	1
 #define WVLAN_DESIRED	0
 
-int wvlan_hw_setmaxdatalen (IFBP ifbp, int maxlen)
+static inline int wvlan_hw_setmaxdatalen (IFBP ifbp, int maxlen)
 {
 	CFG_ID_STRCT ltv;
 	int rc;
@@ -469,7 +549,7 @@ int wvlan_hw_setmaxdatalen (IFBP ifbp, int maxlen)
 	return rc;
 }
 
-int wvlan_hw_getmacaddr (IFBP ifbp, char *mac, int len)
+static inline int wvlan_hw_getmacaddr (IFBP ifbp, char *mac, int len)
 {
 	CFG_MAC_ADDR_STRCT ltv;
 	int rc, l;
@@ -485,7 +565,7 @@ int wvlan_hw_getmacaddr (IFBP ifbp, char *mac, int len)
 	return 0;
 }
 
-int wvlan_hw_getchannellist (IFBP ifbp)
+static int wvlan_hw_getchannellist (IFBP ifbp)
 {
 	CFG_ID_STRCT ltv;
 	int rc, chlist;
@@ -498,7 +578,7 @@ int wvlan_hw_getchannellist (IFBP ifbp)
 	return rc ? 0 : chlist;
 }
 
-int wvlan_hw_setporttype (IFBP ifbp, int ptype)
+static inline int wvlan_hw_setporttype (IFBP ifbp, int ptype)
 {
 	CFG_ID_STRCT ltv;
 	int rc;
@@ -511,7 +591,7 @@ int wvlan_hw_setporttype (IFBP ifbp, int ptype)
 	return rc;
 }
 
-int wvlan_hw_getporttype (IFBP ifbp)
+static inline int wvlan_hw_getporttype (IFBP ifbp)
 {
 	CFG_ID_STRCT ltv;
 	int rc, ptype;
@@ -524,7 +604,33 @@ int wvlan_hw_getporttype (IFBP ifbp)
 	return rc ? 0 : ptype;
 }
 
-int wvlan_hw_setstationname (IFBP ifbp, char *name)
+static inline int wvlan_hw_setallowibssflag (IFBP ifbp, int flag)
+{
+	CFG_ID_STRCT ltv;
+	int rc;
+
+	ltv.len = 2;
+	ltv.typ = CFG_CREATE_IBSS;
+	ltv.id[0] = flag;
+	rc = hcf_put_info(ifbp, (LTVP) &ltv);
+	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CREATE_IBSS:0x%x) returned 0x%x\n", dev_info, flag, rc);
+	return rc;
+}
+
+static inline int wvlan_hw_getallowibssflag (IFBP ifbp)
+{
+	CFG_ID_STRCT ltv;
+	int rc, flag;
+
+	ltv.len = 2;
+	ltv.typ = CFG_CREATE_IBSS;
+	rc = hcf_get_info(ifbp, (LTVP) &ltv);
+	flag = ltv.id[0];
+	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CREATE_IBSS):0x%x returned 0x%x\n", dev_info, flag, rc);
+	return rc ? 0 : flag;
+}
+
+static inline int wvlan_hw_setstationname (IFBP ifbp, char *name)
 {
 	CFG_ID_STRCT ltv;
 	int rc, l;
@@ -539,7 +645,7 @@ int wvlan_hw_setstationname (IFBP ifbp, char *name)
 	return rc;
 }
 
-int wvlan_hw_getstationname (IFBP ifbp, char *name, int len)
+static inline int wvlan_hw_getstationname (IFBP ifbp, char *name, int len)
 {
 	CFG_ID_STRCT ltv;
 	int rc, l;
@@ -560,13 +666,13 @@ int wvlan_hw_getstationname (IFBP ifbp, char *name, int len)
 	return 0;
 }
 
-int wvlan_hw_setssid (IFBP ifbp, char *name)
+static inline int wvlan_hw_setssid (IFBP ifbp, char *name, int ptype)
 {
 	CFG_ID_STRCT ltv;
 	int rc, l;
 
 	ltv.len = 18;
-	if (port_type == 3)
+	if (ptype == 3)
 		ltv.typ = CFG_CNF_OWN_SSID;
 	else
 		ltv.typ = CFG_CNF_DESIRED_SSID;
@@ -578,7 +684,7 @@ int wvlan_hw_setssid (IFBP ifbp, char *name)
 	return rc;
 }
 
-int wvlan_hw_getssid (IFBP ifbp, char *name, int len, int cur)
+static int wvlan_hw_getssid (IFBP ifbp, char *name, int len, int cur, int ptype)
 {
 	CFG_ID_STRCT ltv;
 	int rc, l;
@@ -587,7 +693,7 @@ int wvlan_hw_getssid (IFBP ifbp, char *name, int len, int cur)
 	if (cur)
 		ltv.typ = CFG_CURRENT_SSID;
 	else
-		if (port_type == 3)
+		if (ptype == 3)
 			ltv.typ = CFG_CNF_OWN_SSID;
 		else
 			ltv.typ = CFG_CNF_DESIRED_SSID;
@@ -607,7 +713,7 @@ int wvlan_hw_getssid (IFBP ifbp, char *name, int len, int cur)
 	return 0;
 }
 
-int wvlan_hw_getbssid (IFBP ifbp, char *mac, int len)
+static inline int wvlan_hw_getbssid (IFBP ifbp, char *mac, int len)
 {
 	CFG_MAC_ADDR_STRCT ltv;
 	int rc, l;
@@ -623,7 +729,7 @@ int wvlan_hw_getbssid (IFBP ifbp, char *mac, int len)
 	return 0;
 }
 
-int wvlan_hw_setchannel (IFBP ifbp, int channel)
+static inline int wvlan_hw_setchannel (IFBP ifbp, int channel)
 {
 	CFG_ID_STRCT ltv;
 	int rc;
@@ -636,7 +742,8 @@ int wvlan_hw_setchannel (IFBP ifbp, int channel)
 	return rc;
 }
 
-int wvlan_hw_getchannel (IFBP ifbp)
+/* Unused ??? */
+static int wvlan_hw_getchannel (IFBP ifbp)
 {
 	CFG_ID_STRCT ltv;
 	int rc, channel;
@@ -649,7 +756,7 @@ int wvlan_hw_getchannel (IFBP ifbp)
 	return rc ? 0 : channel;
 }
 
-int wvlan_hw_getcurrentchannel (IFBP ifbp)
+static int wvlan_hw_getcurrentchannel (IFBP ifbp)
 {
 	CFG_ID_STRCT ltv;
 	int rc, channel;
@@ -662,7 +769,7 @@ int wvlan_hw_getcurrentchannel (IFBP ifbp)
 	return rc ? 0 : channel;
 }
 
-int wvlan_hw_setthreshold (IFBP ifbp, int thrh, int cmd)
+static int wvlan_hw_setthreshold (IFBP ifbp, int thrh, int cmd)
 {
 	CFG_ID_STRCT ltv;
 	int rc;
@@ -675,7 +782,7 @@ int wvlan_hw_setthreshold (IFBP ifbp, int thrh, int cmd)
 	return rc;
 }
 
-int wvlan_hw_getthreshold (IFBP ifbp, int cmd)
+static int wvlan_hw_getthreshold (IFBP ifbp, int cmd)
 {
 	CFG_ID_STRCT ltv;
 	int rc, thrh;
@@ -688,7 +795,8 @@ int wvlan_hw_getthreshold (IFBP ifbp, int cmd)
 	return rc ? 0 : thrh;
 }
 
-int wvlan_hw_setbitrate (IFBP ifbp, int brate)
+/* Unused ? */
+static int wvlan_hw_setbitrate (IFBP ifbp, int brate)
 {
 	CFG_ID_STRCT ltv;
 	int rc;
@@ -701,7 +809,7 @@ int wvlan_hw_setbitrate (IFBP ifbp, int brate)
 	return rc;
 }
 
-int wvlan_hw_getbitrate (IFBP ifbp, int cur)
+static int wvlan_hw_getbitrate (IFBP ifbp, int cur)
 {
 	CFG_ID_STRCT ltv;
 	int rc, brate;
@@ -714,7 +822,7 @@ int wvlan_hw_getbitrate (IFBP ifbp, int cur)
 	return rc ? 0 : brate;
 }
 
-int wvlan_hw_getratelist(IFBP ifbp, char *brlist)
+static int wvlan_hw_getratelist(IFBP ifbp, char *brlist)
 {
 	CFG_ID_STRCT ltv;
 	int rc, brnum;
@@ -729,7 +837,7 @@ int wvlan_hw_getratelist(IFBP ifbp, char *brlist)
 }
 
 #ifdef WIRELESS_EXT
-int wvlan_hw_getfrequencylist(IFBP ifbp, iw_freq *list, int max)
+static inline int wvlan_hw_getfrequencylist(IFBP ifbp, iw_freq *list, int max)
 {
 	int chlist = wvlan_hw_getchannellist(ifbp);
 	int i, k = 0;
@@ -744,7 +852,7 @@ int wvlan_hw_getfrequencylist(IFBP ifbp, iw_freq *list, int max)
 		{
 #if WIRELESS_EXT > 7
 			list[k].i = i + 1;	/* Set the list index */
-#endif /* WIRELESS_EXT */
+#endif WIRELESS_EXT
 			list[k].m = frequency_list[i] * 100000;
 			list[k++].e = 1;	/* Values in table in MHz -> * 10^5 * 10 */
 		}
@@ -752,7 +860,7 @@ int wvlan_hw_getfrequencylist(IFBP ifbp, iw_freq *list, int max)
 	return k;
 }
 
-int wvlan_getbitratelist(IFBP ifbp, __s32 *list, int max)
+static inline int wvlan_getbitratelist(IFBP ifbp, __s32 *list, int max)
 {
 	char brlist[9];
 	int brnum = wvlan_hw_getratelist(ifbp, brlist);
@@ -768,10 +876,8 @@ int wvlan_getbitratelist(IFBP ifbp, __s32 *list, int max)
 
 	return brnum;
 }
-#endif /* WIRELESS_EXT */
 
-#if WIRELESS_EXT > 8
-int wvlan_hw_setpower (IFBP ifbp, int enabled, int cmd)
+static int wvlan_hw_setpower (IFBP ifbp, int enabled, int cmd)
 {
 	CFG_ID_STRCT ltv;
 	int rc;
@@ -784,7 +890,7 @@ int wvlan_hw_setpower (IFBP ifbp, int enabled, int cmd)
 	return rc;
 }
 
-int wvlan_hw_getpower (IFBP ifbp, int cmd)
+static int wvlan_hw_getpower (IFBP ifbp, int cmd)
 {
 	CFG_ID_STRCT ltv;
 	int rc, enabled;
@@ -797,7 +903,7 @@ int wvlan_hw_getpower (IFBP ifbp, int cmd)
 	return rc ? 0 : enabled;
 }
 
-int wvlan_hw_setpmsleep (IFBP ifbp, int duration)
+static inline int wvlan_hw_setpmsleep (IFBP ifbp, int duration)
 {
 	CFG_ID_STRCT ltv;
 	int rc;
@@ -810,7 +916,7 @@ int wvlan_hw_setpmsleep (IFBP ifbp, int duration)
 	return rc;
 }
 
-int wvlan_hw_getpmsleep (IFBP ifbp)
+static inline int wvlan_hw_getpmsleep (IFBP ifbp)
 {
 	CFG_ID_STRCT ltv;
 	int rc, duration;
@@ -823,7 +929,7 @@ int wvlan_hw_getpmsleep (IFBP ifbp)
 	return rc ? 0 : duration;
 }
 
-int wvlan_hw_getprivacy (IFBP ifbp)
+static int wvlan_hw_getprivacy (IFBP ifbp)
 {
 	CFG_ID_STRCT ltv;
 	int rc, privacy;
@@ -837,11 +943,11 @@ int wvlan_hw_getprivacy (IFBP ifbp)
 	ltv.typ = CFG_PRIVACY_OPTION_IMPLEMENTED;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
 	privacy = ltv.id[0];
-	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CNF_MAX_SLEEP_DURATION):0x%x returned 0x%x\n", dev_info, privacy, rc);
+	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_PRIVACY_OPTION_IMPLEMENTED):0x%x returned 0x%x\n", dev_info, privacy, rc);
 	return rc ? 0 : privacy;
 }
 
-int wvlan_hw_setprivacy (IFBP ifbp, int mode, int transmit, KEY_STRCT *keys)
+static int wvlan_hw_setprivacy (IFBP ifbp, int mode, int transmit, KEY_STRCT *keys)
 {
 	CFG_ID_STRCT ltv;
 	CFG_CNF_DEFAULT_KEYS_STRCT ltv_key;
@@ -875,7 +981,7 @@ int wvlan_hw_setprivacy (IFBP ifbp, int mode, int transmit, KEY_STRCT *keys)
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CNF_ENCRYPTION:0x%x) returned 0x%x\n", dev_info, mode, rc);
 	return rc;
 }
-#endif /* WIRELESS_EXT > 8 */
+#endif /* WIRELESS_EXT */
 
 static int wvlan_hw_setpromisc (IFBP ifbp, int promisc)
 {
@@ -890,25 +996,47 @@ static int wvlan_hw_setpromisc (IFBP ifbp, int promisc)
 	return rc;
 }
 
+static inline int wvlan_hw_getfirmware (IFBP ifbp, int *first, int *major, int *minor)
+{
+	CFG_ID_STRCT ltv;
+	int	rc;
+
+	ltv.len = 32;
+	ltv.typ = CFG_STA_IDENTITY;
+	rc = hcf_get_info(ifbp, (LTVP) &ltv);
+	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_STA_IDENTITY) returned 0x%x\n", dev_info, rc);
+	if (rc)
+		return rc;
+
+	/* Get the data we need (note : 16 bits operations) */
+	*first = ltv.id[1];
+	*major = ltv.id[2];
+	*minor = ltv.id[3];
+	/* There is more data after that, but I can't guess its use */
+
+	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_STA_IDENTITY):%d-%d.%d\n", dev_info, *first, *major, *minor);
+
+	return 0;
+}
+
 
 /********************************************************************
  * HARDWARE CONFIG / SHUTDOWN / RESET
  */
-int wvlan_hw_config (struct net_device *dev)
+
+/*------------------------------------------------------------------*/
+/*
+ * Hardware configuration of the Wavelan
+ * The caller *must* disable IRQs by himself before comming here.
+ */
+static int wvlan_hw_config (struct net_device *dev)
 {
 	struct net_local *local = (struct net_local *) dev->priv;
-	unsigned long flags;
 	int rc, i, chlist;
-
-	// TODO: Parameters should be stored per-device (in dev->priv).
-	// The problem is that this function erase all the per-device config
-	// done via Wireless Extensions with global variables (ouch!). This
-	// means that multi-card setup are guaranteed not to work.
+	int	first, major, minor;	/* Firmware revision */
+	int	firmware;
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_hw_config(%s)\n", dev->name);
-
-	// Disable interrupts
-	spin_lock_irqsave(&local->slock, flags);
 
 	// Init the HCF library
 	hcf_connect(&local->ifb, dev->base_addr);
@@ -922,31 +1050,86 @@ int wvlan_hw_config (struct net_device *dev)
 	rc = hcf_action(&local->ifb, HCF_ACT_INT_ON);
 	DEBUG(DEBUG_NOISY, "%s: hcf_action(HCF_ACT_INT_ON) returned 0x%x\n", dev_info, rc);
 
+	/* Get firmware revision of the card */
+	if (!rc)
+		rc = wvlan_hw_getfirmware(&local->ifb, &first, &major, &minor);
+
+	/* Paranoia */
+	if(first != 0x1)
+		printk(KERN_NOTICE "%s: Firmware return ``first'' = 0x%04X, please report...\n", dev_info, first);
+
+	/* Process firmware info to know what it supports */
+	firmware = (major << 16) + minor;
+	if((!rc) && (first = 0x1)) {
+		/* Note : this will work at least for Lucent firmware */
+		local->has_port3  = (firmware <= 0x60004);
+		local->has_ibssid = (firmware >= 0x60000);
+		local->has_mwo    = (firmware >= 0x60000);
+		local->has_wep    = (firmware >= 0x40034);
+		local->has_pm     = (firmware >= 0x40034);
+		/* Note : I've tested the following firmwares :
+		 * 1.16 ; 4.08 ; 4.52 ; 6.04 and 6.06
+		 * Jean II */
+	}
+	DEBUG(DEBUG_INFO, "%s: Found firmware 0x%X (%d) - Firmware capabilities : %d-%d-%d-%d-%d\n",
+	      dev_info, firmware, first, local->has_port3, local->has_ibssid,
+	      local->has_mwo, local->has_wep, local->has_pm);
+
+	/* Check for a few user mistakes... Cut down on support ;-) */
+	if((!local->has_port3) && (local->port_type == 3)) {
+		printk(KERN_NOTICE "%s: This firmware doesn't support ``port_type=3''.\n", dev_info);
+		rc = 255;
+	}
+	if((!local->has_ibssid) && (local->allow_ibss)) {
+		printk(KERN_NOTICE "%s: This firmware doesn't support ``allow_ibss=1''.\n", dev_info);
+		rc = 255;
+	}
+	if((local->allow_ibss) && (local->network_name[0] == '\0')) {
+		printk(KERN_NOTICE "%s: This firmware require an ESSID in Ad-Hoc mode.\n", dev_info);
+		rc = 255;
+	}
+
 	// Set hardware parameters
 	if (!rc)
 		rc = wvlan_hw_setmaxdatalen(&local->ifb, HCF_MAX_MSG);
 	if (!rc)
-		rc = wvlan_hw_setporttype(&local->ifb, port_type);
-	if (!rc && *station_name)
-		rc = wvlan_hw_setstationname(&local->ifb, station_name);
-	if (!rc && *network_name)
-		rc = wvlan_hw_setssid(&local->ifb, network_name);
+		rc = wvlan_hw_setporttype(&local->ifb, local->port_type);
+	if (!rc && *(local->network_name))
+		rc = wvlan_hw_setssid(&local->ifb, local->network_name,
+				      local->port_type);
+	/* Firmware 4.08 doesn't like that at all :-( */
+	if (!rc && (local->has_ibssid))
+		rc = wvlan_hw_setallowibssflag(&local->ifb, local->allow_ibss);
+
+#ifdef WIRELESS_EXT
+	// Set other hardware parameters
+	if (!rc && *(local->station_name))
+		rc = wvlan_hw_setstationname(&local->ifb, local->station_name);
 	if (!rc)
-		rc = wvlan_hw_setthreshold(&local->ifb, ap_density, CFG_CNF_SYSTEM_SCALE);
+		rc = wvlan_hw_setthreshold(&local->ifb, local->ap_density, CFG_CNF_SYSTEM_SCALE);
 	if (!rc)
-		rc = wvlan_hw_setthreshold(&local->ifb, medium_reservation, CFG_RTS_THRH);
-	/* Note : at this point we used to set the fragmentation threshold.
-	 * This fails on version 6.X of the Wavelan firmware.
-	 * On the other hand, earlier version of the firmware always
-	 * initialiase with a sane value, so we don't really need to do it.
-	 * Use iwconfig/wireless.opts if you really need it.
-	 * Jean II
-	 */
+		rc = wvlan_hw_setthreshold(&local->ifb, local->transmit_rate, CFG_TX_RATE_CONTROL);
 	if (!rc)
-		rc = wvlan_hw_setthreshold(&local->ifb, transmit_rate, CFG_TX_RATE_CONTROL);
+		rc = wvlan_hw_setthreshold(&local->ifb, local->medium_reservation, CFG_RTS_THRH);
+	/* Normal fragmentation for v4 and earlier */
+	if (!rc && (!local->has_mwo))
+		rc = wvlan_hw_setthreshold(&local->ifb, local->frag_threshold, CFG_FRAGMENTATION_THRH);
+	/* MWO robustness for v6 and later */
+	if (!rc && (local->has_mwo))
+		rc = wvlan_hw_setthreshold(&local->ifb, local->mwo_robust, CFG_CNF_MICRO_WAVE);
+	/* Firmware 4.08 doesn't like those at all :-( */
+	if (!rc && (local->has_wep))
+		rc = wvlan_hw_setprivacy(&local->ifb, local->wep_on, local->transmit_key, local->key);
+	if (!rc && (local->has_pm))
+		rc = wvlan_hw_setpower(&local->ifb, local->pm_on, CFG_CNF_PM_ENABLED);
+	if (!rc && (local->has_pm) && (local->pm_on))
+		rc = wvlan_hw_setpower(&local->ifb, local->pm_multi, CFG_CNF_MCAST_RX);
+	if (!rc && (local->has_pm) && (local->pm_on))
+		rc = wvlan_hw_setpmsleep(&local->ifb, local->pm_period);
+#endif /* WIRELESS_EXT */
 
 	// Check valid channel settings
-	if (!rc && port_type == 3)
+	if (!rc && ((local->port_type == 3) || (local->allow_ibss)))
 	{
 		chlist = wvlan_hw_getchannellist(&local->ifb);
 		printk(KERN_INFO "%s: Valid channels: ", dev_info);
@@ -954,10 +1137,11 @@ int wvlan_hw_config (struct net_device *dev)
 			if (1<<(i-1) & chlist)
 				printk("%d ", i);
 		printk("\n");
-		if (channel<1 || channel>16 || !(1<<(channel-1) & chlist))
-			printk(KERN_WARNING "%s: Channel value of %d is invalid!\n", dev_info, channel);
+		if (local->channel < 1 || local->channel > 16
+		    || !(1 << (local->channel - 1) & chlist))
+			printk(KERN_WARNING "%s: Channel value of %d is invalid!\n", dev_info, local->channel);
 		else
-			rc = wvlan_hw_setchannel(&local->ifb, channel);
+			rc = wvlan_hw_setchannel(&local->ifb, local->channel);
 	}
 
 	// Enable hardware
@@ -977,9 +1161,6 @@ int wvlan_hw_config (struct net_device *dev)
 		printk("\n");
 	}
 
-	// Re-enable interrupts
-	spin_unlock_irqrestore(&local->slock, flags);
-
 	// Report error if any
 	if (rc)
 		printk(KERN_WARNING "%s: Initialization failed!\n", dev_info);
@@ -988,16 +1169,34 @@ int wvlan_hw_config (struct net_device *dev)
 	return rc;
 }
 
-int wvlan_hw_shutdown (struct net_device *dev)
+/*------------------------------------------------------------------*/
+/*
+ * Wrapper for calling wvlan_hw_config() with irq disabled
+ */
+static inline int wvlan_hw_config_locked (struct net_device *dev)
 {
 	struct net_local *local = (struct net_local *) dev->priv;
 	unsigned long flags;
+	int ret;
+
+	wv_driver_lock(local, &flags);
+	ret = wvlan_hw_config(dev);
+	wv_driver_unlock(local, &flags);
+
+	return ret;
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * Hardware de-configuration of the Wavelan (switch off the device)
+ * The caller *must* disable IRQs by himself before comming here.
+ */
+static int wvlan_hw_shutdown (struct net_device *dev)
+{
+	struct net_local *local = (struct net_local *) dev->priv;
 	int rc;
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_hw_shutdown(%s)\n", dev->name);
-
-	// Disable interrupts
-	spin_lock_irqsave(&local->slock, flags);
 
 	// Disable and shutdown hardware
 	rc = hcf_disable(&local->ifb, 0);
@@ -1010,23 +1209,21 @@ int wvlan_hw_shutdown (struct net_device *dev)
 	// Release HCF library
 	hcf_disconnect(&local->ifb);
 
-	// Re-enable interrupts
-	spin_unlock_irqrestore(&local->slock, flags);
-
 	DEBUG(DEBUG_CALLTRACE, "<- wvlan_hw_shutdown()\n");
 	return 0;
 }
 
-int wvlan_hw_reset (struct net_device *dev)
+/*------------------------------------------------------------------*/
+/*
+ * "light" hardware reset of the Wavelan
+ * The caller *must* disable IRQs by himself before comming here.
+ */
+static int wvlan_hw_reset (struct net_device *dev)
 {
 	struct net_local *local = (struct net_local *) dev->priv;
-	unsigned long flags;
 	int rc;
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_hw_reset(%s)\n", dev->name);
-
-	// Disable interrupts
-	spin_lock_irqsave(&local->slock, flags);
 
 	// Disable hardware
 	rc = hcf_disable(&local->ifb, 0);
@@ -1039,9 +1236,6 @@ int wvlan_hw_reset (struct net_device *dev)
 	DEBUG(DEBUG_NOISY, "%s: hcf_action(HCF_ACT_INT_ON) returned 0x%x\n", dev_info, rc);
 	rc = hcf_enable(&local->ifb, 0);
 	DEBUG(DEBUG_NOISY, "%s: hcf_enable(0) returned 0x%x\n", dev_info, rc);
-
-	// Re-enable interrupts
-	spin_unlock_irqrestore(&local->slock, flags);
 
 	DEBUG(DEBUG_CALLTRACE, "<- wvlan_hw_reset()\n");
 	return rc;
@@ -1068,7 +1262,7 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_ioctl(%s, cmd=0x%x)\n", dev->name, cmd);
 
 	// Disable interrupts
-	spin_lock_irqsave(&local->slock, flags);
+	wv_driver_lock(local, &flags);
 
 	switch (cmd)
 	{
@@ -1093,7 +1287,8 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				wrq->u.freq.m = c + 1;
 			}
 			// Setting by channel number
-			if ((port_type != 3) || (wrq->u.freq.m > 1000) || (wrq->u.freq.e > 0))
+			if (((local->port_type != 3) && (!local->allow_ibss))
+			    || (wrq->u.freq.m > 1000) || (wrq->u.freq.e > 0))
 				rc = -EOPNOTSUPP;
 			else
 			{
@@ -1106,9 +1301,8 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				}
 				else
 				{
-					wvlan_hw_setchannel(&local->ifb, wrq->u.freq.m);
-					wvlan_hw_reset(dev);
-					channel = wrq->u.freq.m;
+					local->channel = wrq->u.freq.m;
+					local->need_commit = 1;
 				}
 			}
 			break;
@@ -1127,7 +1321,6 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 #endif
 			break;
 
-#if WIRELESS_EXT > 5
 		// Set desired network name (ESSID)
 		case SIOCSIWESSID:
 			if (wrq->u.data.pointer)
@@ -1148,14 +1341,15 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 						rc = -E2BIG;
 						break;
 					}
+					wv_driver_unlock(local, &flags);
 					copy_from_user(essid,
 						       wrq->u.data.pointer,
 						       wrq->u.data.length);
+					wv_driver_lock(local, &flags);
 					essid[IW_ESSID_MAX_SIZE] = '\0';
 				}
-				wvlan_hw_setssid(&local->ifb, essid);
-				wvlan_hw_reset(dev);
-				strncpy(network_name, essid, sizeof(network_name)-1);
+				strncpy(local->network_name, essid, sizeof(local->network_name)-1);
+				local->need_commit = 1;
 			}
 			break;
 
@@ -1167,17 +1361,21 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				/* Get the essid that was set */
 				wvlan_hw_getssid(&local->ifb, essid,
 						 IW_ESSID_MAX_SIZE,
-						 WVLAN_DESIRED);
+						 WVLAN_DESIRED,
+						 local->port_type);
 				/* If it was set to any, get the current one */
 				if(strlen(essid) == 0)
 					wvlan_hw_getssid(&local->ifb, essid,
 							 IW_ESSID_MAX_SIZE,
-							 WVLAN_CURRENT);
+							 WVLAN_CURRENT,
+							 local->port_type);
 
 				/* Push it out ! */
 				wrq->u.data.length = strlen(essid) + 1;
 				wrq->u.data.flags = 1; /* active */
+				wv_driver_unlock(local, &flags);
 				copy_to_user(wrq->u.data.pointer, essid, sizeof(essid));
+				wv_driver_lock(local, &flags);
 			}
 			break;
 
@@ -1186,8 +1384,6 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			wvlan_hw_getbssid(&local->ifb, wrq->u.ap_addr.sa_data, ETH_ALEN);
 			wrq->u.ap_addr.sa_family = ARPHRD_ETHER;
 			break;
-
-#endif	/* WIRELESS_EXT > 5 */
 
 #if WIRELESS_EXT > 7
 		// Set desired station name
@@ -1202,11 +1398,12 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					rc = -E2BIG;
 					break;
 				}
+				wv_driver_unlock(local, &flags);
 				copy_from_user(name, wrq->u.data.pointer, wrq->u.data.length);
+				wv_driver_lock(local, &flags);
 				name[IW_ESSID_MAX_SIZE] = '\0';
-				wvlan_hw_setstationname(&local->ifb, name);
-				wvlan_hw_reset(dev);
-				strncpy(station_name, name, sizeof(station_name)-1);
+				strncpy(local->station_name, name, sizeof(local->station_name)-1);
+				local->need_commit = 1;
 			}
 			break;
 
@@ -1217,7 +1414,9 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				char name[IW_ESSID_MAX_SIZE + 1];
 				wvlan_hw_getstationname(&local->ifb, name, IW_ESSID_MAX_SIZE);
 				wrq->u.data.length = strlen(name) + 1;
+				wv_driver_unlock(local, &flags);
 				copy_to_user(wrq->u.data.pointer, name, sizeof(name));
+				wv_driver_lock(local, &flags);
 			}
 			break;
 
@@ -1258,9 +1457,8 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 						break;
 					}
 				}
-				wvlan_hw_setbitrate(&local->ifb, wvrate);
-				wvlan_hw_reset(dev);
-				transmit_rate = wvrate;
+				local->transmit_rate = wvrate;
+				local->need_commit = 1;
 			}
 			break;
 
@@ -1275,79 +1473,16 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				{
 					wrq->u.bitrate.fixed = 0;
 					wvrate = wvlan_hw_getbitrate(&local->ifb, WVLAN_CURRENT);
-#if OLD_FIRMWARE
-					// Or maybe I just got it wrong?
-					brate = rate_list[wvrate];
-#else
 					brate = 2 * wvrate;
 					// Mandatory kludge!
 					if (wvrate == 6)
 						brate = 11;
-#endif
 				}
 				else
 					wrq->u.bitrate.fixed = 1;
 
 				wrq->u.bitrate.value = brate * 500000;
 			}
-			break;
-
-		// Set the desired RTS threshold
-		case SIOCSIWRTS:
-			{
-				int rthr = wrq->u.rts.value;
-				// if(wrq->u.rts.fixed == 0) we should complain
-#if WIRELESS_EXT > 8
-				if(wrq->u.rts.disabled)
-					rthr = 2347;
-#endif /* WIRELESS_EXT > 8 */
-				if((rthr < 0) || (rthr > 2347))
-				{
-					rc = -EINVAL;
-					break;
-				}
-				wvlan_hw_setthreshold(&local->ifb, rthr, CFG_RTS_THRH);
-				wvlan_hw_reset(dev);
-				medium_reservation = rthr;
-			}
-			break;
-
-		// Get the current RTS threshold
-		case SIOCGIWRTS:
-			wrq->u.rts.value = wvlan_hw_getthreshold(&local->ifb, CFG_RTS_THRH);
-#if WIRELESS_EXT > 8
-			wrq->u.rts.disabled = (wrq->u.rts.value == 2347);
-#endif /* WIRELESS_EXT > 8 */
-			wrq->u.rts.fixed = 1;
-			break;
-
-		// Set the desired fragmentation threshold
-		case SIOCSIWFRAG:
-			{
-				int fthr = wrq->u.frag.value;
-				// if(wrq->u.frag.fixed == 0) should complain
-#if WIRELESS_EXT > 8
-				if(wrq->u.frag.disabled)
-					fthr = 2346;
-#endif /* WIRELESS_EXT > 8 */
-				if((fthr < 256) || (fthr > 2346))
-				{
-					rc = -EINVAL;
-					break;
-				}
-				fthr &= ~0x1;	// Get an even value
-				wvlan_hw_setthreshold(&local->ifb, fthr, CFG_FRAGMENTATION_THRH);
-				wvlan_hw_reset(dev);
-			}
-			break;
-
-		// Get the current fragmentation threshold
-		case SIOCGIWFRAG:
-			wrq->u.frag.value = wvlan_hw_getthreshold(&local->ifb, CFG_FRAGMENTATION_THRH);
-#if WIRELESS_EXT > 8
-			wrq->u.frag.disabled = (wrq->u.frag.value >= 2346);
-#endif /* WIRELESS_EXT > 8 */
-			wrq->u.frag.fixed = 1;
 			break;
 
 		// Set the desired AP density
@@ -1359,9 +1494,8 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					rc = -EINVAL;
 					break;
 				}
-				wvlan_hw_setthreshold(&local->ifb, dens, CFG_CNF_SYSTEM_SCALE);
-				wvlan_hw_reset(dev);
-				ap_density = dens;
+				local->ap_density = dens;
+				local->need_commit = 1;
 			}
 			break;
 
@@ -1370,13 +1504,121 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			wrq->u.sens.value = wvlan_hw_getthreshold(&local->ifb, CFG_CNF_SYSTEM_SCALE);
 			wrq->u.sens.fixed = 0;	/* auto */
 			break;
-#endif	/* WIRELESS_EXT > 7 */
+#endif /* WIRELESS_EXT > 7 */
 
 #if WIRELESS_EXT > 8
+		// Set the desired RTS threshold
+		case SIOCSIWRTS:
+			{
+				int rthr = wrq->u.rts.value;
+				// if(wrq->u.rts.fixed == 0) we should complain
+				if(wrq->u.rts.disabled)
+					rthr = 2347;
+				if((rthr < 0) || (rthr > 2347))
+				{
+					rc = -EINVAL;
+					break;
+				}
+				local->medium_reservation = rthr;
+				local->need_commit = 1;
+			}
+			break;
+
+		// Get the current RTS threshold
+		case SIOCGIWRTS:
+			wrq->u.rts.value = wvlan_hw_getthreshold(&local->ifb, CFG_RTS_THRH);
+			wrq->u.rts.disabled = (wrq->u.rts.value == 2347);
+			wrq->u.rts.fixed = 1;
+			break;
+
+		// Set the desired fragmentation threshold
+		case SIOCSIWFRAG:
+			/* Check if firmware v4 or v6 */
+			if(local->has_mwo) {
+				int fthr = wrq->u.frag.value;
+				/* v6 : fragmentation is now controlled by
+				 * MWO robust setting */
+				// if(wrq->u.frag.fixed == 1) should complain
+				if(wrq->u.frag.disabled)
+					fthr = 0;
+				if((fthr < 0) || (fthr > 2347)) {
+					rc = -EINVAL;
+				} else {
+					local->mwo_robust = (fthr > 0);
+					local->need_commit = 1;
+				}
+			} else {
+				int fthr = wrq->u.frag.value;
+				/* v4 : we can set frag threshold */
+				// if(wrq->u.frag.fixed == 0) should complain
+				if(wrq->u.frag.disabled)
+					fthr = 2346;
+				if((fthr < 256) || (fthr > 2346)) {
+					rc = -EINVAL;
+				} else {
+					fthr &= ~0x1;	// Get an even value
+					local->frag_threshold = fthr;
+					local->need_commit = 1;
+				}
+			}
+			break;
+
+		// Get the current fragmentation threshold
+		case SIOCGIWFRAG:
+			/* Check if firmware v4 or v6 */
+			if(local->has_mwo) {
+				if(wvlan_hw_getthreshold(&local->ifb, CFG_CNF_MICRO_WAVE))
+					wrq->u.frag.value = 2347;
+				else
+					wrq->u.frag.value = 0;
+				wrq->u.frag.disabled = !(wrq->u.frag.value);
+				wrq->u.frag.fixed = 0;
+			} else {
+				wrq->u.frag.value = wvlan_hw_getthreshold(&local->ifb, CFG_FRAGMENTATION_THRH);
+				wrq->u.frag.disabled = (wrq->u.frag.value >= 2346);
+				wrq->u.frag.fixed = 1;
+			}
+			break;
+
 		// Set port type
 		case SIOCSIWMODE:
-			{
+			/* Big firmware trouble here !
+			 * In v4 and v6.04, the ad-hoc mode supported is the
+			 * Lucent proprietary Ad-Hoc demo mode.
+			 * Starting with v6.06, the ad-hoc mode supported is
+			 * the standard 802.11 IBSS Ad-Hoc mode.
+			 * Jean II
+			 */
+			if(local->has_ibssid) {
+				/* v6 : set the IBSS flag */
+				char ibss = 0;
+
+				/* Paranoia */
+				if(local->port_type != 1)
+					local->port_type = 1;
+
+				switch (wrq->u.mode)
+				{
+					case IW_MODE_ADHOC:
+						ibss = 1;
+						// Fall through
+					case IW_MODE_INFRA:
+						local->allow_ibss = ibss;
+						local->need_commit = 1;
+						break;
+					default:
+						rc = -EINVAL;
+				}
+			} else {
+				/* v4 : set the correct port type */
 				char ptype = 1;
+
+				/* Note : this now works properly with
+				 * all firmware ;-) */
+
+				/* Paranoia */
+				if(local->allow_ibss)
+					local->allow_ibss = 0;
 
 				switch (wrq->u.mode)
 				{
@@ -1384,9 +1626,8 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 						ptype = 3;
 						// Fall through
 					case IW_MODE_INFRA:
-						wvlan_hw_setporttype(&local->ifb, ptype);
-						wvlan_hw_reset(dev);
-						port_type = ptype;
+						local->port_type = ptype;
+						local->need_commit = 1;
 						break;
 					default:
 						rc = -EINVAL;
@@ -1396,27 +1637,34 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 
 		// Get port type
 		case SIOCGIWMODE:
+			/* Check for proprietary Ad-Hoc demo mode */
 			if (wvlan_hw_getporttype(&local->ifb) == 1)
 				wrq->u.mode = IW_MODE_INFRA;
 			else
+				wrq->u.mode = IW_MODE_ADHOC;
+			/* Check for compliant 802.11 IBSS Ad-Hoc mode */
+			if ((local->has_ibssid) &&
+			    (wvlan_hw_getallowibssflag(&local->ifb) == 1))
 				wrq->u.mode = IW_MODE_ADHOC;
 			break;
 
 		// Set the desired Power Management mode
 		case SIOCSIWPOWER:
 			// Disable it ?
-			if(wrq->u.power.disabled)
-				wvlan_hw_setpower (&local->ifb, 0, CFG_CNF_PM_ENABLED);
-			else
-			{
+			if(wrq->u.power.disabled) {
+				local->pm_on = 0;
+				local->need_commit = 1;
+			} else {
 				// Check mode
 				switch(wrq->u.power.flags & IW_POWER_MODE)
 				{
 					case IW_POWER_UNICAST_R:
-						wvlan_hw_setpower(&local->ifb, 0, CFG_CNF_MCAST_RX);
+						local->pm_multi = 0;
+						local->need_commit = 1;
 						break;
 					case IW_POWER_ALL_R:
-						wvlan_hw_setpower(&local->ifb, 1, CFG_CNF_MCAST_RX);
+						local->pm_multi = 1;
+						local->need_commit = 1;
 						break;
 					case IW_POWER_ON:	// None = ok
 						break;
@@ -1427,15 +1675,14 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				if (wrq->u.power.flags & IW_POWER_PERIOD)
 				{
 					// Activate PM
-					wvlan_hw_setpower(&local->ifb, 1, CFG_CNF_PM_ENABLED);
+					local->pm_on = 1;
 					// Hum: check max/min values ?
-					wvlan_hw_setpmsleep (&local->ifb, wrq->u.power.value/1000);
+					local->pm_period = wrq->u.power.value/1000;
+					local->need_commit = 1;
 				}
 				if (wrq->u.power.flags & IW_POWER_TIMEOUT)
 					rc = -EINVAL;	// Invalid
 			}
-			if (!rc)
-				wvlan_hw_reset(dev);
 			break;
 
 		// Get the power management settings
@@ -1512,10 +1759,8 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			if (wrq->u.encoding.flags & IW_ENCODE_RESTRICTED)
 				rc = -EINVAL;		// Invalid
 			// Commit the changes
-			if (rc == 0) {
-				wvlan_hw_setprivacy(&local->ifb, local->wep_on, local->transmit_key, local->key);
-				wvlan_hw_reset(dev);
-			}
+			if (rc == 0)
+				local->need_commit = 1;
 			break;
 
 		// Get the WEP keys and mode
@@ -1575,7 +1820,8 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 						      range.freq,
 						      IW_MAX_FREQUENCIES);
 				range.sensitivity = 3;
-				if (port_type == 3 && local->spy_number == 0)
+				if (local->port_type == 3 &&
+				    local->spy_number == 0)
 				{
 					range.max_qual.qual = 0;
 					range.max_qual.level = 0;
@@ -1613,7 +1859,9 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					range.max_encoding_tokens = 0;
 				}
 #endif /* WIRELESS_EXT > 8 */
+				wv_driver_unlock(local, &flags);
 				copy_to_user(wrq->u.data.pointer, &range, sizeof(struct iw_range));
+				wv_driver_lock(local, &flags);
 			}
 			break;
 
@@ -1633,7 +1881,9 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				rc = verify_area(VERIFY_READ, wrq->u.data.pointer, sizeof(struct sockaddr) * local->spy_number);
 				if (rc)
 					break;
+				wv_driver_unlock(local, &flags);
 				copy_from_user(address, wrq->u.data.pointer, sizeof(struct sockaddr) * local->spy_number);
+				wv_driver_lock(local, &flags);
 				for (i=0; i<local->spy_number; i++)
 					memcpy(local->spy_address[i], address[i].sa_data, MAC_ADDR_SIZE);
 				memset(local->spy_stat, 0, sizeof(struct iw_quality) * IW_MAX_SPY);
@@ -1661,32 +1911,15 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					memcpy(address[i].sa_data, local->spy_address[i], MAC_ADDR_SIZE);
 					address[i].sa_family = AF_UNIX;
 				}
+				wv_driver_unlock(local, &flags);
 				copy_to_user(wrq->u.data.pointer, address, sizeof(struct sockaddr) * local->spy_number);
 				copy_to_user(wrq->u.data.pointer + (sizeof(struct sockaddr)*local->spy_number), local->spy_stat, sizeof(struct iw_quality) * local->spy_number);
+				wv_driver_lock(local, &flags);
 				for (i=0; i<local->spy_number; i++)
 					local->spy_stat[i].updated = 0;
 			}
 			break;
 #endif /* WIRELESS_SPY */
-
-			/* Microwave Oven robustness. Those two are likely
-			 * to give funky results with firmware earlier than
-			 * version 6.X - Jean II */
-		case SIOCDEVPRIVATE + 0x2:
-			// Only super-user can set MWO robustness
-			if (!capable(CAP_NET_ADMIN))
-			{
-				rc = -EPERM;
-				break;
-			}
-			wvlan_hw_setthreshold(&local->ifb, *(wrq->u.name) > 0,
-					      CFG_CNF_MICRO_WAVE);
-			wvlan_hw_reset(dev);
-			break;
-
-		case SIOCDEVPRIVATE + 0x3:
-			*(wrq->u.name) = wvlan_hw_getthreshold(&local->ifb, CFG_CNF_MICRO_WAVE);
-			break;
 
 #ifdef HISTOGRAM
 		// Set the histogram range
@@ -1708,7 +1941,9 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				rc = verify_area(VERIFY_READ, wrq->u.data.pointer, sizeof(char) * local->his_number);
 				if (rc)
 					break;
+				wv_driver_unlock(local, &flags);
 				copy_from_user(local->his_range, wrq->u.data.pointer, sizeof(char) * local->his_number);
+				wv_driver_lock(local, &flags);
 				memset(local->his_sum, 0, sizeof(long) * 16);
 			}
 			break;
@@ -1721,7 +1956,9 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				rc = verify_area(VERIFY_WRITE, wrq->u.data.pointer, sizeof(long) * 16);
 				if (rc)
 					break;
+				wv_driver_unlock(local, &flags);
 				copy_to_user(wrq->u.data.pointer, local->his_sum, sizeof(long) * local->his_number);
+				wv_driver_lock(local, &flags);
 			}
 			break;
 #endif /* HISTOGRAM */
@@ -1739,14 +1976,14 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					{ SIOCDEVPRIVATE + 0x0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "force_reset" },
 					{ SIOCDEVPRIVATE + 0x1, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "debug_getinfo" },
 #endif
-					{ SIOCDEVPRIVATE + 0x2, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1 , 0, "setmwo" },
-					{ SIOCDEVPRIVATE + 0x3, 0, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, "getmwo" },
 				};
 				rc = verify_area(VERIFY_WRITE, wrq->u.data.pointer, sizeof(priv));
 				if (rc)
 					break;
 				wrq->u.data.length = sizeof(priv) / sizeof(priv[0]);
+				wv_driver_unlock(local, &flags);
 				copy_to_user(wrq->u.data.pointer, priv, sizeof(priv));
+				wv_driver_lock(local, &flags);
 			}
 			break;
 
@@ -1763,6 +2000,7 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			{
 				// 'hard' reset
 				printk(KERN_DEBUG "%s: Forcing hard reset\n", dev_info);
+				/* IRQ already disabled, don't do it again */
 				wvlan_hw_shutdown(dev);
 				wvlan_hw_config(dev);
 			}
@@ -1770,6 +2008,7 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			{
 				// 'soft' reset
 				printk(KERN_DEBUG "%s: Forcing soft reset\n", dev_info);
+				/* IRQ already disabled, don't do it again */
 				wvlan_hw_reset(dev);
 			}
 			break;
@@ -1807,8 +2046,25 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			rc = -EOPNOTSUPP;
 	}
 
+	/* Some of the "set" function may have modified some of the
+	 * parameters. It's now time to commit them in the card */
+	if(local->need_commit) {
+		/* Is the driver active ?
+		 * Here, we optimise. If the driver is not active, we don't
+		 * commit the individual changes, and all the changes will
+		 * be committed together in wvlan_open(). This significantely
+		 * speed up the card startup when using wireless.opts
+		 * Jean II */
+		if((local->link->open) || (cmd == SIOCSIWESSID)) {
+			/* IRQ are already disabled */
+			wvlan_hw_shutdown(dev);
+			wvlan_hw_config(dev);
+			local->need_commit = 0;
+		}
+	}
+
 	// Re-enable interrupts
-	spin_unlock_irqrestore(&local->slock, flags);
+	wv_driver_unlock(local, &flags);
 
 	DEBUG(DEBUG_CALLTRACE, "<- wvlan_ioctl()\n");
 	return rc;
@@ -1824,10 +2080,10 @@ struct iw_statistics *wvlan_get_wireless_stats (struct net_device *dev)
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_get_wireless_stats(%s)\n", dev->name);
 
 	// Disable interrupts
-	spin_lock_irqsave(&local->slock, flags);
+	wv_driver_lock(local, &flags);
 
 	local->wstats.status = 0;
-	if (port_type != 3)
+	if (local->port_type != 3)
 	{
 		ltv.len = 4;
 		ltv.typ = CFG_COMMS_QUALITY;
@@ -1867,7 +2123,7 @@ struct iw_statistics *wvlan_get_wireless_stats (struct net_device *dev)
 					local->ifb.IFB_NIC_Tallies.TxDiscardsWrongSA;
 
 	// Re-enable interrupts
-	spin_unlock_irqrestore(&local->slock, flags);
+	wv_driver_unlock(local, &flags);
 
 	DEBUG(DEBUG_CALLTRACE, "<- wvlan_get_wireless_stats()\n");
 	return (&local->wstats);
@@ -1929,7 +2185,7 @@ static void wvlan_set_multicast_list (struct net_device *dev)
 	// Note: check if hardware up & running?
 
 	// Disable interrupts
-	spin_lock_irqsave(&local->slock, flags);
+	wv_driver_lock(local, &flags);
 
 	DEBUG(DEBUG_INFO, "%s: setting multicast Rx mode %02X to %d addresses.\n", dev->name, dev->flags, dev->mc_count);
 
@@ -2015,7 +2271,7 @@ static void wvlan_set_multicast_list (struct net_device *dev)
 				}
 			}
 	// Re-enable interrupts
-	spin_unlock_irqrestore(&local->slock, flags);
+	wv_driver_unlock(local, &flags);
 
 	return;
 }
@@ -2027,6 +2283,9 @@ static void wvlan_set_multicast_list (struct net_device *dev)
  */
 static void wvlan_watchdog (struct net_device *dev)
 {
+	struct net_local *local = (struct net_local *) dev->priv;
+	unsigned long flags;
+
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_wathdog(%s)\n", dev->name);
 
 	// In theory, we could try to abort the current Tx command here,
@@ -2036,9 +2295,11 @@ static void wvlan_watchdog (struct net_device *dev)
 	// Reset card in case of Tx timeout
 #ifdef WVLAN_RESET_ON_TX_TIMEOUT
 	printk(KERN_WARNING "%s: %s Tx timed out! Resetting card\n", dev_info, dev->name);
-	// Note: those two will take care of locking spinlock & irq
+	/* IRQ currently enabled, so disable it */
+	wv_driver_lock(local, &flags);
 	wvlan_hw_shutdown(dev);
 	wvlan_hw_config(dev);
+	wv_driver_unlock(local, &flags);
 #else
 	printk(KERN_WARNING "%s: %s Tx timed out! Ignoring...\n", dev_info, dev->name);
 #endif
@@ -2078,14 +2339,14 @@ int wvlan_tx (struct sk_buff *skb, struct net_device *dev)
 	skb->arp = 1;
 #endif
 
-	// Disable interrupts
-	spin_lock_irqsave(&local->slock, flags);
-
 	// Tell queueing layer to stop sending
 	// TODO: We should use multiple Tx buffers and
 	// re-enable the queue (netif_wake_queue()) if
 	// there's space left in the Tx buffers.
 	netif_stop_queue(dev);
+
+	// Disable interrupts
+	wv_driver_lock(local, &flags);
 
 	// Prepare packet
 	p = skb->data;
@@ -2113,7 +2374,7 @@ int wvlan_tx (struct sk_buff *skb, struct net_device *dev)
 	add_tx_bytes(&local->stats, len);
 
 	// Re-enable interrupts
-	spin_unlock_irqrestore(&local->slock, flags);
+	wv_driver_unlock(local, &flags);
 
 	// It might be no good idea doing a printk() debug output during
 	// disabled interrupts (I'm not sure...). So better do it here.
@@ -2241,6 +2502,16 @@ static int wvlan_open (struct net_device *dev)
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_open(%s)\n", dev->name);
 
+	/* Check if we need to re-setup the card */
+	if(local->need_commit) {
+		unsigned long flags;
+		wv_driver_lock(local, &flags);
+		wvlan_hw_shutdown(dev);
+		wvlan_hw_config(dev);
+		local->need_commit = 0;
+		wv_driver_unlock(local, &flags);
+	}	
+
 	// TODO: Power up the card here and power down on close?
 	// For now this is done on device init, not on open
 	// Might be better placed here so that some settings can
@@ -2313,11 +2584,18 @@ static void wvlan_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 		return;
 	}
 
+	/* Prevent reentrancy. We need to do that because we may have
+	 * multiple interrupt handler running concurently.
+	 * It is safe because wv_driver_lock() disable interrupts before
+	 * aquiring the spinlock. */
+	spin_lock(&local->slock);
+
 	// Turn off interrupts
 	rc = hcf_action(&local->ifb, HCF_ACT_INT_OFF);
 	DEBUG(DEBUG_NOISY, "%s: hcf_action(HCF_ACT_INT_OFF) returned 0x%x\n", dev_info, rc);
+	/* Check state of interrupt */
 	if (test_and_set_bit(0, (void *)&local->interrupt))
-		printk(KERN_WARNING "%s: Warning: IRQ %d Reentering interrupt handler!\n", dev_info, irq);
+		printk(KERN_DEBUG "%s: Warning: IRQ %d Reentering interrupt handler!\n", dev_info, irq);
 
 	// Process pending interrupts.
 	// We continue until hcf_service_nic tells that no received
@@ -2410,6 +2688,9 @@ static void wvlan_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 	// Turn back interrupts on (unlock)
 	rc = hcf_action(&local->ifb, HCF_ACT_INT_ON);
 	DEBUG(DEBUG_NOISY, "%s: hcf_action(HCF_ACT_INT_ON) returned 0x%x\n", dev_info, rc);
+
+	/* Release spinlock */
+	spin_unlock (&local->slock);
 
 	DEBUG(DEBUG_INTERRUPT, "<- wvlan_interrupt()\n");
 }
@@ -2628,6 +2909,8 @@ static void wvlan_release (u_long arg)
 {
 	dev_link_t *link = (dev_link_t *) arg;
 	struct net_device *dev = (struct net_device *) link->priv;
+	struct net_local *local = (struct net_local *) dev->priv;
+	unsigned long flags;
 	int i;
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_release(0x%p)\n", link);
@@ -2641,8 +2924,10 @@ static void wvlan_release (u_long arg)
 		return;
 	}
 
-	// Power down
+	// Power down - IRQ currently enabled, so disable it
+	wv_driver_lock(local, &flags);
 	wvlan_hw_shutdown(dev);
+	wv_driver_unlock(local, &flags);
 
 	// Remove our device from index (only devices named wvlanX)
 	for (i=0; i<MAX_WVLAN_CARDS; ++i)
@@ -2706,6 +2991,27 @@ static dev_link_t *wvlan_attach (void)
 	local->link = link;
 	local->dev = dev;
 	spin_lock_init(&local->slock);
+	// Copy modules parameters to private struct
+	local->port_type = port_type;
+	local->allow_ibss = allow_ibss;
+	strcpy(local->network_name, network_name);
+	local->channel = channel;
+	// Initialise Wireless Extension stuff
+#ifdef WIRELESS_EXT
+	local->station_name[0] = '\0';
+	local->ap_density = 1;
+	local->medium_reservation = 2347;
+	local->frag_threshold = 2346;
+	local->mwo_robust = 0;
+	local->transmit_rate = 3;
+	local->wep_on = 0;
+	local->pm_on = 0;
+	// Check obsolete module parameters
+	if(*(station_name)) {
+		strcpy(local->station_name, station_name);
+		printk(KERN_INFO "%s: ``station_name'' is an obsolete module parameter.", dev_info);
+	}
+#endif /* WIRELESS_EXT */
 
 	// Standard setup for generic data
 	ether_setup(dev);
@@ -2718,7 +3024,7 @@ static dev_link_t *wvlan_attach (void)
 #ifdef WIRELESS_EXT
 	dev->do_ioctl = wvlan_ioctl;
 	dev->get_wireless_stats = wvlan_get_wireless_stats;
-#endif
+#endif /* WIRELESS_EXT */
 	dev->change_mtu = wvlan_change_mtu;
 	dev->set_multicast_list = wvlan_set_multicast_list;
 //	dev->set_mac_address = wvlan_set_mac_address;
@@ -2835,7 +3141,7 @@ static int wvlan_event (event_t event, int priority, event_callback_args_t *args
 	{
 		case CS_EVENT_CARD_INSERTION:
 			link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-			if (!wvlan_config(link) || wvlan_hw_config(dev))
+			if (!wvlan_config(link) || wvlan_hw_config_locked(dev))
 				dev->irq = 0;
 			break;
 
@@ -2872,8 +3178,16 @@ static int wvlan_event (event_t event, int priority, event_callback_args_t *args
 				CardServices(RequestConfiguration, link->handle, &link->conf);
 				if (link->open)
 				{
+					struct net_local *local =
+					  (struct net_local *) dev->priv;
+					unsigned long flags;
+
+					/* IRQ currently enabled,
+					 * so disable it */
+					wv_driver_lock(local, &flags);
 					wvlan_hw_shutdown(dev);
 					wvlan_hw_config(dev);
+					wv_driver_unlock(local, &flags);
 					netif_device_attach(dev);
 					netif_start_queue(dev);
 				}
@@ -2889,7 +3203,7 @@ static int wvlan_event (event_t event, int priority, event_callback_args_t *args
 /********************************************************************
  * MODULE INSERTION / REMOVAL
  */
-extern int init_module (void)
+extern int __init init_wvlan_cs (void)
 {
 	servinfo_t serv;
 
@@ -2913,7 +3227,7 @@ extern int init_module (void)
 	return 0;
 }
 
-extern void cleanup_module (void)
+extern void __exit exit_wvlan_cs (void)
 {
 	DEBUG(DEBUG_CALLTRACE, "-> cleanup_module()\n");
 
@@ -2934,6 +3248,8 @@ extern void cleanup_module (void)
 	DEBUG(DEBUG_CALLTRACE, "<- cleanup_module()\n");
 }
 
+module_init(init_wvlan_cs);
+module_exit(exit_wvlan_cs);
 
 /********************************************************************
  * EOF

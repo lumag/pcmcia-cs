@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.271 2000/10/02 20:27:49
+    cs.c 1.272 2000/11/07 19:09:01
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -71,7 +71,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.271 2000/10/02 20:27:49 (David Hinds)";
+"cs.c 1.272 2000/11/07 19:09:01 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -1013,11 +1013,11 @@ static int get_configuration_info(client_handle_t handle,
 	config->Vcc = s->socket.Vcc;
 	config->Vpp1 = config->Vpp2 = s->socket.Vpp;
 	config->Option = s->cap.cardbus;
+	config->IntType = INT_CARDBUS;
 	/* This is a nasty hack */
 	pcibios_read_config_dword(s->cap.cardbus, 0, 0, &config->ConfigBase);
 	if (s->cb_config) {
 	    config->Attributes = CONF_VALID_CLIENT;
-	    config->IntType = INT_CARDBUS;
 	    config->AssignedIRQ = s->irq.AssignedIRQ;
 	    if (config->AssignedIRQ)
 		config->Attributes |= CONF_ENABLE_IRQ;

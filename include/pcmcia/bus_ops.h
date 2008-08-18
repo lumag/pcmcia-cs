@@ -1,5 +1,5 @@
 /*
- * bus_ops.h 1.10 2000/06/12 21:55:41
+ * bus_ops.h 1.11 2000/10/25 00:16:06
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -144,7 +144,12 @@ typedef struct bus_operations {
 #define bus_memcpy_fromio(b,d,s,n) memcpy_fromio(d,s,n)
 #define bus_memcpy_toio(b,d,s,n) memcpy_toio(d,s,n)
 
+#ifdef CONFIG_8xx
+#define bus_request_irq(b,i,h,f,n,d) request_8xxirq((i),(h),(f),(n),(d))
+#else
 #define bus_request_irq(b,i,h,f,n,d) request_irq((i),(h),(f),(n),(d))
+#endif
+
 #define bus_free_irq(b,i,d)	free_irq((i),(d))
 
 #endif /* CONFIG_VIRTUAL_BUS */

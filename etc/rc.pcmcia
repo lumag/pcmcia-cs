@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.33 2000/07/06 08:57:44 (David Hinds)
+# rc.pcmcia 1.34 2000/10/30 16:58:12 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -130,6 +130,7 @@ for x in "1" ; do
 	    kill -0 $PID 2>/dev/null && sleep 2 && \
 	    kill -0 $PID 2>/dev/null
 	fi
+	killall -q "CardBus Watcher"
 	if fgrep -q "ds  " /proc/modules ; then
 	    echo -n " modules"
 	    /sbin/rmmod ds

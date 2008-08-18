@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dahinds@users.sourceforge.net.
-  v2.28, 29 August 2000
+  v2.29, 05 November 2000
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -3551,12 +3551,14 @@
        } socket_cap_t;
 
   The SS_InquireSocket service is used to retrieve socket capabilities.
-  The irq_mask field is a bit mask indicating which interrupts can be
-  configured for IO cards.  The map_size field gives the address
+  The irq_mask field is a bit mask indicating which ISA interrupts can
+  be configured for IO cards.  The map_size field gives the address
   granularity of memory windows.  The pci_irq field, if not zero, is the
-  PCI interrupt number assigned to this socket.  It should be consistent
-  with irq_mask.  For CardBus bridges, the cardbus field should be non-
-  zero, and gives the PCI bus number of the CardBus side of the bridge.
+  PCI interrupt number assigned to this socket.  It is independent of
+  irq_mask, and can actually be used in any situation where exactly one
+  interrupt is associated with a specific socket.  For CardBus bridges,
+  the cardbus field should be non-zero, and gives the PCI bus number of
+  the CardBus side of the bridge.
 
   For sockets that do not directly map cards into the host IO and memory
   space, the bus field is a pointer to a table of entry points for IO
@@ -3602,7 +3604,6 @@
   invoked when the socket driver receives card status change events.  To
   unregister a callback, this function is called with a handler value of
   NULL.  Only one callback function can be registered per socket.
-
   The handler will be called with the value of info that was passed to
   SS_RegisterCallback for this socket, and with a bit map of events in
   the events parameter.  The following events are defined:

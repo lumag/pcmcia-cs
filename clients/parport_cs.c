@@ -5,7 +5,7 @@
     (specifically, for the Quatech SPP-100 EPP card: other cards will
     probably require driver tweaks)
     
-    parport_cs.c 1.18 2000/06/12 21:27:26
+    parport_cs.c 1.20 2000/11/02 23:15:05
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"parport_cs.c 1.18 2000/06/12 21:27:26 (David Hinds)";
+"parport_cs.c 1.20 2000/11/02 23:15:05 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -226,11 +226,13 @@ while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 if (CardServices(fn, args) != 0) goto next_entry
 
 static struct { u_int flag; char *name; } mode[] = {
-    { PARPORT_MODE_PCPS2, "PS2" },
-    { PARPORT_MODE_PCEPP, "EPP" },
-    { PARPORT_MODE_PCECP, "ECP" },
+    { PARPORT_MODE_TRISTATE, "PS2" },
+    { PARPORT_MODE_EPP, "EPP" },
+    { PARPORT_MODE_ECP, "ECP" },
+#if (LINUX_VERSION_CODE < VERSION(2,3,6))
     { PARPORT_MODE_PCECPEPP, "ECPEPP" },
     { PARPORT_MODE_PCECPPS2, "ECPPS2" }
+#endif
 };
 
 void parport_config(dev_link_t *link)
@@ -296,16 +298,17 @@ void parport_config(dev_link_t *link)
     CS_CHECK(RequestIRQ, handle, &link->irq);
     CS_CHECK(RequestConfiguration, handle, &link->conf);
 
-    p = parport_register_port(link->io.BasePort1,
+    p = parport_pc_probe_port(link->io.BasePort1, link->io.BasePort2,
 			      link->irq.AssignedIRQ, PARPORT_DMA_NONE,
-			      &parport_cs_ops);
+			      NULL);
     if (p == NULL) {
-	printk(KERN_NOTICE "parport_cs: parport_register_port() at "
+	printk(KERN_NOTICE "parport_cs: parport_pc_probe_port() at "
 	       "0x%3x, irq %u failed\n", link->io.BasePort1,
 	       link->irq.AssignedIRQ);
 	goto failed;
     }
 
+#if (LINUX_VERSION_CODE < VERSION(2,3,6))
 #if (LINUX_VERSION_CODE >= VERSION(2,2,8))
     p->private_data = kmalloc(sizeof(struct parport_pc_private),
 			      GFP_KERNEL);
@@ -316,12 +319,11 @@ void parport_config(dev_link_t *link)
     parport_pc_write_econtrol(p, 0x00);
     parport_pc_write_control(p, 0x0c);
     parport_pc_write_data(p, 0x00);
-    
+#endif
+
     p->modes |= PARPORT_MODE_PCSPP;
     if (epp_mode)
-	p->modes |= PARPORT_MODE_PCPS2 | PARPORT_MODE_PCEPP;
-    if (link->io.NumPorts2)
-	p->modes |= PARPORT_MODE_PCECR;
+	p->modes |= PARPORT_MODE_TRISTATE | PARPORT_MODE_EPP;
     info->ndev = 1;
     info->node.major = LP_MAJOR;
     info->node.minor = p->number;
@@ -364,8 +366,10 @@ void parport_cs_release(u_long arg)
 
     if (info->ndev) {
 	struct parport *p = info->port;
+#if (LINUX_VERSION_CODE < VERSION(2,3,6))
 	if (!(p->flags & PARPORT_FLAG_COMA))
 	    parport_quiesce(p);
+#endif
 	parport_proc_unregister(p);
 #if (LINUX_VERSION_CODE >= VERSION(2,2,8))
 	kfree(p->private_data);
@@ -427,6 +431,8 @@ int parport_event(event_t event, int priority,
 
 /*====================================================================*/
 
+#if (LINUX_VERSION_CODE < VERSION(2,3,6))
+
 static void inc_use_count(void)
 {
     MOD_INC_USE_COUNT;
@@ -438,6 +444,8 @@ static void dec_use_count(void)
     MOD_DEC_USE_COUNT;
     parport_pc_ops.dec_use_count();
 }
+
+#endif
 
 /*====================================================================*/
 
@@ -452,11 +460,13 @@ static int __init init_parport_cs(void)
 	return -1;
     }
 
+#if (LINUX_VERSION_CODE < VERSION(2,3,6))
     /* This is to protect against unloading modules out of order */
     parport_cs_ops = parport_pc_ops;
     parport_cs_ops.inc_use_count = &inc_use_count;
     parport_cs_ops.dec_use_count = &dec_use_count;
-    
+#endif
+
     register_pccard_driver(&dev_info, &parport_attach, &parport_detach);
     return 0;
 }

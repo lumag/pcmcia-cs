@@ -5,7 +5,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copryight and license notice.  This file is not
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -447,7 +447,6 @@ struct vortex_private {
 	struct sk_buff *tx_skb;		/* Packet being eaten by bus master ctrl.  */
 
 	long last_reset;
-	spinlock_t	window_lock;
 	struct net_device_stats stats;
 	char *cb_fn_base;			/* CardBus function status addr space. */
 	int chip_id, drv_flags;
@@ -472,6 +471,7 @@ struct vortex_private {
 	u16 advertising;					/* NWay media advertisement */
 	unsigned char phys[2];				/* MII device addresses. */
 	u16 deferred_irqs;
+	spinlock_t lock;
 };
 
 /* The action to take with a media selection timer tick.
@@ -897,7 +897,7 @@ vortex_up(struct net_device *dev)
 
 	acpi_wake(vp->pci_bus, vp->pci_devfn);
 
-	vp->window_lock = SPIN_LOCK_UNLOCKED;
+	vp->lock = SPIN_LOCK_UNLOCKED;
 	activate_xcvr(dev);
 
 	/* Before initializing select the active media port. */
@@ -938,7 +938,7 @@ vortex_up(struct net_device *dev)
 	set_media_type(dev);
 	start_operation(dev);
 
-	spin_lock(&vp->window_lock);
+	spin_lock(&vp->lock);
 
 	if (vortex_debug > 1) {
 		EL3WINDOW(4);
@@ -961,7 +961,7 @@ vortex_up(struct net_device *dev)
 
 	/* Switch to register set 7 for normal use. */
 	EL3WINDOW(7);
-	spin_unlock(&vp->window_lock);
+	spin_unlock(&vp->lock);
 
 	vp->tx_full = 0;
 	if (vp->full_bus_master_rx) { /* Boomerang bus master. */
@@ -1142,6 +1142,7 @@ static void vortex_timer(unsigned long data)
 	int next_tick = 60*HZ;
 	int ok = 0;
 	int media_status, mii_status, old_window;
+	unsigned long flags;
 
 	if (vortex_debug > 1)
 		printk(KERN_DEBUG "%s: Media selection timer tick happened, %s.\n",
@@ -1187,36 +1188,38 @@ static void vortex_timer(unsigned long data)
 				   dev->name, media_tbl[dev->if_port].name, media_status);
 		break;
 	case XCVR_MII: case XCVR_NWAY:
-		  mii_status = mdio_read(ioaddr, vp->phys[0], 1);
-		  ok = 1;
-		  if (debug > 1)
-			  printk(KERN_DEBUG "%s: MII transceiver has status %4.4x.\n",
-					 dev->name, mii_status);
-		  if (mii_status & 0x0004) {
-			  int mii_reg5 = mdio_read(ioaddr, vp->phys[0], 5);
-			  if (! vp->medialock  &&  mii_reg5 != 0xffff) {
-				  int duplex = (mii_reg5&0x0100) ||
-					  (mii_reg5 & 0x01C0) == 0x0040;
-				  if (vp->full_duplex != duplex) {
-					  vp->full_duplex = duplex;
-					  printk(KERN_INFO "%s: Setting %s-duplex based on MII "
-							 "#%d link partner capability of %4.4x.\n",
-							 dev->name, vp->full_duplex ? "full" : "half",
-							 vp->phys[0], mii_reg5);
-					  /* Set the full-duplex bit. */
-					  EL3WINDOW(3);
-					  outb((vp->full_duplex ? 0x20 : 0) |
-						   (dev->mtu > 1500 ? 0x40 : 0),
-						   ioaddr + Wn3_MAC_Ctrl);
-				  }
-				  next_tick = 60*HZ;
-			  }
-		  }
-		  break;
-	  default:					/* Other media types handled by Tx timeouts. */
+		spin_lock_irqsave(&vp->lock, flags);
+		mii_status = mdio_read(ioaddr, vp->phys[0], 1);
+		ok = 1;
+		if (debug > 1)
+			printk(KERN_DEBUG "%s: MII transceiver has status %4.4x.\n",
+				   dev->name, mii_status);
+		if (mii_status & 0x0004) {
+			int mii_reg5 = mdio_read(ioaddr, vp->phys[0], 5);
+			if (! vp->medialock  &&  mii_reg5 != 0xffff) {
+				int duplex = (mii_reg5&0x0100) ||
+					(mii_reg5 & 0x01C0) == 0x0040;
+				if (vp->full_duplex != duplex) {
+					vp->full_duplex = duplex;
+					printk(KERN_INFO "%s: Setting %s-duplex based on MII "
+						   "#%d link partner capability of %4.4x.\n",
+						   dev->name, vp->full_duplex ? "full" : "half",
+						   vp->phys[0], mii_reg5);
+					/* Set the full-duplex bit. */
+					EL3WINDOW(3);
+					outb((vp->full_duplex ? 0x20 : 0) |
+						 (dev->mtu > 1500 ? 0x40 : 0),
+						 ioaddr + Wn3_MAC_Ctrl);
+				}
+				next_tick = 60*HZ;
+			}
+		}
+		spin_unlock_irqrestore(&vp->lock, flags);
+		break;
+	default:					/* Other media types handled by Tx timeouts. */
 		if (vortex_debug > 1)
-		  printk(KERN_DEBUG "%s: Media %s has no indication, %x.\n",
-				 dev->name, media_tbl[dev->if_port].name, media_status);
+			printk(KERN_DEBUG "%s: Media %s has no indication, %x.\n",
+				   dev->name, media_tbl[dev->if_port].name, media_status);
 		ok = 1;
 	}
 	if ( ! ok) {
@@ -1281,16 +1284,14 @@ static void vortex_tx_timeout(struct net_device *dev)
 	if (inw(ioaddr + EL3_STATUS) & IntLatch) {
 		printk(KERN_ERR "%s: Interrupt posted but not delivered --"
 			   " IRQ blocked by another device?\n", dev->name);
-		/* Bad idea here.. but we might as well handle a few events. */
-		vortex_interrupt(dev->irq, dev, 0);
 	}
 
 #if ! defined(final_version)
 	if (vp->full_bus_master_tx) {
 		int i;
 		printk(KERN_DEBUG "  Flags; bus-master %d, full %d; dirty %d "
-			   "current %d.\n",
-			   vp->full_bus_master_tx, vp->tx_full, vp->dirty_tx, vp->cur_tx);
+			   "current %d.\n", vp->full_bus_master_tx, vp->tx_full,
+			   vp->dirty_tx % TX_RING_SIZE, vp->cur_tx % TX_RING_SIZE);
 		printk(KERN_DEBUG "  Transmit list %8.8x vs. %p.\n",
 			   inl(ioaddr + DownListPtr),
 			   &vp->tx_ring[vp->dirty_tx % TX_RING_SIZE]);
@@ -1354,7 +1355,7 @@ vortex_error(struct net_device *dev, int status)
 		/* Presumably a tx-timeout. We must merely re-enable. */
 		if (vortex_debug > 2
 			|| (tx_status != 0x88 && vortex_debug > 0))
-			printk(KERN_DEBUG"%s: Transmit error, Tx status register %2.2x.\n",
+			printk(KERN_INFO "%s: Transmit error, Tx status register %2.2x.\n",
 				   dev->name, tx_status);
 		if (tx_status & 0x14)  vp->stats.tx_fifo_errors++;
 		if (tx_status & 0x38)  vp->stats.tx_aborted_errors++;
@@ -1419,8 +1420,15 @@ vortex_error(struct net_device *dev, int status)
 		}
 	}
 	if (do_tx_reset) {
+		wait_for_completion(dev, DownStall);
 		wait_for_completion(dev, TxReset);
 		outw(TxEnable, ioaddr + EL3_CMD);
+		if ((vp->drv_flags & IS_BOOMERANG) || !down_poll_rate) {
+			/* Room for a packet, to avoid long DownStall delays. */
+			outb(PKT_BUF_SZ>>8, ioaddr + TxFreeThreshold);
+			outw(DownUnstall, ioaddr + EL3_CMD);
+		} else
+			outb(down_poll_rate, ioaddr + DownPollRate);
 		vp->restart_tx = 1;
 	}
 
@@ -1513,9 +1521,8 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	vp->tx_ring[entry].length = cpu_to_le32(skb->len | LAST_FRAG);
 	vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded);
 
+	spin_lock_irqsave(&vp->lock, flags);
 	if ((vp->drv_flags & IS_BOOMERANG) || !down_poll_rate) {
-		save_flags(flags);
-		cli();
 		/* Wait for the stall to complete. */
 		wait_for_completion(dev, DownStall);
 		vp->tx_desc_tail->next = virt_to_le32desc(&vp->tx_ring[entry]);
@@ -1525,14 +1532,14 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			queued_packet++;
 		}
 		outw(DownUnstall, ioaddr + EL3_CMD);
-		restore_flags(flags);
 	} else {
 		vp->tx_desc_tail->next = virt_to_le32desc(&vp->tx_ring[entry]);
 		vp->tx_desc_tail = &vp->tx_ring[entry];
 		if (vp->restart_tx) {
 			if (vp->drv_flags & HAS_FIFO_BUG) /* Disable tx reclaim */
 				outw(SetTxReclaim | 0xff, ioaddr + EL3_CMD);
-			outl(virt_to_bus(vp->tx_desc_tail), ioaddr + DownListPtr);
+			outl(virt_to_bus(&vp->tx_ring[vp->dirty_tx % TX_RING_SIZE]),
+				 ioaddr + DownListPtr);
 			vp->restart_tx = 0;
 			queued_packet++;
 		}
@@ -1546,6 +1553,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 		netif_start_queue(dev);
 	}
+	spin_unlock_irqrestore(&vp->lock, flags);
 	dev->trans_start = jiffies;
 	return 0;
 }
@@ -1573,6 +1581,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (vortex_debug > 4)
 		printk(KERN_DEBUG "%s: interrupt, status %4.4x, latency %d ticks.\n",
 			   dev->name, status, latency);
+	spin_lock(&vp->lock);
 	do {
 		if (vortex_debug > 5)
 				printk(KERN_DEBUG "%s: In interrupt loop, status %4.4x.\n",
@@ -1653,6 +1662,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			writel(0x8000, vp->cb_fn_base + 4);
 
 	} while ((status = inw(ioaddr + EL3_STATUS)) & (IntLatch | RxComplete));
+	spin_unlock(&vp->lock);
 
 	if (vortex_debug > 4)
 		printk(KERN_DEBUG "%s: exiting interrupt, status %4.4x.\n",
@@ -1905,10 +1915,9 @@ static struct net_device_stats *vortex_get_stats(struct net_device *dev)
 	unsigned long flags;
 
 	if (netif_device_present(dev)) {
-		save_flags(flags);
-		cli();
+		spin_lock_irqsave(&vp->lock, flags);
 		update_stats(dev->base_addr, dev);
-		restore_flags(flags);
+		spin_unlock_irqrestore(&vp->lock, flags);
 	}
 	return &vp->stats;
 }
@@ -1973,40 +1982,46 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	long ioaddr = dev->base_addr;
 	u16 *data = (u16 *)&rq->ifr_data;
 	int phy = vp->phys[0] & 0x1f;
+	int retval;
+
+	spin_lock(&vp->lock);
 
 	switch(cmd) {
 	case SIOCDEVPRIVATE:		/* Get the address of the PHY in use. */
 		data[0] = phy;
 	case SIOCDEVPRIVATE+1:		/* Read the specified MII register. */
-		spin_lock(&vp->window_lock);
 		EL3WINDOW(4);
 		data[3] = mdio_read(ioaddr, data[0] & 0x1f, data[1] & 0x1f);
-		spin_unlock(&vp->window_lock);
-		return 0;
+		retval = 0;
+		break;
 	case SIOCDEVPRIVATE+2:		/* Write the specified MII register */
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-		if (data[0] == vp->phys[0]) {
-			u16 value = data[2];
-			switch (data[1]) {
-			case 0:
-				/* Check for autonegotiation on or reset. */
-				vp->medialock = (value & 0x9000) ? 0 : 1;
-				if (vp->medialock)
-					vp->full_duplex = (value & 0x0100) ? 1 : 0;
-				break;
-			case 4: vp->advertising = value; break;
+		if (!capable(CAP_NET_ADMIN)) {
+			retval = -EPERM;
+		} else {
+			if (data[0] == vp->phys[0]) {
+				u16 value = data[2];
+				switch (data[1]) {
+				case 0:
+					/* Check for autonegotiation on or reset. */
+					vp->medialock = (value & 0x9000) ? 0 : 1;
+					if (vp->medialock)
+						vp->full_duplex = (value & 0x0100) ? 1 : 0;
+					break;
+				case 4: vp->advertising = value; break;
+				}
+				/* Perhaps check_duplex(dev), depending on chip semantics. */
 			}
-			/* Perhaps check_duplex(dev), depending on chip semantics. */
+			EL3WINDOW(4);
+			mdio_write(ioaddr, data[0] & 0x1f, data[1] & 0x1f, data[2]);
+			retval = 0;
 		}
-		spin_lock(&vp->window_lock);
-		EL3WINDOW(4);
-		mdio_write(ioaddr, data[0] & 0x1f, data[1] & 0x1f, data[2]);
-		spin_unlock(&vp->window_lock);
-		return 0;
+		break;
 	default:
-		return -EOPNOTSUPP;
+		retval = -EOPNOTSUPP;
 	}
+
+	spin_unlock(&vp->lock);
+	return retval;
 }
 
 /* Pre-Cyclone chips have no documented multicast filter, so the only

@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.129 2000/06/15 02:15:27
+# Makefile 1.130 2000/10/27 20:24:01
 #
 
 # Include site dependent options and kernel configuration
@@ -32,9 +32,13 @@ MODULES += 3c575_cb.o tulip_cb.o epic_cb.o eepro100_cb.o
 endif
 ifdef CONFIG_SCSI
 ifdef DO_APA1480
-SRCS    += apa1480_cb.c aic7xxx.c
+SRCS    += apa1480_stub.c aic7xxx.c
 MODULES += apa1480_cb.o
 endif
+endif
+ifdef CONFIG_IEEE1394
+SRCS    += pcilynx_stub.c pcilynx.c
+MODULES += pcilynx_cb.o
 endif
 endif
 
@@ -63,7 +67,7 @@ MODULES += parport_cs.o
 endif
 
 vpath %.c $(LINUX)/drivers/net $(LINUX)/drivers/scsi \
-	$(LINUX)/drivers/net/tokenring
+	$(LINUX)/drivers/net/tokenring $(LINUX)/drivers/ieee1394
 
 SCSI=$(LINUX)/drivers/scsi
 
@@ -122,6 +126,13 @@ endif
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
 apa1480_cb.o: apa1480_stub.o aic7xxx.o
+	$(LD) -r -o $@ $+ ; chmod -x $@
+
+pcilynx.o: pcilynx.c
+	$(CC) -MD -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
+	@mkdir -p .depfiles ; mv $*.d .depfiles
+
+pcilynx_cb.o: pcilynx_stub.o pcilynx.o
 	$(LD) -r -o $@ $+ ; chmod -x $@
 
 clean:

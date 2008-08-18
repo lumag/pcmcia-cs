@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# dump_pirq 1.18 2000/09/14 22:39:14
+# dump_pirq 1.19 2000/11/07 21:15:24
 #
 # A utility to parse the BIOS PCI IRQ Routing Table
 #
@@ -90,7 +90,9 @@ sub parse_pirq
 	 0x71108086, "82371AB PIIX4/PIIX4E",
 	 0x71988086, "82443MX",
 	 0x24108086, "82801AA ICH",
-	 0x24208086, "82801AB ICH0");
+	 0x24208086, "82801AB ICH0",
+	 0x24408086, "82801BA ICH2",
+	 0x244c8086, "82801BAM ICH2-M");
 
 %via = (0x05861106, "82C586",
 	0x05961106, "82C596",
