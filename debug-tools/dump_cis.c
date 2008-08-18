@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.38 1998/08/13 09:27:53
+    dump_cis.c 1.40 1998/09/25 21:44:46
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -837,7 +837,7 @@ int main(int argc, char *argv[])
 	}
     }
     if (errflg || (optind < argc)) {
-	fprintf(stderr, "usage: %s [-v] [-f]\n", argv[0]);
+	fprintf(stderr, "usage: %s [-v] [-f] [-i infile]\n", argv[0]);
 	exit(EXIT_FAILURE);
     }
     
@@ -849,11 +849,6 @@ int main(int argc, char *argv[])
     }
 #endif
     
-    arg.tuple.TupleDataMax = sizeof(arg.tuple_parse.data);
-    arg.tuple.Attributes = TUPLE_RETURN_LINK | TUPLE_RETURN_COMMON;
-    arg.tuple.DesiredTuple = RETURN_FIRST_TUPLE;
-    arg.tuple.TupleOffset = 0;
-
     for (i = 0; (i < MAX_SOCKS) && !(i && infile); i++) {
 	nfn = cur = 0;
 	if (infile) {
@@ -883,6 +878,11 @@ int main(int argc, char *argv[])
 	    }
 	}
 	
+	arg.tuple.TupleDataMax = sizeof(arg.tuple_parse.data);
+	arg.tuple.Attributes = TUPLE_RETURN_LINK | TUPLE_RETURN_COMMON;
+	arg.tuple.DesiredTuple = RETURN_FIRST_TUPLE;
+	arg.tuple.TupleOffset = 0;
+
 	for (first = 1; ; first = 0) {
 	    if (infile) {
 		if (get_tuple_buf(fd, &arg, first) != 0) break;

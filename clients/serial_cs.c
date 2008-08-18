@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.98 1998/05/21 11:34:01
+    serial_cs.c 1.101 1998/10/12 23:42:39
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -48,7 +48,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.98 1998/05/21 11:34:01 (David Hinds)";
+"serial_cs.c 1.101 1998/10/12 23:42:39 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -70,7 +70,7 @@ MODULE_PARM(do_sound, "i");
 
 /*====================================================================*/
 
-/* Table of multifunction and multi-port card ID's */
+/* Table of multi-port card ID's */
 
 typedef struct {
     u_short	manfid;
@@ -79,9 +79,6 @@ typedef struct {
 } multi_id_t;
 
 static multi_id_t multi_id[] = {
-    { MANFID_IBM, PRODID_IBM_HOME_AND_AWAY, 1 },
-    { MANFID_3COM, PRODID_3COM_3C562, 1 },
-    { MANFID_3COM, PRODID_3COM_3CXEM556, 1 },
     { MANFID_OMEGA, PRODID_OMEGA_QSP_100, 4 },
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D1, 2 },
@@ -268,7 +265,7 @@ static int get_tuple(int fn, client_handle_t handle, tuple_t *tuple,
 {
     int i;
     i = CardServices(fn, handle, tuple);
-    if (i != CS_SUCCESS) return i;
+    if (i != CS_SUCCESS) return CS_NO_MORE_ITEMS;
     i = CardServices(GetTupleData, handle, tuple);
     if (i != CS_SUCCESS) return i;
     return CardServices(ParseTuple, handle, tuple, parse);
@@ -314,8 +311,9 @@ static int simple_config(dev_link_t *link)
     tuple.Attributes = 0;
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     i = first_tuple(handle, &tuple, &parse);
-    while (i == CS_SUCCESS) {
-	if ((cf->io.nwin > 0) && ((cf->io.win[0].base & 0xf) == 8)) {
+    while (i != CS_NO_MORE_ITEMS) {
+	if ((i == CS_SUCCESS) && (cf->io.nwin > 0) &&
+	    ((cf->io.win[0].base & 0xf) == 8)) {
 	    link->conf.ConfigIndex = cf->index;
 	    link->io.BasePort1 = cf->io.win[0].base;
 	    i = CardServices(RequestIO, link->handle, &link->io);
@@ -328,8 +326,8 @@ static int simple_config(dev_link_t *link)
        its base address, then try to grab any standard serial port
        address, and finally try to get any free port. */
     i = first_tuple(handle, &tuple, &parse);
-    while (i == CS_SUCCESS) {
-	if ((cf->io.nwin > 0) &&
+    while (i != CS_NO_MORE_ITEMS) {
+	if ((i == CS_SUCCESS) && (cf->io.nwin > 0) &&
 	    ((cf->io.flags & CISTPL_IO_LINES_MASK) <= 3)) {
 	    link->conf.ConfigIndex = cf->index;
 	    for (j = 0; j < 5; j++) {
@@ -372,7 +370,7 @@ static int multi_config(dev_link_t *link)
     u_char buf[256];
     cisparse_t parse;
     cistpl_cftable_entry_t *cf = &parse.cftable_entry;
-    int i, base2;
+    int i, base2 = 0;
 
     tuple.TupleData = (cisdata_t *)buf;
     tuple.TupleOffset = 0; tuple.TupleDataMax = 255;
@@ -382,10 +380,11 @@ static int multi_config(dev_link_t *link)
     /* First, look for a generic full-sized window */
     link->io.NumPorts1 = info->multi * 8;
     i = first_tuple(handle, &tuple, &parse);
-    while (i == CS_SUCCESS) {
+    while (i != CS_NO_MORE_ITEMS) {
 	/* The quad port cards have bad CIS's, so just look for a
 	   window larger than 8 ports and assume it will be right */
-	if ((cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {
+	if ((i == CS_SUCCESS) && (cf->io.nwin == 1) &&
+	    (cf->io.win[0].len > 8)) {
 	    link->conf.ConfigIndex = cf->index;
 	    link->io.BasePort1 = cf->io.win[0].base;
 	    i = CardServices(RequestIO, link->handle, &link->io);
@@ -400,8 +399,8 @@ static int multi_config(dev_link_t *link)
 	link->io.NumPorts1 = link->io.NumPorts2 = 8;
 	info->multi = 2;
 	i = first_tuple(handle, &tuple, &parse);
-	while (i == CS_SUCCESS) {
-	    if (cf->io.nwin == 2) {
+	while (i != CS_NO_MORE_ITEMS) {
+	    if ((i == CS_SUCCESS) && (cf->io.nwin == 2)) {
 		link->conf.ConfigIndex = cf->index;
 		link->io.BasePort1 = cf->io.win[0].base;
 		link->io.BasePort2 = cf->io.win[1].base;
@@ -484,9 +483,13 @@ void serial_config(dev_link_t *link)
     /* Configure card */
     link->state |= DEV_CONFIG;
 
-    /* Is this a multifunction card? */
+    /* Is this a compliant multifunction card? */
+    tuple.DesiredTuple = CISTPL_LONGLINK_MFC;
+    tuple.Attributes = TUPLE_RETURN_COMMON | TUPLE_RETURN_LINK;
+    info->multi = (first_tuple(handle, &tuple, &parse) == CS_SUCCESS);
+    
+    /* Is this a multiport card? */
     tuple.DesiredTuple = CISTPL_MANFID;
-    tuple.Attributes = TUPLE_RETURN_COMMON;
     if (first_tuple(handle, &tuple, &parse) == CS_SUCCESS) {
 	info->manfid = le16_to_cpu(buf[0]);
 	for (i = 0; i < MULTI_COUNT; i++)

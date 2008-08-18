@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.27 1998/08/20 23:01:07 (David Hinds)
+# serial 1.29 1998/10/08 19:44:28 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -14,7 +14,7 @@
 # "instance" is used to number multiple ports on a single card.  
 #
 
-. ./shared
+if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 
 # Get device attributes
 get_info $DEVICE

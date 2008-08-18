@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# memory 1.22 1998/08/12 22:58:53 (David Hinds)
+# memory 1.24 1998/10/08 19:44:18 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA memory device
 #
@@ -28,7 +28,7 @@
 # PCMCIA device configuration scheme, and "socket" is the socket number.
 #
 
-. ./shared
+if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 
 # Get device attributes
 get_info $DEVICE

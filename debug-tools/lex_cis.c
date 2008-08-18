@@ -282,28 +282,28 @@ static void yy_fatal_error YY_PROTO(( yyconst char msg[] ));
 	*yy_cp = '\0'; \
 	yy_c_buf_p = yy_cp;
 
-#define YY_NUM_RULES 84
-#define YY_END_OF_BUFFER 85
+#define YY_NUM_RULES 85
+#define YY_END_OF_BUFFER 86
 static yyconst short int yy_accept[428] =
     {   0,
-        2,    2,    0,    0,   85,   83,    2,    1,    2,   83,
-        3,   66,   66,   83,   83,   83,   83,   83,   83,   83,
-       83,   83,   83,   83,   83,   83,   83,   83,   83,   83,
-       83,   83,   83,   83,   83,   83,   84,    2,    2,    3,
-        0,   82,    0,    3,   81,   66,   78,   75,   68,    0,
-        0,    0,   71,    0,    0,    0,    0,    0,    0,    0,
+        2,    2,    0,    0,   86,   84,    2,    1,    2,   84,
+        3,   67,   67,   84,   84,   84,   84,   84,   84,   84,
+       84,   84,   84,   84,   84,   84,   84,   84,   84,   84,
+       84,   84,   84,   84,   84,   84,   85,    2,    2,    3,
+        0,   83,    0,    3,   82,   67,   79,   76,   69,    0,
+        0,    0,   72,    0,    0,    0,    0,    0,    0,    0,
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
        44,    0,    0,    0,    0,    0,    0,    0,    0,    0,
 
-        0,    0,    0,    0,    0,    0,    0,    0,   82,    0,
-       81,   69,   79,   76,   70,   72,   74,   80,   77,   73,
-       67,    0,    0,    0,    0,    0,    0,    0,    0,   12,
+        0,    0,    0,    0,    0,    0,    0,    0,   83,    0,
+       82,   70,   80,   77,   71,   73,   75,   81,   78,   74,
+       68,    0,    0,    0,    0,    0,    0,    0,    0,   12,
         0,   34,    0,    0,    0,    0,    0,    0,    0,    0,
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-        0,    0,    0,   49,    0,    0,    0,    0,    5,    0,
+        0,    0,    0,   50,    0,    0,    0,    0,    5,    0,
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
         0,   17,    0,    0,    0,   41,    0,    0,    0,   16,
        39,   38,   37,   35,   36,    0,    0,    0,    0,    0,
@@ -311,28 +311,28 @@ static yyconst short int yy_accept[428] =
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
         0,   28,    0,    0,   20,    0,    0,    0,    0,    0,
         0,    0,    0,    0,   21,    0,    0,    0,    0,    0,
-        0,    0,    0,    0,    0,    0,    0,   54,    0,   13,
+        0,    0,    0,    0,    0,    0,    0,   55,    0,   13,
        15,   43,   42,    0,    0,    0,    0,   27,    0,    0,
         0,    0,    0,    0,    0,    0,    0,    0,   24,    0,
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-        0,    0,    0,    0,    0,    0,   55,    0,    0,    0,
-        0,    0,    0,   14,    0,    0,   45,    0,    0,    0,
-       47,    0,   23,    0,    0,    0,    0,    0,    0,    0,
+        0,    0,    0,    0,    0,    0,   56,    0,    0,    0,
+        0,    0,    0,   14,    0,    0,   46,    0,    0,    0,
+       48,    0,   23,    0,    0,    0,    0,    0,    0,    0,
 
         0,    0,    0,   19,    0,    0,    0,    4,    0,    6,
-        0,    0,    0,    0,    0,    0,    0,    0,   53,    7,
-        0,   40,   46,   31,    0,   50,   30,   51,    0,   48,
+       45,    0,    0,    0,    0,    0,    0,    0,   54,    7,
+        0,   40,   47,   31,    0,   51,   30,   52,    0,   49,
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
         0,    0,    0,    0,   11,    0,    0,    0,    0,    0,
-        0,    0,   29,    0,   52,    0,    0,    0,    8,    9,
-        0,    0,    0,    0,    0,    0,    0,   56,    0,    0,
-        0,   26,   33,    0,   64,    0,    0,    0,    0,    0,
+        0,    0,   29,    0,   53,    0,    0,    0,    8,    9,
+        0,    0,    0,    0,    0,    0,    0,   57,    0,    0,
+        0,   26,   33,    0,   65,    0,    0,    0,    0,    0,
         0,    0,    0,    0,    0,    0,    0,   32,    0,    0,
-       61,    0,   22,    0,    0,    0,    0,    0,    0,    0,
+       62,    0,   22,    0,    0,    0,    0,    0,    0,    0,
 
-        0,    0,   18,   58,    0,    0,    0,    0,   59,    0,
-        0,    0,    0,    0,    0,   65,    0,   10,   25,    0,
-        0,   60,   62,   57,    0,   63,    0
+        0,    0,   18,   59,    0,    0,    0,    0,   60,    0,
+        0,    0,    0,    0,    0,   66,    0,   10,   25,    0,
+        0,   61,   63,   58,    0,   64,    0
     } ;
 
 static yyconst int yy_ec[256] =
@@ -627,7 +627,7 @@ char *yytext;
 
 #line 5 "lex_cis.l"
 /*
- * lex_cis.l 1.6 1998/08/02 11:56:35
+ * lex_cis.l 1.7 1998/09/25 21:45:00
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -1123,112 +1123,112 @@ return IO;
 case 45:
 YY_RULE_SETUP
 #line 103 "lex_cis.l"
-return BIT8;
+return MEM;
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
 #line 104 "lex_cis.l"
-return BIT16;
+return BIT8;
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
 #line 105 "lex_cis.l"
-return LINES;
+return BIT16;
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
 #line 106 "lex_cis.l"
-return RANGE;
+return LINES;
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 108 "lex_cis.l"
-return IRQ_NO;
+#line 107 "lex_cis.l"
+return RANGE;
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
 #line 109 "lex_cis.l"
-return LEVEL;
+return IRQ_NO;
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
 #line 110 "lex_cis.l"
-return PULSE;
+return LEVEL;
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
 #line 111 "lex_cis.l"
-return SHARED;
+return PULSE;
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 113 "lex_cis.l"
-return TIMING;
+#line 112 "lex_cis.l"
+return SHARED;
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
 #line 114 "lex_cis.l"
-return WAIT;
+return TIMING;
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
 #line 115 "lex_cis.l"
-return READY;
+return WAIT;
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
 #line 116 "lex_cis.l"
-return RESERVED;
+return READY;
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 118 "lex_cis.l"
-return lex_number("0");
+#line 117 "lex_cis.l"
+return RESERVED;
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
 #line 119 "lex_cis.l"
-return lex_number("1");
+return lex_number("0");
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
 #line 120 "lex_cis.l"
-return lex_number("2");
+return lex_number("1");
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
 #line 121 "lex_cis.l"
-return lex_number("3");
+return lex_number("2");
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
 #line 122 "lex_cis.l"
-return lex_number("4");
+return lex_number("3");
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
 #line 123 "lex_cis.l"
-return lex_number("5");
+return lex_number("4");
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
 #line 124 "lex_cis.l"
-return lex_number("6");
+return lex_number("5");
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
 #line 125 "lex_cis.l"
-return lex_number("7");
+return lex_number("6");
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
 #line 126 "lex_cis.l"
-return lex_number("8");
+return lex_number("7");
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 128 "lex_cis.l"
-return lex_number(yytext);
+#line 127 "lex_cis.l"
+return lex_number("8");
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
@@ -1237,87 +1237,92 @@ return lex_number(yytext);
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 131 "lex_cis.l"
-return lex_units(yytext, 1024*1024, SIZE);
+#line 130 "lex_cis.l"
+return lex_number(yytext);
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
 #line 132 "lex_cis.l"
-return lex_units(yytext, 1024, SIZE);
+return lex_units(yytext, 1024*1024, SIZE);
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
 #line 133 "lex_cis.l"
-return lex_units(yytext, 1, SIZE);
+return lex_units(yytext, 1024, SIZE);
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 135 "lex_cis.l"
-return lex_units(yytext, 1000000000, TIME);
+#line 134 "lex_cis.l"
+return lex_units(yytext, 1, SIZE);
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
 #line 136 "lex_cis.l"
-return lex_units(yytext, 1000000, TIME);
+return lex_units(yytext, 1000000000, TIME);
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
 #line 137 "lex_cis.l"
-return lex_units(yytext, 1000, TIME);
+return lex_units(yytext, 1000000, TIME);
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
 #line 138 "lex_cis.l"
-return lex_units(yytext, 1, TIME);
+return lex_units(yytext, 1000, TIME);
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 140 "lex_cis.l"
-return lex_units(yytext, 100000, VOLTAGE);
+#line 139 "lex_cis.l"
+return lex_units(yytext, 1, TIME);
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
 #line 141 "lex_cis.l"
-return lex_units(yytext, 100, VOLTAGE);
+return lex_units(yytext, 100000, VOLTAGE);
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
 #line 142 "lex_cis.l"
-return lex_units(yytext, 0.1, VOLTAGE);
+return lex_units(yytext, 100, VOLTAGE);
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 144 "lex_cis.l"
-return lex_units(yytext, 10000000, CURRENT);
+#line 143 "lex_cis.l"
+return lex_units(yytext, 0.1, VOLTAGE);
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
 #line 145 "lex_cis.l"
-return lex_units(yytext, 10000, CURRENT);
+return lex_units(yytext, 10000000, CURRENT);
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
 #line 146 "lex_cis.l"
-return lex_units(yytext, 10, CURRENT);
+return lex_units(yytext, 10000, CURRENT);
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 148 "lex_cis.l"
-return lex_float(yytext);
+#line 147 "lex_cis.l"
+return lex_units(yytext, 10, CURRENT);
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 150 "lex_cis.l"
-return lex_string(yytext);
+#line 149 "lex_cis.l"
+return lex_float(yytext);
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 152 "lex_cis.l"
-return yytext[0];
+#line 151 "lex_cis.l"
+return lex_string(yytext);
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 154 "lex_cis.l"
+#line 153 "lex_cis.l"
+return yytext[0];
+	YY_BREAK
+case 85:
+YY_RULE_SETUP
+#line 155 "lex_cis.l"
 ECHO;
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
@@ -2206,7 +2211,7 @@ int main()
 	return 0;
 	}
 #endif
-#line 154 "lex_cis.l"
+#line 155 "lex_cis.l"
 
 
 #ifndef yywrap

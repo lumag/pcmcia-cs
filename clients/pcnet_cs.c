@@ -11,7 +11,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.71 1998/08/14 10:13:30
+    pcnet_cs.c 1.78 1998/11/18 08:01:13
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.71 1998/08/14 10:13:30 (David Hinds)";
+"pcnet_cs.c 1.78 1998/11/18 08:01:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -156,7 +156,7 @@ typedef struct hw_info_t {
 #define USE_SHMEM	0x04
 #define USE_BIG_BUF	0x08
 #define HAS_IBM_MISC	0x10
-#define IS_MULTIFN	0x20
+#define IS_DL10019A	0x20
 
 static hw_info_t hw_info[] = {
     { /* Accton EN2212 */ 0x0ff0, 0x00, 0x00, 0xe8, DELAY_OUTPUT }, 
@@ -211,7 +211,9 @@ static hw_info_t hw_info[] = {
 #define NR_INFO		(sizeof(hw_info)/sizeof(hw_info_t))
 
 static hw_info_t default_info =
-{ /* Unknown NE2000 Clone */ 0x00, 0x00, 0x00, 0 };
+{ /* Unknown NE2000 Clone */ 0x00, 0x00, 0x00, 0x00, 0 };
+static hw_info_t dl_fast_info =
+{ /* D-Link EtherFast */ 0x00, 0x00, 0x00, 0x00, IS_DL10019A };
 
 typedef struct pcnet_dev_t {
     struct device	dev;
@@ -263,10 +265,6 @@ static dev_link_t *pcnet_attach(void)
     memset(link, 0, sizeof(struct dev_link_t));
     link->release.function = &pcnet_release;
     link->release.data = (u_long)link;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.NumPorts1 = link->io.NumPorts2 = 16;
-    link->io.Attributes2 = IO_DATA_PATH_WIDTH_16;
-    link->io.IOAddrLines = 5;
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
     if (irq_list[0] == -1)
@@ -371,7 +369,7 @@ static void pcnet_detach(dev_link_t *link)
 
 ======================================================================*/
 
-static hw_info_t *get_DL10019A(dev_link_t *link)
+static hw_info_t *get_dl_fast(dev_link_t *link)
 {
     struct device *dev = link->priv;
     int i;
@@ -383,7 +381,7 @@ static hw_info_t *get_DL10019A(dev_link_t *link)
 	return NULL;
     for (i = 0; i < 6; i++)
 	dev->dev_addr[i] = inb_p(dev->base_addr + 0x14 + i);
-    return &default_info;
+    return &dl_fast_info;
 }
 
 /*======================================================================
@@ -527,6 +525,38 @@ static hw_info_t *get_hwired(dev_link_t *link)
 #define CS_CHECK(fn, args...) \
 while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 
+#define CFG_CHECK(fn, args...) \
+if (CardServices(fn, args) != 0) goto next_entry
+
+static int try_io_port(dev_link_t *link)
+{
+    int j, ret;
+    if (link->io.NumPorts1 == 32) {
+	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+	if (link->io.NumPorts2 > 0) {
+	    /* for master/slave multifunction cards */
+	    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
+	    link->irq.Attributes = 
+		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+	}
+    } else {
+	/* This should be two 16-port windows */
+	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+	link->io.Attributes2 = IO_DATA_PATH_WIDTH_16;
+    }
+    if (link->io.BasePort1 == 0) {
+	for (j = 0; j < 0x400; j += 0x20) {
+	    link->io.BasePort1 = j ^ 0x300;
+	    link->io.BasePort2 = (j ^ 0x300) + 0x10;
+	    ret = CardServices(RequestIO, link->handle, &link->io);
+	    if (ret == CS_SUCCESS) return ret;
+	}
+	return ret;
+    } else {
+	return CardServices(RequestIO, link->handle, &link->io);
+    }
+}
+
 static void pcnet_config(dev_link_t *link)
 {
     client_handle_t handle;
@@ -534,8 +564,8 @@ static void pcnet_config(dev_link_t *link)
     cisparse_t parse;
     pcnet_dev_t *info;
     struct device *dev;
-    int i, j, last_ret, last_fn, start_pg, stop_pg, cm_offset;
-    int manfid = 0, prodid, multi = 0;
+    int i, last_ret, last_fn, start_pg, stop_pg, cm_offset;
+    int manfid = 0, prodid = 0;
     u_short buf[64];
     hw_info_t *hw_info;
 
@@ -559,84 +589,53 @@ static void pcnet_config(dev_link_t *link)
     /* Configure card */
     link->state |= DEV_CONFIG;
 
-    /* Is this a the IBM Home and Away Card? */
     tuple.DesiredTuple = CISTPL_MANFID;
     tuple.Attributes = TUPLE_RETURN_COMMON;
     if ((CardServices(GetFirstTuple, handle, &tuple) == CS_SUCCESS) &&
  	(CardServices(GetTupleData, handle, &tuple) == CS_SUCCESS)) {
 	manfid = le16_to_cpu(buf[0]);
 	prodid = le16_to_cpu(buf[1]);
- 	if ((manfid == MANFID_IBM) &&
-	    (prodid == PRODID_IBM_HOME_AND_AWAY)) {
-	    multi = 1;
-	    link->io.NumPorts1 = 32;
-	    link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	    link->io.NumPorts2 = 0;
-	}
- 	if ((manfid == MANFID_LINKSYS) &&
-	    ((prodid == PRODID_LINKSYS_PCMLM28) ||
-	     (prodid == PRODID_LINKSYS_3400))) {
-	    multi = 1;
-	    link->io.NumPorts1 = 32;
-	    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	    link->io.NumPorts2 = 8;
-	    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	    link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
-	}
     }
     
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
-    i = CardServices(GetFirstTuple, handle, &tuple);
-    while (i == CS_SUCCESS) {
-	i = CardServices(GetTupleData, handle, &tuple);
-	if (i != CS_SUCCESS) break;
-	i = CardServices(ParseTuple, handle, &tuple, &parse);
-	if ((i == CS_SUCCESS) &&
-	    (parse.cftable_entry.index != 0)) {
-	    link->conf.ConfigIndex = parse.cftable_entry.index;
-	    link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
-	    if (link->io.BasePort1 != 0) {
-		if (parse.cftable_entry.io.nwin > 1)
-		    link->io.BasePort2 = parse.cftable_entry.io.win[1].base;
-		else
-		    link->io.BasePort2 = link->io.BasePort1 + 0x10;
-		i = CardServices(RequestIO, link->handle, &link->io);
-	    } else {
-		for (j = 0; j < 0x400; j += 0x20) {
-		    link->io.BasePort1 = j ^ 0x300;
-		    link->io.BasePort2 = (j ^ 0x300) + 0x10;
-		    i = CardServices(RequestIO, link->handle, &link->io);
-		    if (i == CS_SUCCESS) break;
-		}
-	    }
-	    if (i == CS_SUCCESS) break;
+    CS_CHECK(GetFirstTuple, handle, &tuple);
+    while (last_ret == CS_SUCCESS) {
+	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
+	CFG_CHECK(GetTupleData, handle, &tuple);
+	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
+	if ((cfg->index == 0) || (cfg->io.nwin == 0))
+	    goto next_entry;
+
+	link->conf.ConfigIndex = cfg->index;
+	link->io.BasePort1 = cfg->io.win[0].base;
+	link->io.NumPorts1 = cfg->io.win[0].len;
+	if (cfg->io.nwin > 1) {
+	    link->io.BasePort2 = cfg->io.win[1].base;
+	    link->io.NumPorts2 = cfg->io.win[1].len;
+	} else {
+	    link->io.NumPorts2 = 0;
 	}
-	i = CardServices(GetNextTuple, handle, &tuple);
+	last_ret = try_io_port(link);
+	if (last_ret == CS_SUCCESS) break;
+    next_entry:
+	last_ret = CardServices(GetNextTuple, handle, &tuple);
     }
-    if ((i != CS_SUCCESS) && !multi) {
-	link->conf.ConfigIndex = 1;
-	for (j = 0; j < 0x400; j += 0x20) {
-	    link->io.BasePort1 = j ^ 0x300;
-	    link->io.BasePort2 = (j ^ 0x300) + 0x10;
-	    i = CardServices(RequestIO, link->handle, &link->io);
-	    if (i == CS_SUCCESS) break;
-	}
-    }
-    if (i != CS_SUCCESS) {
-	cs_error(handle, RequestIO, i);
+    if (last_ret != CS_SUCCESS) {
+	cs_error(handle, RequestIO, last_ret);
 	goto failed;
     }
 
     CS_CHECK(RequestIRQ, handle, &link->irq);
-    if (multi) {
+    
+    if (link->io.NumPorts2 == 8) {
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
 	link->conf.Status = CCSR_AUDIO_ENA;
     }
-    if (multi && (manfid == MANFID_IBM))
-	/* For IBM Home and Away Card */
+    if ((manfid == MANFID_IBM) &&
+	(prodid == PRODID_IBM_HOME_AND_AWAY))
 	link->conf.ConfigIndex |= 0x10;
+    
     CS_CHECK(RequestConfiguration, handle, &link->conf);
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
@@ -654,16 +653,19 @@ static void pcnet_config(dev_link_t *link)
     if (hw_info == NULL)
 	hw_info = get_prom(link);
     if (hw_info == NULL)
-	hw_info = get_DL10019A(link);
+	hw_info = get_dl_fast(link);
     if (hw_info == NULL)
 	hw_info = get_hwired(link);
+    
+    if ((manfid == MANFID_SOCKET) && (prodid == PRODID_SOCKET_LPE))
+	info->flags &= ~USE_BIG_BUF;
     
     if (hw_info == NULL) {
 	printk(KERN_NOTICE "pcnet_cs: unable to read hardware net address\n");
 	goto config_undo;
     }
 
-    info->flags = hw_info->flags | (multi ? IS_MULTIFN : 0);
+    info->flags = hw_info->flags;
     /* Check for user overrides */
     info->flags |= (delay_output) ? DELAY_OUTPUT : 0;
     if (!use_big_buf)
@@ -851,10 +853,18 @@ static int pcnet_open(struct device *dev)
     link->open++;
     MOD_INC_USE_COUNT;
 
+    /* For D-Link EtherFast, wait for something(?) to happen */
+    if (info->flags & IS_DL10019A) {
+	int i;
+	for (i = 0; i < 20; i++) {
+	    if ((inb(dev->base_addr+0x1c) & 0x01) == 0) break;
+	    current->state = TASK_INTERRUPTIBLE;
+	    schedule_timeout(HZ/10);
+	}
+    }
+    
     set_misc_reg(dev);
-    REQUEST_IRQ(dev->irq, ei_interrupt,
-		((info->flags & IS_MULTIFN) ? SA_SHIRQ : 0),
-		dev_info, dev);
+    REQUEST_IRQ(dev->irq, ei_interrupt, SA_SHIRQ, dev_info, dev);
     return ei_open(dev);
 } /* pcnet_open */
 
@@ -870,7 +880,6 @@ static int pcnet_close(struct device *dev)
 	if (link->priv == dev) break;
     if (link == NULL)
 	return -ENODEV;
-
     FREE_IRQ(dev->irq, dev);
     
     link->open--; dev->start = 0;
@@ -938,7 +947,6 @@ static int set_config(struct device *dev, struct ifmap *map)
 
 /* ======================================================================= */
 
-#ifdef GET_8390_HDR
 static void dma_get_8390_hdr(struct device *dev,
 			     struct e8390_pkt_hdr *hdr,
 			     int ring_page)
@@ -967,23 +975,15 @@ static void dma_get_8390_hdr(struct device *dev,
     outb_p(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
     ei_status.dmaing &= ~0x01;
 }
-#endif /* GET_8390_HDR */
 
 /* ======================================================================= */
 
-#ifdef GET_8390_HDR
 static void dma_block_input(struct device *dev, int count,
 			    struct sk_buff *skb, int ring_offset)
-#else
-static int dma_block_input(struct device *dev, int count,
-			   char *buf, int ring_offset)
-#endif
 {
     int nic_base = dev->base_addr;
     int xfer_count = count;
-#ifdef GET_8390_HDR
     char *buf = skb->data;
-#endif
 
 #ifdef PCMCIA_DEBUG
     if ((ei_debug > 4) && (count != 4))
@@ -994,11 +994,7 @@ static int dma_block_input(struct device *dev, int count,
 	       "[DMAstat:%1x][irqlock:%1x][intr:%ld]\n",
 	       dev->name, ei_status.dmaing, ei_status.irqlock,
 	       (long)dev->interrupt);
-#ifdef GET_8390_HDR
 	return;
-#else
-	return 0;
-#endif
     }
     ei_status.dmaing |= 0x01;
     outb_p(E8390_NODMA+E8390_PAGE0+E8390_START, nic_base + PCNET_CMD);
@@ -1034,9 +1030,6 @@ static int dma_block_input(struct device *dev, int count,
 #endif
     outb_p(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
     ei_status.dmaing &= ~0x01;
-#ifndef GET_8390_HDR
-    return ring_offset + count;
-#endif
 } /* dma_block_input */
 
 /*====================================================================*/
@@ -1139,9 +1132,7 @@ static int setup_dma_config(dev_link_t *link, int start_pg,
     ei_status.stop_page = stop_pg;
 
     /* set up block i/o functions */
-#ifdef GET_8390_HDR
     ei_status.get_8390_hdr = &dma_get_8390_hdr;
-#endif
     ei_status.block_input = &dma_block_input;
     ei_status.block_output = &dma_block_output;
 
@@ -1188,7 +1179,6 @@ static void copyout(unsigned char *dest, const unsigned char *src, int c)
 
 /*====================================================================*/
 
-#ifdef GET_8390_HDR
 static void shmem_get_8390_hdr(struct device *dev,
 			       struct e8390_pkt_hdr *hdr,
 			       int ring_page)
@@ -1198,23 +1188,15 @@ static void shmem_get_8390_hdr(struct device *dev,
     
     copyin((void *)hdr, xfer_start, sizeof(struct e8390_pkt_hdr));
 }
-#endif
 
 /*====================================================================*/
 
-#ifdef GET_8390_HDR
 static void shmem_block_input(struct device *dev, int count,
 			      struct sk_buff *skb, int ring_offset)
-#else
-static int shmem_block_input(struct device *dev, int count,
-			     char *buf, int ring_offset)
-#endif
 {
     void *xfer_start = (void *)(dev->rmem_start + ring_offset
 				- (ei_status.rx_start_page << 8));
-#ifdef GET_8390_HDR
     char *buf = skb->data;
-#endif
     
     if (xfer_start + count > (void *)dev->rmem_end) {
 	/* We must wrap the input move. */
@@ -1226,9 +1208,6 @@ static int shmem_block_input(struct device *dev, int count,
 	count -= semi_count;
     }
     copyin(buf, xfer_start, count);
-#ifndef GET_8390_HDR
-    return ring_offset + count;
-#endif
 }
 
 /*====================================================================*/
@@ -1290,9 +1269,7 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
     ei_status.stop_page = start_pg + ((req.Size - offset) >> 8);
 
     /* set up block i/o functions */
-#ifdef GET_8390_HDR
     ei_status.get_8390_hdr = &shmem_get_8390_hdr;
-#endif
     ei_status.block_input = &shmem_block_input;
     ei_status.block_output = &shmem_block_output;
 

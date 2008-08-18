@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.78 1998/08/20 22:59:14
+# Configure 1.83 1998/11/19 08:08:39
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -180,19 +180,20 @@ fi
 echo ""
 
 ask_str "Alternate target install directory" PREFIX
+if [ -d /lib/modules/preferred ] ; then
+    MODDIR=$PREFIX/lib/modules/preferred
+else
+    MODDIR=$PREFIX/lib/modules/$SRC_RELEASE
+fi
+ask_str "  Module install directory" MODDIR
 
 ask_str "C compiler name" CC
-
 ask_str "Linker name" LD
-
 ask_str "Compiler flags for debugging" PCDEBUG
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
-
 ask_bool "Include 32-bit (CardBus) card support" CONFIG_CARDBUS
-if [ "$CONFIG_CARDBUS" = "y" ] ; then
-    ask_bool "  Experimental Toshiba ToPIC chipset support" CONFIG_TOPIC
-fi
+ask_bool "Experimental interrupt probe code" CONFIG_NEW_PROBE
 
 echo ""
 echo "The PCMCIA drivers need to be compiled to match the kernel they"
@@ -374,7 +375,21 @@ if [ "$CONFIG_PCI" != "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
 fi
 
 ARCH=`uname -m`
+AFLAGS=
+if [ $ARCH = "ppc" ] ; then
+    AFLAGS="-fno-builtin -msoft-float"
+    if [ $VERSION -eq 2 -a $PATCHLEVEL -eq 1 -a $SUBLEVEL -ge 26 ] ; then
+	AFLAGS="$AFLAGS -ffixed-r2"
+    fi
+elif [ $ARCH = "alpha" ] ; then
+    AFLAGS="-mno-fp-regs"
+    if [ $VERSION -eq 2 -a $PATCHLEVEL -eq 1 -a $SUBLEVEL -ge 26 ] ; then
+	AFLAGS="$AFLAGS -ffixed-8"
+    fi
+fi
 echo "ARCH=$ARCH" >> $CONFIG_MK
+echo "AFLAGS=$AFLAGS" >> $CONFIG_MK
+
 if [ $ARCH = "ppc" ] ; then CONFIG_ISA=n ; else CONFIG_ISA=y ; fi
 write_bool CONFIG_ISA
 
@@ -411,38 +426,9 @@ HAS_PROC_BUS=n
 NEW_QLOGIC=n
 
 case "$VERSION.$PATCHLEVEL" in
-1.2)
-    if [ $SUBLEVEL -lt 8 ] ; then
-	echo "Your kernel is out of date.  Upgrade to 1.2.8 or higher."
-	exit 1
-    fi
-    echo "MFLAG=-DCONFIG_MODVERSIONS" >> $CONFIG_MK
-    ;;
-1.3)
-    if [ $SUBLEVEL -lt 30 ] ; then
-	echo "Your kernel is out of date.  Upgrade to 1.3.30 or higher."
-	exit 1
-    fi
-    if [ $SUBLEVEL -eq 38 ] ; then
-	echo "Kernel version 1.3.38 is broken.  Upgrade to 1.3.39."
-	exit 1
-    fi
-    if [ $SUBLEVEL -lt 38 ] ; then
-	echo "MFLAG=-DCONFIG_MODVERSIONS" >> $CONFIG_MK
-    fi
-    if [ $SUBLEVEL -eq 39 ] ; then
-	echo "MFLAG=-DMODVERSIONS" >> $CONFIG_MK
-    fi
-    if [ $SUBLEVEL -ge 40 ] ; then
-	echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
-    fi
-    if [ $SUBLEVEL -ge 49 -a $SUBLEVEL -lt 57 ] ; then
-	echo "AHAFLAG=-DDEBUG_AHA152X" >> $CONFIG_MK
-    fi
-    ;;
-1.99|2.0|2.1)
+2.0|2.1)
     echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
-    if [ $PATCHLEVEL -ne 99 -o $SUBLEVEL -ge 6 ] ; then
+    if [ $SUBLEVEL -ge 6 ] ; then
 	NEW_QLOGIC=y
     fi
     if [ $PATCHLEVEL -eq 1 ] ; then
@@ -453,7 +439,8 @@ case "$VERSION.$PATCHLEVEL" in
 	    echo "Kernel versions 2.1.31-33 are broken.  Upgrade to 2.1.34."
 	    exit 1
 	fi
-	if [ "$CONFIG_CARDBUS" = "y" -a $SUBLEVEL -gt 90 ] ; then
+	if [ "$CONFIG_CARDBUS" = "y" -a $SUBLEVEL -gt 90 \
+	    -a $SUBLEVEL -lt 125 ] ; then
 	    DO_APA1480=y
 	fi
 	if [ $SUBLEVEL -gt 104 ] ; then
@@ -462,9 +449,7 @@ case "$VERSION.$PATCHLEVEL" in
     fi
     ;;
 *)
-    echo "This package requires either a 1.2 series kernel 1.2.8 or higher,"
-    echo "a 1.3 series kernel 1.3.30 or higher, any 1.99 series kernel, or"
-    echo "any 2.0 or 2.1 series kernel."
+    echo "This package requires a 2.0 or 2.1 series kernel."
     exit 1
     ;;
 esac
@@ -508,24 +493,6 @@ if [ "$CONFIG_SCSI" = "y" ] ; then
 	else
 	    echo "FIX_AIC7XXX=y" >> $CONFIG_MK
 	fi
-    fi
-fi
-
-if [ "$CONFIG_SCSI" = "y" ] ; then
-    if grep -q "define MODULE" ${LINUX}/drivers/scsi/fdomain.c ; then
-	echo "DO_FDOMAIN=y" >> $CONFIG_MK
-    else
-	echo "Future Domain SCSI support requires a 1.3.72 or higher kernel."
-	echo "# DO_FDOMAIN is not defined" >> $CONFIG_MK
-    fi
-fi
-
-if [ "$CONFIG_INET" = "y" ] ; then
-    if grep -q PCMCIA ${LINUX}/drivers/net/ibmtr.c ; then
-	echo "DO_IBMTR=y" >> $CONFIG_MK
-    else
-	echo "IBM Token Ring support requires a 1.3.72 or higher kernel."
-	echo "# DO_IBMTR is not defined" >> $CONFIG_MK
     fi
 fi
 

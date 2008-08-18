@@ -1,26 +1,29 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" ifuser.8 1.2 1998/05/04 23:28:12
+.\" ifuser.8 1.4 1998/11/09 17:57:47
 .\"
-.TH IFUSER 8 "1998/05/04 23:28:12" "pcmcia-cs"
+.TH IFUSER 8 "1998/11/09 17:57:47" "pcmcia-cs"
 .SH NAME
-ifuser \- identify hosts routed to a particular network interface
+ifuser \- identify destinations routed to a particular network interface
 .SH SYNOPSIS
 .B ifuser
 .RB [ -v ]
 .I interface
-.RI [ "host\ ..." ]
+.RI [ "target\ ..." ]
 .SH DESCRIPTION
-This utility checks to see if any of the listed hosts are routed
-through the specified interface.  Hosts may be specified either by IP
-address or by name.
+This utility checks to see if any of the listed hosts or network
+addresses are routed through the specified interface.  Destinations
+may be specified either by IP address or by name.
 .PP
-The exit code will be 0 if any listed host is routed through this
-interface, and 1 if the interface is not in use (similar to
+The exit code will be 0 if any listed host or network is routed
+through this interface, and 1 if the interface is not in use (similar
+to 
 .BR fuser ).
 .SH OPTIONS
 .TP
 .B \-v
-Verbose mode: if enabled, then the names of those hosts routed to this
-interface (if any) will be reported on standard output.
-.SH AUTHOR
+Verbose mode: if enabled, then the names of those destinations routed
+to this interface (if any) will be reported on standard output.
+.SH AUTHORS
 David Hinds \- dhinds@hyper.stanford.edu
+.br
+Regis "HPReg" Duchesne \- regis@via.ecp.fr

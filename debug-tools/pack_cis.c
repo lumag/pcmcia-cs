@@ -3,7 +3,7 @@
     A utility to convert a plain text description of a Card
     Information Structure into its packed binary representation.
 
-    pack_cis.c 1.6 1998/07/17 17:11:59
+    pack_cis.c 1.7 1998/09/25 21:44:46
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -113,6 +113,34 @@ static int pack_io(cistpl_io_t *p, u_char *b)
     return c-b;
 }
 
+static int pack_mem(cistpl_mem_t *p, u_char *b)
+{
+    u_char *c = b;
+    u_int i, j, ml, ma, ha;
+    for (i = ma = ml = ha = 0; i < p->nwin; i++) {
+	ma |= p->win[i].card_addr;
+	ml |= p->win[i].len;
+	ha |= p->win[i].host_addr;
+    }
+    ma = (ma|ha) >> 8; ml >>= 8;
+    ma = (ma > 0xffff) ? 3 : ((ma > 0xff) ? 2 : 1);
+    ml = (ml > 0xffff) ? 3 : ((ml > 0xff) ? 2 : 1);
+    *c = (p->nwin-1) | (ma<<5) | (ml<<3) | (ha ? 0x80 : 0); c++;
+    for (i = 0; i < p->nwin; i++) {
+	for (j = 1; j <= ml; j++) {
+	    *c = (p->win[i].len >> (8*j)) & 0xff; c++;
+	}
+	for (j = 1; j <= ma; j++) {
+	    *c = (p->win[i].card_addr >> (8*j)) & 0xff; c++;
+	}
+	if (ha)
+	    for (j = 1; j <= ma; j++) {
+		*c = (p->win[i].host_addr >> (8*j)) & 0xff; c++;
+	    }
+    }
+    return c-b;
+}
+
 static int pack_irq(cistpl_irq_t *p, u_char *b)
 {
     b[0] = p->IRQInfo1;
@@ -154,6 +182,10 @@ static void pack_cftable(cistpl_cftable_entry_t *p, u_char *b)
     if (p->irq.IRQInfo1 > 0) {
 	b[4] |= 0x10;
 	c += pack_irq(&p->irq, c);
+    }
+    if (p->mem.nwin > 0) {
+	b[4] |= 0x60;
+	c += pack_mem(&p->mem, c);
     }
     b[1] = c-b-2;
 }

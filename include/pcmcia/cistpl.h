@@ -1,5 +1,5 @@
 /*
- * cistpl.h 1.26 1998/07/09 08:41:19
+ * cistpl.h 1.27 1998/09/30 18:08:46
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -102,7 +102,7 @@ typedef struct cistpl_altstr_t {
 
 typedef struct cistpl_device_t {
     u_char	ndev;
-    struct device_info {
+    struct {
 	u_char 	type;
 	u_char	wp;
 	u_int	speed;
@@ -130,7 +130,7 @@ typedef struct cistpl_vers_1_t {
 
 typedef struct cistpl_jedec_t {
     u_char	nid;
-    struct jedec_id {
+    struct {
 	u_char	mfr;
 	u_char	info;
     } id[CISTPL_MAX_DEVICES];
@@ -457,7 +457,7 @@ typedef struct cistpl_cftable_entry_cb_t {
 
 typedef struct cistpl_device_geo_t {
     u_char		ngeo;
-    struct geo {
+    struct {
 	u_char		buswidth;
 	u_int		erase_block;
 	u_int		read_block;

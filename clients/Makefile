@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.92 1998/08/15 10:31:51
+# Makefile 1.95 1998/11/18 07:37:47
 #
 
 # Include site dependent options and kernel configuration
@@ -12,9 +12,7 @@ ifndef CFLAGS
 CFLAGS = -O2 -Wall -Wstrict-prototypes -Winline -pipe
 endif
 
-ifeq ($(ARCH),ppc)
-CC := $(CC) -fno-builtin -msoft-float
-endif
+CC := $(CC) $(AFLAGS)
 
 CPPFLAGS = $(PCDEBUG) -D__KERNEL__ -DMODULE -I../include \
 	   -I$(LINUX)/include -I$(LINUX)
@@ -56,10 +54,8 @@ SRCS := ${SRCS} \
 	netwave_cs.c wavelan_cs.c xirc2ps_cs.c 3c574_cs.c
 EXTRA := ${EXTRA} 8390.o
 ifdef CONFIG_TR
-ifdef DO_IBMTR
 MODULES := ${MODULES} ibmtr_cs.o
 SRCS := ${SRCS} ibmtr_cs.c
-endif
 endif
 endif
 
@@ -68,19 +64,11 @@ MODULES := ${MODULES} ide_cs.o
 SRCS := ${SRCS} ide_cs.c
 endif
 
-ifdef DO_AZTCD
-MODULES := ${MODULES} aztcd_cs.o
-EXTRA := ${EXTRA} aztcd.o
-SRCS := ${SRCS} aztcd_cs.c
-endif
+SCSI=$(LINUX)/drivers/scsi
 
 ifdef CONFIG_SCSI
-MODULES := ${MODULES} qlogic_cs.o aha152x_cs.o
-SRCS := ${SRCS} qlogic_cs.c aha152x_cs.c
-ifdef DO_FDOMAIN
-MODULES := ${MODULES} fdomain_cs.o
-SRCS := ${SRCS} fdomain_cs.c
-endif
+MODULES := ${MODULES} qlogic_cs.o aha152x_cs.o fdomain_cs.o
+SRCS := ${SRCS} qlogic_cs.c aha152x_cs.c fdomain_cs.c
 endif
 
 all:	$(MODULES) $(EXTRA)
@@ -102,10 +90,10 @@ aztcd.o: $(LINUX)/drivers/cdrom/aztcd.c ../include/linux/config.h
 	$(CC) -c $(XFLAGS) -DMODULE $<
 
 ifdef NEW_QLOGIC
-qlogic.o: $(LINUX)/drivers/scsi/qlogicfas.c ../include/linux/config.h
+qlogic.o: $(SCSI)/qlogicfas.c ../include/linux/config.h
 	$(CC) -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $< -o $@
 else
-qlogic.o: $(LINUX)/drivers/scsi/qlogic.c ../include/linux/config.h
+qlogic.o: $(SCSI)/qlogic.c ../include/linux/config.h
 	$(CC) -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
 endif
 
@@ -124,11 +112,10 @@ tulip_cb.o: tulip_cb.c
 	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS -o $@ $<
 	@mkdir -p .depfiles ; mv tulip_cb.d .depfiles
 
-aha152x.o: $(LINUX)/drivers/scsi/aha152x.c ../include/linux/config.h
+aha152x.o: $(SCSI)/aha152x.c ../include/linux/config.h
 ifdef FIX_AHA152X
 	patch -s $< patches/aha152x.fix -o aha152x.c
-	$(CC) -c $(XFLAGS) -I$(LINUX)/drivers/scsi \
-		-DPCMCIA -D__NO_VERSION__ aha152x.c
+	$(CC) -c $(XFLAGS) -I$(SCSI) -DPCMCIA -D__NO_VERSION__ aha152x.c
 	rm aha152x.c
 else
 	$(CC) -c $(XFLAGS) $(AHAFLAG) -DPCMCIA -D__NO_VERSION__ $<
@@ -140,7 +127,7 @@ aha152x_cs.o: aha152x_cs.c aha152x.o
 	$(LD) -r -o $@ .$@ aha152x.o
 	rm -f .$@ ; chmod -x $@
 
-fdomain.o: $(LINUX)/drivers/scsi/fdomain.c ../include/linux/config.h
+fdomain.o: $(SCSI)/fdomain.c ../include/linux/config.h
 	$(CC) -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
 
 fdomain_cs.o: fdomain_cs.c fdomain.o
@@ -149,18 +136,15 @@ fdomain_cs.o: fdomain_cs.c fdomain.o
 	$(LD) -r -o $@ .$@ fdomain.o
 	rm -f .$@ ; chmod -x $@
 
-$(LINUX)/drivers/scsi/aic7xxx_seq.h:
-	cd $(LINUX)/drivers/scsi ; \
-	$(CC) -o aic7xxx_asm aic7xxx_asm.c ; \
-	./aic7xxx_asm -o aic7xxx_seq.h aic7xxx.seq
-
-aic7xxx.o: $(LINUX)/drivers/scsi/aic7xxx.c $(LINUX)/drivers/scsi/aic7xxx_seq.h
+aic7xxx.o: $(SCSI)/aic7xxx.c
 ifdef FIX_AIC7XXX
+	cd $(SCSI) ; if [ -r aic7xxx_asm.c -a ! -r aic7xxx_seq.h ] ; \
+		then $(CC) -o aic7xxx_asm aic7xxx_asm.c ; \
+		./aic7xxx_asm -o aic7xxx_seq.h aic7xxx.seq ; fi
 	patch -s $< patches/aic7xxx.old -o aic7xxx.c 2>/dev/null || \
 		( rm -f aic7xxx.c aic7xxx.c.rej aic7xxx.c.orig && \
 		patch -s $< patches/aic7xxx.fix -o aic7xxx.c )
-	$(CC) -c $(XFLAGS) -I$(LINUX)/drivers/scsi \
-		-DPCMCIA -D__NO_VERSION__ aic7xxx.c
+	$(CC) -c $(XFLAGS) -I$(SCSI) -DPCMCIA -D__NO_VERSION__ aic7xxx.c
 	rm aic7xxx.c
 else
 	$(CC) -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
@@ -174,8 +158,6 @@ apa1480_cb.o: apa1480_cb.c aic7xxx.o
 
 clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d
-
-MODDIR = $(PREFIX)/lib/modules/$(UTS_RELEASE)
 
 install-modules: $(MODULES)
 	mkdir -p $(MODDIR)/pcmcia

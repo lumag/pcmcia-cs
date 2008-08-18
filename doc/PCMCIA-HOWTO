@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.21, 1998/08/13 09:35:38
+  v2.25, 1998/11/17 08:05:43
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -23,7 +23,7 @@
 
   1.5.    What cards are supported?
 
-  1.6.    When will my new card be supported?
+  1.6.    When will my favorite (unsupported) card become supported?
 
   1.7.    Mailing lists and other information sources
 
@@ -151,15 +151,17 @@
 
   7.1.    Submitting useful bug reports
 
-  7.2.    Low level PCMCIA debugging aids
+  7.2.    Interpreting kernel trap reports
 
-  7.3.    /proc/bus/pccard
+  7.3.    Low level PCMCIA debugging aids
 
-  7.4.    Writing Card Services drivers for new cards
+  7.4.    /proc/bus/pccard
 
-  7.5.    Guidelines for PCMCIA client driver authors
+  7.5.    Writing Card Services drivers for new cards
 
-  7.6.    Guidelines for Linux distribution maintainers
+  7.6.    Guidelines for PCMCIA client driver authors
+
+  7.7.    Guidelines for Linux distribution maintainers
   ______________________________________________________________________
 
   11..  GGeenneerraall iinnffoorrmmaattiioonn aanndd hhaarrddwwaarree rreeqquuiirreemmeennttss
@@ -192,7 +194,6 @@
   translations into other languages, may be freely distributed, provided
   that they are clearly identified as such, and this copyright is
   included intact.
-
   This document may be included in commercial distributions without my
   prior consent.  While it is not required, I would like to be informed
   of such usage.  If you intend to incorporate this document in a
@@ -241,15 +242,15 @@
 
   +o  Intel i82365sl B, C, and DF steps, 82092AA
 
-  +o  O2Micro OZ6729, OZ6730, OZ6832, OZ6836
+  +o  O2Micro OZ6729, OZ6730, OZ6832, OZ6833, OZ6836, OZ6860
 
   +o  Omega Micro 82C092G
 
-  +o  Ricoh RF5C296, RF5C396, RL5C466
+  +o  Ricoh RF5C296, RF5C396, RL5C465, RL5C466, RL5C475, RL5C476, RL5C478
 
   +o  SMC 34C90
 
-  +o  Texas Instruments PCI1130, PCI1131, PCI1220, PCI1250A
+  +o  Texas Instruments PCI1130, PCI1131, PCI1220, PCI1221, PCI1250A
 
   +o  Toshiba ToPIC95, ToPIC97 (experimental)
 
@@ -296,7 +297,7 @@
   cards, etc) will not work until someone writes the appropriate
   drivers.
 
-  11..66..  WWhheenn wwiillll mmyy nneeww ccaarrdd bbee ssuuppppoorrtteedd??
+  11..66..  WWhheenn wwiillll mmyy ffaavvoorriittee ((uunnssuuppppoorrtteedd)) ccaarrdd bbeeccoommee ssuuppppoorrtteedd??
 
   Unfortunately, they usually don't pay me to write device drivers, so
   if you would like to have a driver for your favorite card, you are
@@ -660,6 +661,9 @@
 
   +o  On the HP Omnibook 4000C, exclude port 0x300-0x30f.
 
+  +o  On the IBM ThinkPad 380, and maybe the 385 and 600 series, exclude
+     port 0x230-0x233, and irq 5.
+
   +o  On the Micron Millenia Transport, exclude irq 5, irq 9.
 
   +o  On the NEC Versa M, exclude irq 9, port 0x2e0-2ff.
@@ -668,7 +672,7 @@
 
   +o  On the NEC Versa S, exclude irq 9, irq 12.
 
-  +o  On the NEC Versa 6000 series, exclude port 0x300-0x33f, irq 9, irq
+  +o  On the NEC Versa 6000 series, exclude port 0x2f8-0x33f, irq 9, irq
      10.
 
   +o  On the ProStar 9200, Altima Virage, and Acquiline Hurricane
@@ -697,7 +701,9 @@
 
   Debian uses a System V boot script arrangement.  The PCMCIA startup
   script is installed as /etc/init.d/pcmcia, and startup options are
-  specified in /etc/pcmcia.conf.
+  specified in /etc/pcmcia.conf.  Debian's syslog configuration will
+  place kernel messages in /var/log/messages and cardmgr messages in
+  /var/log/daemon.log.
 
   Debian distributes the PCMCIA system in two packages: the ``pcmcia-
   cs'' package contains cardmgr and other tools, man pages, and
@@ -715,14 +721,23 @@
   will record all interesting messages in /var/log/messages.
 
   Red Hat's PCMCIA package contains a replacement for the network setup
-  script /etc/pcmcia/network, which meshes with the Red Hat network
+  script, /etc/pcmcia/network, which meshes with the Red Hat network
   control panel.  This is convenient for the case where just one network
   adapter is used, with one set of network parameters, but does not have
-  the flexibility of the regular PCMCIA network script.  Compiling and
-  installing a clean PCMCIA source distribution will overwrite the
+  the full flexibility of the regular PCMCIA network script.  Compiling
+  and installing a clean PCMCIA source distribution will overwrite the
   network script, breaking the link to the network control panel.  If
-  you prefer the Red Hat script, either use only Red Hat RPM's, or save
-  a copy of the script before installing new driver releases.
+  you prefer the Red Hat script, either use only Red Hat RPM's, or
+  create /etc/pcmcia/network.opts with the following contents:
+
+       if [ -f /etc/sysconfig/network-scripts/ifcfg-eth0 ] ; then
+           start_fn () {
+               /sbin/ifup $1
+           }
+           stop_fn () {
+               /sbin/ifdown $1
+           }
+       fi
 
   Red Hat bundles their slightly modified PCMCIA source distribution in
   their kernel SRPM, rather than as a separate package.
@@ -808,7 +823,8 @@
   +o  If you have reconfigured or upgraded your kernel, you will probably
      need to compile and install the PCMCIA package from scratch.  This
      is easily done if you already have the kernel source tree
-     installed.  See the PCMCIA-HOWTO for detailed instructions.
+     installed.  See ``Compilation and installation'' for detailed
+     instructions.
 
   +o  In some cases, incompatibilities in other system components can
      prevent correct loading of kernel modules.  If you have upgraded
@@ -987,6 +1003,8 @@
   options'' section for information about dealing with common timing
   problems.
 
+  +o  cs: warning: no high memory space available!
+
   CardBus bridges can allocate memory windows outside of the 640KB-1MB
   ``memory hole'' in the ISA bus architecture.  It is generally a good
   idea to configure CardBus bridges to use high memory windows, because
@@ -1044,11 +1062,13 @@
 
   +o  One of the following messages will appear in the system log:
 
+       RequestIO: Resource in use
        RequestIRQ: Resource in use
        RequestWindow: Resource in use
        GetNextTuple: No more items
        could not allocate nn IO ports for CardBus socket n
        could not allocate nnK memory for CardBus socket n
+       could not allocate interrupt for CardBus socket n
 
   Interrupt starvation often indicates a problem with the interrupt
   probe (see ``Interrupt probe failures'').  In some cases, the probe
@@ -1119,11 +1139,10 @@
   They take two parameters: a device name, and an action.  The cardmgr
   daemon records the configuration commands in the system log.  For
   example, if the system log shows that the command ``./network start
-  eth0'' was the last command executed by cardmgr, the following
-  commands would trace the script:
+  eth0'' was the last command executed by cardmgr, the following command
+  would trace the script:
 
-       cd /etc/pcmcia
-       sh -x ./network start eth0
+       sh -x /etc/pcmcia/network start eth0
 
   44..  UUssaaggee aanndd ffeeaattuurreess
 
@@ -1274,6 +1293,7 @@
   to configure that device when a card is inserted, and to shut down the
   device when the card is removed.  For cards with several associated
   devices, the script will be invoked for each device.
+
   The config scripts start by extracting some information about a device
   from /var/run/stab.  Each script constructs a ``device address'', that
   uniquely describes the device it has been asked to configure, in the
@@ -1332,14 +1352,14 @@
   different purposes, one option would be to configure the cards based
   on socket position, as in:
 
-  case "$ADDRESS" in
-  *,0,*,*)
-      # definitions for network card in socket 0
-      ;;
-  *,1,*,*)
-      # definitions for network card in socket 1
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,0,*,*)
+           # definitions for network card in socket 0
+           ;;
+       *,1,*,*)
+           # definitions for network card in socket 1
+           ;;
+       esac
 
   Alternatively, they could be configured using their hardware
   addresses, as in:
@@ -1366,7 +1386,6 @@
 
      IPADDR
         The IP address for this interface.
-
      NETMASK, BROADCAST, NETWORK
         Basic network parameters: see the networking HOWTO for more
         information.
@@ -1388,6 +1407,7 @@
      DNS_1, DNS_2, DNS_3
         Host names or IP addresses for nameservers for this interface,
         to be added to /etc/resolv.conf
+
      MOUNTS
         A list of NFS mount points to be mounted for this interface.
 
@@ -1427,7 +1447,6 @@
   the interface name will be passed to the function as its first (and
   only) argument.  Similarly, if it is defined, stop_fn will be invoked
   before shutting down an interface.
-
   The transceiver type can be selected using the IF_PORT setting.  This
   can either be a numeric value as in previous PCMCIA releases, or a
   keyword identifying the transceiver type.  All the network drivers
@@ -1490,11 +1509,12 @@
      unavailable.  In that case, the port check can be disabled by
      loading the pcmcia_core module with probe_io=0.
 
-  +o  Newer Linksys and D-Link cards have a unique way of selecting the
-     transceiver type that isn't handled by the Linux drivers.  One
-     workaround is to boot DOS and use the vendor-supplied utility to
-     select the transceiver, then warm boot Linux.  I am looking for
-     beta testers for a Linux utility to perform this function.
+  +o  Some Linksys, D-Link, and IC-Card 10baseT/10base2 cards have a
+     unique way of selecting the transceiver type that isn't handled by
+     the Linux drivers.  One workaround is to boot DOS and use the
+     vendor-supplied utility to select the transceiver, then warm boot
+     Linux.  Alternatively, a Linux utility to perform this function is
+     available at  <ftp://hyper.stanford.edu/extras/dlport.c>.
 
   +o  For WaveLAN wireless network adapters, Jean Tourrilhes
      (jt@hplb.hpl.hp.com) has put together a wireless HOWTO at
@@ -1616,11 +1636,11 @@
 
   For example:
 
-  case "$ADDRESS" in
-  *,*,*,*)
-      LINK="/dev/modem"
-      SERIAL_OPTS=""
-      INITTAB="/sbin/getty"
+       case "$ADDRESS" in
+       *,*,*,*)
+           LINK="/dev/modem"
+           SERIAL_OPTS=""
+           INITTAB="/sbin/getty"
 
   44..44..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh sseerriiaall ddeevviicceess
 
@@ -1780,36 +1800,36 @@
   For example, here is a script for configuring a disk device at SCSI ID
   3, with two partitions, and a CD-ROM at SCSI ID 6:
 
-  case "$ADDRESS" in
-  *,sd,*,0,3,0)
-      # This device has two partitions...
-      PARTS="1 2"
-      ;;
-  *,sd,*,0,3,0,1)
-      # Options for partition 1:
-      #  update /etc/fstab, and mount an ext2 fs on /usr1
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="ext2"
-      OPTS=""
-      MOUNTPT="/usr1"
-      ;;
-  *,sd,*,0,3,0,2)
-      # Options for partition 2:
-      #  update /etc/fstab, and mount an MS-DOS fs on /usr2
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="msdos"
-      OPTS=""
-      MOUNTPT="/usr2"
-      ;;
-  *,sr,*,0,6,0)
-      # Options for CD-ROM at SCSI ID 6
-      PARTS=""
-      DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
-      FSTYPE="iso9660"
-      OPTS="ro"
-      MOUNTPT="/cdrom"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,sd,*,0,3,0)
+           # This device has two partitions...
+           PARTS="1 2"
+           ;;
+       *,sd,*,0,3,0,1)
+           # Options for partition 1:
+           #  update /etc/fstab, and mount an ext2 fs on /usr1
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2"
+           OPTS=""
+           MOUNTPT="/usr1"
+           ;;
+       *,sd,*,0,3,0,2)
+           # Options for partition 2:
+           #  update /etc/fstab, and mount an MS-DOS fs on /usr2
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="msdos"
+           OPTS=""
+           MOUNTPT="/usr2"
+           ;;
+       *,sr,*,0,6,0)
+           # Options for CD-ROM at SCSI ID 6
+           PARTS=""
+           DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
+           FSTYPE="iso9660"
+           OPTS="ro"
+           MOUNTPT="/cdrom"
+           ;;
+       esac
 
   44..55..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
 
@@ -1823,6 +1843,12 @@
      with Trantor, they continued to sell the Trantor card with an
      Adaptec label.  The APA-460 is not compatible with any existing
      Linux driver.
+
+  +o  I have had one report of a bad interaction between the New Media
+     Bus Toaster and a UMAX Astra 1200s scanner.  Due to the complexity
+     of the SCSI protocol, when diagnosing problems with SCSI devices,
+     it is worth considering that incompatible combinations like this
+     may exist and may not be documented.
 
   44..55..33..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh SSCCSSII aaddaapptteerrss
 
@@ -1936,8 +1962,8 @@
   card interface.  Once formatted, the card can be accessed as an
   ordinary block device via the ftl_cs driver.  For example:
 
-       mke2fs /dev/ftl0c0
-       mount -t ext2 /dev/ftl0c0 /mnt
+  mke2fs /dev/ftl0c0
+  mount -t ext2 /dev/ftl0c0 /mnt
 
   Device naming for FTL devices is tricky.  Minor device numbers have
   three parts: the card number, the region number on that card, and
@@ -1998,23 +2024,25 @@
   Here is an example ide.opts file to mount the first partition of any
   ATA/IDE card on /mnt.
 
-  case "$ADDRESS" in
-  *,*,*,1)
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="msdos"
-      OPTS=""
-      MOUNTPT="/mnt"
-      ;;
-  *,*,*)
-      PARTS="1"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,*,*,1)
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="msdos"
+           OPTS=""
+           MOUNTPT="/mnt"
+           ;;
+       *,*,*)
+           PARTS="1"
+           ;;
+       esac
 
   44..77..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh AATTAA//IIDDEE aaddaapptteerrss
 
   +o  Some IDE drives violate the PCMCIA specification by requiring a
      longer time to spin up than the maximum allowed card setup time.
-     To use these cards, load the pcmcia_core module with:
+     Starting with release 3.0.6, the ide_cs driver will automatically
+     retry the device probe to give these drives time to spin up.  With
+     older drivers, you may need to load the pcmcia_core module with:
 
        CORE_OPTS="unreset_delay=400"
 
@@ -2044,10 +2072,10 @@
   the modem, you can unload the ethernet driver and reconfigure the
   serial port by doing something like:
 
-       ifconfig eth0 down
-       rmmod 3c589_cs
-       setserial /dev/modem autoconfig auto_irq
-       setserial /dev/modem
+  ifconfig eth0 down
+  rmmod 3c589_cs
+  setserial /dev/modem autoconfig auto_irq
+  setserial /dev/modem
 
   The second setserial should verify that the port has been configured
   to use the interrupt previously used by the ethernet driver.
@@ -2243,6 +2271,7 @@
        mkdir /mnt/etc /mnt/boot /mnt/dev
        cp -a /dev/fd0 /dev/sda1 /mnt/dev
        cp [kernel-image] /mnt/vmlinuz
+       cp /boot/boot.b /mnt/boot/boot.b
        gzip < [initrd-image] > /mnt/initrd
 
   Create /mnt/etc/lilo.conf with the contents:
@@ -2403,7 +2432,7 @@
 
   and search the output for your address.  Only the even bytes are
   defined, so ignore the odd bytes in the dump.  Record the hex offset
-  of the first byte of the address.  Now, edit modules/pcnet_cs.c and
+  of the first byte of the address.  Now, edit clients/pcnet_cs.c and
   find the hw_info structure.  You'll need to create a new entry for
   your card.  The first field is the memory offset.  The next three
   fields are the first three bytes of the hardware address.  The final
@@ -2482,7 +2511,7 @@
   or /usr/adm/messages.  This file should be the first place to look
   when tracking down a problem.  When submitting a bug report, always
   include the contents of this file.  If you are having trouble finding
-  your system messages, check /etc/syslogd.conf to see how different
+  your system messages, check /etc/syslog.conf to see how different
   classes of messages are handled.
 
   Before submitting a bug report, please check to make sure that you are
@@ -2490,23 +2519,111 @@
   gratifying to read bug reports for things I've already fixed, it isn't
   a particularly constructive use of my time.
 
-  If your problem involves a kernel fault, the register dump from the
-  fault is only useful if you can track down the fault address, EIP.  If
-  it is in the main kernel, look up the address in System.map to
-  identify the function at fault.  If the fault is in a loadable module,
-  it is a bit harder to trace.  With the current module tools, ``ksyms
-  -m'' will report the base address of each loadable module.  Pick the
-  module that contains the EIP address, and subtract its base address
-  from EIP to get an offset inside that module.  Then, run gdb on that
-  module, and look up the offset with the list command.  This will only
-  work if you've compiled that module with -g to include debugging
-  information.
-
   If you do not have web access, bug reports can be sent to me at
   dhinds@hyper.stanford.edu.  However, I prefer that bug reports be
   posted to my web site, so that they can be seen by others.
 
-  77..22..  LLooww lleevveell PPCCMMCCIIAA ddeebbuuggggiinngg aaiiddss
+  77..22..  IInntteerrpprreettiinngg kkeerrnneell ttrraapp rreeppoorrttss
+
+  If your problem involves a kernel fault, the register dump from the
+  fault is only useful if you can translate the fault address, EIP, to
+  something meaningful.  Recent versions of klogd attempt to translate
+  fault addresses based on the current kernel symbol map, but this may
+  not work if the fault is in a module, or if the problem is severe
+  enough that klogd cannot finish writing the fault information to the
+  system log.
+
+  If a fault is in the main kernel, the fault address can be looked up
+  in the System.map file.  This may be installed in /System.map or
+  /boot/System.map.  If a fault is in a module, the nm command gives the
+  same information, however, the fault address has to be adjusted based
+  on the module's load address.  Let's say that you have the following
+  kernel fault:
+
+  Unable to handle kernel NULL pointer dereference
+  current->tss.cr3 = 014c9000, %cr3 = 014c9000
+  *pde = 00000000
+  Oops: 0002
+  CPU:    0
+  EIP:    0010:[<c2026081>]
+  EFLAGS: 00010282
+
+  The fault address is 0xc2026081.  Looking at System.map, we see that
+  this is past the end of the kernel, i.e., is in a kernel module.  To
+  determine which module, check the output of ``ksyms -m | sort'':
+
+       Address   Symbol                            Defined by
+       c200d000  (35k)                             [pcmcia_core]
+       c200d10c  register_ss_entry                 [pcmcia_core]
+       c200d230  unregister_ss_entry               [pcmcia_core]
+                 ...
+       c2026000  (9k)                              [3c574_cs]
+       c202a000  (4k)                              [serial_cs]
+
+  So, 0xc2026081 is in the 3c574_cs module, and is at an offset of
+  0x0081 from the start of the module.  We cannot look up this offset in
+  3c574_cs.o yet: when the kernel loads a module, it inserts a header at
+  the module load address, so the real start of the module is offset
+  from the address shown in ksyms.  The size of the header varies with
+  kernel version: to find out the size for your kernel, check a module
+  that exports symbols (like pcmcia_core above), and compare a symbol
+  address with nm output for that symbol.  In this example,
+  register_ss_entry is loaded at an offset of 0xc200d10c - 0xc200d000 =
+  0x010c, while ``nm pcmcia_core.o'' shows the offset as 0x00c0, so the
+  header size is 0x010c - 0x00c0 = 0x004c bytes.
+
+  Back to 3c574_cs, our fault offset is 0x0081, and subtracting the
+  0x004c header, the real module offset is 0x0035.  Now looking at ``nm
+  3c574_cs.o | sort'', we see:
+
+       0000002c d if_names
+       0000002c t tc574_attach
+       00000040 d mii_preamble_required
+       00000041 d dev_info
+
+  So, the fault is located in tc574_attach().
+
+  In this example, the fault did not cause a total system lockup, so
+  ksyms could be executed after the fault happened.  In other cases, you
+  may have to infer the module load addresses indirectly.  The same
+  sequence of events will normally load modules in the same order and at
+  the same addresses.  If a fault happens when a certain card is
+  inserted, get the ksyms output before inserting the card, or with a
+  different card inserted.  You can also manually load the card's driver
+  modules with insmod and run ksyms before inserting the card.
+
+  For more background, see ``man insmod'', ``man ksyms'', and ``man
+  klogd''.  In the kernel source tree, Documentation/oops-tracing.txt is
+  also relevant.  Here are a few more kernel debugging hints:
+
+  +o  Depending on the fault, it may also be useful to translate
+     addresses in the ``Call Trace'', using the same procedure as for
+     the main fault address.
+
+  +o  To diagnose a silent lock-up, try to provoke the problem with X
+     disabled, since kernel messages sent to the text console will not
+     be visible under X.
+
+  +o  If you kill klogd, most kernel messages will be echoed directly on
+     the text console, which may be helpful if the problem prevents
+     klogd from writing to the system log.
+
+  +o  To cause all kernel messages to be sent to the console, for 2.1
+     kernels, if /proc/sys/kernel/printk exists, do:
+
+       echo 8 > /proc/sys/kernel/printk
+
+  +o  The key combination <RightAlt><ScrLk> prints a register dump on the
+     text console.  This may work even if the system is otherwise
+     completely unresponsive, and the EIP address can be interpreted as
+     for a kernel fault.
+
+  +o  For 2.1 kernels configured with CONFIG_MAGIC_SYSRQ enabled, various
+     emergency functions are available via special <Alt><SysRq> key
+     combinations, documented in Documentation/sysrq.txt in the kernel
+     source tree.
+
+  77..33..  LLooww lleevveell PPCCMMCCIIAA ddeebbuuggggiinngg aaiiddss
 
   The PCMCIA modules contain a lot of conditionally-compiled debugging
   code.  Most of this code is under control of the PCMCIA_DEBUG
@@ -2541,7 +2658,7 @@
   to give direct access to that card's address spaces.  See the man
   pages for more information.
 
-  77..33..  //pprroocc//bbuuss//ppccccaarrdd
+  77..44..  //pprroocc//bbuuss//ppccccaarrdd
 
   Starting with 2.1.103 kernels, the PCMCIA package will create a tree
   of status information under /proc/bus/pccard.  The memory entry shows
@@ -2554,7 +2671,7 @@
   space, and the cardbus entry is a dump of the CardBus configuration
   registers.
 
-  77..44..  WWrriittiinngg CCaarrdd SSeerrvviicceess ddrriivveerrss ffoorr nneeww ccaarrddss
+  77..55..  WWrriittiinngg CCaarrdd SSeerrvviicceess ddrriivveerrss ffoorr nneeww ccaarrddss
 
   The Linux PCMCIA Programmer's Guide is the best documentation for the
   client driver interface.  The latest version is always available from
@@ -2578,9 +2695,9 @@
 
   I have written a dummy driver with lots of comments that explains a
   lot of how a driver communicates with Card Services; you will find
-  this in the PCMCIA source distribution in modules/dummy_cs.c.
+  this in the PCMCIA source distribution in clients/dummy_cs.c.
 
-  77..55..  GGuuiiddeelliinneess ffoorr PPCCMMCCIIAA cclliieenntt ddrriivveerr aauutthhoorrss
+  77..66..  GGuuiiddeelliinneess ffoorr PPCCMMCCIIAA cclliieenntt ddrriivveerr aauutthhoorrss
 
   I have decided that it is not really feasible for me to distribute all
   PCMCIA client drivers as part of the PCMCIA package.  Each new driver
@@ -2626,13 +2743,13 @@
   (for example, sample_cs-1.5.tar.gz).  A complete distribution could
   look like:
 
-  sample_cs.mk
-  README.sample_cs
-  modules/sample_cs.c
-  modules/sample_cs.h
-  etc/sample
-  etc/sample.opts
-  man/sample_cs.4
+       sample_cs.mk
+       README.sample_cs
+       modules/sample_cs.c
+       modules/sample_cs.h
+       etc/sample
+       etc/sample.opts
+       man/sample_cs.4
 
   With this arrangement, when the contributed driver is unpacked, it
   becomes essentially part of the PCMCIA source tree.  It can make use
@@ -2651,7 +2768,7 @@
   package.  I will try to notify authors of contributed drivers of
   changes that require updates to their drivers.
 
-  77..66..  GGuuiiddeelliinneess ffoorr LLiinnuuxx ddiissttrriibbuuttiioonn mmaaiinnttaaiinneerrss
+  77..77..  GGuuiiddeelliinneess ffoorr LLiinnuuxx ddiissttrriibbuuttiioonn mmaaiinnttaaiinneerrss
 
   If your distribution has system configuration tools that you would
   like to be PCMCIA-aware, please use the *.opts files in /etc/pcmcia

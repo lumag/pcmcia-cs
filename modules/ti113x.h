@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.6 1998/05/10 11:59:46
+ * ti113x.h 1.9 1998/11/09 06:13:14
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -26,21 +26,23 @@
 #ifndef PCI_DEVICE_ID_TI_1130
 #define PCI_DEVICE_ID_TI_1130		0xac12
 #endif
-
 #ifndef PCI_DEVICE_ID_TI_1131
 #define PCI_DEVICE_ID_TI_1131		0xac15
 #endif
-
 #ifndef PCI_DEVICE_ID_TI_1031
 #define PCI_DEVICE_ID_TI_1031		0xac13
 #endif
-
 #ifndef PCI_DEVICE_ID_TI_1250A
 #define PCI_DEVICE_ID_TI_1250A		0xac16
 #endif
-
 #ifndef PCI_DEVICE_ID_TI_1220
 #define PCI_DEVICE_ID_TI_1220		0xac17
+#endif
+#ifndef PCI_DEVICE_ID_TI_1221
+#define PCI_DEVICE_ID_TI_1221		0xac19
+#endif
+#ifndef PCI_DEVICE_ID_TI_1210
+#define PCI_DEVICE_ID_TI_1210		0xac1a
 #endif
 
 /* Register definitions for TI 113X PCI-to-CardBus bridges */
@@ -134,6 +136,9 @@
 /* DMA Registers */
 #define TI113X_DMA_0			0x0094	/* 32 bit */
 #define TI113X_DMA_1			0x0098	/* 32 bit */
+
+/* ExCA IO offset registers */
+#define TI113X_IO_OFFSET(map)		(0x36+((map)<<1))
 
 #endif /* _LINUX_TI113X_H */
 

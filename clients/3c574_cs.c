@@ -16,7 +16,7 @@
 
 /* Driver author info must always be in the binary.  Version too.. */
 static const char *tc574_version =
-"3c574_cs.c v1.06 4/17/98 Donald Becker/David Hinds, becker@cesdis.gsfc.nasa.gov.\n";
+"3c574_cs.c v1.08 9/24/98 Donald Becker/David Hinds, becker@cesdis.gsfc.nasa.gov.\n";
 
 /*
 				Theory of Operation
@@ -123,7 +123,7 @@ static int irq_list[4] = { -1 };
 #define TX_TIMEOUT  ((800*HZ)/1000)
 
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
-static int max_interrupt_work = 10;
+static int max_interrupt_work = 20;
 
 /* Performance features: best left disabled. */
 /* Set to buffer all Tx/RxFIFO accesses. */
@@ -220,7 +220,7 @@ struct el3_private {
 	  autoselect:1, default_media:3;	/* Read from the EEPROM/Wn3_Config. */
 };
 
-static char *if_names[] = { "Auto", "10baseT", "10base2", "AUI" };
+static char *if_names[] = { "Auto", "10baseT", "10base2", "AUI", "MII" };
 
 /* Set iff a MII transceiver on any interface requires mdio preamble.
    This only set with the original DP83840 on older 3c905 boards, so the extra
@@ -457,6 +457,7 @@ static void tc574_config(dev_link_t *link)
 	int last_fn, last_ret, i, j;
 	int ioaddr;
 	u16 *phys_addr;
+	char *cardname;
 
 	handle = link->handle;
 	dev = link->priv;
@@ -541,6 +542,14 @@ static void tc574_config(dev_link_t *link)
 			goto failed;
 		}
 	}
+	tuple.DesiredTuple = CISTPL_VERS_1;
+	if (CardServices(GetFirstTuple, handle, &tuple) == CS_SUCCESS &&
+		CardServices(GetTupleData, handle, &tuple) == CS_SUCCESS &&
+		CardServices(ParseTuple, handle, &tuple, &parse) == CS_SUCCESS) {
+		cardname = parse.version_1.str + parse.version_1.ofs[1];
+	} else
+		cardname = "3Com 3c574";
+
 	/* Extract other info from the EEPROM. */
 	lp->softinfo1 = read_eeprom(ioaddr, 13);
 	lp->softinfo2 = read_eeprom(ioaddr, 15);
@@ -549,18 +558,22 @@ static void tc574_config(dev_link_t *link)
 	if (lp->softinfo1 & 0x8000)
 		lp->force_full_duplex = 1;
 
-	/* The if_port symbol can be set when the module is loaded,
-	   but we always ignore it for now. */
-	if (if_port == 0  ||  if_port == 1  ||  if_port == 4)
-		dev->if_port = if_port;
-	else
-		printk(KERN_NOTICE "3c574_cs: invalid if_port requested\n");
-
-	printk(KERN_INFO "%s: 3Com 3c574, port %#3lx, irq %d, "
-		   "hw_addr ", dev->name, dev->base_addr, dev->irq);
+	printk(KERN_INFO "%s: %s at I/O %#3lx, IRQ %d, "
+		   "MAC Address ", dev->name, cardname, dev->base_addr, dev->irq);
 
 	for (i = 0; i < 6; i++)
 		printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : ".\n"));
+
+	/* The if_port symbol can be set when the module is loaded,
+	   but we always ignore it for now. */
+	dev->if_port = 0;
+	if (if_port == 1  ||  if_port == 4) {
+		printk(KERN_INFO "%s: Media override to %s requested.\n",
+			   dev->name, if_names[if_port]);
+		dev->if_port = if_port;
+	} else
+		printk(KERN_NOTICE "%s: Invalid if_port %d requested, ignored.\n",
+			   dev->name, if_port);
 
 	if (dev->mem_start)
 		printk(KERN_INFO"%s:  Acceleration window at memory base %#lx.\n",
@@ -589,12 +602,12 @@ static void tc574_config(dev_link_t *link)
 	{
 		int phy, phy_idx = 0;
 		EL3WINDOW(4);
-		for (phy = 0; phy < 32 && phy_idx < sizeof(lp->phys); phy++) {
+		for (phy = 1; phy <= 32 && phy_idx < sizeof(lp->phys); phy++) {
 			int mii_status;
 			mdio_sync(ioaddr, 32);
-			mii_status = mdio_read(ioaddr, phy, 1);
+			mii_status = mdio_read(ioaddr, phy & 0x1f, 1);
 			if (mii_status != 0xffff) {
-				lp->phys[phy_idx++] = phy;
+				lp->phys[phy_idx++] = phy & 0x1f;
 				printk(KERN_INFO "  MII transceiver at index %d, status %x.\n",
 					   phy, mii_status);
 				if ((mii_status & 0x0040) == 0)
@@ -821,14 +834,15 @@ static void tc574_reset(struct device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	int ioaddr = dev->base_addr;
-	int i;
+	int i = 1500;
 
-	outw(RxReset, ioaddr + EL3_CMD);
-	for (i = 500; i >= 0 ; i--)
-		if ( ! inw(ioaddr + EL3_STATUS) & CmdBusy) break;
-	outw(TxReset, ioaddr + EL3_CMD);
-	for (i = 500; i >= 0 ; i--)
-		if ( ! inw(ioaddr + EL3_STATUS) & CmdBusy) break;
+	/* Typically 0 or 1 tick. */
+	outw(TotalReset|0x10, ioaddr + EL3_CMD);
+	while (inw(ioaddr + EL3_STATUS) & CmdBusy)
+		if (--i < 0)  break;
+	if (i < 0)
+		printk(KERN_ERR "%s: Card reset did not complete, status 0x%4.4x.\n",
+			   dev->name, inw(ioaddr + EL3_STATUS));
 
 	/* Set the PIO ctrl bits in the PC card LAN COR using Runner window 1. */
 	if (dev->mem_start || no_wait) {
@@ -1154,11 +1168,11 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 				if (fifo_diag & 0x0400) {
 					outw(TxReset, ioaddr + EL3_CMD);
 					for (i = 500; i >= 0 ; i--)
-						if ( ! inw(ioaddr + EL3_STATUS) & CmdBusy) break;
+						if ((inw(ioaddr + EL3_STATUS) & CmdBusy) == 0) break;
 				}
 				outw(RxReset, ioaddr + EL3_CMD);
 				for (i = 500; i >= 0 ; i--)
-					if ( ! inw(ioaddr + EL3_STATUS) & CmdBusy) break;
+					if ((inw(ioaddr + EL3_STATUS) & CmdBusy) == 0) break;
 				set_rx_mode(dev);
 				outw(RxEnable, ioaddr + EL3_CMD);
 				outw(TxEnable, ioaddr + EL3_CMD);
@@ -1308,7 +1322,7 @@ static int el3_rx(struct device *dev, int worklimit)
 		/* Wait a limited time to skip this packet. */
 		{
 			int i = 200;
-			while (--i >= 0  &&  inw(ioaddr + EL3_STATUS) & CmdBusy)
+			while (--i >= 0  &&  (inw(ioaddr + EL3_STATUS) & CmdBusy))
 				;
 		}
 	}

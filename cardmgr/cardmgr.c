@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.114 1998/08/09 00:15:41
+    cardmgr.c 1.118 1998/11/18 16:58:47
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -47,17 +47,6 @@
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
-
-#define VERSION(v,p,s) (((v)<<16)+(p<<8)+s)
-#if (LINUX_VERSION_CODE > VERSION(1,3,0))
-#define GET_SCSI_INFO
-#include <linux/major.h>
-#if (LINUX_VERSION_CODE > VERSION(1,3,97))
-#include <scsi/scsi.h>
-#else
-#include <linux/scsi.h>
-#endif
-#endif
 
 #include "cardmgr.h"
 
@@ -159,10 +148,6 @@ static int lookup_dev(char *name)
 	return -ENODEV;
 }
 
-#endif /* __linux__ */
-
-/*====================================================================*/
-
 int open_dev(dev_t dev, int mode)
 {
     char *fn;
@@ -175,6 +160,8 @@ int open_dev(dev_t dev, int mode)
     unlink(fn);
     return fd;
 }
+
+#endif /* __linux__ */
 
 int open_sock(int sock, int mode)
 {
@@ -198,21 +185,29 @@ int open_sock(int sock, int mode)
     
 ======================================================================*/
 
-#ifdef GET_SCSI_INFO
+#ifdef __linux__
+
+#include <linux/major.h>
+#include <scsi/scsi.h>
+#define VERSION(v,p,s) (((v)<<16)+(p<<8)+s)
+#if (LINUX_VERSION_CODE < VERSION(2,1,126))
+#define SCSI_DISK0_MAJOR SCSI_DISK_MAJOR
+#endif
+
 static int xlate_scsi_name(bind_info_t *bind)
 {
     int i, fd, mode, minor;
     u_long arg[2], id1, id2;
 
     id1 = strtol(bind->name+3, NULL, 16);
-    if ((bind->major == SCSI_DISK_MAJOR) ||
+    if ((bind->major == SCSI_DISK0_MAJOR) ||
 	(bind->major == SCSI_CDROM_MAJOR))
 	mode = S_IREAD|S_IFBLK;
     else
 	mode = S_IREAD|S_IFCHR;
     
     for (i = 0; i < 16; i++) {
-	minor = (bind->major == SCSI_DISK_MAJOR) ? (i<<4) : i;
+	minor = (bind->major == SCSI_DISK0_MAJOR) ? (i<<4) : i;
 	fd = open_dev((bind->major<<8)+minor, mode);
 	if (fd < 0)
 	    continue;
@@ -222,7 +217,7 @@ static int xlate_scsi_name(bind_info_t *bind)
 	    if (id1 == id2) {
 		close(fd);
 		switch (bind->major) {
-		case SCSI_DISK_MAJOR:
+		case SCSI_DISK0_MAJOR:
 		case SCSI_GENERIC_MAJOR:
 		    sprintf(bind->name+2, "%c", 'a'+i); break;
 		case SCSI_CDROM_MAJOR:
@@ -898,7 +893,7 @@ static void do_insert(int sn)
 	tail = &s->bind[i];
 	while (ret == 0) {
 	    bind_info_t *old;
-#ifdef GET_SCSI_INFO
+#ifdef __linux__
 	    if ((strlen(bind->name) > 3) &&
 		(bind->name[2] == '#'))
 		xlate_scsi_name(bind);
@@ -1297,13 +1292,17 @@ int main(int argc, char *argv[])
 
 #ifdef __linux__
     if (modpath == NULL) {
-	struct utsname utsname;
-	if (uname(&utsname) != 0) {
-	    syslog(LOG_INFO, "uname(): %m");
-	    exit(EXIT_FAILURE);
+	if (access("/lib/modules/preferred", X_OK) == 0)
+	    modpath = "/lib/modules/preferred";
+	else {
+	    struct utsname utsname;
+	    if (uname(&utsname) != 0) {
+		syslog(LOG_INFO, "uname(): %m");
+		exit(EXIT_FAILURE);
+	    }
+	    modpath = (char *)malloc(32);
+	    sprintf(modpath, "/lib/modules/%s", utsname.release);
 	}
-	modpath = (char *)malloc(32);
-	sprintf(modpath, "/lib/modules/%s", utsname.release);
     }
     if (access(modpath, X_OK) != 0) {
 	syslog(LOG_INFO, "cannot access %s: %m", modpath);

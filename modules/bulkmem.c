@@ -2,7 +2,7 @@
 
     PCMCIA Bulk Memory Services
 
-    bulkmem.c 1.26 1998/08/03 17:11:30
+    bulkmem.c 1.27 1998/11/17 08:02:39
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -529,6 +529,15 @@ int open_memory(client_handle_t *handle, open_mem_t *open)
 	if (region->info.CardOffset == open->Offset) break;
 	region = region->info.next;
     }
+#ifdef __BEOS__
+    if (region->dev_info[0] != '\0') {
+	char n[80];
+	struct module_info *m;
+	sprintf(n, MTD_MODULE_NAME("%s"), region->dev_info);
+	if (get_module(n, &m) != B_OK)
+	    dprintf("cs: could not find MTD module %s\n", n);
+    }
+#endif
     if (region && region->mtd) {
 	*handle = (client_handle_t)region;
 	DEBUG(1, ("cs: open_memory(0x%p, 0x%x) = 0x%p\n",
@@ -551,6 +560,13 @@ int close_memory(memory_handle_t handle)
     DEBUG(1, ("cs: close_memory(0x%p)\n", handle));
     if (CHECK_REGION(handle))
 	return CS_BAD_HANDLE;
+#ifdef __BEOS__
+    if (handle->dev_info[0] != '\0') {
+	char n[80];
+	sprintf(n, MTD_MODULE_NAME("%s"), handle->dev_info);
+	put_module(n);
+    }
+#endif
     return CS_SUCCESS;
 } /* close_memory */
 

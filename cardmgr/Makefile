@@ -1,5 +1,5 @@
 #
-# cardmgr/Makefile 1.64 1998/07/16 20:02:35 (David Hinds)
+# cardmgr/Makefile 1.65 1998/09/14 08:50:21 (David Hinds)
 #
 
 # Include site dependent options
@@ -76,6 +76,7 @@ cardinfo: cardinfo.c
 
 install: $(TOOLS) $(EXTRA) $(PROBE)
 	mkdir -p $(PREFIX)/sbin
+	rm -f $(PREFIX)/sbin/cardmgr
 	cp -f $(TOOLS) pcinitrd $(PREFIX)/sbin
 	chmod u+s $(PREFIX)/sbin/cardctl
 	if [ "$(PREFIX)" != "" -a -f probe ] ; then	\

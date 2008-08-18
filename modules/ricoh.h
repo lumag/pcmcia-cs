@@ -1,5 +1,5 @@
 /*
- * ricoh.h 1.3 1998/07/26 09:55:18
+ * ricoh.h 1.6 1998/10/19 23:08:24
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -57,10 +57,13 @@
 #define RF5C_MCTL3_DISABLE	0x01	/* Disable PCMCIA interface */
 #define RF5C_MCTL3_DMA_ENA	0x02
 
-/* Register definitions for Ricoh RL5C466 PCI-to-CardBus bridge */
+/* Register definitions for Ricoh PCI-to-CardBus bridges */
 
 #ifndef PCI_VENDOR_ID_RICOH
 #define PCI_VENDOR_ID_RICOH		0x1180
+#endif
+#ifndef PCI_DEVICE_ID_RICOH_RL5C465
+#define PCI_DEVICE_ID_RICOH_RL5C465	0x0465
 #endif
 #ifndef PCI_DEVICE_ID_RICOH_RL5C466
 #define PCI_DEVICE_ID_RICOH_RL5C466	0x0466
@@ -68,39 +71,51 @@
 #ifndef PCI_DEVICE_ID_RICOH_RL5C475
 #define PCI_DEVICE_ID_RICOH_RL5C475	0x0475
 #endif
+#ifndef PCI_DEVICE_ID_RICOH_RL5C476
+#define PCI_DEVICE_ID_RICOH_RL5C476	0x0476
+#endif
+#ifndef PCI_DEVICE_ID_RICOH_RL5C478
+#define PCI_DEVICE_ID_RICOH_RL5C478	0x0478
+#endif
 
 /* Extra bits in CB_BRIDGE_CONTROL */
-#define RL5C466_BCR_3E0_ENA		0x0800
-#define RL5C466_BCR_3E2_ENA		0x1000
+#define RL5C46X_BCR_3E0_ENA		0x0800
+#define RL5C46X_BCR_3E2_ENA		0x1000
 
-/* Misc Control 0 Register */
-#define RL5C466_MISC0			0x0082	/* 16 bit */
-#define  RL5C466_MISC0_SUSPEND		0x0001
-#define  RL5C466_MISC0_HW_SUSPEND_ENA	0x0002
-#define  RL5C466_MISC0_PWR_SAVE_2	0x0004
-#define  RL5C466_MISC0_IFACE_BUSY	0x0008
-#define  RL5C466_MISC0_B_LOCK		0x0010
-#define  RL5C466_MISC0_A_LOCK		0x0020
-#define  RL5C466_MISC0_PCI_LOCK		0x0040
-#define  RL5C466_MISC0_VCCEN_POL	0x0100
-#define  RL5C466_MISC0_VPPEN_POL	0x0200
+/* Misc Control Register */
+#define RL5C4XX_MISC			0x0082	/* 16 bit */
+#define  RL5C4XX_MISC_HW_SUSPEND_ENA	0x0002
+#define  RL5C4XX_MISC_VCCEN_POL		0x0100
+#define  RL5C4XX_MISC_VPPEN_POL		0x0200
+#define  RL5C46X_MISC_SUSPEND		0x0001
+#define  RL5C46X_MISC_PWR_SAVE_2	0x0004
+#define  RL5C46X_MISC_IFACE_BUSY	0x0008
+#define  RL5C46X_MISC_B_LOCK		0x0010
+#define  RL5C46X_MISC_A_LOCK		0x0020
+#define  RL5C46X_MISC_PCI_LOCK		0x0040
+#define  RL5C47X_MISC_IFACE_BUSY	0x0004
+#define  RL5C47X_MISC_PCI_INT_MASK	0x0018
+#define  RL5C47X_MISC_PCI_INT_DIS	0x0020
+#define  RL5C47X_MISC_SUBSYS_WR		0x0040
+#define  RL5C47X_MISC_SRIRQ_ENA		0x0080
+#define  RL5C47X_MISC_5V_DISABLE	0x0400
+#define  RL5C47X_MISC_LED_POL		0x0800
 
 /* 16-bit Interface Control Register */
-#define RL5C466_16BIT_CTL		0x0084	/* 16 bit */
-#define  RL5C466_16CTL_INDEX_SEL	0x0008
-#define  RL5C466_16CTL_LEVEL_1		0x0010
-#define  RL5C466_16CTL_LEVEL_2		0x0020
-#define  RL5C466_16CTL_IO_TIMING	0x0100
-#define  RL5C466_16CTL_MEM_TIMING	0x0200
+#define RL5C4XX_16BIT_CTL		0x0084	/* 16 bit */
+#define  RL5C4XX_16CTL_IO_TIMING	0x0100
+#define  RL5C4XX_16CTL_MEM_TIMING	0x0200
+#define  RL5C46X_16CTL_LEVEL_1		0x0010
+#define  RL5C46X_16CTL_LEVEL_2		0x0020
 
 /* 16-bit IO and memory timing registers */
-#define RL5C466_16BIT_IO_0		0x0088	/* 16 bit */
-#define RL5C466_16BIT_MEM_0		0x0088	/* 16 bit */
-#define  RL5C466_SETUP_MASK		0x0007
-#define  RL5C466_SETUP_SHIFT		0
-#define  RL5C466_CMD_MASK		0x01f0
-#define  RL5C466_CMD_SHIFT		4
-#define  RL5C466_HOLD_MASK		0x1c00
-#define  RL5C466_HOLD_SHIFT		10
+#define RL5C4XX_16BIT_IO_0		0x0088	/* 16 bit */
+#define RL5C4XX_16BIT_MEM_0		0x0088	/* 16 bit */
+#define  RL5C4XX_SETUP_MASK		0x0007
+#define  RL5C4XX_SETUP_SHIFT		0
+#define  RL5C4XX_CMD_MASK		0x01f0
+#define  RL5C4XX_CMD_SHIFT		4
+#define  RL5C4XX_HOLD_MASK		0x1c00
+#define  RL5C4XX_HOLD_SHIFT		10
 
 #endif /* _LINUX_RICOH_H */

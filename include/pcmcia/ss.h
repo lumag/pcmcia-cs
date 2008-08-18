@@ -1,5 +1,5 @@
 /*
- * ss.h 1.17 1998/07/09 08:42:03
+ * ss.h 1.18 1998/10/01 20:54:49
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -43,11 +43,15 @@ typedef struct ss_callback_t {
 
 /* for InquireSocket */
 typedef struct socket_cap_t {
+    u_int	features;
     u_int	irq_mask;
     u_int	map_size;
     u_char	pci_irq;
     u_char	cardbus;
 } socket_cap_t;
+
+/* InquireSocket features */
+#define SS_HAS_PAGE_REGS	0x0001
 
 /* for GetSocket, SetSocket */
 typedef struct socket_state_t {

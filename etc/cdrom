@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# cdrom 1.9 1997/05/13 02:16:47 (David Hinds)
+# cdrom 1.11 1998/10/08 19:44:18 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA CD-ROM device
 #
@@ -14,7 +14,7 @@
 # number.
 #
 
-. ./shared
+if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 
 # Get device attributes
 get_info $DEVICE

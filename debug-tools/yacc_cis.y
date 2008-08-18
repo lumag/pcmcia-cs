@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_cis.y 1.5 1998/08/02 11:56:35
+ * yacc_cis.y 1.6 1998/09/25 21:45:00
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -64,7 +64,7 @@ static tuple_info_t *new_tuple(u_char type, cisparse_t *parse);
 %type <num> NUMBER SIZE VOLTAGE CURRENT TIME
 %type <flt> FLOAT
 %type <pwr> pwr pwrlist
-%type <parse> vers_1 manfid funcid config cftab io irq timing
+%type <parse> vers_1 manfid funcid config cftab io mem irq timing
 %type <parse> dev_info attr_dev_info checksum
 %type <tuple> tuple chain cis;
 %%
@@ -267,6 +267,28 @@ io:	  cftab IO NUMBER '-' NUMBER
 	| io RANGE
 	;	
 
+mem:	  cftab MEM NUMBER '-' NUMBER '@' NUMBER
+		{
+		    int n = $$->cftable_entry.mem.nwin;
+		    $$->cftable_entry.mem.win[n].card_addr = $3;
+		    $$->cftable_entry.mem.win[n].host_addr = $7;
+		    $$->cftable_entry.mem.win[n].len = $5-$3+1;
+		    $$->cftable_entry.mem.nwin++;
+		}
+	| mem ',' NUMBER '-' NUMBER '@' NUMBER
+		{
+		    int n = $$->cftable_entry.mem.nwin;
+		    $$->cftable_entry.mem.win[n].card_addr = $3;
+		    $$->cftable_entry.mem.win[n].host_addr = $7;
+		    $$->cftable_entry.mem.win[n].len = $5-$3+1;
+		    $$->cftable_entry.mem.nwin++;
+		}
+	| mem BIT8
+		{ $$->cftable_entry.io.flags |= CISTPL_IO_8BIT; }
+	| mem BIT16
+		{ $$->cftable_entry.io.flags |= CISTPL_IO_16BIT; }
+	;	
+
 irq:	  cftab IRQ_NO NUMBER
 		{ $$->cftable_entry.irq.IRQInfo1 = ($3 & 0x0f); }
 	| cftab IRQ_NO MASK NUMBER
@@ -310,6 +332,7 @@ cftab:	  CFTABLE NUMBER
 	| cftab VPP2 pwrlist
 		{ $$->cftable_entry.vpp2 = $3; }
 	| io
+	| mem
 	| irq
 	| timing
 	;

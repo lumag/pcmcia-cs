@@ -106,7 +106,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.108 1998/08/14 10:13:30 (David Hinds)";
+"3c589_cs.c 1.109 1998/11/03 05:31:23 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -974,8 +974,8 @@ static int el3_rx(struct device *dev)
 	lp->stats.rx_dropped++;
 	outw(RxDiscard, ioaddr + EL3_CMD); /* Rx discard */
 	while (--boguscnt > 0 && inw(ioaddr + EL3_STATUS) & 0x1000)
-	    printk(KERN_NOTICE "    Waiting for 3c589 to discard "
-		   "packet, status %x.\n", inw(ioaddr + EL3_STATUS));
+	    DEBUG(0, "    Waiting for 3c589 to discard packet,"
+		  " status %x.\n", inw(ioaddr + EL3_STATUS));
 	if (--boguscnt < 0)
 	    break;
     }

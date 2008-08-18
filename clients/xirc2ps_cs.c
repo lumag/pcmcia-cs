@@ -1,4 +1,4 @@
-/* [xirc2ps_cs.c wk 14.04.97] (1.29 1998/04/27 19:20:19)
+/* [xirc2ps_cs.c wk 14.04.97] (1.30 1998/09/15 12:40:59)
  * Xircom Creditcard Ethernet Adapter IIps driver
  *
  * This driver works for the CE2, CEM28, CEM33, CE3 and CEM56 cards.
@@ -15,6 +15,10 @@
  *
  * A bug fix for the CEM56 to use modem and ethernet simultaneously
  * was provided by Koen Van Herck (Koen.Van.Herck@xircom.com).
+ *
+ * If your card locks up you should use the option "lockup_hack=1";
+ * this may solve the problem but violates a kernel timing convention
+ * (Thanks to David Luyer).
  *
  * Thanks to David Hinds for the PCMCIA package, Donald Becker for some
  * advice, Xircom for providing specs and help, 4PC GmbH Duesseldorf for
@@ -256,7 +260,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #endif
 static char *version =
-"xirc2ps_cs.c 1.29 1998/04/27 19:20:19 (dd9jn+kvh)";
+"xirc2ps_cs.c 1.30 1998/09/15 12:40:59 (dd9jn+kvh)";
 	    /* !--- CVS revision */
 #define KDBG_XIRC KERN_DEBUG   "xirc2ps_cs: "
 #define KERR_XIRC KERN_ERR     "xirc2ps_cs: "
@@ -300,6 +304,9 @@ MODULE_PARM(do_sound, "i");
 
 static int card_type = 0;
 MODULE_PARM(card_type, "i");  /* dummy, not used anymore */
+
+static int lockup_hack = 0;
+MODULE_PARM(lockup_hack, "i");  /* anti lockup hack */
 
 /*====================================================================*/
 
@@ -523,7 +530,7 @@ PrintRegisters(struct device *dev)
 /*============== MII Management functions ===============*/
 
 /****************
- * Turn arounf for read
+ * Turn around for read
  */
 static void
 mii_idle(u_short ioaddr)
@@ -1481,6 +1488,8 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
      * This also clears the interrupt flags on CE2 cards
      */
     int_status = GetByte(XIRCREG_ISR);
+    bytes_rcvd = 0;
+  loop_entry:
     if( int_status == 0xff ) { /* card may be ejected */
       #ifdef PCMCIA_DEBUG
 	if( pc_debug > 3 )
@@ -1505,7 +1514,6 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
   #endif
 
     /***** receive section ******/
-    bytes_rcvd = 0;
     SelectPage(0);
     while( eth_status & FullPktRcvd ) {
 	rsr = GetByte(XIRCREG0_RSR);
@@ -1513,6 +1521,10 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 	    /* too many bytes received during this int, drop the rest of the
 	     * packets */
 	    lp->stats.rx_dropped++;
+	  #ifdef PCMCIA_DEBUG
+	    if( pc_debug > 3 )
+		printk(KNOT_XIRC "%s: RX drop, too much done\n", dev->name);
+	  #endif
 	    PutWord(XIRCREG0_DO, 0x8000 ); /* issue cmd: skip_rx_packet */
 	}
 	else if( rsr & PktRxOk ) {
@@ -1611,9 +1623,28 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 		printk("rsr=%#02x\n", rsr );
 	  #endif
 	}
-	if( rsr & PktTooLong ) lp->stats.rx_frame_errors++;
-	if( rsr & CRCErr )     lp->stats.rx_crc_errors++;
-	if( rsr & AlignErr )   lp->stats.rx_fifo_errors++; /* okay ? */
+	if( rsr & PktTooLong ) {
+	    lp->stats.rx_frame_errors++;
+	  #ifdef PCMCIA_DEBUG
+	    if( pc_debug > 3 )
+		printk(KNOT_XIRC "%s: Packet too long\n", dev->name);
+	  #endif
+	}
+	if( rsr & CRCErr ) {
+	    lp->stats.rx_crc_errors++;
+	  #ifdef PCMCIA_DEBUG
+	    if( pc_debug > 3 )
+		printk(KNOT_XIRC "%s: CRC error\n", dev->name);
+	  #endif
+	}
+	if( rsr & AlignErr ) {
+	    lp->stats.rx_fifo_errors++; /* okay ? */
+	  #ifdef PCMCIA_DEBUG
+	    if( pc_debug > 3 )
+		printk(KNOT_XIRC "%s: Alignment error\n", dev->name);
+	  #endif
+	}
+
 	/* get the new ethernet status */
 	eth_status = GetByte(XIRCREG_ESR);
     }
@@ -1687,6 +1718,10 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
     }
 
   leave:
+    if( lockup_hack ) {
+	if( int_status != 0xff && (int_status = GetByte(XIRCREG_ISR)) != 0 )
+	    goto loop_entry;
+    }
     SelectPage(saved_page);
     dev->interrupt = 0;
     PutByte(XIRCREG_CR, EnableIntr );  /* re-enable interrupts */
@@ -1774,7 +1809,7 @@ do_start_xmit(struct sk_buff *skb, struct device *dev)
     /* TRS doesn't work - (indeed it is eliminated with sil-rev 1) */
     okay = pktlen +2 < freespace;
   #ifdef PCMCIA_DEBUG
-    if(pc_debug > 2 )
+    if(pc_debug > 2  + ( okay ? 2 : 0) )
 	printk(KERN_DEBUG "%s: avail. tx space=%u%s\n", dev->name, freespace,
 				okay? " (okay)":" (not enough)" );
   #endif
@@ -2358,6 +2393,8 @@ init_xirc2ps_cs(void)
     printk(KERN_INFO "%s\n", version);
     if( card_type )
 	printk(KINF_XIRC "option card_type is obsolete\n");
+    if( lockup_hack )
+	printk(KINF_XIRC "lockup hack is enabled\n");
     CardServices(GetCardServicesInfo, &serv);
     if( serv.Revision != CS_RELEASE_CODE ) {
 	printk(KNOT_XIRC "Card Services release does not match!\n");

@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.50 1998/05/28 22:41:55
+    memory_cs.c 1.53 1998/11/18 08:01:13
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.50 1998/05/28 22:41:55 (David Hinds)";
+"memory_cs.c 1.53 1998/11/18 08:01:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -158,7 +158,7 @@ static FS_SIZE_T memory_read FOPS(struct inode *inode,
 				  struct file *file, char *buf,
 				  U_FS_SIZE_T count, loff_t *ppos);
 static FS_SIZE_T memory_write FOPS(struct inode *inode,
-				   struct file *file, CONST char *buf,
+				   struct file *file, const char *buf,
 				   U_FS_SIZE_T count, loff_t *ppos);
 static int memory_open(struct inode *inode, struct file *file);
 static FS_RELEASE_T memory_close(struct inode *inode,
@@ -175,6 +175,7 @@ static struct file_operations memory_chr_fops = {
     memory_ioctl,	/* ioctl */
     NULL,		/* mmap */
     memory_open,	/* open */
+    NULL_FLUSH		/* flush */
     memory_close,	/* release */
     NULL		/* fsync */
 };
@@ -188,6 +189,7 @@ static struct file_operations memory_blk_fops = {
     memory_ioctl,	/* ioctl */
     NULL,		/* mmap */
     memory_open,	/* open */
+    NULL_FLUSH		/* flush */
     memory_blk_close,	/* release */
     block_fsync		/* fsync */
 };
@@ -804,7 +806,7 @@ static int memory_erase(int minor, u_long f_pos, U_FS_SIZE_T count)
 ======================================================================*/
 
 static FS_SIZE_T direct_write FOPS(struct inode *inode,
-				   struct file *file, CONST char *buf,
+				   struct file *file, const char *buf,
 				   U_FS_SIZE_T count, loff_t *ppos)
 {
     int minor = MINOR(F_INODE(file)->i_rdev);
@@ -871,7 +873,7 @@ static FS_SIZE_T direct_write FOPS(struct inode *inode,
 } /* direct_write */
 
 static FS_SIZE_T memory_write FOPS(struct inode *inode,
-				   struct file *file, CONST char *buf,
+				   struct file *file, const char *buf,
 				   U_FS_SIZE_T count, loff_t *ppos)
 {
     minor_dev_t *minor;

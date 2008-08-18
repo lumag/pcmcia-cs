@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# rc.pcmcia 1.23 1998/07/18 18:49:26 (David Hinds)
+# rc.pcmcia 1.25 1998/10/19 09:54:40 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -63,11 +63,15 @@ for x in "1" ; do
 	echo -n "Starting PCMCIA services:"
 	SC=/var/run/pcmcia-scheme
 	if [ -L $SC -o ! -O $SC ] ; then rm -f $SC ; fi
-	if [ ! -f $SC ] ; then umask 022 ; echo > $SC ; fi
+	if [ ! -f $SC ] ; then umask 022 ; touch $SC ; fi
 	if [ "$SCHEME" ] ; then umask 022 ; echo $SCHEME > $SC ; fi
 	fgrep -q pcmcia /proc/devices
 	if [ $? -ne 0 ] ; then
-	    PC=/lib/modules/`uname -r`/pcmcia
+	    if [ -d /lib/modules/preferred ] ; then
+		PC=/lib/modules/preferred/pcmcia
+	    else
+		PC=/lib/modules/`uname -r`/pcmcia
+	    fi
 	    if [ -d $PC ] ; then
 		echo -n " modules"
 		/sbin/insmod $PC/pcmcia_core.o $CORE_OPTS

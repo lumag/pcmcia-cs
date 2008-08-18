@@ -1,5 +1,5 @@
 /*
- * rsrc_mgr.h 1.13 1998/05/24 18:40:55
+ * rsrc_mgr.h 1.14 1998/10/01 09:16:06
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -19,16 +19,16 @@
 #ifndef _RSRC_MGR_H
 #define _RSRC_MGR_H
 
-#ifdef __KERNEL__
-
+#ifdef __LINUX__
 int check_mem_region(u_long base, u_long num);
 int register_mem_region(u_long base, u_long num, char *name);
 int release_mem_region(u_long base, u_long num);
+#endif
 
-int check_io_region(u_long base, u_long num);
-int register_io_region(u_long base, u_long num, char *name);
-int release_io_region(u_long base, u_long num);
-
-#endif /* __KERNEL__ */
+#ifdef __BEOS__
+int check_resource(int type, u_long base, u_long num);
+int register_resource(int type, u_long base, u_long num);
+int release_resource(int type, u_long base, u_long num);
+#endif
 
 #endif	/* _RSRC_MGR_H */

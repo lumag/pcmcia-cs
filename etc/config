@@ -1,5 +1,5 @@
 #
-# config.sample 1.82 1998/08/20 22:47:59 (David Hinds)
+# config.sample 1.83 1998/11/19 08:06:38 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -78,6 +78,9 @@ device "tulip_cb"
 
 device "memory_cb"
   class "memory" module "cb_enabler", "memory_cb"
+
+device "teles_cs"
+  class "teles" module "teles_cs"
 
 #
 # Ethernet adapter definitions
@@ -316,6 +319,7 @@ card "KTI PE-520 Plus Ethernet"
 
 card "Linksys Ethernet"
   tuple 0x40, 0x0009, "E-CARD PC Ethernet Card"
+  cis "cis/E-CARD.dat"
   bind "pcnet_cs"
 
 card "Linksys Ethernet"
@@ -340,6 +344,10 @@ card "Longshine ShineNet LCS-8534 Ethernet"
 
 card "Logitec LPM-LN10BA Ethernet"
   version "Cardwell", "PCMCIA", "ETHERNET"
+  bind "pcnet_cs"
+
+card "Logitec LPM-LN20T Ethernet"
+  version "Logitec", "LPM-LN20T"
   bind "pcnet_cs"
 
 card "MACNICA Ethernet"
@@ -464,6 +472,10 @@ card "Socket EA Ethernet"
     "Socket EA PCMCIA LAN Adapter Revision E"
   bind "pcnet_cs"
 
+card "Socket Low Power Ethernet"
+  manfid 0x0104, 0x000d
+  bind "pcnet_cs"
+
 card "SuperSocket Ethernet"
   version "Telecom Device K.K.", "SuperSocket RE450T"
   bind "pcnet_cs"
@@ -542,6 +554,10 @@ card "Cirrus Logic 14.4K Fax Modem"
 
 card "Compaq 28.8K Modem"
   version "COMPAQ", "PCMCIA 28800 FAX/DATA MODEM"
+  bind "serial_cs"
+
+card "Compaq 33.6K Modem"
+  version "COMPAQ", "PCMCIA 33600 FAX/DATA MODEM"
   bind "serial_cs"
 
 card "Gateway 2000 TelePath Fax Modem"
@@ -671,6 +687,10 @@ card "Franklink/Rolodex REX-3000"
   version "Starfish, Inc.", "REX-3000"
   bind "memory_cs"
 
+card "Franklink/Rolodex REX-4100"
+  version "Starfish, Inc.", "REX-4100"
+  bind "memory_cs"
+
 #
 # Memory Technology Drivers
 #
@@ -789,8 +809,23 @@ card "3Com/Megahertz 3CXEM556 Ethernet/Modem"
   cis "cis/3CXEM556.dat"
   bind "3c589_cs" to 0, "serial_cs" to 1
 
+card "3Com/Megahertz 3CCFEM556 Ethernet/Modem"
+  manfid 0x0101, 0x0556
+  cis "cis/3CCFEM556.dat"
+  bind "3c574_cs" to 0, "serial_cs" to 1
+
+card "Accton UE2218 LAN/Modem"
+  version "PCMCIA", "UE2218-LAN/MODEM"
+  cis "cis/PCMLM28.dat"
+  bind "pcnet_cs", "serial_cs"
+
 card "Apex MultiCard Ethernet/Modem"
   version "APEX DATA", "MULTICARD", "ETHERNET-MODEM"
+  bind "pcnet_cs" to 0, "serial_cs" to 1
+
+card "Dayna Communicard Ethernet/Modem"
+  version "DAYNA COMMUNICATIONS", "LAN AND MODEM MULTIFUNCTION"
+  cis "cis/DP83903.dat"
   bind "pcnet_cs" to 0, "serial_cs" to 1
 
 card "D-Link DME336T Ethernet/Modem"
@@ -818,7 +853,7 @@ card "IBM w95 Home and Away Ethernet/Modem"
   bind "pcnet_cs" to 0, "serial_cs" to 1
 
 card "Intel EtherExpress PRO/100 LAN/Modem"
-  version "Intel", "EtherExpress (TM) PRO/100 LAN/Modem PC Card Adapter"
+  manfid 0x0089, 0x110a
   bind "xirc2ps_cs", "serial_cs"
 
 card "No-Name Ethernet/Modem"
@@ -862,9 +897,23 @@ card "Motorola Mariner Ethernet/Modem"
   manfid 0x0109, 0x0501
   bind "smc91c92_cs", "serial_cs"
 
+card "NSC DP83903-based Ethernet/Modem"
+  version "*", "*", "*", "NSC MF LAN/Modem"
+  cis "cis/DP83903.dat"
+  bind "pcnet_cs" to 0, "serial_cs" to 1
+
 card "Ositech Jack of Diamonds Ethernet/Modem"
   version "Ositech", "Trumpcard:Jack of Diamonds Modem+Ethernet"
   bind "smc91c92_cs", "serial_cs"
+
+card "Psion Gold Card V34 Ethernet"
+  version "Psion Dacom", "Gold Card V34 Ethernet"
+  cis "cis/PCMLM28.dat"
+  bind "pcnet_cs", "serial_cs"
+
+card "Rover ComboCard Ethernet/Modem"
+  version "PCMCIAs", "ComboCard"
+  bind "pcnet_cs", "serial_cs"
 
 card "TDK Global Networker Ethernet/Modem"
   version "TDK", "GlobalNetworker 3410/3412"
@@ -921,6 +970,10 @@ card "EXP Traveler 620 CD-ROM"
   version "EXP", "CD+GAME", "C1"
   bind "ide_cs"
 
+card "Freecom IQ-drive"
+  version "FREECOM", "PCCARD-IDE"
+  bind "ide_cs"
+
 card "IO-DATA CDP-TX/PCIDE"
   version "IO DATA", "PCIDE"
   bind "ide_cs"
@@ -933,7 +986,7 @@ card "OTI-SCYLLA ATAPI CD-ROM"
   version "PCMCIA", "CD-ROM"
   bind "ide_cs"
 
-card "TEAC IDE Card/II"
+card "Ninja ATA"
   version " ", "NinjaATA-"
   bind "ide_cs"
 
@@ -957,11 +1010,19 @@ card "IBM Smart Capture Card"
   version "IBM Corp.", "Video Capture"
   bind "iscc_cs"
 
+card "TELES S0/PC ISDN"
+  version "TELES", "S0/PC"
+  bind "teles_cs"
+
 #
 # CardBus cards
 #
 card "3Com 3c575-TX Fast EtherLink XL"
   manfid 0x0101, 0x5057
+  bind "3c575_cb"
+
+card "3Com 3CCFE575B/3CXFE575B Fast EtherLink XL"
+  manfid 0x0101, 0x5157
   bind "3c575_cb"
 
 card "Adaptec APA-1480 SCSI Host Adapter"
@@ -974,6 +1035,10 @@ card "Linksys EtherFast 10/100"
 
 card "Linksys EtherFast 10/100"
   manfid 0x0149, 0xc2ab
+  bind "tulip_cb"
+
+card "TDK NetworkFlyer LAK-CB100X"
+  manfid 0x0105, 0x0500
   bind "tulip_cb"
 
 # Include local configuration settings

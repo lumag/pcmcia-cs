@@ -1,0 +1,22 @@
+Known problems with the 3.0.6 PCMCIA release
+============================================
+
+o Megahertz EM3288 cards drop interrupts if the modem and ethernet are
+  used simultaneously.  No known fix.
+
+o The 3c574_cs driver is unstable.  Sometimes it works, sometimes
+  cards do not respond at all.  This also affects the network side of
+  3CCFEM556B cards.
+
+o None of the CardBus drivers implement suspend/resume handling.
+
+o The apa1480_cb driver only works for 2.1.90-2.1.124 kernels.
+
+o Automatic determination of PCI interrupt routing for CardBus bridges
+  is unreliable, so by default, we don't use PCI interrupts at all.
+
+o Interrupt routing on O2Micro CardBus bridges seems to have problems.
+
+o The token-ring driver doesn't work with late 2.1.* kernels.
+
+o Newer Ositech Jack of Diamonds cards don't work.

@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.197 1998/08/20 23:06:31
+    cs.c 1.207 1998/11/18 07:55:34
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -59,7 +59,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.197 1998/08/20 23:06:31 (David Hinds)";
+"cs.c 1.207 1998/11/18 07:55:34 (David Hinds)";
 #endif
 
 static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
@@ -172,10 +172,12 @@ static const lookup_t error_table[] = {
 
 static const lookup_t service_table[] = {
     { AccessConfigurationRegister,	"AccessConfigurationRegister" },
+    { AddSocketServices,		"AddSocketServices" },
     { AdjustResourceInfo,		"AdjustResourceInfo" },
     { CheckEraseQueue,			"CheckEraseQueue" },
     { CloseMemory,			"CloseMemory" },
     { DeregisterClient,			"DeregisterClient" },
+    { DeregisterEraseQueue,		"DeregisterEraseQueue" },
     { GetCardServicesInfo,		"GetCardServicesInfo" },
     { GetClientInfo,			"GetClientInfo" },
     { GetConfigurationInfo,		"GetConfigurationInfo" },
@@ -195,6 +197,7 @@ static const lookup_t service_table[] = {
     { ParseTuple,			"ParseTuple" },
     { ReadMemory,			"ReadMemory" },
     { RegisterClient,			"RegisterClient" },
+    { RegisterEraseQueue,		"RegisterEraseQueue" },
     { RegisterMTD,			"RegisterMTD" },
     { ReleaseConfiguration,		"ReleaseConfiguration" },
     { ReleaseIO,			"ReleaseIO" },
@@ -213,7 +216,10 @@ static const lookup_t service_table[] = {
     { BindMTD,				"BindMTD" },
     { ReportError,			"ReportError" },
     { SuspendCard,			"SuspendCard" },
-    { ResumeCard,			"ResumeCard" }
+    { ResumeCard,			"ResumeCard" },
+    { EjectCard,			"EjectCard" },
+    { InsertCard,			"InsertCard" },
+    { ReplaceCIS,			"ReplaceCIS" }
 };
 #define SERVICE_COUNT (sizeof(service_table)/sizeof(lookup_t))
 
@@ -236,7 +242,7 @@ static void init_socket(socket_info_t *s)
 	io.map = i;
 	s->ss_entry(s->sock, SS_SetIOMap, &io);
     }
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 5; i++) {
 	mem.map = i;
 	s->ss_entry(s->sock, SS_SetMemMap, &mem);
     }
@@ -656,7 +662,7 @@ static int handle_apm_event(apm_event_t event)
 	for (i = 0; i < sockets; i++) {
 	    s = socket_table[i];
 	    /* Do this just to reinitialize the socket */
-	    s->ss_entry(s->sock, SS_SetSocket, &dead_socket);
+	    init_socket(s);
 	    s->ss_entry(s->sock, SS_GetStatus, &stat);
 	    /* If there was or is a card here, we need to do something
 	       about it... but parse_events will sort it all out. */
@@ -933,6 +939,8 @@ static int get_configuration_info(client_handle_t handle,
 	    config->Attributes = CONF_VALID_CLIENT;
 	    config->IntType = INT_CARDBUS;
 	    config->AssignedIRQ = s->irq.AssignedIRQ;
+	    if (config->AssignedIRQ)
+		config->Attributes |= CONF_ENABLE_IRQ;
 	    config->BasePort1 = s->io[0].BasePort;
 	    config->NumPorts1 = s->io[0].NumPorts;
 	}
@@ -1382,7 +1390,7 @@ static int release_io(client_handle_t handle, io_req_t *req)
 
 /*====================================================================*/
 
-static int release_irq(client_handle_t handle, irq_req_t *req)
+static int cs_release_irq(client_handle_t handle, irq_req_t *req)
 {
     socket_info_t *s;
     if (CHECK_HANDLE(handle) || !(handle->state & CLIENT_IRQ_REQ))
@@ -1411,7 +1419,8 @@ static int release_irq(client_handle_t handle, irq_req_t *req)
 	    IRQ_MAP(req->AssignedIRQ, NULL);
 #endif
 #ifdef __BEOS__
-	remove_io_interrupt_handler(req->AssignedIRQ, req->Handler);
+	remove_io_interrupt_handler(req->AssignedIRQ, req->Handler,
+				    req->Instance);
 #endif
     }
 
@@ -1421,7 +1430,7 @@ static int release_irq(client_handle_t handle, irq_req_t *req)
 #endif
     
     return CS_SUCCESS;
-} /* release_irq */
+} /* cs_release_irq */
 
 /*====================================================================*/
 
@@ -1681,8 +1690,9 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 	ret = CS_IN_USE;
 	if (req->IRQInfo1 & IRQ_INFO2_VALID) {
 	    mask = req->IRQInfo2 & s->cap.irq_mask;
+	    mask &= ~(1 << s->cap.pci_irq);
 	    for (try = 0; try < 2; try++) {
-		for (irq = 0; irq < NR_IRQS; irq++)
+		for (irq = 0; irq < 32; irq++)
 		    if ((mask >> irq) & 1) {
 			ret = try_irq(req->Attributes, irq, try);
 			if (ret == 0) break;
@@ -1762,7 +1772,7 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->base = req->Base;
     win->size = req->Size;
     if (find_mem_region(&win->base, win->size, (*handle)->dev_info,
-			(s->cap.cardbus == 0)))
+			!(s->cap.features & SS_HAS_PAGE_REGS)))
 	return CS_IN_USE;
     req->Base = win->base;
     (*handle)->state |= CLIENT_WIN_REQ(w);
@@ -2068,7 +2078,7 @@ int CardServices(int func, void *a1, void *a2, void *a3)
     case ReleaseIO:
 	return release_io(a1, a2); break;
     case ReleaseIRQ:
-	return release_irq(a1, a2); break;
+	return cs_release_irq(a1, a2); break;
     case ReleaseWindow:
 	return release_window(a1); break;
     case RequestConfiguration:
@@ -2122,10 +2132,8 @@ int CardServices(int func, void *a1, void *a2, void *a3)
 #undef CONFIG_MODVERSIONS
 static struct symbol_table cs_symtab = {
 #include <linux/symtab_begin.h>
-#if (LINUX_VERSION_CODE >= VERSION(1,3,0))
 #undef X
 #define X(sym) { (void *)&sym, SYMBOL_NAME_STR(sym) }
-#endif
     X(register_ss_entry),
     X(unregister_ss_entry),
     X(CardServices),
@@ -2189,7 +2197,9 @@ void cleanup_module(void)
 
 isa_module_info *isa = NULL;
 pci_module_info *pci = NULL;
+config_manager_for_bus_module_info *cm = NULL;
 module_info *i82365 = NULL;
+typedef struct module_info mod_t;
 
 static status_t std_ops(int32 op)
 {
@@ -2199,18 +2209,21 @@ static status_t std_ops(int32 op)
 	printk(KERN_INFO "  %s\n", options);
 	DEBUG(0, ("%s\n", version));
 	init_timer();
-	if (get_module(B_ISA_MODULE_NAME, (struct module_info **)&isa)
-	    != B_OK)
+	if (get_module(B_ISA_MODULE_NAME, (mod_t **)&isa) != B_OK)
 	    return B_ERROR;
-	if (get_module(B_PCI_MODULE_NAME, (struct module_info **)&pci)
-	    != B_OK)
+	if (get_module(B_PCI_MODULE_NAME, (mod_t **)&pci) != B_OK)
 	    return B_ERROR;
-	get_module("busses/pcmcia/i82365", &i82365);
+	if (get_module(B_CONFIG_MANAGER_FOR_BUS_MODULE_NAME,
+		       (mod_t **)&cm) != B_OK)
+	    return B_ERROR;
+	get_module(SS_MODULE_NAME("i82365"), &i82365);
 	break;
     case B_MODULE_UNINIT:
 	printk(KERN_INFO "unloading PCMCIA Card Services\n");
-	if (i82365 != NULL) put_module("busses/pcmcia/i82365");
+	if (i82365 != NULL) put_module(SS_MODULE_NAME("i82365"));
 	release_resource_db();
+	if (cm != NULL)
+	    put_module(B_CONFIG_MANAGER_FOR_BUS_MODULE_NAME);
 	if (pci != NULL) put_module(B_PCI_MODULE_NAME);
 	if (isa != NULL) put_module(B_ISA_MODULE_NAME);
 	stop_timer();
@@ -2226,8 +2239,8 @@ static status_t no_ops(int32 op)
 
 static cs_client_module_info cs_client_info = {
     { { CS_CLIENT_MODULE_NAME, B_KEEP_LOADED, &std_ops }, NULL },
-    &CardServices,
-    &MTDHelperEntry,
+    (int (*)(int, ...))&CardServices,
+    (int (*)(int, ...))&MTDHelperEntry,
     &add_timer,
     &del_timer
 };
@@ -2237,7 +2250,10 @@ static cs_socket_module_info cs_socket_info = {
     &register_ss_entry,
     &unregister_ss_entry,
     &add_timer,
-    &del_timer
+    &del_timer,
+    &register_resource,
+    &release_resource,
+    &check_resource
 };
 
 _EXPORT module_info *modules[] = {

@@ -1,5 +1,5 @@
 /*
- * cisreg.h 1.10 1998/05/10 12:10:34
+ * cisreg.h 1.11 1998/09/11 08:54:47
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -76,5 +76,30 @@
  */
 #define ESR_REQ_ATTN_ENA	0x01
 #define ESR_REQ_ATTN		0x10
+
+/*
+ * CardBus Function Status Registers
+ */
+#define CBFN_EVENT		0x00
+#define CBFN_MASK		0x04
+#define CBFN_STATE		0x08
+#define CBFN_FORCE		0x0c
+
+/*
+ * These apply to all the CardBus function registers
+ */
+#define CBFN_WP			0x0001
+#define CBFN_READY		0x0002
+#define CBFN_BVD2		0x0004
+#define CBFN_BVD1		0x0008
+#define CBFN_GWAKE		0x0010
+#define CBFN_INTR		0x8000
+
+/*
+ * Extra bits in the Function Event Mask Register
+ */
+#define FEMR_BAM_ENA		0x0020
+#define FEMR_PWM_ENA		0x0040
+#define FEMR_WKUP_MASK		0x4000
 
 #endif /* _LINUX_CISREG_H */

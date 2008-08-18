@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.57 1998/08/09 00:16:16
+    cistpl.c 1.58 1998/10/01 21:44:34
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -184,7 +184,7 @@ static int checksum_match(u_long base)
 int setup_cis_mem(socket_info_t *s)
 {
     if (s->cis_mem.sys_start == 0) {
-	int low = (s->cap.cardbus == 0);
+	int low = !(s->cap.features & SS_HAS_PAGE_REGS);
 	vs = s;
 	validate_mem(cis_readable, checksum_match, low);
 	s->cis_mem.sys_start = 0;

@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" i82365.4 1.18 1998/05/04 23:27:58
+.\" i82365.4 1.19 1998/10/15 09:26:15
 .\"
-.TH I82365 4 "1998/05/04 23:27:58" "pcmcia-cs"
+.TH I82365 4 "1998/10/15 09:26:15" "pcmcia-cs"
 .SH NAME
 i82365 \- Intel i82365sl PCMCIA controller driver
 .SH SYNOPSIS
@@ -164,6 +164,23 @@ suspended controller chip.  The default is 0.
 A flag for the CL6729 PCI controller, indicating that the PCI bus
 speed exceeds 25 MHz.
 
+.SH Options specific for Ricoh CardBus controllers
+.TP
+.B irq_mode=n
+Selects the interrupt routing method.  A value of 1 selects ISA
+interrupt routing, and 2 selects interrupt routing via an external
+serial interrupt controller.  The default is to use whatever routing
+method is already enabled.
+.TP
+.B setup_time=n
+Sets the bus setup time, in internal clock cycles. The default is 3.
+.TP
+.B cmd_time=n
+Sets the bus command time, in internal clock cycles. The default is 6.
+.TP
+.B hold_time=n
+Sets the bus hold time, in internal clock cycles. The default is 1.
+
 .SH Options specific for Vadem controllers
 .TP
 .B async_clock=n
@@ -174,7 +191,7 @@ to some operations.
 For the VG469, this flag adjusts certain socket signals for driving a
 socket connected via a cable.
 
-.SH Options specific for TI 113X CardBus controllers
+.SH Options specific for TI CardBus controllers
 Normally, a system's BIOS will configure these options appropriately,
 so all these options default to leaving these features configured the
 way the driver finds them.

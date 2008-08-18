@@ -1,3 +1,35 @@
+Version 3.0.6
+-- Performance improvements in CardBus bridge setup code.
+-- Minor Xircom driver update.
+-- Updated 3c575_cb driver for 3c575B (3CCFE575) cards, and fixed
+   hot-eject lockup problem.
+-- Improved ifuser (thanks to Regis Duchesne).
+-- Added memory window support to pack_cis.
+-- Added support for 3CCFEM556B cards: still flaky.
+-- Added description of socket driver layer to programming guide.
+-- Added some support for PCI power management specification.
+-- Improved interrupt scan logic, with better fault recovery: also we
+   now try to PCI interrupts whenever possible.
+-- Improved probe logic for PCI host controllers.
+-- Cleaner multifunction card detection logic in serial driver.
+-- Cleaner, simpler IO port configuration logic in pcnet_cs driver.
+-- Stricter alignment rules for CardBus memory windows.
+-- Made the suspend/resume code more systematic about reconfiguring
+   sockets after a suspend.
+-- Accommodated a few RedHat-5.1-isms in install scripts.
+-- Fixed initialization bug in the TCIC socket driver.
+-- Fixed D-Link EtherFast initialization problem.
+-- Fixed startup with an already-inserted CardBus card.
+-- Fixed several ToPIC95 chipset configuration problems.
+-- Fixed IDE driver to retry ide_register() to give slow drives time
+   to spin up.
+-- Fixed Cardbus structure initialization bug.
+-- Fixed 2.1 kernel compiler options for ppc and alpha.
+-- Fixed Cirrus CardBus status interrupt selection bug.
+-- Fixed for 2.1.118-2.1.124 kernels.
+-- Fixed controller option flag mixup in i82365 driver.
+-- Fixed dump_cis bug in multifunction card handling.
+
 Version 3.0.5
 -- Various minor code cleanups.
 -- Reorganized i82365 header files.

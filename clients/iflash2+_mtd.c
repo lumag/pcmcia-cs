@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2+ Flash devices
 
-    iflash2+_mtd.c 1.46 1998/07/30 23:15:24
+    iflash2+_mtd.c 1.48 1998/11/10 07:44:42
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -64,7 +64,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static char *version =
-"iflash2+_mtd.c 1.46 1998/07/30 23:15:24 (David Hinds)";
+"iflash2+_mtd.c 1.48 1998/11/10 07:44:42 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
@@ -227,10 +227,9 @@ static int check_write(struct wait_queue **queue, volatile u_short *esr)
 {
     writew(IF_READ_ESR, esr);
     if ((readw(esr+2) & BSR_READY) != BSR_READY) {
-	current->timeout = jiffies + write_timeout;
-	while (current->timeout &&
-	       ((readw(esr+2) & BSR_READY) != BSR_READY))
-	    interruptible_sleep_on(queue);
+	int to = 1;
+	while (to && ((readw(esr+2) & BSR_READY) != BSR_READY))
+	    to = wsleeptimeout(queue, write_timeout);
 	if ((readw(esr+2) & BSR_READY) != BSR_READY) {
 	    printk(KERN_NOTICE "iflash2+_mtd: check_write: timed out!\n");
 	    log_esr(NULL, esr);
@@ -251,10 +250,9 @@ static int page_setup(struct wait_queue **queue, volatile u_short *esr,
 
     writew(IF_READ_ESR, esr);
     if ((readw(esr+4) & GSR_PAGE_AVAIL) != GSR_PAGE_AVAIL) {
-	current->timeout = jiffies + write_timeout;
-	while (current->timeout &&
-	       ((readw(esr+4) & GSR_PAGE_AVAIL) != GSR_PAGE_AVAIL))
-	    interruptible_sleep_on(queue);
+	int to = 1;
+	while (to && ((readw(esr+4) & GSR_PAGE_AVAIL) != GSR_PAGE_AVAIL))
+	    to = wsleeptimeout(queue, write_timeout);
 	if ((readw(esr+4) & GSR_PAGE_AVAIL) != GSR_PAGE_AVAIL) {
 	    printk(KERN_NOTICE "iflash2+_mtd: page_setup timed out\n");
 	    log_esr(NULL, esr);
@@ -515,7 +513,6 @@ static void flash_detach(dev_link_t *link)
 {
     dev_link_t **linkp;
     int ret;
-    long flags;
 
     DEBUG(0, ("iflash2+_mtd: flash_detach(0x%p)\n", link));
     
@@ -525,13 +522,8 @@ static void flash_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    save_flags(flags);
-    cli();
-    if (link->state & DEV_RELEASE_PENDING) {
+    if (link->state & DEV_RELEASE_PENDING)
 	del_timer(&link->release);
-	link->state &= ~DEV_RELEASE_PENDING;
-    }
-    restore_flags(flags);
     
     if (link->state & DEV_CONFIG)
 	flash_release((u_long)link);
@@ -1126,6 +1118,7 @@ static int flash_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    link->release.expires = RUN_AT(HZ/20);
+	    link->state |= DEV_RELEASE_PENDING;
 	    add_timer(&link->release);
 	}
 	break;
@@ -1196,44 +1189,3 @@ void cleanup_module(void)
 }
 
 #endif /* __LINUX__ */
-
-/*====================================================================*/
-
-#ifdef __BEOS__
-
-static status_t std_ops(int32 op)
-{
-    int ret;
-    DEBUG(0, ("iflash2+_mtd: std_ops(%d)\n", op));
-    switch (op) {
-    case B_MODULE_INIT:
-	vpp_timeout_period = (vpp_timeout_period * HZ) / 1000;
-	vpp_settle = (vpp_settle * HZ) / 1000;
-	write_timeout = (write_timeout * HZ) / 1000;
-	erase_limit = (erase_limit * HZ) / 1000;
-	ret = get_module(CS_SOCKET_MODULE_NAME, (struct module_info **)&cs);
-	if (ret != B_OK) return ret;
-	ret = get_module(B_ISA_MODULE_NAME, (struct module_info **)&isa);
-	if (ret != B_OK) return ret;
-	register_pcmcia_driver(&dev_info, &flash_attach, &flash_detach);
-	break;
-    case B_MODULE_UNINIT:
-	unregister_pcmcia_driver(&dev_info);
-	while (dev_list != NULL)
-	    flash_detach(dev_list);
-	if (isa) put_module(B_ISA_MODULE_NAME);
-	if (cs) put_module(CS_SOCKET_MODULE_NAME);
-	break;
-    }
-    return B_OK;
-}
-
-static module_info flash_mtd_mod_info =
-{ "bus_managers/iflash2+_mtd/v1", 0, &std_ops };
-
-_EXPORT module_info *modules[] = {
-    &flash_mtd_mod_info,
-    NULL
-};
-
-#endif /* __BEOS__ */

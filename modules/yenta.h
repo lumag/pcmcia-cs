@@ -1,5 +1,5 @@
 /*
- * yenta.h 1.12 1998/05/10 11:59:46
+ * yenta.h 1.13 1998/10/08 10:18:08
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -21,29 +21,50 @@
 
 /* PCI Configuration Registers */
 
-#define CB_CONTROL_REG_BASE		0x0010
+#define PCI_STATUS_CAPLIST		0x10
+#define PCI_CB_CAPABILITY_POINTER	0x14	/* 8 bit */
+#define PCI_CAPABILITY_ID		0x00	/* 8 bit */
+#define  PCI_CAPABILITY_PM		0x01
+#define PCI_NEXT_CAPABILITY		0x01	/* 8 bit */
+#define PCI_PM_CAPABILITIES		0x02	/* 16 bit */
+#define  PCI_PMCAP_PME_D3COLD		0x8000
+#define  PCI_PMCAP_PME_D3HOT		0x4000
+#define  PCI_PMCAP_PME_D2		0x2000
+#define  PCI_PMCAP_PME_D1		0x1000
+#define  PCI_PMCAP_PME_D0		0x0800
+#define  PCI_PMCAP_D2_CAP		0x0400
+#define  PCI_PMCAP_D1_CAP		0x0200
+#define  PCI_PMCAP_DYN_DATA		0x0100
+#define  PCI_PMCAP_DSI			0x0020
+#define  PCI_PMCAP_AUX_PWR		0x0010
+#define  PCI_PMCAP_PMECLK		0x0008
+#define  PCI_PMCAP_VERSION_MASK		0x0007
+#define PCI_PM_CONTROL_STATUS		0x04	/* 16 bit */
+#define  PCI_PMCS_PME_STATUS		0x8000
+#define  PCI_PMCS_DATASCALE_MASK	0x6000
+#define  PCI_PMCS_DATASCALE_SHIFT	13
+#define  PCI_PMCS_DATASEL_MASK		0x1e00
+#define  PCI_PMCS_DATASEL_SHIFT		9
+#define  PCI_PMCS_PME_ENABLE		0x0100
+#define  PCI_PMCS_PWR_STATE_MASK	0x0003
+#define  PCI_PMCS_PWR_STATE_D0		0x0000
+#define  PCI_PMCS_PWR_STATE_D1		0x0001
+#define  PCI_PMCS_PWR_STATE_D2		0x0002
+#define  PCI_PMCS_PWR_STATE_D3		0x0003
+#define PCI_PM_BRIDGE_EXT		0x06	/* 8 bit */
+#define PCI_PM_DATA			0x07	/* 8 bit */
 
-#define CB_STATUS			0x0016	/* 16 bit */
-#define  CB_STATUS_FAST_BTB		0x0080
-#define  CB_STATUS_DATA_PARITY_ERR	0x0100
-#define  CB_STATUS_CDEVSEL		0x0600
-#define  CB_STATUS_SIGNAL_ABORT		0x0800
-#define  CB_STATUS_RECV_ABORT		0x1000
-#define  CB_STATUS_MASTER_ABORT		0x2000
-#define  CB_STATUS_SYSTEM_ERROR		0x4000
-#define  CB_STATUS_PARITY_ERROR		0x8000
+#define CB_PRIMARY_BUS			0x18	/* 8 bit */
+#define CB_CARDBUS_BUS			0x19	/* 8 bit */
+#define CB_SUBORD_BUS			0x1a	/* 8 bit */
+#define CB_LATENCY_TIMER		0x1b	/* 8 bit */
 
-#define CB_PCI_BUS			0x0018	/* 8 bit */
-#define CB_CARDBUS_BUS			0x0019	/* 8 bit */
-#define CB_SUBORD_BUS			0x001a	/* 8 bit */
-#define CB_LATENCY_TIMER		0x001b	/* 8 bit */
+#define CB_MEM_BASE(m)			(0x1c + 8*(m))
+#define CB_MEM_LIMIT(m)			(0x20 + 8*(m))
+#define CB_IO_BASE(m)			(0x2c + 8*(m))
+#define CB_IO_LIMIT(m)			(0x30 + 8*(m))
 
-#define CB_MEM_BASE(m)			(0x001c + 8*(m))
-#define CB_MEM_LIMIT(m)			(0x0020 + 8*(m))
-#define CB_IO_BASE(m)			(0x002c + 8*(m))
-#define CB_IO_LIMIT(m)			(0x0030 + 8*(m))
-
-#define CB_BRIDGE_CONTROL		0x003e	/* 16 bit */
+#define CB_BRIDGE_CONTROL		0x3e	/* 16 bit */
 #define  CB_BCR_PARITY_ENA		0x0001
 #define  CB_BCR_SERR_ENA		0x0002
 #define  CB_BCR_ISA_ENA			0x0004
@@ -54,9 +75,7 @@
 #define  CB_BCR_PREFETCH(m)		(0x0100 << (m))
 #define  CB_BCR_WRITE_POST		0x0400
 
-#define CB_SUBSYSTEM_VENDOR_ID	0x0040	/* 16 bit */
-#define CB_SUBSYSTEM_ID		0x0042	/* 16 bit */
-#define CB_LEGACY_MODE_BASE	0x0044
+#define CB_LEGACY_MODE_BASE		0x44
 
 /* Memory mapped registers */
 

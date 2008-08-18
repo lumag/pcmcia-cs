@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" tcic.4 1.13 1998/05/04 23:28:26
+.\" tcic.4 1.14 1998/10/29 17:37:12
 .\"
-.TH TCIC 4 "1998/05/04 23:28:26" "pcmcia-cs"
+.TH TCIC 4 "1998/10/29 17:37:12" "pcmcia-cs"
 .SH NAME
 tcic \- Databook TCIC-2 PCMCIA controller driver
 .SH SYNOPSIS
@@ -15,7 +15,6 @@ tcic \- Databook TCIC-2 PCMCIA controller driver
 .RB [ poll_interval=n ]
 .RB [ poll_quick=n ]
 .RB [ cycle_time=n ]
-.RB [ async_clock=n ]
 .SH DESCRIPTION
 This is the low-level driver for the Databook TCIC-2 PCMCIA host
 controller family.  It is used by Card Services for programming the
@@ -65,11 +64,6 @@ polling delay, in 1/100 second increments.  The default is 5, meaning
 .B cycle_time=n
 Sets the length of a CCLK external clock cycle, in nanoseconds.  The
 default is 70 ns, corresponding to a standard ISA 14.31818 MHz clock.
-.TP
-.B async_clock=n
-This flag specifies that PCMCIA bus cycles should be clocked
-asynchronously from host bus cycles, effectively adding extra wait
-states to some operations.  The default is 0 (off).
 .SH AUTHOR
 David Hinds \- dhinds@hyper.stanford.edu
 .SH "SEE ALSO"

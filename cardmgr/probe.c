@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.34 1998/08/01 19:01:14
+    probe.c 1.37 1998/11/18 07:03:47
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -58,15 +58,22 @@ pci_id_t pci_id[] = {
     { 0x1013, 0x6729, "Cirrus Logic CL 6729", "Cirrus PD6729" },
     { 0x1013, 0x1110, "Cirrus Logic PD 6832", "Cirrus PD6832" },
     { 0x10b3, 0xb106, "SMC 34C90", "SMC 34C90" },
+    { 0x1180, 0x0465, "Ricoh RL5C465", "Ricoh RL5C465" },
     { 0x1180, 0x0466, "Ricoh RL5C466", "Ricoh RL5C466" },
+    { 0x1180, 0x0475, "Ricoh RL5C475", "Ricoh RL5C475" },
+    { 0x1180, 0x0476, "Ricoh RL5C476", "Ricoh RL5C476" },
+    { 0x1180, 0x0478, "Ricoh RL5C478", "Ricoh RL5C478" },
     { 0x104c, 0xac12, "Texas Instruments PCI1130", "TI 1130" },
     { 0x104c, 0xac13, "Texas Instruments PCI1031", "TI 1031" },
     { 0x104c, 0xac15, "Texas Instruments PCI1131", "TI 1131" },
     { 0x104c, 0xac16, "Texas Instruments PCI1250", "TI 1250A" },
     { 0x104c, 0xac17, "Texas Instruments PCI1220", "TI 1220" },
+    { 0x104c, 0xac19, "Texas Instruments PCI1221", "TI 1221" },
+    { 0x104c, 0xac1a, "Texas Instruments PCI1210", "TI 1210" },
     { 0x1217, 0x6729, "O2 Micro 6729", "O2Micro OZ6729" },
     { 0x1217, 0x673a, "O2 Micro 6730", "O2Micro OZ6730" },
     { 0x1217, 0x6832, "O2 Micro 6832", "O2Micro OZ6832" },
+    { 0x1217, 0x6836, "O2 Micro 6836", "O2Micro OZ6836" },
     { 0x1179, 0x060a, "Toshiba ToPIC95", "Toshiba ToPIC95" },
     { 0x1179, 0x060f, "Toshiba ToPIC97", "Toshiba ToPIC97" },
     { 0x119b, 0x1221, "Omega Micro 82C092G", "Omega Micro 82C092G" },
@@ -99,7 +106,7 @@ static int pci_probe(int verbose, int module)
 	while (fgets(s, 256, f) != NULL) {
 	    t = strstr(s, "Device id=");
 	    if (t) {
-		device = strtoul(s+10, NULL, 16);
+		device = strtoul(t+10, NULL, 16);
 		t = strstr(s, "Vendor id=");
 		vendor = strtoul(t+10, NULL, 16);
 		for (i = 0; i < PCI_COUNT; i++)

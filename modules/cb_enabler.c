@@ -2,7 +2,7 @@
 
     Cardbus device enabler
 
-    cb_enabler.c 1.11 1998/08/17 22:33:49
+    cb_enabler.c 1.12 1998/11/18 08:12:18
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -31,11 +31,13 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#ifdef __LINUX__
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/malloc.h>
 #include <linux/string.h>
 #include <linux/timer.h>
+#endif
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -48,9 +50,9 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.11 1998/08/17 22:33:49 (David Hinds)";
+"cb_enabler.c 1.12 1998/11/18 08:12:18 (David Hinds)";
 #else
-#define DEBUG(n, args...)
+#define DEBUG(n, args...) do { } while (0)
 #endif
 
 /*====================================================================*/
@@ -96,6 +98,11 @@ static int cb_event(event_t event, int priority,
 static void cb_detach(dev_link_t *);
 
 static bus_info_t bus_table[MAX_DRIVER];
+
+#ifdef __BEOS__
+static cs_socket_module_info *cs;
+#define RSRC_MGR cs->
+#endif
 
 /*====================================================================*/
 
@@ -345,6 +352,8 @@ void unregister_driver(struct driver_operations *ops)
 
 /*====================================================================*/
 
+#ifdef __LINUX__
+
 int init_module(void) {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
@@ -360,3 +369,39 @@ int init_module(void) {
 void cleanup_module(void) {
     DEBUG(0, "cb_enabler: unloading\n");
 }
+
+#endif /* __LINUX__ */
+
+/*====================================================================*/
+
+#ifdef __BEOS__
+
+typedef struct module_info mod_t;
+
+static status_t std_ops(int32 op)
+{
+    switch (op) {
+    case B_MODULE_INIT:
+	DEBUG(0, ("%s\n", version));
+	ret = get_module(CS_SOCKET_MODULE_NAME, (struct module_info **)&cs);
+	if (ret != B_OK) return ret;
+	break;
+    case B_MODULE_UNINIT:
+	if (cs) put_module(CS_CLIENT_MODULE_NAME, cs);
+	break;
+    }
+    return B_OK;
+}
+
+static cb_enabler_module_info cb_enabler_info = {
+    { { CB_ENABLER_MODULE_NAME, 0, &std_ops }, NULL },
+    &register_driver,
+    &unregister_driver
+};
+
+_EXPORT module_info *modules[] = {
+    (module_info *)&cb_enabler_info,
+    NULL
+};
+
+#endif /* __BEOS__ */

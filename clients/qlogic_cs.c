@@ -2,7 +2,7 @@
 
     A driver for the Qlogic SCSI card
 
-    qlogic_cs.c 1.62 1998/07/18 09:25:42
+    qlogic_cs.c 1.64 1998/11/18 08:01:13
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -30,24 +30,13 @@
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <asm/io.h>
-
-#ifdef GET_SCSI_INFO
-#if (LINUX_VERSION_CODE >= VERSION(1,3,98))
 #include <scsi/scsi.h>
-#else
-#include <linux/scsi.h>
-#endif
 #include <linux/major.h>
-#endif
 
 #include BLK_DEV_HDR
 #include "drivers/scsi/scsi.h"
 #include "drivers/scsi/hosts.h"
-#if (LINUX_VERSION_CODE >= VERSION(1,3,98))
 #include <scsi/scsi_ioctl.h>
-#else
-#include "drivers/scsi/scsi_ioctl.h"
-#endif
 
 #ifdef NEW_QLOGIC
 #include "drivers/scsi/qlogicfas.h"
@@ -82,7 +71,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"qlogic_cs.c 1.62 1998/07/18 09:25:42 (David Hinds)";
+"qlogic_cs.c 1.64 1998/11/18 08:01:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -232,12 +221,10 @@ static void qlogic_config(dev_link_t *link)
     cisparse_t parse;
     int i, last_ret, last_fn;
     u_short tuple_data[32];
-#ifdef GET_SCSI_INFO
     Scsi_Device *dev;
     dev_node_t **tail, *node;
 #if (LINUX_VERSION_CODE >= VERSION(2,1,75))
     struct Scsi_Host *host;
-#endif
 #endif
     
     handle = link->handle;
@@ -299,7 +286,6 @@ static void qlogic_config(dev_link_t *link)
     
     scsi_register_module(MODULE_SCSI_HA, &driver_template);
 
-#ifdef GET_SCSI_INFO
     tail = &link->dev;
     info->ndev = 0;
 #if (LINUX_VERSION_CODE < VERSION(2,1,75))
@@ -323,7 +309,7 @@ static void qlogic_config(dev_link_t *link)
 		break;
 	    case TYPE_DISK:
 	    case TYPE_MOD:
-		node->major = SCSI_DISK_MAJOR;
+		node->major = SCSI_DISK0_MAJOR;
 		sprintf(node->dev_name, "sd#%04lx", id);
 		break;
 	    case TYPE_ROM:
@@ -342,10 +328,6 @@ static void qlogic_config(dev_link_t *link)
     *tail = NULL;
     if (info->ndev == 0)
 	printk(KERN_INFO "qlogic_cs: no SCSI devices found\n");
-#else
-    strcpy(info->node[0].dev_name, "n/a");
-    link->dev = &info->node[0];
-#endif /* GET_SCSI_INFO */
     
     link->state &= ~DEV_CONFIG_PENDING;
     return;

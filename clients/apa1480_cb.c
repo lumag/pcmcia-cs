@@ -2,7 +2,7 @@
 
     A driver for the Adaptec APA1480 CardBus SCSI Host Adapter
 
-    apa1480_cb.c 1.6 1998/05/21 11:34:28
+    apa1480_cb.c 1.8 1998/11/18 08:01:13
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -29,24 +29,13 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
-
-#ifdef GET_SCSI_INFO
-#if (LINUX_VERSION_CODE >= VERSION(1,3,98))
 #include <scsi/scsi.h>
-#else
-#include <linux/scsi.h>
-#endif
 #include <linux/major.h>
-#endif
 
 #include BLK_DEV_HDR
 #include "drivers/scsi/scsi.h"
 #include "drivers/scsi/hosts.h"
-#if (LINUX_VERSION_CODE >= VERSION(1,3,98))
 #include <scsi/scsi_ioctl.h>
-#else
-#include "drivers/scsi/scsi_ioctl.h"
-#endif
 #include "drivers/scsi/aic7xxx.h"
 
 #include <pcmcia/driver_ops.h>
@@ -56,7 +45,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"apa1480_cb.c 1.6 1998/05/21 11:34:28 (David Hinds)";
+"apa1480_cb.c 1.8 1998/11/18 08:01:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -89,14 +78,12 @@ struct driver_operations apa1480_ops = {
 static dev_node_t *apa1480_attach(dev_locator_t *loc)
 {
     u_char bus, devfn;
-#ifdef GET_SCSI_INFO
     Scsi_Device *dev;
     dev_node_t *node;
     char s[20];
     int n = 0;
 #if (LINUX_VERSION_CODE >= VERSION(2,1,75))
     struct Scsi_Host *host;
-#endif
 #endif
     
     if (loc->bus != LOC_PCI) return NULL;
@@ -114,7 +101,6 @@ static dev_node_t *apa1480_attach(dev_locator_t *loc)
     aic7xxx_setup(s, NULL);
     scsi_register_module(MODULE_SCSI_HA, &driver_template);
 
-#ifdef GET_SCSI_INFO
     node = kmalloc(7 * sizeof(dev_node_t), GFP_KERNEL);
 #if (LINUX_VERSION_CODE < VERSION(2,1,75))
     for (dev = scsi_devices; dev; dev = dev->next)
@@ -136,7 +122,7 @@ static dev_node_t *apa1480_attach(dev_locator_t *loc)
 		break;
 	    case TYPE_DISK:
 	    case TYPE_MOD:
-		node[n].major = SCSI_DISK_MAJOR;
+		node[n].major = SCSI_DISK0_MAJOR;
 		sprintf(node[n].dev_name, "sd#%04lx", id);
 		break;
 	    case TYPE_ROM:
@@ -157,11 +143,6 @@ static dev_node_t *apa1480_attach(dev_locator_t *loc)
 	return NULL;
     } else
 	node[n-1].next = NULL;
-#else
-    node = kmalloc(sizeof(dev_node_t), GFP_KERNEL);
-    strcpy(node->dev_name, "n/a");
-    node->next = NULL;
-#endif /* GET_SCSI_INFO */
     
     MOD_INC_USE_COUNT;
     return node;

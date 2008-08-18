@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.49 1998/08/20 10:46:40
+    rsrc_mgr.c 1.54 1998/11/18 08:11:30
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -49,36 +49,21 @@
 /* Parameters that can be set with 'insmod' */
 
 /* Should we probe resources for conflicts? */
+static int probe_mem = 1;
+MODULE_PARM(probe_mem, "i");
 #ifdef CONFIG_ISA
 static int probe_io = 1;
-static int probe_mem = 1;
 static int mem_limit = 0x10000;
 MODULE_PARM(probe_io, "i");
-MODULE_PARM(probe_mem, "i");
 MODULE_PARM(mem_limit, "i");
 #endif
 
 /*======================================================================
 
-    The resource_entry_t structures are used to track resources used
-    by PC Card drivers.  The resource_map_t structures are used to
-    track what resources are available for allocation.
+    The resource_map_t structures are used to track what resources are
+    available for allocation for PC Card devices.
 
 ======================================================================*/
-
-typedef struct resource_entry_t {
-    u_long			base, num;
-    char			*name;
-    struct resource_entry_t	*next;
-} resource_entry_t;
-
-/* An ordered linked list of allocated memory blocks */
-static resource_entry_t mem_list = { 0, 0, NULL, NULL };
-
-#ifdef __BEOS__
-/* An ordered linked list of allocated IO blocks */
-static resource_entry_t io_list = { 0, 0, NULL, NULL };
-#endif
 
 typedef struct resource_map_t {
     u_long			base, num;
@@ -110,9 +95,21 @@ static spinlock_t rsrc_lock = SPIN_LOCK_UNLOCKED;
 
 /*======================================================================
 
-    These functions manage the databases of allocated resources
+    Linux resource management extensions for keeping track of memory
+    mapped devices.
     
 ======================================================================*/
+
+#ifdef __LINUX__
+
+typedef struct resource_entry_t {
+    u_long			base, num;
+    char			*name;
+    struct resource_entry_t	*next;
+} resource_entry_t;
+
+/* An ordered linked list of allocated memory blocks */
+static resource_entry_t mem_list = { 0, 0, NULL, NULL };
 
 static resource_entry_t *find_gap(resource_entry_t *root,
 				  resource_entry_t *entry)
@@ -131,21 +128,6 @@ static resource_entry_t *find_gap(resource_entry_t *root,
 	    break;
     }
     return p;
-}
-
-static int check_resource(resource_entry_t *list,
-			  u_long base, u_long num)
-{
-    resource_entry_t entry;
-    u_long flags;
-    int ret;
-
-    entry.base = base;
-    entry.num = num;
-    spin_lock_irqsave(&rsrc_lock, flags);
-    ret = (find_gap(list, &entry) == NULL) ? -EBUSY : 0;
-    spin_unlock_irqrestore(&rsrc_lock, flags);
-    return ret;
 }
 
 static int register_resource(resource_entry_t *list,
@@ -193,6 +175,15 @@ static int release_resource(resource_entry_t *list,
     return -EINVAL;
 }
 
+static int check_resource(resource_entry_t *list,
+			  u_long base, u_long num)
+{
+    if (register_resource(list, base, num, NULL) != 0)
+	return -EBUSY;
+    release_resource(list, base, num);
+    return 0;
+}
+
 int check_mem_region(u_long base, u_long num)
 {
     return check_resource(&mem_list, base, num);
@@ -206,20 +197,73 @@ int release_mem_region(u_long base, u_long num)
     return release_resource(&mem_list, base, num);
 }
 
+#endif /* __LINUX__ */
+
+/*======================================================================
+
+    BeOS resource management functions for memory mapped devices.
+    
+======================================================================*/
+
 #ifdef __BEOS__
-int check_io_region(u_long base, u_long num)
+
+#include "config_manager.h"
+#include "config_manager_p.h"
+
+typedef struct possible_device_configurations pdc_t;
+typedef struct device_configuration dc_t;
+typedef resource_descriptor rd_t;
+
+int register_resource(int type, u_long base, u_long num)
 {
-    return check_resource(&io_list, base, num);
+    pdc_t *p = malloc(sizeof(pdc_t)+sizeof(dc_t)+sizeof(rd_t));
+    dc_t *c = &p->possible[0];
+    rd_t *r = &c->resources[0];
+    dc_t *got;
+    int ret;
+    p->num_possible = 1;
+    c->flags = 0; c->num_resources = 1;
+    r->type = type;
+    if (type == B_IRQ_RESOURCE) {
+	r->d.m.mask = 1<<base;
+	r->d.m.flags = r->d.m.cookie = 0;
+    } else {
+	r->d.r.minbase = r->d.r.maxbase = base; r->d.r.len = num;
+	r->d.r.basealign = 1; r->d.r.flags = r->d.r.cookie = 0;
+    }
+    ret = cm->assign_configuration(p, &got);
+    if (ret == 0) free(got);
+    free(p);
+    return ret;
 }
-int register_io_region(u_long base, u_long num, char *name)
+
+int release_resource(int type, u_long base, u_long num)
 {
-    return register_resource(&io_list, base, num, name);
+    dc_t *c = malloc(sizeof(dc_t)+sizeof(rd_t));
+    rd_t *r = &c->resources[0];
+    int ret;
+    c->flags = 0; c->num_resources = 1;
+    r->type = type;
+    if (type == B_IRQ_RESOURCE) {
+	r->d.m.mask = 1<<base;
+	r->d.m.flags = r->d.m.cookie = 0;
+    } else {
+	r->d.r.minbase = r->d.r.maxbase = base; r->d.r.len = num;
+	r->d.r.basealign = 1; r->d.r.flags = r->d.r.cookie = 0;
+    }
+    ret = cm->unassign_configuration(c);
+    free(c);
+    return ret;
 }
-int release_io_region(u_long base, u_long num)
+
+int check_resource(int type, u_long base, u_long num)
 {
-    return release_resource(&io_list, base, num);
+    int ret = register_resource(type, base, num);
+    if (ret == B_OK) release_resource(type, base, num);
+    return ret;
 }
-#endif
+
+#endif /* __BEOS__ */
 
 /*====================================================================*/
 
@@ -242,7 +286,7 @@ int proc_read_mem(char *buf, char **start, off_t pos,
 
 /*======================================================================
 
-    These manage the internal databases of available resources
+    These manage the internal databases of available resources.
     
 ======================================================================*/
 
@@ -313,26 +357,24 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
 {
     
     ioaddr_t i, j, bad, any;
-    u_char *b, hole;
-
+    u_char *b, hole, most;
+    
     printk(KERN_INFO "cs: IO port probe 0x%04x-0x%04x:",
 	   base, base+num-1);
+    ACQUIRE_RESOURCE_LOCK;
     
     /* First, what does a floating port look like? */
     b = kmalloc(256, GFP_KERNEL);
     memset(b, 0, 256);
-    for (i = base; i < base+num; i += 8) {
-	if (check_region(i, 8) != 0)
-	    continue;
+    for (i = base, most = 0; i < base+num; i += 8) {
+	if (check_region(i, 8) != 0) continue;
 	hole = inb(i);
 	for (j = 1; j < 8; j++)
 	    if (inb(i+j) != hole) break;
-	if (j == 8)
-	    b[hole]++;
+	if ((j == 8) && (++b[hole] > b[most]))
+	    most = hole;
+	if (b[most] == 127) break;
     }
-    hole = 0;
-    for (i = 0; i < 256; i++)
-	if (b[i] > b[hole]) hole = i;
     kfree(b);
 
     bad = any = 0;
@@ -340,7 +382,7 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
 	if (check_region(i, 8) != 0)
 	    continue;
 	for (j = 0; j < 8; j++)
-	    if (inb(i+j) != hole) break;
+	    if (inb(i+j) != most) break;
 	if (j < 8) {
 	    if (!any)
 		printk(" excluding");
@@ -365,6 +407,7 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     }
     
     printk(any ? "\n" : " clean.\n");
+    RELEASE_RESOURCE_LOCK;
 }
 #endif
 
@@ -383,6 +426,7 @@ static int do_mem_probe(u_long base, u_long num, int pass,
 
     printk(KERN_INFO "cs: memory probe 0x%06lx-0x%06lx:",
 	   base, base+num-1);
+    ACQUIRE_RESOURCE_LOCK;
     if (pass != 0) release_mem_region(base, num);
     bad = 0;
     step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
@@ -398,6 +442,7 @@ static int do_mem_probe(u_long base, u_long num, int pass,
 	}
     }
     printk(bad ? "\n" : " clean.\n");
+    RELEASE_RESOURCE_LOCK;
     return (num - bad);
 }
 
@@ -490,9 +535,9 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, char *name)
     if (*base != 0) {
 	for (m = io_db.next; m != &io_db; m = m->next) {
 	    if ((*base >= m->base) && (*base+num <= m->base+m->num)) {
-		if (check_region(*base, num))
+		if (check_region(*base, num)) {
 		    return -1;
-		else {
+		} else {
 		    request_region(*base, num, name);
 		    return 0;
 		}
@@ -502,15 +547,18 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, char *name)
     }
     
     for (align = 1; align < num; align *= 2) ;
+    ACQUIRE_RESOURCE_LOCK;
     for (m = io_db.next; m != &io_db; m = m->next) {
 	for (*base = (m->base + align - 1) & (~(align-1));
 	     *base+align <= m->base + m->num;
 	     *base += align)
 	    if (check_region(*base, num) == 0) {
 		request_region(*base, num, name);
+		RELEASE_RESOURCE_LOCK;
 		return 0;
 	    }
     }
+    RELEASE_RESOURCE_LOCK;
     return -1;
 } /* find_io_region */
 
@@ -530,18 +578,22 @@ int find_mem_region(u_long *base, u_long num, char *name,
     
     for (align = 4096; align < num; align *= 2) ;
 
+    ACQUIRE_RESOURCE_LOCK;
     while (1) {
 	for (m = mem_db.next; m != &mem_db; m = m->next) {
 	    /* first pass >1MB, second pass <1MB */
 	    if ((force_low != 0) ^ (m->base < 0x100000)) continue;
 	    for (*base = (m->base + align - 1) & (~(align-1));
 		 *base+align <= m->base+m->num; *base += align)
-		if (register_mem_region(*base, num, name) == 0)
+		if (register_mem_region(*base, num, name) == 0) {
+		    RELEASE_RESOURCE_LOCK;
 		    return 0;
+		}
 	}
 	if (force_low) break;
 	force_low++;
     }
+    RELEASE_RESOURCE_LOCK;
     return -1;
 } /* find_mem_region */
 
@@ -557,6 +609,13 @@ int find_mem_region(u_long *base, u_long num, char *name,
 
 #ifdef __LINUX__
 static void fake_irq IRQ(int i, void *d, struct pt_regs *r) { }
+static inline int check_irq(int irq)
+{
+    if (REQUEST_IRQ(irq, fake_irq, 0, "bogus", NULL) != 0)
+	return -1;
+    FREE_IRQ(irq, NULL);
+    return 0;
+}
 #endif
 
 int try_irq(u_int Attributes, int irq, int specific)
@@ -588,11 +647,8 @@ int try_irq(u_int Attributes, int irq, int specific)
     } else {
 	if ((info->Attributes & RES_RESERVED) && !specific)
 	    return CS_IN_USE;
-#ifdef __LINUX__
-	if (REQUEST_IRQ(irq, fake_irq, 0, "bogus", NULL) != 0)
+	if (check_irq(irq) != 0)
 	    return CS_IN_USE;
-	FREE_IRQ(irq, NULL);
-#endif
 	switch (Attributes & IRQ_TYPE) {
 	case IRQ_TYPE_EXCLUSIVE:
 	    info->Attributes |= RES_ALLOCATED;

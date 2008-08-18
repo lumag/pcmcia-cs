@@ -20,31 +20,11 @@
 # contains a list of partitions for which options should be read.
 #
 
-. ./shared
-
-# If we're running on a 1.2.X system, use hard-wired list
-if [ "$DEVICE" = "n/a" ] ; then
-    . $0.opts
-    if [ "$SCSI_DEVICES" != "" ] ; then
-	export SCSI_DEVICES
-	for DEVICE in $SCSI_DEVICES ; do
-	    $0 $ACTION $DEVICE
-	done
-    fi
-    exit 0
-fi
+if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 
 # Get device attributes
-if [ "$SCSI_DEVICES" = "" ] ; then
-    get_info $DEVICE
-else
-    if [ -s /var/run/pcmcia-scheme ] ; then
-	SCHEME=`cat /var/run/pcmcia-scheme`
-    else
-	SCHEME="default"
-    fi
-    SOCKET=0
-fi
+get_info $DEVICE
+
 case "$DEVICE" in
 sd*)  TYPE="sd" ;;
 st*)  TYPE="st" ;;

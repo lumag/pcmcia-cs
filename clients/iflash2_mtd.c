@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2 and Series 100 Flash devices
 
-    iflash2_mtd.c 1.40 1998/07/30 23:51:51
+    iflash2_mtd.c 1.42 1998/11/16 05:02:25
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -65,7 +65,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static char *version =
-"iflash2_mtd.c 1.40 1998/07/30 23:51:51 (David Hinds)";
+"iflash2_mtd.c 1.42 1998/11/16 05:02:25 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
@@ -140,10 +140,15 @@ static dev_info_t dev_info = "iflash2_mtd";
 static dev_link_t *dev_list = NULL;
 
 #ifdef __BEOS__
-static cs_socket_module_info *cs;
+static cs_client_module_info *cs;
+static ds_module_info *ds;
 static isa_module_info *isa;
+#define CardServices		cs->_CardServices
+#define MTDHelperEntry		cs->_MTDHelperEntry
 #define add_timer		cs->_add_timer
 #define del_timer		cs->_del_timer
+#define register_pccard_driver	ds->_register_pccard_driver
+#define unregister_pccard_driver ds->_unregister_pccard_driver
 #endif
 
 /*====================================================================*/
@@ -436,7 +441,6 @@ static void flash_detach(dev_link_t *link)
 {
     dev_link_t **linkp;
     int ret;
-    long flags;
 
     DEBUG(0, ("iflash2_mtd: flash_detach(0x%p)\n", link));
     
@@ -446,13 +450,8 @@ static void flash_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    save_flags(flags);
-    cli();
-    if (link->state & DEV_RELEASE_PENDING) {
+    if (link->state & DEV_RELEASE_PENDING)
 	del_timer(&link->release);
-	link->state &= ~DEV_RELEASE_PENDING;
-    }
-    restore_flags(flags);
     
     if (link->state & DEV_CONFIG)
 	flash_release((u_long)link);
@@ -991,6 +990,7 @@ static int flash_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    link->release.expires = RUN_AT(HZ/20);
+	    link->state |= DEV_RELEASE_PENDING;
 	    add_timer(&link->release);
 	}
 	break;
@@ -1070,7 +1070,9 @@ static status_t std_ops(int32 op)
 	vpp_timeout_period = (vpp_timeout_period * HZ) / 1000;
 	vpp_settle = (vpp_settle * HZ) / 1000;
 	erase_limit = (erase_limit * HZ) / 1000;
-	ret = get_module(CS_SOCKET_MODULE_NAME, (struct module_info **)&cs);
+	ret = get_module(CS_CLIENT_MODULE_NAME, (struct module_info **)&cs);
+	if (ret != B_OK) return ret;
+	ret = get_module(DS_MODULE_NAME, (struct module_info **)&ds);
 	if (ret != B_OK) return ret;
 	ret = get_module(B_ISA_MODULE_NAME, (struct module_info **)&isa);
 	if (ret != B_OK) return ret;
@@ -1081,14 +1083,16 @@ static status_t std_ops(int32 op)
 	while (dev_list != NULL)
 	    flash_detach(dev_list);
 	if (isa) put_module(B_ISA_MODULE_NAME);
-	if (cs) put_module(CS_SOCKET_MODULE_NAME);
+	if (ds) put_module(DS_MODULE_NAME);
+	if (cs) put_module(CS_CLIENT_MODULE_NAME);
 	break;
     }
     return B_OK;
 }
 
-static module_info flash_mtd_mod_info =
-{ "bus_managers/iflash2_mtd/v1", 0, &std_ops };
+static module_info flash_mtd_mod_info = {
+    MTD_MODULE_NAME("iflash2_mtd"), 0, &std_ops
+};
 
 _EXPORT module_info *modules[] = {
     &flash_mtd_mod_info,

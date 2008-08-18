@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.26 1998/05/14 00:13:11
+ * ciscode.h 1.28 1998/10/16 11:02:36
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -23,6 +23,7 @@
 
 #define MANFID_3COM			0x0101
 #define PRODID_3COM_3CXEM556		0x0035
+#define PRODID_3COM_3CCFEM556		0x0556
 #define PRODID_3COM_3C562		0x0562
 
 #define MANFID_ADAPTEC			0x012f
@@ -78,6 +79,7 @@
 
 #define MANFID_SOCKET			0x0104
 #define PRODID_SOCKET_DUAL_RS232	0x0006
+#define PRODID_SOCKET_LPE		0x000d
 
 #define MANFID_SUNDISK			0x0045
 

@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.93 1998/07/27 23:08:01
+# Makefile 1.95 1998/10/18 23:03:35
 #
 
 # Include site dependent options and kernel configuration
@@ -12,9 +12,7 @@ ifndef CFLAGS
 CFLAGS = -O2 -Wall -Wstrict-prototypes -Winline -pipe
 endif
 
-ifeq ($(ARCH),ppc)
-CC := $(CC) -fno-builtin -msoft-float
-endif
+CC := $(CC) $(AFLAGS)
 
 CPPFLAGS = $(PCDEBUG) -D__KERNEL__ -DMODULE -I../include \
 	   -I$(LINUX)/include -I$(LINUX)
@@ -46,8 +44,6 @@ pcmcia_core.o: $(CORE)
 
 clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d
-
-MODDIR = $(PREFIX)/lib/modules/$(UTS_RELEASE)
 
 install install-modules: $(MODULES)
 	mkdir -p $(MODDIR)/pcmcia

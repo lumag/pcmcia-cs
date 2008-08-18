@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.86 1998/07/28 09:22:30
+    ds.c 1.89 1998/11/18 07:55:34
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -49,7 +49,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.86 1998/07/28 09:22:30 (David Hinds)";
+"ds.c 1.89 1998/11/18 07:55:34 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -808,6 +808,7 @@ static struct file_operations ds_fops = {
     ds_ioctl,		/* ioctl */
     NULL,		/* mmap */
     ds_open,		/* open */
+    NULL_FLUSH		/* flush */
     ds_release,		/* release */
     NULL		/* fsync */
 };
@@ -817,10 +818,8 @@ static struct file_operations ds_fops = {
 #undef CONFIG_MODVERSIONS
 static struct symbol_table ds_symtab = {
 #include <linux/symtab_begin.h>
-#if (LINUX_VERSION_CODE >= VERSION(1,3,0))
 #undef X
 #define X(sym) { (void *)&sym, SYMBOL_NAME_STR(sym) }
-#endif
     X(register_pccard_driver),
     X(unregister_pccard_driver),
 #include <linux/symtab_end.h>
@@ -849,6 +848,10 @@ int init_module(void)
     CardServices(GetCardServicesInfo, &serv);
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "ds: Card Services release does not match!\n");
+	return -1;
+    }
+    if (serv.Count == 0) {
+	printk(KERN_NOTICE "ds: no socket drivers loaded!\n");
 	return -1;
     }
     

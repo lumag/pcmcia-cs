@@ -8,35 +8,27 @@
 #
 case "$ADDRESS" in
 *,*,*,*)
-    # Transceiver selection, for cards that need it -- see 'man ifport'
+    # Transceiver selection, for some cards -- see 'man ifport'
     IF_PORT=""
-    # Use BOOTP [y/n]
+    # Use BOOTP? [y/n]
     BOOTP="n"
-    # IP address
+    # Host's IP address, netmask, network address, broadcast address
     IPADDR=""
-    # Netmask
     NETMASK="255.255.255.0"
-    # Network address
     NETWORK="1.2.0.0"
-    # Broadcast address
     BROADCAST="1.2.255.255"
-    # Gateway address
+    # Gateway address for static routing
     GATEWAY="1.2.0.1"
-    # Local domain name
-    DOMAIN="stanford.edu"
-    # Search list for host lookup
+    # Things to add to /etc/resolv.conf for this interface
+    DOMAIN=""
     SEARCH=""
-    # Nameserver #1
     DNS_1=""
-    # Nameserver #2
     DNS_2=""
-    # Nameserver #3
     DNS_3=""
     # NFS mounts, should be listed in /etc/fstab
     MOUNTS=""
-    # For IPX interfaces, the frame type (i.e., 802.2)
+    # For IPX interfaces, the frame type and network number
     IPX_FRAME=""
-    # For IPX interfaces, the network number
     IPX_NETNUM=""
     # Extra stuff to do after setting up the interface
     start_fn () { return; }

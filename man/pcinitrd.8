@@ -1,5 +1,5 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" pcinitrd.8 1.6 1998/05/04 23:28:17
+.\" pcinitrd.8 1.7 1998/11/03 17:28:58
 .\"
 .TH PCINITRD 8 "$Date" "pcmcia-cs"
 .SH NAME
@@ -58,7 +58,9 @@ or
 Alternatively, if
 .B -a
 is specified, then all available PCMCIA socket drivers and block
-device drivers will be included in the image.
+device drivers will be included in the image.  Additional executable
+programs may also be listed on the command line, to be included in the
+image.
 .PP
 The startup script in the resulting image,
 .IR linuxrc ,

@@ -5,7 +5,7 @@
     This driver supports the Adaptec AHA-1460, the New Media Bus
     Toaster, and the New Media Toast & Jam.
     
-    aha152x_cs.c 1.40 1998/05/21 11:33:58
+    aha152x_cs.c 1.42 1998/11/18 08:01:13
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -32,24 +32,13 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
-
-#ifdef GET_SCSI_INFO
-#if (LINUX_VERSION_CODE >= VERSION(1,3,98))
 #include <scsi/scsi.h>
-#else
-#include <linux/scsi.h>
-#endif
 #include <linux/major.h>
-#endif
 
 #include BLK_DEV_HDR
 #include "drivers/scsi/scsi.h"
 #include "drivers/scsi/hosts.h"
-#if (LINUX_VERSION_CODE >= VERSION(1,3,98))
 #include <scsi/scsi_ioctl.h>
-#else
-#include "drivers/scsi/scsi_ioctl.h"
-#endif
 #include "drivers/scsi/aha152x.h"
 
 #if (LINUX_VERSION_CODE >= VERSION(2,0,14))
@@ -67,7 +56,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"aha152x_cs.c 1.40 1998/05/21 11:33:58 (David Hinds)";
+"aha152x_cs.c 1.42 1998/11/18 08:01:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -107,7 +96,7 @@ typedef struct scsi_info_t {
 
 extern void aha152x_setup(char *str, int *ints);
 
-static void aha152x_release(u_long arg);
+static void aha152x_release_cs(u_long arg);
 static int aha152x_event(event_t event, int priority,
 			 event_callback_args_t *args);
 
@@ -143,7 +132,7 @@ static dev_link_t *aha152x_attach(void)
     memset(link, 0, sizeof(struct dev_link_t));
     link->priv = kmalloc(sizeof(struct scsi_info_t), GFP_KERNEL);
     memset(link->priv, 0, sizeof(struct scsi_info_t));
-    link->release.function = &aha152x_release;
+    link->release.function = &aha152x_release_cs;
     link->release.data = (u_long)link;
 
     link->io.NumPorts1 = 0x20;
@@ -198,7 +187,7 @@ static void aha152x_detach(dev_link_t *link)
 	return;
 
     if (link->state & DEV_CONFIG) {
-	aha152x_release((u_long)link);
+	aha152x_release_cs((u_long)link);
 	if (link->state & DEV_STALE_CONFIG) {
 	    link->state |= DEV_STALE_LINK;
 	    return;
@@ -224,9 +213,7 @@ while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 #define CFG_CHECK(fn, args...) \
 if (CardServices(fn, args) != 0) goto next_entry
 
-/* Avoid name conflict with aha152x_config in aha152x.h */
-
-static void aha152x_config_x(dev_link_t *link)
+static void aha152x_config_cs(dev_link_t *link)
 {
     client_handle_t handle;
     scsi_info_t *info;
@@ -234,12 +221,10 @@ static void aha152x_config_x(dev_link_t *link)
     cisparse_t parse;
     int i, last_ret, last_fn, ints[8];
     u_char tuple_data[64];
-#ifdef GET_SCSI_INFO
     Scsi_Device *dev;
     dev_node_t *node, **tail;
 #if (LINUX_VERSION_CODE >= VERSION(2,1,75))
     struct Scsi_Host *host;
-#endif
 #endif
     
     handle = link->handle;
@@ -292,11 +277,7 @@ static void aha152x_config_x(dev_link_t *link)
     release_region(link->io.BasePort1, link->io.NumPorts1);
     
     /* Set configuration options for the aha152x driver */
-#if (LINUX_VERSION_CODE >= VERSION(1,3,0))
     ints[0] = 7;
-#else
-    ints[0] = 5;
-#endif
     ints[1] = link->io.BasePort1;
     ints[2] = link->irq.AssignedIRQ;
     ints[3] = host_id;
@@ -311,7 +292,6 @@ static void aha152x_config_x(dev_link_t *link)
     
     scsi_register_module(MODULE_SCSI_HA, &driver_template);
 
-#ifdef GET_SCSI_INFO
     tail = &link->dev;
     info->ndev = 0;
 #if (LINUX_VERSION_CODE < VERSION(2,1,75))
@@ -335,7 +315,7 @@ static void aha152x_config_x(dev_link_t *link)
 		break;
 	    case TYPE_DISK:
 	    case TYPE_MOD:
-		node->major = SCSI_DISK_MAJOR;
+		node->major = SCSI_DISK0_MAJOR;
 		sprintf(node->dev_name, "sd#%04lx", id);
 		break;
 	    case TYPE_ROM:
@@ -355,28 +335,24 @@ static void aha152x_config_x(dev_link_t *link)
     *tail = NULL;
     if (info->ndev == 0)
 	printk(KERN_INFO "aha152x_cs: no SCSI devices found\n");
-#else
-    strcpy(info->node[0].dev_name, "n/a");
-    link->dev = &info->node[0];
-#endif /* GET_SCSI_INFO */
     
     link->state &= ~DEV_CONFIG_PENDING;
     return;
     
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
-    aha152x_release((u_long)link);
+    aha152x_release_cs((u_long)link);
     return;
     
-} /* aha152x_config_x */
+} /* aha152x_config_cs */
 
 /*====================================================================*/
 
-static void aha152x_release(u_long arg)
+static void aha152x_release_cs(u_long arg)
 {
     dev_link_t *link = (dev_link_t *)arg;
 
-    DEBUG(0, "aha152x_release(0x%p)\n", link);
+    DEBUG(0, "aha152x_release_cs(0x%p)\n", link);
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,23))
     if (*driver_template.usage_count != 0) {
@@ -400,7 +376,7 @@ static void aha152x_release(u_long arg)
     if (link->state & DEV_STALE_LINK)
 	aha152x_detach(link);
     
-} /* aha152x_release */
+} /* aha152x_release_cs */
 
 /*====================================================================*/
 
@@ -422,7 +398,7 @@ static int aha152x_event(event_t event, int priority,
 	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	aha152x_config_x(link);
+	aha152x_config_cs(link);
 	break;
     case CS_EVENT_PM_SUSPEND:
 	link->state |= DEV_SUSPEND;

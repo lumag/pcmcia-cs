@@ -2,7 +2,7 @@
 
     Utility to look up information about SCSI devices
 
-    scsi_info.c 1.9 1998/05/10 12:12:59
+    scsi_info.c 1.10 1998/11/18 08:10:05
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -33,16 +33,7 @@
 #include <linux/config.h>
 
 #include <linux/major.h>
-#define VERSION(v,p,s) (((v)<<16)+(p<<8)+s)
-#if (LINUX_VERSION_CODE > VERSION(1,3,97))
 #include <scsi/scsi.h>
-#else
-#if (LINUX_VERSION_CODE > VERSION(1,3,0))
-#include <linux/scsi.h>
-#else
-#include <linux/fs.h>
-#endif
-#endif
 
 /*====================================================================*/
 

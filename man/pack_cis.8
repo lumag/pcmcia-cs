@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" pack_cis.8 1.1 1998/08/02 11:56:50
+.\" pack_cis.8 1.2 1998/09/27 21:02:34
 .\"
-.TH PACK_CIS 8 "1998/08/02 11:56:50" "pcmcia-cs"
+.TH PACK_CIS 8 "1998/09/27 21:02:34" "pcmcia-cs"
 .SH NAME
 pack_cis \- Utility to parse PCMCIA Card Information Structures
 .SH SYNOPSIS
@@ -14,7 +14,7 @@ pack_cis \- Utility to parse PCMCIA Card Information Structures
 .B Pack_cis
 is used to convert a text description of a PCMCIA Card
 Information Structure (CIS) to its packed binary representation.  It
-can parse a subset of possible output of the
+can parse a reasonably useful subset of the possible output of the
 .B dump_cis
 utility.  The primary use of
 .B pack_cis
@@ -31,7 +31,9 @@ to extract the CIS data from a card, and to examine the CIS files
 distributed with the PCMCIA source tree in
 .IR etc/cis/ .
 .PP
-A multifunction CIS can be described with the format:
+The basic structure of a CIS is a list of tuple descriptions.
+Anything following a hash mark (``#'') is treated as a comment.
+A multifunction CIS can be described with the notation:
 .sp
 .RS
 .nf

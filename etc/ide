@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# ide 1.3 1998/04/26 23:32:06 (David Hinds)
+# ide 1.5 1998/10/08 19:44:18 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ATA/IDE adapter
 #
@@ -19,7 +19,7 @@
 # list of partitions for which options should be read.
 #
 
-. ./shared
+if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 
 # Get device attributes
 get_info $DEVICE

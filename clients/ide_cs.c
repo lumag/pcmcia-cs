@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.9 1998/05/21 11:34:00
+    ide_cs.c 1.12 1998/11/12 03:19:08
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -50,7 +50,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.9 1998/05/21 11:34:00 (David Hinds)";
+"ide_cs.c 1.12 1998/11/12 03:19:08 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -68,8 +68,11 @@ MODULE_PARM(irq_list, "1-4i");
 
 /*====================================================================*/
 
-static const char ide_major[4] = {
-    IDE0_MAJOR, IDE1_MAJOR, IDE2_MAJOR, IDE3_MAJOR
+static const char ide_major[] = {
+    IDE0_MAJOR, IDE1_MAJOR, IDE2_MAJOR, IDE3_MAJOR,
+#ifdef IDE4_MAJOR
+    IDE4_MAJOR, IDE5_MAJOR
+#endif
 };
 
 typedef struct ide_info_t {
@@ -228,7 +231,7 @@ void ide_config(dev_link_t *link)
     config_info_t conf;
     cistpl_cftable_entry_t *cfg = &parse.cftable_entry;
     cistpl_cftable_entry_t dflt = { 0 };
-    int last_ret, last_fn, hd, io_base, ctl_base;
+    int i, last_ret, last_fn, hd, io_base, ctl_base;
 
     sti();
     handle = link->handle;
@@ -305,11 +308,19 @@ void ide_config(dev_link_t *link)
     
     CS_CHECK(RequestIRQ, handle, &link->irq);
     CS_CHECK(RequestConfiguration, handle, &link->conf);
-    
+
+    /* deal with brain dead IDE resource management */
     release_region(link->io.BasePort1, link->io.NumPorts1);
     if (link->io.NumPorts2)
 	release_region(link->io.BasePort2, link->io.NumPorts2);
-    hd = ide_register(io_base, ctl_base, link->irq.AssignedIRQ);
+
+    /* retry registration in case device is still spinning up */
+    for (i = 0; i < 10; i++) {
+	hd = ide_register(io_base, ctl_base, link->irq.AssignedIRQ);
+	if (hd >= 0) break;
+	current->state = TASK_INTERRUPTIBLE;
+	schedule_timeout(HZ/10);
+    }
     
     if (hd < 0) {
 	printk(KERN_NOTICE "ide_cs: ide_register() at 0x%3x & 0x%3x"

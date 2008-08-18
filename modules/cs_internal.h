@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.32 1998/08/09 00:16:27
+ * cs_internal.h 1.33 1998/10/01 09:16:20
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -270,8 +270,11 @@ extern struct proc_dir_entry *proc_pccard;
 #endif
 
 #ifdef __BEOS__
+#include <config_manager_p.h>
 extern isa_module_info *isa;
 extern pci_module_info *pci;
+extern config_manager_for_bus_module_info *cm;
+#define RSRC_MGR
 #endif
 
 #ifdef PCMCIA_DEBUG

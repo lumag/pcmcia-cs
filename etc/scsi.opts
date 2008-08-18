@@ -1,10 +1,5 @@
 # SCSI adapter configuration
 #
-# For 1.2.X kernels ONLY: list attached devices here
-SCSI_DEVICES=""
-#
-# Device configuration section
-#
 # The address format is "scheme,type,socket,channel,id,lun[,part]".
 #
 # For multi-partition devices, first return list of partitions in

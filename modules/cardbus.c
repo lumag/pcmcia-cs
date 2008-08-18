@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.33 1998/08/20 23:39:38
+    cardbus.c 1.42 1998/11/11 07:50:32
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -83,16 +83,22 @@ static int pc_debug = PCMCIA_DEBUG;
 #define PCDATA_CODE_TYPE	0x0014
 #define PCDATA_INDICATOR	0x0014
 
+#ifdef __LINUX__
+#if (LINUX_VERSION_CODE >= VERSION(2,1,90))
+#define NEW_LINUX_PCI
+#endif
+#endif
+
 typedef struct cb_config_t {
     u_int		size[7];
-#if (LINUX_VERSION_CODE < VERSION(2,1,90))
+#ifdef NEW_LINUX_PCI
+    struct pci_dev	dev;
+#else
     struct {
 	unsigned int	irq;
 	unsigned long	base_address[6];
 	unsigned long	rom_address;
     } dev;
-#else
-    struct pci_dev	dev;
 #endif
 } cb_config_t;
 
@@ -148,7 +154,7 @@ void read_cb_mem(socket_info_t *s, u_char fn, int space,
     DEBUG(3, ("cs: read_cb_mem(%d, %#x, %u)\n", space, addr, len));
     if (space == 0) {
 	for (; len; addr++, ptr++, len--)
-	    pci_readb(s->cap.cardbus, fn, addr, ptr);
+	    pci_readb(s->cap.cardbus, fn, addr, (u_char *)ptr);
     } else {
 	cb_setup_cis_mem(s, space);
 	if (space == 7)
@@ -296,9 +302,12 @@ void cb_enable(socket_info_t *s)
     }
 
     /* Set up PCI interrupt and command registers */
-    for (i = 0; i < s->functions; i++)
+    for (i = 0; i < s->functions; i++) {
 	pci_writeb(bus, i, PCI_COMMAND, PCI_COMMAND_MASTER |
 		   PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
+	pci_writeb(bus, i, PCI_CACHE_LINE_SIZE, 8);
+    }
+    
     if (s->irq.AssignedIRQ) {
 	for (i = 0; i < s->functions; i++)
 	    pci_writeb(bus, i, PCI_INTERRUPT_LINE,
@@ -307,7 +316,7 @@ void cb_enable(socket_info_t *s)
 	s->ss_entry(s->sock, SS_SetSocket, &s->socket);
     }
 
-#if (LINUX_VERSION_CODE >= VERSION(2,1,90))
+#ifdef NEW_LINUX_PCI
     /* Link into PCI device chain */
     c[s->functions-1].dev.next = pci_devices;
     pci_devices = &c[0].dev;
@@ -330,7 +339,7 @@ void cb_disable(socket_info_t *s)
 {
     u_char i;
     cb_bridge_map m = { 0, 0, 0, 0xffff };
-#if (LINUX_VERSION_CODE >= VERSION(2,1,90))
+#ifdef NEW_LINUX_PCI
     struct pci_dev **p, *q;
     cb_config_t *c = s->cb_config;
     
@@ -378,7 +387,7 @@ int cb_config(socket_info_t *s)
 {
     u_short vend, v, dev;
     u_char i, j, fn, bus = s->cap.cardbus, *name;
-    u_int sz, m, mask[3], num[3], base[3];
+    u_int sz, align, m, mask[3], num[3], base[3];
     cb_config_t *c;
     int irq, try, ret;
     
@@ -388,7 +397,7 @@ int cb_config(socket_info_t *s)
 	   "device 0x%04x\n", bus, vend, dev);
 
     pci_readb(bus, 0, PCI_HEADER_TYPE, &fn);
-    if (fn != 0) {
+    if (fn & 0x80) {
 	/* Count functions */
 	for (fn = 0; fn < 8; fn++) {
 	    pci_readw(bus, fn, PCI_VENDOR_ID, &v);
@@ -398,12 +407,12 @@ int cb_config(socket_info_t *s)
     s->functions = fn;
     
     c = kmalloc(fn * sizeof(struct cb_config_t), GFP_KERNEL);
-    memset(c, fn * sizeof(struct cb_config_t), 0);
+    memset(c, 0, fn * sizeof(struct cb_config_t));
     s->cb_config = c;
 
-#if (LINUX_VERSION_CODE >= VERSION(2,1,90))
+#ifdef NEW_LINUX_PCI
     s->pci_bus = kmalloc(sizeof(struct pci_bus), GFP_KERNEL);
-    memset(s->pci_bus, sizeof(struct pci_bus), 0);
+    memset(s->pci_bus, 0, sizeof(struct pci_bus));
     s->pci_bus->number = bus;
     for (i = 0; i < fn; i++) {
 	c[i].dev.bus = s->pci_bus;
@@ -435,15 +444,17 @@ int cb_config(socket_info_t *s)
 		sz &= PCI_BASE_ADDRESS_MEM_MASK;
 	    }
 	    sz = FIND_FIRST_BIT(sz);
-	    num[m] += sz; mask[m] |= sz;
 	    c[i].size[j] = sz | m;
+	    if (m && (sz < PAGE_SIZE)) sz = PAGE_SIZE;
+	    num[m] += sz; mask[m] |= sz;
 	}
 	pci_writel(bus, i, CB_ROM_BASE, 0xffffffff);
 	pci_readl(bus, i, CB_ROM_BASE, &sz);
 	if (sz != 0) {
 	    sz = FIND_FIRST_BIT(sz & ~0x00000001);
-	    num[B_M1] += sz; mask[B_M1] |= sz;
 	    c[i].size[6] = sz | B_M1;
+	    if (sz < PAGE_SIZE) sz = PAGE_SIZE;
+	    num[B_M1] += sz; mask[B_M1] |= sz;
 	}
     }
 
@@ -459,7 +470,7 @@ int cb_config(socket_info_t *s)
 	}
 	base[B_IO] = s->io[0].BasePort + num[B_IO];
     }
-    s->win[0].size = (num[B_M1] + 0x0fff) & ~0x0fff;
+    s->win[0].size = num[B_M1];
     s->win[0].base = 0;
     if (num[B_M1]) {
 	if (find_mem_region(&s->win[0].base, num[B_M1], name, 0) != 0) {
@@ -469,7 +480,7 @@ int cb_config(socket_info_t *s)
 	}
 	base[B_M1] = s->win[0].base + num[B_M1];
     }
-    s->win[1].size = (num[B_M2] + 0x0fff) & ~0x0fff;
+    s->win[1].size = num[B_M2];
     s->win[1].base = 0;
     if (num[B_M2]) {
 	if (find_mem_region(&s->win[1].base, num[B_M2], name, 0) != 0) {
@@ -489,8 +500,9 @@ int cb_config(socket_info_t *s)
 	    for (j = 0; j < 7; j++) {
 		sz = c[i].size[j];
 		m = sz & 3; sz &= ~3;
-		if (sz && (sz == num[m])) {
-		    base[m] -= sz;
+		align = (m && (sz < PAGE_SIZE)) ? PAGE_SIZE : sz;
+		if (sz && (align == num[m])) {
+		    base[m] -= align;
 		    if (j < 6)
 			printk(KERN_INFO "  fn %d bar %d: ", i, j+1);
 		    else
@@ -509,19 +521,25 @@ int cb_config(socket_info_t *s)
 	pci_readb(bus, i, PCI_INTERRUPT_PIN, &j);
 	if (j == 0) continue;
 	if (irq == 0) {
-	    if (s->cap.irq_mask == (1 << s->cap.pci_irq))
+	    if (s->cap.irq_mask & (1 << s->cap.pci_irq)) {
 		irq = s->cap.pci_irq;
+		ret = 0;
+	    }
 #ifdef CONFIG_ISA
 	    else
 		for (try = 0; try < 2; try++) {
-		    for (irq = 0; irq < NR_IRQS; irq++)
+		    for (irq = 0; irq < 32; irq++)
 			if ((s->cap.irq_mask >> irq) & 1) {
 			    ret = try_irq(IRQ_TYPE_EXCLUSIVE, irq, try);
 			    if (ret == 0) break;
 			}
 		    if (ret == 0) break;
 		}
-	    if (ret != 0) goto failed;
+	    if (ret != 0) {
+		printk(KERN_NOTICE "cs: could not allocate interrupt"
+		       " for CardBus socket %d\n", s->sock);
+		goto failed;
+	    }
 #endif
 	    s->irq.AssignedIRQ = irq;
 	}
@@ -564,7 +582,7 @@ void cb_release(socket_info_t *s)
 #endif
     kfree(s->cb_config);
     s->cb_config = NULL;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,90))
+#ifdef NEW_LINUX_PCI
     kfree(s->pci_bus);
     s->pci_bus = NULL;
 #endif

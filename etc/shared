@@ -1,5 +1,5 @@
 #
-# shared 1.11 1998/08/20 23:01:07 (David Hinds)
+# shared 1.12 1998/10/19 09:55:48 (David Hinds)
 #
 
 usage ()
@@ -122,12 +122,8 @@ grep_stab ()
 
 get_info ()
 {
-    if [ -s /var/run/pcmcia-scheme ] ; then
-	SCHEME=`cat /var/run/pcmcia-scheme`
-    else
-	SCHEME="default"
-    fi
-
+    SCHEME=`cat /var/run/pcmcia-scheme`
+    if [ ! "$SCHEME" ] ; then SCHEME="default" ; fi
     grep_stab $1 < /var/run/stab || usage
 }
 

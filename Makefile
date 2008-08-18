@@ -1,11 +1,12 @@
 #
-# Makefile 1.31 1998/08/13 10:09:03 (David Hinds)
+# Makefile 1.32 1998/09/15 00:10:24 (David Hinds)
 #
 
 DIRS = modules clients cardmgr flash debug-tools man etc
 
 help:
 	@echo "Pick one of the following targets:"
+	@echo -e "\tmake clean\t\t- remove old binaries and dependency files"
 	@echo -e "\tmake config\t\t- configure and check system setup"
 	@echo -e "\tmake all\t\t- build modules and programs"
 	@echo -e "\tmake install\t\t- install modules and programs"

@@ -4,7 +4,7 @@
 #
 # Copyright (C) David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# pcinitrd 1.13 1998/06/28 11:31:21
+# pcinitrd 1.17 1998/11/09 18:40:18
 #
 RELEASE=""
 ALL=""
@@ -13,7 +13,7 @@ MODULES="pcmcia/pcmcia_core.o pcmcia/ds.o"
 
 # Things to install when "all" is selected
 SOCK="i82365.o tcic.o"
-BLK="fixed_cs.o pcmem_cs.o aha152x_cs.o fdomain_cs.o qlogic_cs.o"
+BLK="ide_cs.o pcmem_cs.o aha152x_cs.o fdomain_cs.o qlogic_cs.o"
 MEM="ftl_cs.o memory_cs.o sram_mtd.o iflash2_mtd.o iflash2+_mtd.o"
 
 usage()
@@ -63,26 +63,30 @@ while [ $# -gt 0 ] ; do
     shift
 done
 
-if [ $# -lt 1 ] ; then usage ; fi
-TARGET=$1 ; shift
-if [ "$ALL" = "y" ] ; then
-    for MOD in $SOCK $BLK $MEM ; do
-	if [ -f $ROOT/lib/modules/$KERNEL/pcmcia/$MOD ] ; then
-	    MODULES="$MODULES pcmcia/$MOD"
-	fi
-    done
-else
-    MODULES="$MODULES $*"
-fi
-
 if [ "$KERNEL" = "" ] ; then
     KERNEL=`uname -r`
 fi
 [ "$VERBOSE" ] && echo "Using version $KERNEL modules"
+MODDIR=$ROOT/lib/modules/$KERNEL
 
-for MOD in $MODULES ; do
-    if [ ! -f $ROOT/lib/modules/$KERNEL/$MOD ] ; then
-	echo "$ROOT/lib/modules/$KERNEL/$MOD does not exist." 1>&2
+if [ $# -lt 1 ] ; then usage ; fi
+TARGET=$1 ; shift
+if [ "$ALL" = "y" ] ; then
+    for MOD in $SOCK $BLK $MEM ; do
+	if [ -f $MODDIR/pcmcia/$MOD ] ; then
+	    MODULES="$MODULES pcmcia/$MOD"
+	fi
+    done
+fi
+
+BIN="bin/mount bin/umount sbin/insmod sbin/cardmgr"
+for F in $* ; do
+    if [ -f $MODDIR/$F ] ; then
+	MODULES="$MODULES $F"
+    elif [ -x $F ] ; then
+	BIN="$BIN $F"
+    else
+	echo "$F not found." 1>&2
 	exit 1
     fi
 done
@@ -138,8 +142,11 @@ else
 fi
 
 rm -rf $MNT/lost+found
-for DIR in bin dev etc lib lib/pcmcia proc tmp mnt ; do
+for DIR in bin dev etc lib proc tmp mnt ; do
     mkdir $VERBOSE $MNT/$DIR || fail
+done
+for DIR in block misc fs net pcmcia ; do
+    mkdir $VERBOSE $MNT/lib/$DIR || fail
 done
 
 for DEV in console null ram tty1 tty2 tty3 tty4 ; do
@@ -149,7 +156,6 @@ if [ -e $ROOT/dev/systty ] ; then
     cp -a $VERBOSE $ROOT/dev/systty $MNT/dev || fail
 fi
 
-BIN="bin/mount bin/umount sbin/insmod sbin/cardmgr"
 for F in $BIN ; do
     strip_cp --strip-all $ROOT/$F $MNT/bin
 done
@@ -159,12 +165,16 @@ LIBC=`ls $ROOT/lib/libc.so.? | sort | tail -1`
 strip_cp --strip-debug $LIBC $MNT/lib
 cp $VERBOSE $ROOT/lib/ld-linux.so.? $MNT/lib || fail
 
-cp $VERBOSE $ROOT/etc/ld.so.cache $MNT/etc || fail
-cp $VERBOSE $ROOT/etc/pcmcia/config $MNT/etc || fail
-cp $VERBOSE $ROOT/etc/pcmcia/config.opts $MNT/etc || fail
+ETC="ld.so.cache protocols services pcmcia/config pcmcia/config.opts"
+for F in $ETC ; do
+    cp $VERBOSE $ROOT/etc/$F $MNT/etc || fail
+done
+for F in scsi network ftl ide memory serial ; do
+    touch $MNT/etc/$F ; chmod +x $MNT/etc/$F
+done
 
 for MOD in $MODULES ; do
-    strip_cp --strip-debug $ROOT/lib/modules/$KERNEL/$MOD $MNT/lib/$MOD
+    strip_cp --strip-debug $MODDIR/$MOD $MNT/lib/$MOD
 done
 
 [ "$VERBOSE" ] && echo "Creating linuxrc startup script"
@@ -198,6 +208,7 @@ cat > $MNT/linuxrc <<- 'EOF'
 EOF
 chmod +x $MNT/linuxrc 
 
+df -P $MNT | awk '/tmp/ { printf "%dK/%dK used\n",$3,$2 }'
 umount $VERBOSE $MNT
 rmdir $MNT
 exit 0

@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_cis.l 1.6 1998/08/02 11:56:35
+ * lex_cis.l 1.7 1998/09/25 21:45:00
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -100,6 +100,7 @@ Ipeak		return IPEAK;
 Idown		return IDOWN;
 
 io		return IO;
+memory		return MEM;
 \[8bit\]	return BIT8;
 \[16bit\]	return BIT16;
 \[lines		return LINES;

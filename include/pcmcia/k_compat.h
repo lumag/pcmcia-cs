@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.59 1998/08/14 10:00:45
+ * k_compat.h 1.70 1998/11/18 08:10:16
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -22,28 +22,6 @@
 #define __LINUX__
 #define VERSION(v,p,s)		(((v)<<16)+(p<<8)+s)
 
-#if (LINUX_VERSION_CODE < VERSION(1,3,0))
-
-#define RUN_AT(x) 		(x)
-#define CONST
-#define ALLOC_SKB(len)		alloc_skb(len, GFP_ATOMIC)
-#define DEVICE(req)		((req)->dev)
-#define GET_PACKET(dev, skb, count) \
-		(skb)->len = (count); \
-		BLOCK_INPUT((skb)->data, (count))
-#undef GET_SCSI_INFO
-
-#define readb(p)		(*(volatile u_char *)(p))
-#define readw(p)		(*(volatile u_short *)(p))
-#define readl(p)		(*(volatile u_int *)(p))
-#define writeb(b, p)		(*(volatile u_char *)(p) = b)
-#define writew(w, p)		(*(volatile u_short *)(p) = w)
-#define writel(l, p)		(*(volatile u_int *)(p) = l)
-#define memcpy_fromio(a, b, c)	memcpy((a), (void *)(b), (c))
-#define memcpy_toio(a, b, c)	memcpy((void *)(a), (b), (c))
-
-#else /* 1.3.0 */
-
 #define RUN_AT(x)		(jiffies+(x))
 #define CONST			const
 #define ALLOC_SKB(len)		dev_alloc_skb(len+2)
@@ -52,36 +30,14 @@
 		skb_reserve((skb), 2); \
 		BLOCK_INPUT(skb_put((skb), (count)), (count)); \
 		(skb)->protocol = eth_type_trans((skb), (dev))
-#define GET_SCSI_INFO
 
-#endif /* 1.3.0 */
-
-#if (LINUX_VERSION_CODE >= VERSION(1,3,31))
-#define GET_8390_HDR		1
-#endif /* 1.3.31 */
-
-#if (LINUX_VERSION_CODE < VERSION(1,3,36))
-#define BLK_DEV_HDR		"drivers/block/blk.h"
-#else /* 1.3.36 */
 #define BLK_DEV_HDR		"linux/blk.h"
-#endif /* 1.3.36 */
-
-#if (LINUX_VERSION_CODE >= VERSION(1,3,44))
 #define NEW_MULTICAST
-#endif /* 1.3.44 */
 
-#if (LINUX_VERSION_CODE >= VERSION(1,3,70))
 #define FREE_IRQ(i,d)		free_irq(i, d)
 #define REQUEST_IRQ(i,h,f,n,d)	request_irq(i,h,f,n,d)
 #define IRQ(a,b,c)		(a,b,c)
 #define DEV_ID			dev_id
-#else
-#define SA_SHIRQ		0
-#define FREE_IRQ(i,d)		free_irq(i)
-#define REQUEST_IRQ(i,h,f,n,d)	request_irq(i,h,f,n)
-#define IRQ(a,b,c)		(a,c)
-#define DEV_ID			irq2dev_map[irq]
-#endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,0,16))
 #define init_waitqueue(p)	(*(p) = NULL)
@@ -114,33 +70,15 @@
 #define test_and_set_bit	set_bit
 #endif
 
-#if (LINUX_VERSION_CODE < VERSION(1,3,38))
-
-#ifdef MODULE
-#include <linux/module.h>
-#if !defined(CONFIG_MODVERSIONS) && !defined(__NO_VERSION__)
-char kernel_version[] = UTS_RELEASE;
-#endif
-#else
-#define MOD_DEC_USE_COUNT
-#define MOD_INC_USE_COUNT
-#endif
-
-#else /* 1.3.38 */
-
 #if (LINUX_VERSION_CODE > VERSION(2,1,16))
 #define AUTOCONF_INCLUDED
 #define EXPORT_SYMTAB
 #endif
 #ifdef CONFIG_MODVERSIONS
 #define MODVERSIONS 1
-#if (LINUX_VERSION_CODE >= VERSION(1,3,40))
 #include <linux/modversions.h>
 #endif
-#endif
 #include <linux/module.h>
-
-#endif /* 1.3.38 */
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,18))
 #define MOD_USE_COUNT		mod_use_count_
@@ -153,22 +91,15 @@ char kernel_version[] = UTS_RELEASE;
 #define copy_from_user		memcpy_fromfs
 #define copy_to_user		memcpy_tofs
 
-#if (LINUX_VERSION_CODE < VERSION(1,3,0))
-#define kdev_t			int
-#define ioremap(a, b)		((char *)(a))
-#define iounmap(a)		while (0)
-#define put_user(x, ptr) \
-		((sizeof(*ptr) == 4) ? put_fs_long(x, ptr) : \
-		 (sizeof(*ptr) == 2) ? put_fs_word(x, ptr) : \
-		 put_fs_byte(x, ptr))
-#else
-#define ioremap(a,b)		(((a) < 0x100000) ? (void *)(a) : vremap(a,b))
-#define iounmap(v)		do { if ((u_long)(v) > 0x100000) \
-				     vfree(v); } while (0)
-/* This is evil... throw away the built-in get_user in 1.3, 2.0 */
+#if (!defined(__alpha__) || (LINUX_VERSION_CODE < VERSION(2,0,34)))
+#define ioremap(a,b) \
+    (((a) < 0x100000) ? (void *)((u_long)(a)) : vremap(a,b))
+#define iounmap(v) \
+    do { if ((u_long)(v) > 0x100000) vfree(v); } while (0)
+#endif
+/* This is evil... throw away the built-in get_user in 2.0 */
 #include <asm/segment.h>
 #undef get_user
-#endif
 
 #ifdef __alpha__
 #define get_user(x, ptr) 	((x) = __get_user((ptr), sizeof(*(ptr))))
@@ -193,16 +124,12 @@ char kernel_version[] = UTS_RELEASE;
 #define F_INODE(file)		((file)->f_dentry->d_inode)
 #endif
 
-#if (LINUX_VERSION_CODE < VERSION(1,3,0))
-#define INVALIDATE_INODES(r)	while (0)
-#else
 #if (LINUX_VERSION_CODE < VERSION(2,1,51))
 #define INVALIDATE_INODES(r)	invalidate_inodes(r)
 #else
 #define INVALIDATE_INODES(r) \
 		do { struct super_block *sb = get_super(r); \
 		if (sb) invalidate_inodes(sb); } while (0)
-#endif
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,60))
@@ -253,9 +180,14 @@ char kernel_version[] = UTS_RELEASE;
 #define wacquire(w)		do { } while (0)
 #define wrelease(w)		do { } while (0)
 #define wsleep(w)		interruptible_sleep_on(w)
-#define wsleeptimeout(w,t) \
-    do { current->timeout = jiffies+(t); wsleep(w); } while (0);
 #define wakeup(w)		wake_up_interruptible(w)
+#define wsleeptimeout(w,t)	interruptible_sleep_on_timeout(w,t)
+#if (LINUX_VERSION_CODE < VERSION(2,1,127))
+#define interruptible_sleep_on_timeout(w,t) \
+    ({(current->timeout=jiffies+(t));wsleep(w);current->timeout;})
+#define schedule_timeout(t) \
+    do { current->timeout = jiffies+(t); schedule(); } while (0)
+#endif
 
 #include <asm/io.h>
 #ifndef readw_ns
@@ -296,6 +228,18 @@ char kernel_version[] = UTS_RELEASE;
 #define PCI_DEVFN(dev,fn)	(((dev)<<3)|((fn)&7))
 #endif
 
+#if (LINUX_VERSION_CODE > VERSION(2,1,117))
+#define NULL_FLUSH		NULL,
+#else
+#define NULL_FLUSH
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,1,126))
+#define SCSI_DISK0_MAJOR	SCSI_DISK_MAJOR
+#endif
+
 typedef unsigned long k_time_t;
+#define ACQUIRE_RESOURCE_LOCK do {} while (0)
+#define RELEASE_RESOURCE_LOCK do {} while (0)
 
 #endif /* _LINUX_K_COMPAT_H */
