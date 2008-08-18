@@ -5,7 +5,7 @@
     (specifically, for the Quatech SPP-100 EPP card: other cards will
     probably require driver tweaks)
     
-    parport_cs.c 1.20 2000/11/02 23:15:05
+    parport_cs.c 1.21 2001/08/06 01:28:23
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -42,7 +42,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
@@ -63,7 +63,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"parport_cs.c 1.20 2000/11/02 23:15:05 (David Hinds)";
+"parport_cs.c 1.21 2001/08/06 01:28:23 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

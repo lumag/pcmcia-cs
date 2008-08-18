@@ -75,7 +75,8 @@ $devices = `cat /proc/devices`;
 $lsmod = `/sbin/lsmod`;
 if ($lsmod !~ /\bpcmcia_core\b/) {
     print "  No PCMCIA modules are loaded.\n";
-} elsif (($lsmod !~ /\bi82365\b/) && ($lsmod !~ /\btcic\b/)) {
+} elsif (($lsmod !~ /\bi82365\b/) && ($lsmod !~ /\btcic\b/) &&
+	 ($lsmod !~ /\byenta_socket\b/)) {
     print "  No socket drivers are loaded.\n";
 } elsif ($lsmod !~ /\bds\b/) {
     print "  The 'ds' module is not loaded.\n";

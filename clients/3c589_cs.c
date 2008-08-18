@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    3c589_cs.c 1.158 2001/02/28 03:43:43
+    3c589_cs.c 1.160 2001/08/06 01:28:19
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -25,7 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
@@ -120,7 +120,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.158 2001/02/28 03:43:43 (David Hinds)";
+"3c589_cs.c 1.160 2001/08/06 01:28:19 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -532,7 +532,7 @@ static int tc589_event(event_t event, int priority,
 /*
   Use this for commands that may take time to finish
 */
-static void wait_for_completion(struct net_device *dev, int cmd)
+static void tc589_wait_for_completion(struct net_device *dev, int cmd)
 {
     int i = 100;
     outw(cmd, dev->base_addr + EL3_CMD);
@@ -691,7 +691,7 @@ static void el3_tx_timeout(struct net_device *dev)
     lp->stats.tx_errors++;
     dev->trans_start = jiffies;
     /* Issue TX_RESET and TX_START commands. */
-    wait_for_completion(dev, TxReset);
+    tc589_wait_for_completion(dev, TxReset);
     outw(TxEnable, ioaddr + EL3_CMD);
     netif_wake_queue(dev);
 }
@@ -708,7 +708,7 @@ static void pop_tx_status(struct net_device *dev)
 	if (!(tx_status & 0x84)) break;
 	/* reset transmitter on jabber error or underrun */
 	if (tx_status & 0x30)
-	    wait_for_completion(dev, TxReset);
+	    tc589_wait_for_completion(dev, TxReset);
 	if (tx_status & 0x38) {
 	    DEBUG(1, "%s: transmit error: status 0x%02x\n",
 		  dev->name, tx_status);
@@ -804,12 +804,12 @@ static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		       " register %04x.\n", dev->name, fifo_diag);
 		if (fifo_diag & 0x0400) {
 		    /* Tx overrun */
-		    wait_for_completion(dev, TxReset);
+		    tc589_wait_for_completion(dev, TxReset);
 		    outw(TxEnable, ioaddr + EL3_CMD);
 		}
 		if (fifo_diag & 0x2000) {
 		    /* Rx underrun */
-		    wait_for_completion(dev, RxReset);
+		    tc589_wait_for_completion(dev, RxReset);
 		    set_multicast_list(dev);
 		    outw(RxEnable, ioaddr + EL3_CMD);
 		}
@@ -1009,7 +1009,7 @@ static int el3_rx(struct net_device *dev)
 	    }
 	}
 	/* Pop the top of the Rx FIFO */
-	wait_for_completion(dev, RxDiscard);
+	tc589_wait_for_completion(dev, RxDiscard);
     }
     if (worklimit == 0)
 	printk(KERN_NOTICE "%s: too much work in el3_rx!\n", dev->name);

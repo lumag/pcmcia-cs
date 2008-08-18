@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.30 2000/06/12 21:27:26
+    ide_cs.c 1.31 2001/08/06 01:28:21
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,7 +39,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
@@ -63,7 +63,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.30 2000/06/12 21:27:26 (David Hinds)";
+"ide_cs.c 1.31 2001/08/06 01:28:21 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

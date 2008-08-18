@@ -59,7 +59,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/module.h>
@@ -86,12 +86,6 @@ static char *version =
 "           2.2.18 2000/10/15 Midnight (Burt Silverman)\n";
 #else
 #define DEBUG(n, args...)
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,2,17))
-#define TR_OLD 0
-#else
-#define TR_OLD 1
 #endif
 
 /*====================================================================*/

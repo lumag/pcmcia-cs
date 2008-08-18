@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.91, 29 May 2001
+  v2.94, 13 July 2001
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -634,6 +634,10 @@
      activate them with the Linux isapnp tools.  See the man pages for
      pnpdump and isapnp for more information.
 
+  +o  For Chase CardPORT and Altec ISA card readers using the Cirrus
+     PD6722 ISA-to-PCMCIA bridge, the i82365 driver should be loaded
+     with a ``has_ring=0'' parameter to prevent irq 15 conflicts.
+
   +o  For Elan P-series PCI card readers based on the Cirrus PD6729 PCI-
      to-PCMCIA bridge chip, the i82365 driver requires a ``irq_mode=1''
      parameter.
@@ -687,6 +691,8 @@
 
   +o  On the Dell Inspiron 7000, exclude irq 3, irq 5.
 
+  +o  On the Dell Inspiron 8000, exclude port 0x800-0x8ff.
+
   +o  On the Fujitsu C series, exclude port 0x200-0x27f.
 
   +o  On the HP Omnibook 4000C, exclude port 0x300-0x30f.
@@ -698,6 +704,7 @@
 
   +o  On IBM ThinkPad 600 and 770 models with internal modems, exclude
      port 0x2f8-0x2ff.
+
   +o  On the IBM ThinkPad 600E and 770Z, change the high memory window to
      0x60000000-0x60ffffff.
 
@@ -1048,7 +1055,6 @@
   the information in /proc/interrupts.  Depending on system design, an
   inactive device can still occupy an interrupt and cause trouble if it
   is probed for PCMCIA.
-
   33..44..  IIOO ppoorrtt ssccaann ffaaiilluurreess
 
   Symptoms:
@@ -1293,6 +1299,7 @@
 
   If the modules are all loaded correctly, the output of the lsmod
   command should look like the following, when no cards are inserted:
+
        Module                  Size  Used by
        ds                      5640   2
        i82365                 15452   2
@@ -1638,10 +1645,10 @@
   ifport command can be used to check or set the current transceiver
   type.  For example:
 
-  # ifport eth0 10base2
-  #
-  # ifport eth0
-  eth0    2 (10base2)
+       # ifport eth0 10base2
+       #
+       # ifport eth0
+       eth0    2 (10base2)
 
   The current (3.0.10 or later) 3c589 driver should quickly autodetect
   transceiver changes at any time.  Earlier releases of the 3c589 driver
@@ -1813,8 +1820,8 @@
   driver as a module, you must edit /etc/pcmcia/config to indicate that
   this module must be loaded.  Edit the serial device entry to read:
 
-  device "serial_cs"
-    class "serial" module "misc/serial", "serial_cs"
+       device "serial_cs"
+         class "serial" module "misc/serial", "serial_cs"
 
   44..44..11..  SSeerriiaall ddeevviiccee ppaarraammeetteerrss
 
@@ -1864,6 +1871,7 @@
      to your /etc/pcmcia/config file so that it will be identified
      properly.  See the ``Configuring unrecognized cards'' section for
      details.
+
   +o  Is the modem configured successfully by serial_cs?  Again, check
      the system log and look for messages from the serial_cs driver.  If
      you see ``register_serial() failed'', you may have an I/O port
@@ -1922,16 +1930,16 @@
   one such card, you may want to specify different settings based on
   socket position, as in:
 
-  case "$ADDRESS" in
-  *,0,*)
-      # Options for card in socket 0
-      LINK=/dev/printer0
-      ;;
-  *,1,*)
-      # Options for card in socket 1
-      LINK=/dev/printer1
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,0,*)
+           # Options for card in socket 0
+           LINK=/dev/printer0
+           ;;
+       *,1,*)
+           # Options for card in socket 1
+           LINK=/dev/printer1
+           ;;
+       esac
 
   If you configure your kernel to load the basic Linux parallel port
   driver as a module, you must edit /etc/pcmcia/config to indicate that
@@ -2032,8 +2040,8 @@
   to tell cardmgr which extra modules need to be loaded when your
   adapter is configured.  For example:
 
-  device "aha152x_cs"
-    class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
+       device "aha152x_cs"
+         class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
 
   would say to load the core SCSI module and the top-level disk driver
   module before loading the regular PCMCIA driver module.  The PCMCIA

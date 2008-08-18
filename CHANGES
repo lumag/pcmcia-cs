@@ -1,4 +1,19 @@
-Version 3.1.27
+[08-Aug-01] Version 3.1.28
+-- Another axnet_cs tweak to handle cards with CIS inconsistencies.
+-- Changed all kernel code to use <linux/slab.h> instead of malloc.h.
+-- Fixed ohci1394_stub driver compilation problem with 2.4.7 kernels.
+-- Fixed ibmtr_cs compilation problem with 2.4.* kernels.
+-- Fixed wait_for_completion conflict with latest 2.4.* kernels.
+-- Fixed pcnet_cs MII probe bug affecting DL10022 rev 30 cards.
+-- Fixed Configure script to support IBM 4xx PowerPC processors.
+-- Fixed Configure to define CONFIG_ALL_PPC on 2.4 kernels w/ PowerPC.
+-- Fixed fmvj18x_cs suspend/resume handling, from Komuro.
+-- Fixed config scripts to distinguish between fsck failures and cases
+   where fsck successfully fixed a dirty filesystem.
+-- Fixed SMP compile bug in axnet_cs driver.
+-- Fixed axnet_cs problem with Linksys cards due to a CIS bug.
+
+[02-Jul-01] Version 3.1.27
 -- Extended config file format, so that manfid and product strings can
    both be specified for a card, to help resolve ambiguities.
 -- Added another PCI fixup, for when the BIOS configures a bridge so

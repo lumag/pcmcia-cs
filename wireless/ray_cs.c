@@ -30,7 +30,7 @@
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <asm/io.h>
@@ -317,7 +317,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.24 2001/04/05 02:40:06 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.25 2001/08/06 01:29:38 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)

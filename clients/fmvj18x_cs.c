@@ -1,5 +1,5 @@
 /*======================================================================
-    fmvj18x_cs.c 2.4 2001/03/10
+    fmvj18x_cs.c 2.5 2001/07/20
 
     A fmvj18x (and its compatibles) PCMCIA client driver
 
@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
@@ -90,7 +90,7 @@ MODULE_PARM(sram_config, "i");
    driver version infomation 
  */
 #ifdef PCMCIA_DEBUG
-static char *version = "fmvj18x_cs.c 2.4 2001/03/10";
+static char *version = "fmvj18x_cs.c 2.5 2001/07/20";
 #endif
 
 /*====================================================================*/
@@ -524,17 +524,17 @@ req_irq:
 
     ioaddr = dev->base_addr;
 
-    /* Power On chip and select bank 0 */
-    if(cardtype == UNGERMANN)
-	outb(BANK_0U, ioaddr + CONFIG_1);
-    else
-	outb(BANK_0, ioaddr + CONFIG_1);
-
     /* Reset controller */
     if( sram_config == 0 ) 
 	outb(CONFIG0_RST, ioaddr + CONFIG_0);
     else
 	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
+
+    /* Power On chip and select bank 0 */
+    if(cardtype == UNGERMANN)
+	outb(BANK_0U, ioaddr + CONFIG_1);
+    else
+	outb(BANK_0, ioaddr + CONFIG_1);
     
     /* Set hardware address */
     switch (cardtype) {
@@ -944,17 +944,17 @@ static void fjn_reset(struct net_device *dev)
 
     DEBUG(4, "fjn_reset(%s) called.\n",dev->name);
 
+    /* Reset controller */
+    if( sram_config == 0 ) 
+	outb(CONFIG0_RST, ioaddr + CONFIG_0);
+    else
+	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
+
     /* Power On chip and select bank 0 */
     if( lp->cardtype == UNGERMANN)
 	outb(BANK_0U, ioaddr + CONFIG_1);
     else
 	outb(BANK_0, ioaddr + CONFIG_1);
-
-    /* Reset buffers */
-    if( sram_config == 0 ) 
-	outb(CONFIG0_RST, ioaddr + CONFIG_0);
-    else
-	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
 
     /* Set Tx modes */
     outb(D_TX_MODE, ioaddr + TX_MODE);

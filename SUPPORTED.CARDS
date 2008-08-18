@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2001/07/02 02:08:53
+		Last updated: 2001/08/09 00:56:46
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -78,7 +78,7 @@ Ethernet cards:
 	Dayna Communications CommuniCard E
 	Digital DEPCM-AA, PCP78-AC Ethernet
 	Digital EtherWORKS Turbo Ethernet
-	D-Link DE-650, DE-660, DE-660+
+	D-Link DE-650, DE-660, DE-660CT, DE-660+
 	DynaLink L10C, L10BC Ethernet
 	Edimax Technology Ethernet Combo
 	EFA InfoExpress 205, 207 Combo
@@ -101,6 +101,7 @@ Ethernet cards:
 	IC-Card Ethernet
 	Infotel IN650ct Ethernet
 	IO DATA PCLA/T, PCLA/TE
+	iPort 10Mbps Ethernet
 	Katron PE-520 Ethernet
 	KingMax Technology EN10-T2 Ethernet
 	Kingston KNE-PCM/M, KNE-PC2, KNE-PC2T, KNE-PC2BT
@@ -176,11 +177,12 @@ Fast Ethernet (10/100baseT) adapters:
 	[axnet_cs driver]
 	AmbiCom AMB8110
 	KingMax Fast Ethernet
-	Melco LPC3-TX
-	New Media LiveWire 10/100
-	[not yet working]
 	Linksys NP100 Network Everywhere v2
 	Linksys PCMPC100 EtherFast v3
+	Melco LPC3-TX
+	New Media LiveWire 10/100
+	Planex FNW-3700-T
+	Repotec RP-1638
 
 	[pcnet_cs driver] [x86,ppc,axp]
 	Abocom LinkMate FE1000, FE1500
@@ -190,7 +192,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Ark Sky Link Express PA2600
 	Buffalo LPC3-CLX
 	COMPU-SHACK FASTline 10/100
-	Corega FastEther PCC-TX, FEther PCC-TXF
+	Corega FastEther PCC-TX, FEther PCC-TXF, FEther PCC-TXD
 	CyQ've ELA-110E 10/100
 	Digicom Palladio
 	D-Link DFE-650, DRP-16TX
@@ -212,6 +214,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Micronet EtherFast Adapter
 	Micronet SP162A
 	NetGear FA410TXC, FA411
+	Net-Lynx 10/100 Fast Ethernet
 	New Media LiveWire 10/100
 	Planex FNW-3600T
 	WiseCom iPort 10/100
@@ -279,6 +282,7 @@ Fast Ethernet (10/100baseT) adapters:
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
 	TRENDnet TE100-PCBUSR
 	UMAX Technologies UMAX250
+	ZEUS CardBus 10/100 LAN
 	[ Not recommended: support is experimental and unreliable ]
 	IBM 10/100 EtherJet CardBus
 	Intel EtherExpress PRO/100 CardBus
@@ -470,6 +474,7 @@ Multifunction ethernet/modem cards:
 
 	[pcnet_cs driver] [x86,axp]
 	Accton EN2218, UE2218
+	ActionTec ComNet 33.6
 	AnyCom Fast Ethernet + 56K Combo
 	Asus combo card
 	Billionton LM5LT-10B

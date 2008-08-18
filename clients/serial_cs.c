@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.124 2001/03/06 05:25:33
+    serial_cs.c 1.125 2001/08/06 01:28:24
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,7 +39,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/tty.h>
@@ -62,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.124 2001/03/06 05:25:33 (David Hinds)";
+"serial_cs.c 1.125 2001/08/06 01:28:24 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

@@ -1,4 +1,4 @@
-Known problems and limitations for the 3.1.27 PCMCIA release
+Known problems and limitations for the 3.1.28 PCMCIA release
 ============================================================
 
 Bug summaries:
@@ -20,6 +20,7 @@ o Tedious IDE probes for nonexistent slave devices
 o IDE driver does not share PCI interrupts properly
 o SuSE 6.4 IDE driver problem
 o Multicast filter problem with xirc2ps_cs driver
+o Xircom CardBus ethernet cards lock up some Toshiba laptops
 
 Bug details:
 
@@ -163,5 +164,11 @@ o The SuSE 6.4 version of the 2.2.14 kernel has a broken IDE probe
 
 o Multicast filter problem with xirc2ps_cs driver
 
-I have some reports that multicast filtering doesn't work properly in
-the xirc2ps_cs driver.  I have not investigated further.
+  I have some reports that multicast filtering doesn't work properly
+  in the xirc2ps_cs driver.  I have not investigated further.
+
+o Xircom CardBus ethernet cards lock up some Toshiba laptops
+
+  I now have a bunch of reports of this problem.  While the Toshiba
+  CardBus bridges are somewhat quirky, I haven't had a lot of reports
+  of problems with the latest PCMCIA drivers, except for this issue.

@@ -1,5 +1,5 @@
 #
-# shared 1.26 2001/02/16 14:39:09 (David Hinds)
+# shared 1.27 2001/07/19 13:37:06 (David Hinds)
 #
 
 usage ()
@@ -48,7 +48,8 @@ add_blkdev ()
 	echo "$1 $MOUNTPT ${FSTYPE:-auto} ${OPTS:-defaults} 0 0" >> /etc/fstab
     fi
     if is_true $DO_FSCK ; then
-	log /sbin/fsck -Ta $1 || return 1
+	log /sbin/fsck -Ta $1
+	if [ $? -gt 1 ] ; then return 1 ; fi
     fi
     if is_true $DO_MOUNT ; then
 	O=${OPTS:+-o $OPTS} ; FS=${FSTYPE:+-t $FSTYPE}

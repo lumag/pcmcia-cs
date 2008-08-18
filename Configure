@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.185 2001/06/12 00:26:40
+# Configure 1.187 2001/08/04 01:23:07
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -441,12 +441,17 @@ printconfig () {
     fi
     if [ $ARCH = "ppc" ] ; then
     	printflag "MPC8xx architecture" CONFIG_8xx
+	printflag "IBM 4xx processor" CONFIG_4xx
     	printflag "Embedded Planet LITE platform" CONFIG_RPXLITE
     	printflag "Embedded Planet CLASSIC platfom" CONFIG_RPXCLASSIC
     	printflag "MPC823 processor" CONFIG_MPC823
     	printflag "MPC850 processor" CONFIG_MPC850
     	printflag "MPC860 processor" CONFIG_MPC860
    	printflag "MPC860T processor" CONFIG_MPC860T
+	if [ $VERSION_CODE -gt `version 2 4 0` ] ; then
+	    CONFIG_ALL_PPC=y
+	    write_bool CONFIG_ALL_PPC
+	fi
     fi
     printflag "/proc filesystem support" CONFIG_PROC_FS
     if [ "$BIGMEM" ] ; then
@@ -592,6 +597,7 @@ case $CONF_SRC in
 	fi
 	if [ $ARCH = "ppc" ] ; then
 	    configcheck CONFIG_8xx
+	    configcheck CONFIG_4xx
 	    configcheck CONFIG_RPXLITE
 	    configcheck CONFIG_RPXCLASSIC
 	    configcheck CONFIG_MPC823

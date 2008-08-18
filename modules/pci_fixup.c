@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.27 2001/06/22 04:17:24
+    pci_fixup.c 1.28 2001/08/06 01:29:28
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -17,7 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <asm/io.h>
 

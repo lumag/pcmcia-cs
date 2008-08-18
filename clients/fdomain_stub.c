@@ -2,7 +2,7 @@
 
     A driver for Future Domain-compatible PCMCIA SCSI cards
 
-    fdomain_cs.c 1.44 2001/01/18 03:02:57
+    fdomain_cs.c 1.45 2001/08/06 01:28:21
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -38,7 +38,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
@@ -62,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"fdomain_cs.c 1.44 2001/01/18 03:02:57 (David Hinds)";
+"fdomain_cs.c 1.45 2001/08/06 01:28:21 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

@@ -60,30 +60,32 @@ Network drivers:
 Character drivers:
 
   serial_cs    PCMCIA serial device      CONFIG_PCMCIA_SERIAL_CS
-  serial_cb    CardBus serial device     CONFIG_PCMCIA_SERIAL_CB
 
 SCSI low-level drivers:
 
   aha152x_cs   Adaptec AHA152X           CONFIG_PCMCIA_AHA152X
   qlogic_cs    Qlogic                    CONFIG_PCMCIA_QLOGIC
   fdomain_cs   Future Domain             CONFIG_PCMCIA_FDOMAIN
-  apa1480_cb   Adaptec APA1480 CardBus   CONFIG_PCMCIA_APA1480
 
 Other drivers:
   ide_cs       ATA/IDE devices           CONFIG_BLK_DEV_IDECS
 
-The CardBus network drivers (3c575_cb, tulip_cb, epic_cb) have been
-folded into the corresponding PCI drivers using the new "hot plug PCI"
-interface.  The tulip_cb driver has been partially merged into the
-tulip driver ('DECchip Tulip (dc21x4x)', CONFIG_TULIP).  Xircom
-CardBus cards are supported by a separate driver ('Xircom Tulip-like
-CardBus', CONFIG_PCMCIA_XIRTULIP).  The 3c575_cb driver is merged into
-the 3c59x driver ('3C590/3c900 series (592/595/597) "Vortex/Boomerang"
-support', CONFIG_VORTEX).  And the epic_cb driver has been folded into
-the epic100 driver ('SMC EtherPower II', CONFIG_EPIC100).  These
-drivers are not managed by cardmgr; they are managed by the "hotplug"
-subsystem.  See http://linux-hotplug.sourceforge.net for information
-about this new facility.
+Most CardBus drivers have been folded into their corresponding regular
+PCI drivers using the new "hot plug PCI" interface.  Here is a mapping
+from old CardBus drivers to new hot plug drivers:
+
+  3c575_cb    3c59x    3c59x/3c90x/3x575 series   CONFIG_VORTEX
+  tulip_cb    tulip    DECchip Tulip (dc21x4x)    CONFIG_TULIP
+  epic_cb     epic100  SMC EtherPower II          CONFIG_EPIC100
+  serial_cb   serial   Standard/generic serial    CONFIG_SERIAL
+  apa1480_cb  aic7xxx  Adaptec AIC7xxx SCSI       CONFIG_SCSI_AIC7XXX
+
+Xircom CardBus cards are supported by a separate driver ('Xircom
+Tulip-like CardBus', xircom_tulip_cb, CONFIG_PCMCIA_XIRTULIP).  Hot
+plug PCI drivers are not managed by cardmgr; they are managed by the
+"hotplug" subsystem.  See http://linux-hotplug.sourceforge.net for
+information about this new facility.  When cardmgr sees a card that is
+owned by a hot plug PCI driver, it will ignore that card.
 
 Known problems and limitations:
 

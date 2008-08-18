@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.79 2001/01/29 02:21:44
+    cardbus.c 1.80 2001/08/06 01:29:26
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -44,7 +44,7 @@
 #include <linux/kernel.h>
 #include <linux/config.h>
 #include <linux/string.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>

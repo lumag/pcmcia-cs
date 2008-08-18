@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2 and Series 100 Flash devices
 
-    iflash2_mtd.c 1.58 2000/10/02 20:38:23
+    iflash2_mtd.c 1.60 2001/08/06 01:28:22
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -45,7 +45,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/major.h>
@@ -53,7 +53,6 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/system.h>
-#include <asm/segment.h>
 #endif
 
 #include <stdarg.h>
@@ -73,7 +72,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"iflash2_mtd.c 1.58 2000/10/02 20:38:23 (David Hinds)";
+"iflash2_mtd.c 1.60 2001/08/06 01:28:22 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif

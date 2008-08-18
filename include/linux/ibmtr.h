@@ -31,4 +31,19 @@ static inline struct net_device *init_trdev(void *p, int n)
 }
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0))
+  #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,2,17)) || defined(BLOCKSZ)
+  #define TR_OLD 0
+  #else
+  #define TR_OLD 1
+  #endif
+#else
+  #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,7)) || !defined(ADAPTINTCNTRL)
+  #define TR_OLD 0
+  #else
+  #define TR_OLD 1
+#endif
+
+#endif
+
 #endif /* _COMPAT_IBMTR_H */

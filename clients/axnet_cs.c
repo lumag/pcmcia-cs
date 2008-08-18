@@ -11,7 +11,7 @@
 
     Copyright (C) 2001 David A. Hinds -- dahinds@users.sourceforge.net
 
-    axnet_cs.c 1.11 2001/06/12 12:42:40
+    axnet_cs.c 1.15 2001/08/08 04:55:18
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -32,7 +32,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
@@ -54,7 +54,6 @@
 #define AXNET_CMD	0x00
 #define AXNET_DATAPORT	0x10	/* NatSemi-defined port window offset. */
 #define AXNET_RESET	0x1f	/* Issue a read to reset, a write to clear. */
-#define AXNET_MISC	0x18	/* For IBM CCAE and Socket EA cards */
 #define AXNET_MII_EEP	0x14	/* Offset of MII access port */
 
 #define AXNET_START_PG	0x40	/* First page of TX buffer */
@@ -67,7 +66,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"axnet_cs.c 1.11 2001/06/12 12:42:40 (David Hinds)";
+"axnet_cs.c 1.15 2001/08/08 04:55:18 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -416,7 +415,8 @@ static void axnet_config(dev_link_t *link)
     CS_CHECK(GetTupleData, handle, &tuple);
     CS_CHECK(ParseTuple, handle, &tuple, &parse);
     link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
+    /* don't trust the CIS on this; Linksys got it wrong */
+    link->conf.Present = 0x63;
 
     /* Configure card */
     link->state |= DEV_CONFIG;
@@ -437,7 +437,7 @@ static void axnet_config(dev_link_t *link)
 	if ((cfg->index == 0) || (cfg->io.nwin == 0))
 	    goto next_entry;
 	
-	link->conf.ConfigIndex = cfg->index;
+	link->conf.ConfigIndex = 0x01;
 	/* For multifunction cards, by convention, we configure the
 	   network function with window 0, and serial with window 1 */
 	if (io->nwin > 1) {
@@ -1112,6 +1112,9 @@ static int ei_open(struct net_device *dev)
  *
  * Opposite of ei_open(). Only used when "ifconfig <devname> down" is done.
  */
+
+#define dev_lock(dev) (((struct ei_device *)(dev)->priv)->page_lock)
+
 static int ei_close(struct net_device *dev)
 {
 	unsigned long flags;
@@ -1120,9 +1123,9 @@ static int ei_close(struct net_device *dev)
 	 *	Hold the page lock during close
 	 */
 
-	spin_lock_irqsave(((struct ei_device *)dev->priv)->page_lock, flags);
+	spin_lock_irqsave(&dev_lock(dev), flags);
 	NS8390_init(dev, 0);
-	spin_unlock_irqrestore(((struct ei_device *)dev->priv)->page_lock, flags);
+	spin_unlock_irqrestore(&dev_lock(dev), flags);
 	netif_stop_queue(dev);
 	return 0;
 }
@@ -1810,14 +1813,14 @@ static void do_set_multicast_list(struct net_device *dev)
  *	be parallel to just about everything else. Its also fairly quick and
  *	not called too often. Must protect against both bh and irq users
  */
- 
+
 static void set_multicast_list(struct net_device *dev)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(((struct ei_device *)dev->priv)->page_lock, flags);
+	spin_lock_irqsave(&dev_lock(dev), flags);
 	do_set_multicast_list(dev);
-	spin_unlock_irqrestore(((struct ei_device *)dev->priv)->page_lock, flags);
+	spin_unlock_irqrestore(&dev_lock(dev), flags);
 }	
 
 /**

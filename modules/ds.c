@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.109 2001/01/11 01:31:50
+    ds.c 1.110 2001/08/06 01:29:27
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -40,7 +40,7 @@
 #include <linux/major.h>
 #include <linux/string.h>
 #include <linux/errno.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/fcntl.h>
 #include <linux/sched.h>
@@ -63,7 +63,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.109 2001/01/11 01:31:50 (David Hinds)";
+"ds.c 1.110 2001/08/06 01:29:27 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

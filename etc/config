@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.170 2001/06/23 13:48:47 (David Hinds)
+# config 1.173 2001/08/09 00:56:42 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -410,6 +410,11 @@ card "IC-Card Plus Ethernet"
   version "IC-CARD+", "IC-CARD+"
   bind "pcnet_cs"
 
+card "iPort 10Mbps Ethernet"
+  #version "iPort", "Ethernet Card"
+  manfid 0x0274, 0x1121
+  bind "pcnet_cs"
+
 card "Kansai KLA-PCM/T Ethernet"
   version "KANSAI ELECTRIC CO.,LTD", "KLA-PCM/T"
   bind "pcnet_cs"
@@ -548,9 +553,10 @@ card "NE2000 Compatible Ethernet"
   version "PCMCIA", "PCMCIA-ETHERNET-CARD", "UE2620"
   bind "pcnet_cs"
 
-card "NE2000 Compatible Ethernet"
+card "Asix AX88190 Fast Ethernet"
+  #version "Fast Ethernet", "16-bit PC Card", "*", "AX88190"
   manfid 0x0149, 0xc1ab
-  bind "pcnet_cs"
+  bind "axnet_cs"
 
 card "NDC Instant-Link Ethernet"
   version "NDC", "Ethernet"
@@ -739,6 +745,11 @@ card "COMPU-SHACK FASTline 10/100 Fast Ethernet"
 
 card "Corega PCC-TX Fast Ethernet"
   version "corega K.K.", "corega FastEther PCC-TX"
+  bind "pcnet_cs"
+
+card "Corega FEther PCC-TXD"
+  version "corega K.K.", "corega FEther PCC-TXD"
+  #manfid 0x1234, 0x5678
   bind "pcnet_cs"
 
 card "Corega FEther PCC-TXF"
@@ -1487,6 +1498,12 @@ card "New Media LANSurfer 10+56 Ethernet/Modem"
 
 card "NSC DP83903-based Ethernet/Modem"
   version "*", "*", "*", "NSC MF LAN/Modem"
+  cis "cis/DP83903.dat"
+  bind "pcnet_cs" to 0, "serial_cs" to 1
+
+card "NSC DP83903-based Ethernet/Modem"
+  #version "Multifunction Card", "LAN and Modem 336", "Multifunction"
+  manfid 0x0175, 0x0000
   cis "cis/DP83903.dat"
   bind "pcnet_cs" to 0, "serial_cs" to 1
 

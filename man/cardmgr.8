@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" cardmgr.8 1.39 2001/03/05 04:10:49
+.\" cardmgr.8 1.40 2001/07/19 23:41:34
 .\"
-.TH CARDMGR 8 "2001/03/05 04:10:49" "pcmcia-cs"
+.TH CARDMGR 8 "2001/07/19 23:41:34" "pcmcia-cs"
 .SH NAME
 cardmgr \- PCMCIA device manager
 .SH SYNOPSIS
@@ -63,9 +63,9 @@ operation.  Configuration scripts are executed with VERBOSE=y.
 .TP
 .B \-d
 Follow module dependencies when loading driver modules, by defaulting
-to use \fBmodprobe\fR instead of \fBinsmod\fR.  Normally, \fBcardmgr
-\fR will try using \fBmodprobe\fR only after an unsuccessful attempt
-with \fBinsmod\fR.
+to use \fBmodprobe\fR instead of \fBinsmod\fR.  Normally,
+\fBcardmgr\fR will try using \fBmodprobe\fR only after an unsuccessful
+attempt with \fBinsmod\fR. 
 .TP
 .B \-f
 Foreground: do not fork and run as a daemon until after configuring

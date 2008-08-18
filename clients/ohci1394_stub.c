@@ -44,13 +44,15 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/major.h>
 #include <linux/blk.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
+#include <linux/proc_fs.h>
 
 #include <../drivers/ieee1394/ieee1394.h>
 #include <../drivers/ieee1394/ieee1394_types.h>

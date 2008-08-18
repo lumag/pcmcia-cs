@@ -32,13 +32,12 @@
 
 #include <asm/io.h>
 #include <asm/bitops.h>
-#include <asm/segment.h>
 #include <asm/system.h>
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>

@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.274 2001/03/05 04:01:49
+    cs.c 1.275 2001/08/06 01:29:27
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -42,7 +42,7 @@
 #include <linux/string.h>
 #include <linux/major.h>
 #include <linux/errno.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -71,7 +71,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.274 2001/03/05 04:01:49 (David Hinds)";
+"cs.c 1.275 2001/08/06 01:29:27 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI

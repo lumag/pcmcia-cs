@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.29 2001/03/08 14:29:33
+    dummy_cs.c 1.30 2001/08/06 01:28:20
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -43,7 +43,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
@@ -70,7 +70,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"dummy_cs.c 1.29 2001/03/08 14:29:33 (David Hinds)";
+"dummy_cs.c 1.30 2001/08/06 01:28:20 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

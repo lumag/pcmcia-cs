@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.82 2001/06/04 12:47:58
+    rsrc_mgr.c 1.83 2001/08/06 01:29:28
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -43,7 +43,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>
 #include <asm/irq.h>

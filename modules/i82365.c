@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.334 2001/04/19 02:27:45
+    i82365.c 1.336 2001/08/06 01:29:27
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -46,7 +46,7 @@
 #include <linux/errno.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -54,7 +54,6 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/bitops.h>
-#include <asm/segment.h>
 #include <asm/system.h>
 #endif
 
@@ -82,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.334 2001/04/19 02:27:45 (David Hinds)";
+"i82365.c 1.336 2001/08/06 01:29:27 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif

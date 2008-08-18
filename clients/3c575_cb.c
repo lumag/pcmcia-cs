@@ -98,7 +98,7 @@ static int auto_polarity = 1;
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -882,7 +882,7 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 	return dev;
 }
 
-static void wait_for_completion(struct net_device *dev, int cmd)
+static void issue_and_wait(struct net_device *dev, int cmd)
 {
 	int i = 2000;
 	outw(cmd, dev->base_addr + EL3_CMD);
@@ -1089,8 +1089,8 @@ static void start_operation(struct net_device *dev)
 	long ioaddr = dev->base_addr;
 	int i;
 
-	wait_for_completion(dev, TxReset);
-	wait_for_completion(dev, RxReset);
+	issue_and_wait(dev, TxReset);
+	issue_and_wait(dev, RxReset);
 	outw(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
 	/* Reset the station address and mask. */
 	EL3WINDOW(2);
@@ -1315,7 +1315,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 		}
 	}
 #endif
-	wait_for_completion(dev, TxReset);
+	issue_and_wait(dev, TxReset);
 
 	vp->stats.tx_errors++;
 	if (vp->full_bus_master_tx) {
@@ -1373,7 +1373,7 @@ vortex_error(struct net_device *dev, int status)
 		if (tx_status & 0x38)  vp->stats.tx_aborted_errors++;
 		outb(0, ioaddr + TxStatus);
 		if ((tx_status & 0x08) && (vp->drv_flags & IS_TORNADO))
-			wait_for_completion(dev, TxReset | 0x0108);
+			issue_and_wait(dev, TxReset | 0x0108);
 		if (tx_status & 0x30)
 			do_tx_reset = 1;
 		else {					/* Merely re-enable the transmitter. */
@@ -1419,12 +1419,12 @@ vortex_error(struct net_device *dev, int status)
 				printk(KERN_ERR "%s: PCI bus error, bus status %8.8x.\n",
 					   dev->name, inl(ioaddr + PktStatus));
 			vortex_down(dev);
-			wait_for_completion(dev, TotalReset | 0xff);
+			issue_and_wait(dev, TotalReset | 0xff);
 			vortex_up(dev);
 		} else if (fifo_diag & 0x0400)
 			do_tx_reset = 1;
 		if (fifo_diag & 0x3000) {
-			wait_for_completion(dev, RxReset);
+			issue_and_wait(dev, RxReset);
 			/* Set the Rx filter to the current state. */
 			set_rx_mode(dev);
 			outw(RxEnable, ioaddr + EL3_CMD); /* Re-enable the receiver. */
@@ -1432,8 +1432,8 @@ vortex_error(struct net_device *dev, int status)
 		}
 	}
 	if (do_tx_reset) {
-		wait_for_completion(dev, DownStall);
-		wait_for_completion(dev, TxReset);
+		issue_and_wait(dev, DownStall);
+		issue_and_wait(dev, TxReset);
 		outw(TxEnable, ioaddr + EL3_CMD);
 		if ((vp->drv_flags & IS_BOOMERANG) || !down_poll_rate) {
 			/* Room for a packet, to avoid long DownStall delays. */
@@ -1490,7 +1490,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				if (tx_status & 0x04) vp->stats.tx_fifo_errors++;
 				if (tx_status & 0x38) vp->stats.tx_aborted_errors++;
 				if (tx_status & 0x30) {
-					wait_for_completion(dev, TxReset);
+					issue_and_wait(dev, TxReset);
 				}
 				outw(TxEnable, ioaddr + EL3_CMD);
 				vp->restart_tx = 1;
@@ -1536,7 +1536,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&vp->lock, flags);
 	if ((vp->drv_flags & IS_BOOMERANG) || !down_poll_rate) {
 		/* Wait for the stall to complete. */
-		wait_for_completion(dev, DownStall);
+		issue_and_wait(dev, DownStall);
 		vp->tx_desc_tail->next = virt_to_le32desc(&vp->tx_ring[entry]);
 		vp->tx_desc_tail = &vp->tx_ring[entry];
 		if (inl(ioaddr + DownListPtr) == 0) {
@@ -1744,7 +1744,7 @@ static int vortex_rx(struct net_device *dev)
 					   "size %d.\n", dev->name, pkt_len);
 		}
 		vp->stats.rx_dropped++;
-		wait_for_completion(dev, RxDiscard);
+		issue_and_wait(dev, RxDiscard);
 	}
 
 	return 0;

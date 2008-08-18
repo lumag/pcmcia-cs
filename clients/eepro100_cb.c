@@ -89,7 +89,7 @@ static int debug = 1;			/* The debug level */
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <asm/bitops.h>

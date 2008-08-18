@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.66 2000/06/12 21:27:25
+    ftl_cs.c 1.69 2001/08/08 14:01:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -58,25 +58,19 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 #include <linux/hdreg.h>
+#include <linux/vmalloc.h>
+#include <linux/blkpg.h>
 #include <asm/io.h>
 #include <asm/system.h>
-#include <asm/segment.h>
 #include <asm/uaccess.h>
 #include <stdarg.h>
-
-#if (LINUX_VERSION_CODE >= VERSION(2,1,0))
-#include <linux/vmalloc.h>
-#endif
-#if (LINUX_VERSION_CODE >= VERSION(2,3,3))
-#include <linux/blkpg.h>
-#endif
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -119,7 +113,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.66 2000/06/12 21:27:25 (David Hinds)";
+"ftl_cs.c 1.69 2001/08/08 14:01:17 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

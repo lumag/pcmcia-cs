@@ -2,7 +2,7 @@
 
     PCMCIA Bulk Memory Services
 
-    bulkmem.c 1.38 2000/09/25 19:29:51
+    bulkmem.c 1.39 2001/08/06 01:29:26
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -40,7 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/timer.h>

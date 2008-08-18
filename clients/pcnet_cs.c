@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.137 2001/07/03 00:29:12
+    pcnet_cs.c 1.140 2001/08/06 23:35:31
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -36,7 +36,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
@@ -76,7 +76,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.137 2001/07/03 00:29:12 (David Hinds)";
+"pcnet_cs.c 1.140 2001/08/06 23:35:31 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -766,11 +766,13 @@ static void pcnet_config(dev_link_t *link)
     link->state &= ~DEV_CONFIG_PENDING;
 
     if (info->flags & (IS_DL10019|IS_DL10022)) {
+	u_char id = inb(dev->base_addr + 0x1a);
 	dev->do_ioctl = &ei_ioctl;
-	printk(KERN_INFO "%s: NE2000 (DL100%d rev %02x): ",
-	       dev->name, ((info->flags & IS_DL10022) ? 22 : 19),
-	       inb(dev->base_addr + 0x1a));
 	mii_phy_probe(dev);
+	if ((id == 0x30) && !info->pna_phy)
+	    info->eth_phy = 0;
+	printk(KERN_INFO "%s: NE2000 (DL100%d rev %02x): ",
+	       dev->name, ((info->flags & IS_DL10022) ? 22 : 19), id);
 	if (info->pna_phy)
 	    printk("PNA, ");
     } else
@@ -989,8 +991,7 @@ static void mii_phy_probe(struct net_device *dev)
     pcnet_dev_t *info = (pcnet_dev_t *)dev;	
     ioaddr_t mii_addr = dev->base_addr + DLINK_GPIO;
     int i;
-    u_int tmp;
-    u_long phyid;
+    u_int tmp, phyid;
 
     for (i = 31; i >= 0; i--) {
 	tmp = mdio_read(mii_addr, i, 1);
@@ -1000,6 +1001,7 @@ static void mii_phy_probe(struct net_device *dev)
 	phyid = tmp << 16;
 	phyid |= mdio_read(mii_addr, i, MII_PHYID_REG2);
 	phyid &= MII_PHYID_REV_MASK;
+	DEBUG(0, "%s: MII at %d is 0x%08x\n", dev->name, i, phyid);
 	if (phyid == AM79C9XX_HOME_PHY) {
 	    info->pna_phy = i;
 	} else if (phyid != AM79C9XX_ETH_PHY) {

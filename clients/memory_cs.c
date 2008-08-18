@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.76 2000/08/22 04:38:30
+    memory_cs.c 1.79 2001/08/06 12:32:22
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -43,20 +43,16 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
+#include <linux/blkpg.h>
 #include <asm/io.h>
 #include <asm/system.h>
-#include <asm/segment.h>
 #include <stdarg.h>
-
-#if (LINUX_VERSION_CODE >= VERSION(2,3,3))
-#include <linux/blkpg.h>
-#endif
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -91,7 +87,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.76 2000/08/22 04:38:30 (David Hinds)";
+"memory_cs.c 1.79 2001/08/06 12:32:22 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
