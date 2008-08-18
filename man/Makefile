@@ -1,5 +1,5 @@
 #
-# man/Makefile 1.42 1999/12/21 23:10:43 (David Hinds)
+# man/Makefile 1.45 2000/01/25 01:54:28 (David Hinds)
 #
 
 # Include site dependent options
@@ -12,7 +12,8 @@ MAN1_X11 = cardinfo.1
 MAN4 = pcmcia_core.4 tcic.4 i82365.4 tc589_cs.4 pcnet_cs.4 dummy_cs.4 \
 	serial_cs.4 ftl_cs.4 memory_cs.4 fmvj18x_cs.4 tc574_cs.4 \
 	tc575_cb.4 netwave_cs.4 wavelan_cs.4 aha152x_cs.4 xirc2ps_cs.4 \
-	memory_cb.4 ibmtr_cs.4 smc91c92_cs.4 iflash2_mtd.4 iflash2+_mtd.4
+	memory_cb.4 ibmtr_cs.4 smc91c92_cs.4 iflash2_mtd.4 iflash2+_mtd.4 \
+	wvlan_cs.4 ray_cs.4 airo.4 airo_cs.4
 MAN5 = pcmcia.5 stab.5
 MAN8 = cardmgr.8 cardctl.8 ftl_format.8 ftl_check.8 scsi_info.8 \
 	ifport.8 ifuser.8 ide_info.8 pcinitrd.8 pack_cis.8 dump_cis.8 \

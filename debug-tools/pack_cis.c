@@ -3,7 +3,7 @@
     A utility to convert a plain text description of a Card
     Information Structure into its packed binary representation.
 
-    pack_cis.c 1.14 1999/12/07 02:17:02
+    pack_cis.c 1.15 2000/01/25 02:29:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -197,6 +197,10 @@ static void pack_cftable(cistpl_cftable_entry_t *p, u_char *b)
     if (p->mem.nwin > 0) {
 	b[4] |= 0x60;
 	c += pack_mem(&p->mem, c);
+    }
+    if (p->flags >> 8) {
+	b[4] |= 0x80;
+	*c++ = p->flags >> 8;
     }
     b[1] = c-b-2;
 }

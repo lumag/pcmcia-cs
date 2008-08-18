@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.243 1999/12/17 00:55:50
+    cs.c 1.247 2000/01/15 04:30:35
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -74,7 +74,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.243 1999/12/17 00:55:50 (David Hinds)";
+"cs.c 1.247 2000/01/15 04:30:35 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -746,18 +746,18 @@ static int alloc_io_space(socket_info_t *s, u_int attr, ioaddr_t *base,
     int i;
     ioaddr_t try, align;
 
-    align = (*base) ? (1<<lines) : 1;
+    align = (*base) ? (lines ? 1<<lines : 0) : 1;
     if (align && (align < num)) {
 	if (*base) {
-	    printk(KERN_INFO "odd IO request: num %04x align %04x\n",
-		   num, align);
+	    DEBUG(0, "odd IO request: num %04x align %04x\n",
+		  num, align);
 	    align = 0;
 	} else
 	    while (align && (align < num)) align <<= 1;
     }
     if (*base & ~(align-1)) {
-	printk(KERN_INFO "odd IO request: base %04x align %04x\n",
-	       *base, align);
+	DEBUG(0, "odd IO request: base %04x align %04x\n",
+	      *base, align);
 	align = 0;
     }
     for (i = 0; i < MAX_IO_WIN; i++) {
@@ -1135,7 +1135,7 @@ static int get_window(window_handle_t *handle, int idx, win_req_t *req)
     if (win->ctl.flags & MAP_ACTIVE)
 	req->Attributes |= WIN_ENABLE;
     if (win->ctl.flags & MAP_16BIT)
-	req->Attributes |= WIN_DATA_WIDTH;
+	req->Attributes |= WIN_DATA_WIDTH_16;
     if (win->ctl.flags & MAP_USE_WAIT)
 	req->Attributes |= WIN_USE_WAIT;
     *handle = win;
@@ -1321,7 +1321,7 @@ static int modify_window(window_handle_t win, modwin_t *req)
 	win->ctl.flags |= MAP_ATTRIB;
     if (req->Attributes & WIN_ENABLE)
 	win->ctl.flags |= MAP_ACTIVE;
-    if (req->Attributes & WIN_DATA_WIDTH)
+    if (req->Attributes & WIN_DATA_WIDTH_16)
 	win->ctl.flags |= MAP_16BIT;
     if (req->Attributes & WIN_USE_WAIT)
 	win->ctl.flags |= MAP_USE_WAIT;
@@ -1420,8 +1420,8 @@ static int register_client(client_handle_t *handle, client_reg_t *req)
 static int release_configuration(client_handle_t handle,
 				 config_req_t *req)
 {
-    pccard_io_map io;
     socket_info_t *s;
+    pccard_io_map io = { 0, 0, 0, 0, 1 };
     int i;
     
     if (CHECK_HANDLE(handle) ||
@@ -1454,8 +1454,6 @@ static int release_configuration(client_handle_t handle,
 		if (s->io[i].Config != 0)
 		    continue;
 		io.map = i;
-		s->ss_entry(s->sock, SS_GetIOMap, &io);
-		io.flags &= ~MAP_ACTIVE;
 		s->ss_entry(s->sock, SS_SetIOMap, &io);
 	    }
 	c->state &= ~CONFIG_LOCKED;
@@ -1923,7 +1921,7 @@ static int request_window(client_handle_t *handle, win_req_t *req)
 	win->ctl.flags |= MAP_ATTRIB;
     if (req->Attributes & WIN_ENABLE)
 	win->ctl.flags |= MAP_ACTIVE;
-    if (req->Attributes & WIN_DATA_WIDTH)
+    if (req->Attributes & WIN_DATA_WIDTH_16)
 	win->ctl.flags |= MAP_16BIT;
     if (req->Attributes & WIN_USE_WAIT)
 	win->ctl.flags |= MAP_USE_WAIT;
@@ -2325,6 +2323,9 @@ static int __init init_pcmcia_cs(void)
 #ifdef CONFIG_APM
     if (do_apm)
 	apm_register_callback(&handle_apm_event);
+#endif
+#ifdef CONFIG_PCI
+    scan_pirq_table();
 #endif
 #ifdef CONFIG_PNP_BIOS
     if (do_pnp) {

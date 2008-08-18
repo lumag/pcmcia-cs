@@ -2,7 +2,7 @@
 
     A direct memory interface driver for CardBus cards
 
-    memory_cb.c 1.10 1999/11/24 21:21:43
+    memory_cb.c 1.11 2000/01/11 01:04:46
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -52,7 +52,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cb.c 1.10 1999/11/24 21:21:43 (David Hinds)";
+"memory_cb.c 1.11 2000/01/11 01:04:46 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -310,17 +310,10 @@ static ssize_t memory_write FOPS(struct inode *inode,
 /*====================================================================*/
 
 static struct file_operations memory_fops = {
-    NULL,
-    memory_read,
-    memory_write,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    memory_open,
-    NULL_FLUSH
-    memory_close,
-    NULL
+    open:	memory_open,
+    release:	memory_close,
+    read:	memory_read,
+    write:	memory_write,
 };
 
 struct driver_operations memory_ops = {

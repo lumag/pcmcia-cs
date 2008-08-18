@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.48 1999/11/24 21:07:32
+ * cs_internal.h 1.49 2000/01/15 04:29:44
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -279,6 +279,10 @@ void pnp_proc_init(void);
 void pnp_proc_done(void);
 void pnp_rsrc_init(void);
 void pnp_rsrc_done(void);
+#endif
+
+#ifdef CONFIG_PCI
+void scan_pirq_table(void);
 #endif
 
 #define MAX_SOCK 8

@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.104 1999/12/19 19:17:04 (David Hinds)
+# config 1.110 2000/01/26 00:08:54 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -29,6 +29,9 @@ device "smc91c92_cs"
 
 device "wavelan_cs"
   class "network" module "wavelan_cs"
+
+device "wvlan_cs"
+  class "network" module "wvlan_cs"
 
 device "memory_cs" needs_mtd
   class "memory" module "memory_cs"
@@ -92,6 +95,12 @@ device "epic_cb"
 
 device "serial_cb"
   class "serial" module "cb_enabler", "serial_cb"
+
+device "ray_cs"
+  class "network" module "ray_cs"
+
+device "airo_cs"
+  class "network" module "airo", "airo_cs"
 #
 # Ethernet adapter definitions
 #
@@ -99,16 +108,8 @@ card "2412LAN Ethernet"
   version "2412LAN"
   bind "pcnet_cs"
 
-card "3Com 3c589 Ethernet"
-  version "3Com Corporation", "3C589"
-  bind "3c589_cs"
-
-card "3Com 3c589D Ethernet"
-  version "3Com Corporation", "3C589D"
-  bind "3c589_cs"
-
-card "3Com 3CXE589E Ethernet"
-  version "3Com", "Megahertz 589E"
+card "3Com 589 Ethernet"
+  manfid 0x0101, 0x0589
   bind "3c589_cs"
 
 card "Accton EN2212 Ethernet"
@@ -138,6 +139,10 @@ card "AmbiCom AMB8002 Ethernet"
 
 card "AmbiCom AMB8002T Ethernet"
   version "AmbiCom Inc", "AMB8002T"
+  bind "pcnet_cs"
+
+card "AmbiCom AMB8010 Ethernet"
+  version "AmbiCom Inc", "AMB8010"
   bind "pcnet_cs"
 
 card "AnyCom ECO Ethernet"
@@ -264,8 +269,16 @@ card "E2000 NE2000-Compatible Ethernet"
   version "Ethernet Adapter", "E2000 PCMCIA Ethernet"
   bind "pcnet_cs"
 
+card "Eagle NE200 Ethernet"
+  manfid 0x0004, 0x0004
+  bind "fmvj18x_cs"
+
 card "Edimax Ethernet Combo"
   version "Edimax Technology Inc.", "PCMCIA", "Ethernet Card"
+  bind "pcnet_cs"
+
+card "EFA 207 Ethernet"
+  version "EFA   ", "EFA207", "ETHERNET"
   bind "pcnet_cs"
 
 card "Eiger Labs EPX-ET10T2 Ethernet"
@@ -507,10 +520,6 @@ card "NDC Instant-Link Ethernet"
   cis "cis/NE2K.dat"
   bind "pcnet_cs"
 
-card "Eagle NE200 Ethernet"
-  manfid 0x0004, 0x0004
-  bind "fmvj18x_cs"
-
 card "Novell Eagle 200T Ethernet"
   version "EAGLE Technology", "NE200 ETHERNET LAN MBH10302 04"
   bind "fmvj18x_cs"
@@ -625,12 +634,8 @@ card "Xircom RE-10 Ethernet"
 #
 # 10/100baseT network adapters
 #
-card "3Com 3c574TX Fast Ethernet"
-  version "3Com", "3C574-TX Fast EtherLink PC Card"
-  bind "3c574_cs"
-
-card "3Com Megahertz 3c574B Fast Ethernet"
-  version "3Com", "Megahertz 574B"
+card "3Com 572/574 Fast Ethernet"
+  manfid 0x0101, 0x0574
   bind "3c574_cs"
 
 card "Abocom LinkMate FE1000 Fast Ethernet"
@@ -713,6 +718,10 @@ card "Ositech Seven of Diamonds Fast Ethernet"
   version "Ositech", "Trumpcard:Seven of Diamonds Ethernet"
   bind "smc91c92_cs"
 
+card "NE2000 Compatible Fast Ethernet"
+  version "PCMCIA", "10/100 Ethernet Card"
+  bind "pcnet_cs"
+
 card "Planex FNW-3600T Fast Ethernet"
   version "Fast Ethernet", "Adapter"
   bind "pcnet_cs"
@@ -737,9 +746,21 @@ card "Xircom CE3-10/100 Fast Ethernet"
 #
 # Wireless network adapters
 #
+card "Aironet PC4500"
+  manfid 0x015f, 0x0005
+  bind "airo_cs"
+
+card "Aironet PC4800"
+  manfid 0x015f, 0x0007
+  bind "airo_cs"
+
 card "AT&T WaveLAN Adapter"
   version "AT&T", "WaveLAN/PCMCIA"
   bind "wavelan_cs"
+
+card "Cabletron RoamAbout 802.11 DS"
+  version "Cabletron", "RoamAbout 802.11 DS"
+  bind "wvlan_cs"
 
 card "Digital RoamAbout/DS"
   version "Digital", "RoamAbout/DS"
@@ -749,9 +770,21 @@ card "Lucent Technologies WaveLAN Adapter"
   version "Lucent Technologies", "WaveLAN/PCMCIA"
   bind "wavelan_cs"
 
+card "Lucent Technologies WaveLAN/IEEE Adapter"
+  version "Lucent Technologies", "WaveLAN/IEEE"
+  bind "wvlan_cs"
+
 card "NCR WaveLAN Adapter"
   version "NCR", "WaveLAN/PCMCIA"
   bind "wavelan_cs"
+
+card "NCR WaveLAN/IEEE Adapter"
+  version "NCR", "WaveLAN/IEEE"
+  bind "wvlan_cs"
+
+card "RayLink PC Card WLAN Adapter"
+  manfid 0x01a6, 0x0000
+  bind "ray_cs"
 
 card "Xircom CreditCard Netwave"
   version "Xircom", "CreditCard Netwave"
@@ -817,6 +850,11 @@ card "MultiTech MultiModem"
 
 card "MultiTech V.34 Modem"
   version "Multi-Tech", "MT2834LT"
+  bind "serial_cs"
+
+card "MultiTech MT5634ZLX"
+  version "MultiTech", "PCMCIA 56K DataFax"
+  cis "cis/MT5634ZLX.dat"
   bind "serial_cs"
 
 card "Toshiba T144PF Modem"
@@ -1433,9 +1471,10 @@ card "Adaptec APA-1480 SCSI Host Adapter"
   manfid 0x012f, 0xcb01
   bind "apa1480_cb"
 
-card "Allied Telesyn AT-2800 10/100 Fast Ethernet"
-  manfid 0xc00f, 0x0000
-  bind "tulip_cb"
+#Conflicts with corega PCC-T!
+#card "Allied Telesyn AT-2800 10/100 Fast Ethernet"
+#  manfid 0xc00f, 0x0000
+#  bind "tulip_cb"
 
 card "Ambicom AMB8100 Fast Ethernet"
   manfid 0x9513, 0x0081
@@ -1476,6 +1515,10 @@ card "Linksys EtherFast 10/100"
 
 card "Linksys EtherFast 10/100"
   manfid 0x0149, 0xc2ab
+  bind "tulip_cb"
+
+card "SMC EZ 10/100 Fast Ethernet"
+  manfid 0x01bf, 0x2220
   bind "tulip_cb"
 
 card "SMC EZ 10/100 Fast Ethernet"

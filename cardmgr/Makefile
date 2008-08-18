@@ -1,20 +1,16 @@
 #
-# cardmgr/Makefile 1.71 1999/10/28 01:22:04 (David Hinds)
+# cardmgr/Makefile 1.79 2000/01/21 23:26:12 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
-XFLAGS = -O -pipe
-CPPFLAGS = -I../include -I$(LINUX)/include -I../modules
-COFLAGS = -kv
-YFLAGS = -d
+CPPFLAGS := $(CPPFLAGS) -I../modules
 
 CC := $(CC) $(UFLAGS)
 
 SRCS = cardmgr.c cardctl.c yacc_config.c lex_config.c probe.c
-HDRS = cardmgr.h yacc_config.h
 TOOLS = cardmgr cardctl
 
 ifdef CONFIG_INET
@@ -43,7 +39,7 @@ ifdef CONFIG_ISA
 PROBE = probe
 endif
 
-all:	$(SRCS) $(HDRS) $(TOOLS) $(EXTRA) $(PROBE)
+all:	$(SRCS) $(TOOLS) $(EXTRA) $(PROBE)
 
 clean:
 	rm -f core core.* *.o *.s *.a *~ .depend .depfiles/*.d
@@ -51,28 +47,15 @@ clean:
 
 cardmgr: cardmgr.o yacc_config.o lex_config.o
 
-yacc_config.c yacc_config.h: yacc_config.y
-	$(YACC) $(YFLAGS) yacc_config.y
-	mv y.tab.c yacc_config.c
-	mv y.tab.h yacc_config.h
-
-cardmgr.o: cardmgr.c
-
-yacc_config.o: yacc_config.c
-	$(CC) $(XFLAGS) $(CPPFLAGS) -c yacc_config.c
-
-lex_config.o: lex_config.c yacc_config.h
-	$(CC) $(XFLAGS) $(CPPFLAGS) -c lex_config.c
+yacc_config.o lex_config.o: %.o: %.c
+	$(CC) -c -MD -O -pipe $(CPPFLAGS) $<
+	@mkdir -p .depfiles ; mv $*.d .depfiles
 
 parser: lex_config.o yacc_config.c
-	$(CC) $(XFLAGS) $(CPPFLAGS) -DYYDEBUG=1 -o parser \
-	    yacc_config.c lex_config.o
-
-cardinfo.o: cardinfo.c
+	$(CC) -O $(CPPFLAGS) -DYYDEBUG=1 -o $@ yacc_config.c lex_config.o
 
 cardinfo: cardinfo.o
-	$(CC) $(LFLAGS) -o cardinfo cardinfo.o \
-	    -L/usr/X11R6/lib -L/usr/X11/lib -lforms -lX11 -lm
+	$(CC) $< -o $@ -L/usr/X11R6/lib -L/usr/X11/lib -lforms -lX11 -lm
 
 install: $(TOOLS) $(EXTRA) $(PROBE)
 	mkdir -p $(PREFIX)/sbin
@@ -88,10 +71,4 @@ install: $(TOOLS) $(EXTRA) $(PROBE)
 	    chmod u+s $(PREFIX)/usr/X11R6/bin/cardinfo ;\
 	fi
 
-# Stuff to automatically maintain dependency files
-
-.c.o:
-	$(CC) -MD $(CFLAGS) $(CPPFLAGS) -c $<
-	@mkdir -p .depfiles ; mv $*.d .depfiles
-
--include $(SRCS:%.c=.depfiles/%.d)
+include ../rules.mk

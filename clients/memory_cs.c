@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.67 1999/12/21 23:11:30
+    memory_cs.c 1.68 2000/01/11 01:04:46
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -91,7 +91,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.67 1999/12/21 23:11:30 (David Hinds)";
+"memory_cs.c 1.68 2000/01/11 01:04:46 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -184,31 +184,22 @@ static FS_RELEASE_T memory_blk_close(struct inode *inode,
 				     struct file *file);
 
 static struct file_operations memory_chr_fops = {
-    NULL,		/* lseek */
-    memory_read,	/* read */
-    memory_write,      	/* write */
-    NULL,		/* readdir */
-    NULL,		/* select */
-    memory_ioctl,	/* ioctl */
-    NULL,		/* mmap */
-    memory_open,	/* open */
-    NULL_FLUSH		/* flush */
-    memory_close,	/* release */
-    NULL		/* fsync */
+    open:	memory_open,
+    release:	memory_close,
+    read:	memory_read,
+    write:	memory_write,
+    ioctl:	memory_ioctl,
 };
 
-static struct file_operations memory_blk_fops = {
-    NULL,		/* lseek */
-    block_read,		/* read */
-    block_write,	/* write */
-    NULL,		/* readdir */
-    NULL,		/* select */
-    memory_ioctl,	/* ioctl */
-    NULL,		/* mmap */
-    memory_open,	/* open */
-    NULL_FLUSH		/* flush */
-    memory_blk_close,	/* release */
-    block_fsync		/* fsync */
+static struct block_device_operations memory_blk_fops = {
+    open:	memory_open,
+    release:	memory_blk_close,
+    ioctl:	memory_ioctl,
+#ifdef block_device_operations
+    read:	block_read,
+    write:	block_write,
+    fsync:	block_fsync
+#endif
 };
 
 /*====================================================================*/

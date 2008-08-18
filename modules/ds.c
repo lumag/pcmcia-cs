@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.103 1999/12/21 23:11:12
+    ds.c 1.104 2000/01/11 01:18:02
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.103 1999/12/21 23:11:12 (David Hinds)";
+"ds.c 1.104 2000/01/11 01:18:02 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -851,21 +851,16 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 /*====================================================================*/
 
 static struct file_operations ds_fops = {
-    NULL,		/* lseek */
-    ds_read,		/* read */
-    ds_write,		/* write */
-    NULL,		/* readdir */
+    open:	ds_open,
+    release:	ds_release,
+    ioctl:	ds_ioctl,
+    read:	ds_read,
+    write:	ds_write,
 #if (LINUX_VERSION_CODE < VERSION(2,1,23))
-    ds_select,		/* select */
+    select:	ds_select
 #else
-    ds_poll,		/* poll */
+    poll:	ds_poll
 #endif
-    ds_ioctl,		/* ioctl */
-    NULL,		/* mmap */
-    ds_open,		/* open */
-    NULL_FLUSH		/* flush */
-    ds_release,		/* release */
-    NULL		/* fsync */
 };
 
 #if (LINUX_VERSION_CODE <= VERSION(2,1,17))

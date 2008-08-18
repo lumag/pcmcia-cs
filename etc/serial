@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.31 1999/10/25 18:16:20 (David Hinds)
+# serial 1.32 2000/01/25 23:59:35 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -46,6 +46,9 @@ case "$ACTION" in
 	    ln -s /dev/$CALLOUT $LINK
 	fi
     fi
+    # Workaround for serial driver bug
+    OPTS=`setserial -G /dev/$DEVICE`
+    setserial /dev/$DEVICE irq 0 ; setserial $OPTS
     if [ "$SERIAL_OPTS" ] ; then
 	setserial /dev/$DEVICE $SERIAL_OPTS
     fi

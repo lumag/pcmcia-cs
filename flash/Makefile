@@ -1,14 +1,11 @@
 #
-# flash/Makefile 1.13 1999/10/28 01:22:05 (David Hinds)
+# flash/Makefile 1.14 1999/12/28 22:51:05 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
-CPPFLAGS = -I../include -I$(LINUX)/include
-COFLAGS = -kv
-
 CC := $(CC) $(UFLAGS)
 
 SRCS = ftl_format.c ftl_check.c
@@ -28,10 +25,4 @@ install: $(TOOLS)
 	mkdir -p $(PREFIX)/sbin
 	cp -f $(TOOLS) $(PREFIX)/sbin
 
-# Stuff to automatically maintain dependency files
-
-.c.o:
-	$(CC) -MD $(CFLAGS) $(CPPFLAGS) -c $<
-	@mkdir -p .depfiles ; mv $*.d .depfiles
-
--include $(SRCS:%.c=.depfiles/%.d)
+include ../rules.mk

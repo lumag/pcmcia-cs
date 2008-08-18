@@ -12,9 +12,9 @@ MPL that conflict with, or are expressly prohibited by, the GPL.
 
 Some of the client drivers (nmclan_cs.c, 3c589_cs.c, 3c574_cs.c,
 3c575_cb.c, ibmtr_cs.c, pcnet_cs.c, smc91c92_cs.c, fmvj18x_cs.c,
-wavelan_cs.c, netwave_cs.c, xirc2ps_cs.c, serial_cb.c) contain code
-written by others, subject to more restrictive (GPL) licensing
-requirements.
+wavelan_cs.c, wvlan_cs.c, netwave_cs.c, xirc2ps_cs.c, serial_cb.c)
+contain code written by others, subject to more restrictive (GPL)
+licensing requirements.
 
 	-- David Hinds
 	   dhinds@pcmcia.sourceforge.org

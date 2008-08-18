@@ -68,7 +68,11 @@
 
 #include <linux/netdevice.h>
 #include <linux/trdevice.h>
+#if (LINUX_VERSION_CODE >= VERSION(2,3,21))
+#include <../drivers/net/tokenring/ibmtr.h>
+#else
 #include <../drivers/net/ibmtr.h>
+#endif
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>

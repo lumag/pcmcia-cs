@@ -1,41 +1,48 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 #
-# Makefile 1.104 1999/10/28 01:23:07
+# Makefile 1.111 2000/01/24 06:51:44
 #
 
 # Include site dependent options and kernel configuration
 include ../config.mk
 
-# Don't remove "-O3" or bad things will happen!
-CFLAGS = -O3 -Wall -Wstrict-prototypes -pipe
-CPPFLAGS = $(PCDEBUG) -D__KERNEL__ -DMODULE -I../include -I$(LINUX)/include
-COFLAGS = -kv
+# Don't remove "-O2" or bad things will happen!  We use -O2 rather
+# than -O3 because it yields smaller code; this is not performance
+# critical stuff.
 
-CC := $(CC) $(AFLAGS) $(KFLAGS)
+CFLAGS = -O2 -Wall -Wstrict-prototypes -pipe
+CPPFLAGS += $(PCDEBUG) -D__KERNEL__ -DMODULE
 
-SRCS = i82365.c tcic.c cs.c cistpl.c rsrc_mgr.c bulkmem.c ds.c
+CC += $(AFLAGS) $(KFLAGS)
 
+SRCS    = i82365.c tcic.c cs.c cistpl.c rsrc_mgr.c bulkmem.c ds.c
+CORE    = cs.o cistpl.o rsrc_mgr.o bulkmem.o
 MODULES = i82365.o tcic.o pcmcia_core.o ds.o
 
-CORE = cs.o cistpl.o rsrc_mgr.o bulkmem.o
-
 ifdef CONFIG_CARDBUS
-SRCS := $(SRCS) cardbus.c cb_enabler.c
-CORE := $(CORE) cardbus.o
-MODULES := $(MODULES) cb_enabler.o
+SRCS    += cardbus.c cb_enabler.c
+CORE    += cardbus.o
+MODULES += cb_enabler.o
+endif
+
+ifeq ($(ARCH),i386)
+ifdef CONFIG_PCI
+SRCS    += pci_pirq.c
+CORE    += pci_pirq.o
+endif
 endif
 
 ifdef CONFIG_PNP_BIOS
-SRCS := $(SRCS) pnp_bios.c pnp_proc.c pnp_rsrc.c
-CORE := $(CORE) pnp_bios.o pnp_proc.o pnp_rsrc.o
+SRCS    += pnp_bios.c pnp_proc.c pnp_rsrc.c
+CORE    += pnp_bios.o pnp_proc.o pnp_rsrc.o
 endif
 
 all:	$(MODULES)
 
 pcmcia_core.o: $(CORE)
-	$(LD) -r -o pcmcia_core.o $(CORE)
-	chmod -x pcmcia_core.o
+	$(LD) -r -o $@ $(CORE)
+	chmod -x $@
 
 clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d
@@ -44,13 +51,4 @@ install install-modules: $(MODULES)
 	mkdir -p $(PREFIX)/$(MODDIR)/pcmcia
 	cp $(MODULES) $(PREFIX)/$(MODDIR)/pcmcia
 
-.c.s:
-	$(CC) $(CFLAGS) $(CPPFLAGS) -S $<
-
-# Stuff to automatically maintain dependency files
-
-.c.o:
-	$(CC) -MD $(CFLAGS) $(CPPFLAGS) -c $<
-	@mkdir -p .depfiles ; mv $*.d .depfiles
-
--include $(SRCS:%.c=.depfiles/%.d)
+include ../rules.mk

@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    smc91c92_cs.c 1.83 1999/11/16 02:13:04
+    smc91c92_cs.c 1.85 2000/01/15 02:03:14
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -541,6 +541,7 @@ static int mhz_mfc_config(dev_link_t *link)
     link->conf.Status = CCSR_AUDIO_ENA;
     link->irq.Attributes =
 	IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED|IRQ_HANDLE_PRESENT;
+    link->io.IOAddrLines = 16;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
 
@@ -1945,7 +1946,7 @@ static void media_check(u_long arg)
     if (smc->watchdog++ && ((i>>8) & i)) {
 	if (!smc->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-	smc_interrupt(dev->irq, dev, NULL);
+	smc_interrupt(dev->irq, smc, NULL);
 	smc->fast_poll = HZ;
     }
     if (smc->fast_poll) {

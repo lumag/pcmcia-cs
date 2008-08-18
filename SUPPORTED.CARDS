@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/12/22 01:18:04
+		Last updated: 2000/01/26 02:37:40
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -47,10 +47,11 @@ Ethernet cards:
 	Addtron Ethernet
 	AIBrain EPCM-T
 	Allied Telesis CentreCOM CE6001, LA-PCM, LA-PCM V2
-	AmbiCom AMB8002, AMB8002T
+	AmbiCom AMB8002, AMB8002T, AMB8010
 	AnyCom ECO Ethernet
 	Apollo RE450CT
 	Argosy EN210
+	Arowana RE 450 Ethernet
 	Asante FriendlyNet	[ new cards seem to not work!! ]
 	AST 1082 Ethernet
 	Atelco ethernet
@@ -129,7 +130,7 @@ Ethernet cards:
 	SMC 8022 EZCard-10
 	Socket Communications EA LAN Adapter
 	Socket Communications LPE Low Power Ethernet
-	SOHOware Ethernet
+	SOHOware ND5120-E Ethernet
 	SuperSocket RE450T
 	Surecom Ethernet
 	SVEC PN605C
@@ -152,7 +153,7 @@ Ethernet cards:
 Fast Ethernet (10/100baseT) adapters:
 
 	[3c574_cs driver] [x86]
-	3Com 3c574TX, 3CCFE574BT, 3CXFE574BT
+	3Com 3c574TX, 3CCFE574BT, 3CXFE574BT, 3CCSH572BT, 3CXSH572BT
 
 	[pcnet_cs driver] [x86]
 	Abocom LinkMate FE1000
@@ -174,6 +175,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Microcom TravelCard 10/100
 	Micronet EtherFast Adapter
 	NetGear FA410TXC
+	New Media Livewire 10/100
 	Planex FNW-3600T
 
 	[smc91c92_cs driver] [x86]
@@ -210,7 +212,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Asante FriendlyNET CardBus
 	Compex Linkport TX
 	D-Link DFE-660TX
-	Genius MF3000
+	Genius MF3000			[ some do not work! ]
 	Kingston KNE-CB4TX
 	Laneed LD-10/100CB
 	LevelOne FPC-0101TX 10/100Mbps CardBus
@@ -237,23 +239,32 @@ Token-ring adapters:
 
 Wireless network adapters:
 
-	[wavelan_cs driver] [x86]
-	AT&T / NCR / Lucent WaveLAN version 2.0
-	DEC RoamAbout/DS
+	[airo_cs driver]
+	Aironet PC4500, PC4800 wireless network adapters
 
 	[netwave_cs driver] [x86]
 	Breezenet SA-PX
 	Xircom CreditCard Netwave
 
+	[ray_cs driver] [x86,axp]
+	Raytheon Raylink
+	WebGear Aviator 2.4, Aviator Pro
+
+	[wavelan_cs driver] [x86]
+	AT&T / NCR / Lucent WaveLAN version 2.0
+	DEC RoamAbout/DS
+
+	[wvlan_cs driver] [x86,axp]
+	Lucent WaveLAN/IEEE 802.11(b)
+	NCR WaveLAN/IEEE 802.11
+	Cabletron RoamAbout 802.11 DS
+
 Modem and serial cards:
 
 	[ Virtually all modem cards, simple serial port cards, and
 	digital cellular modems should work.  The only exceptions are
-	the Compaq 192, New Media WinSurfer, Motorola Montana,
-	Megahertz XJ/CC2560, 3Com 3CXM356/3CCM356 and 3CXM656/3CCM656,
-	Billionton 56K HSP, and other so-called "WinModems" that
-	require special Windows drivers.  ISDN modems that emulate a
-	standard UART are also supported. ]
+	so-called "WinModems" that require special Windows drivers.
+	ISDN modems that emulate a standard UART are also supported. ]
 
 	[serial_cs driver] [x86,axp]
 	Advantech COMpad-32/85 dual serial
@@ -267,6 +278,16 @@ Modem and serial cards:
 	Socket Communications dual RS-232 card
 	Trimble Mobile GPS
 
+	[ The following cards are WinModems and are NOT supported ]
+	3Com/Megahertz 3CXM356/3CCM356, 3CXM656/3CCM656
+	3Com/Noteworthy 3CXM056-BNW
+	3Com/USRobotics 3014a
+	Billionton 56K HSP
+	Compaq 192
+	Megahertz XJ/CC2560
+	Motorola Montana
+	New Media WinSurfer
+	
 Parallel port cards:
 
 	 [parport_cs driver] [x86]
@@ -444,10 +465,6 @@ package for maintenance reasons: they are for less common cards and I
 cannot test them.  All are available on the Linux PCMCIA FTP site, in
 /pub/pcmcia/contrib.
 
-	[airo_cs driver]
-	Aironet PC4500, PC4800 wireless network adapters
-	  (Ben Reed <breed@almaden.ibm.com>)
-
 	[asplus_cs driver]
 	Netwave AirSurfer Plus wireless network adapter
 	  http://ipoint.vlsi.uiuc.edu/wireless/asplus.html
@@ -501,7 +518,11 @@ cannot test them.  All are available on the Linux PCMCIA FTP site, in
 
 	[wavelan2_cs driver]
 	Lucent WaveLAN/IEEE wireless network adapter
+	  http://www.wavelan.com
 	  (Lucent Technologies <betasupport@wavelan.com>)
+
+	BreezeCOM SA-PCR Pro.11
+	  [ a driver is available from BreezeCOM ]
 
 	GemPlus GPR400 Smart Card Reader
 	  http://www.linuxnet.com/smartcard/code.html
@@ -523,24 +544,16 @@ cannot test them.  All are available on the Linux PCMCIA FTP site, in
 	  http://www.komacke.com/distribution.html
 	  (Dave Koberstein <davek@komacke.com>)
 	
-	Raylink Wireless Network
-	  http://world.std.com/~corey/raylink.html
-	  (Corey Thomas <corey@world.std.com>)
-
 	Silicom SPE ethernet, SEM EtherModem, SES EtherSerial
 	  http://www.silicom.co.il/linux.htm
 	
-	WaveLAN/IEEE wireless network adapter
-	  http://www.fasta.fh-dortmund.de/users/andy/wvlan
-	  (Andreas Neuhaus <andy@fasta.fh-dortmund.de>)
-
 	Winnov Videum Traveler camera
 	  http://www.eecs.umich.edu/~bnoble/group/wnv-pcmcia
 	  (Jim Zajkowski <jamesez@umich.edu>)
 	
 People are working on the following cards:
 
-	Roland SCP-55 MIDI (Toshiaki Nakatsu <ir9k-nkt@asahi-net.or.jp>)
+	Roland SCP-55 MIDI (Toshiaki Nakatsu <risyu@zo-kun.to>)
 	CyberRom CD-ROM (David Rowntree <rowntree@dircon.co.uk>)
 	IO DATA PCSC-II (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)
 	Macnica mPS-1x0 (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)

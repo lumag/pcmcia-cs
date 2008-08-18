@@ -122,7 +122,7 @@ static int irq_list[4] = { -1 };
 #define TX_TIMEOUT  ((800*HZ)/1000)
 
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
-static int max_interrupt_work = 64;
+static int max_interrupt_work = 32;
 
 /* Force full duplex modes? */
 static int full_duplex = 0;
@@ -881,10 +881,10 @@ static void tc574_reset(struct net_device *dev)
 		inb(ioaddr + i);
 	inw(ioaddr + 10);
 	inw(ioaddr + 12);
-
 	EL3WINDOW(4);
-	/* New: On the Vortex/Odie we must also clear the BadSSD counter.. */
 	inb(ioaddr + 12);
+	inb(ioaddr + 13);
+
 	/* .. enable any extra statistics bits.. */
 	outw(0x0040, ioaddr + Wn4_NetDiag);
 	/* .. re-sync MII and re-fill what NWay is advertising. */
@@ -1150,7 +1150,7 @@ static void media_check(u_long arg)
 		(inb(ioaddr + Timer) == 0xff)) {
 		if (!lp->fast_poll)
 			printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-		el3_interrupt(dev->irq, dev, NULL);
+		el3_interrupt(dev->irq, lp, NULL);
 		lp->fast_poll = HZ;
     }
     if (lp->fast_poll) {
@@ -1268,6 +1268,14 @@ static void update_stats(struct net_device *dev)
 	/* With Vortex and later we must also clear the BadSSD counter. */
 	EL3WINDOW(4);
 	inb(ioaddr + 12);
+
+#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
+	{
+		u8 up = inb(ioaddr + 13);
+		lp->stats.rx_bytes += (up & 0x0f) << 16;
+		lp->stats.tx_bytes += (up & 0xf0) << 12;
+	}
+#endif
 
 	EL3WINDOW(1);
 }

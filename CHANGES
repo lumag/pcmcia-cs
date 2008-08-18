@@ -1,3 +1,30 @@
+[26-Jan-00] Version 3.1.9
+
+-- Added workaround for serial-driver initialization bug, that messes
+   up devices at non-standard IO ports.
+-- Made PCI interrupt table lookup mandatory, and changed pci_csc and
+   pci_int to default to "on" in the i82365 driver.
+-- Updated tulip driver to Donald Becker's "0.91g" version.
+-- Various updates for 2.3.37 and later kernels.
+-- Filled in some gaps in dump_cis output.
+-- Added "indirect addressing" support for Zoomed Video cards.
+-- Created a separate directory for all the wireless drivers; added
+   the Raylink, Aironet, and Wavelan IEEE drivers.
+-- Added replacement CIS for MultiTech MT5634ZLX modems.
+-- Fixed tx/rx byte counts for 3c574_cs driver.
+-- Fixed a very obscure memory allocation bug in cardmgr.
+-- Fixed a bug in "cardctl config" reporting of memory window status.
+-- Fixed 3c575_cb reset and resume code to initialize the rx ring, and
+   fixed the "too much work" recovery code, and a small memory leak.
+-- Fixed hot eject bugs in 3c575_cb and tulip_cb drivers.
+-- More aggressive checking of CardBus bridge register mapping.
+-- Fixed a bug in the 3c589, 3c574, smc91c92 missed-interrupt handling
+   code, that was introduced in 3.1.5.
+-- Minor Makefile cleanup, including a fix for token ring with 2.3.
+-- General i82365 driver cleanup.
+-- Updated cardmgr to support PCI device lookups for CardBus cards.
+-- Updated Makefiles to mesh better with in-kernel PCMCIA if present.
+
 [21-Dec-99] Version 3.1.8
 -- Updated drivers to use capabilities instead of suser().
 -- Added "p2cclk" option to i82365 driver... see man page for details.

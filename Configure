@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.128 1999/12/06 21:37:55
+# Configure 1.134 2000/01/25 19:39:46
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -341,7 +341,9 @@ tweak () {
     if [ $VERSION_CODE -ge `version 2 2 0` ] ; then
 	if [ $CONFIG_SMP = "y" ] ; then
 	    CONFIG_X86_LOCAL_APIC=y
+	    CONFIG_X86_IO_APIC=y
 	    write_bool CONFIG_X86_LOCAL_APIC
+	    write_bool CONFIG_X86_IO_APIC
 	fi
 	if [ $CONFIG_PCI = "y" ] ; then
 	    CONFIG_PCI_QUIRKS=y
@@ -352,7 +354,9 @@ tweak () {
 
 printconfig () {
     echo "Kernel configuration options:"
-    printflag "Static in-kernel PCMCIA support" CONFIG_PCMCIA
+    if [ $VERSION_CODE -ge `version 2 3 18` ] ; then
+	printflag "Kernel-tree PCMCIA support" CONFIG_PCMCIA
+    fi
     printflag "Symmetric multiprocessing support" CONFIG_SMP
     printflag "PCI BIOS support" CONFIG_PCI
     tweak
@@ -406,17 +410,22 @@ case $CONF_SRC in
 	echo "CHECK=\"/proc/version\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < /proc/version`\"" >> $CONFIG
 	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
-	if $KSYMS | grep CardServices | grep -v pcmcia > /dev/null ; then
-	    CONFIG_PCMCIA=y
+	if [ $VERSION_CODE -lt `version 2 3 37` ] ; then
+	    if $KSYMS | grep CardServices | grep -v pcmcia > /dev/null ; then
+		CONFIG_PCMCIA=y
+	    fi
+	else
+	    symcheck CardServices CONFIG_PCMCIA
+	    modcheck pcmcia_core CONFIG_PCMCIA
 	fi
 	symcheck smp_invalidate_needed CONFIG_SMP
 	symcheck pcibios CONFIG_PCI
 	symcheck apm_register_callback CONFIG_APM
 	symcheck scsi_register CONFIG_SCSI
 	modcheck scsi_mod CONFIG_SCSI
-	modcheck serial CONFIG_SERIAL
-	modcheck parport CONFIG_PARPORT
-	modcheck parport_pc CONFIG_PARPORT_PC
+	#modcheck serial CONFIG_SERIAL
+	#modcheck parport CONFIG_PARPORT
+	#modcheck parport_pc CONFIG_PARPORT_PC
 	symcheck register_netdev CONFIG_INET
 	symcheck dev_fastroute_stat CONFIG_NET_FASTROUTE
 	if [ -r /proc/net/wireless ] ; then
@@ -458,8 +467,12 @@ case $CONF_SRC in
 	echo "CHECK=\"$AUTOCONF\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < $AUTOCONF`\"" >> $CONFIG
 	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
-	if grep "^CONFIG_PCMCIA=y" $AUTOCONF >/dev/null ; then
-	    CONFIG_PCMCIA=y
+	if [ $VERSION_CODE -lt `version 2 3 37` ] ; then
+	    if grep "^CONFIG_PCMCIA=y" $AUTOCONF >/dev/null ; then
+		CONFIG_PCMCIA=y
+	    fi
+	else
+	    configcheck CONFIG_PCMCIA
 	fi
 	if grep "^ *SMP *= *1" $LINUX/Makefile >/dev/null ; then
 	    CONFIG_SMP=y
@@ -471,7 +484,7 @@ case $CONF_SRC in
 	fi
 	for C in CONFIG_PCI CONFIG_APM CONFIG_SCSI CONFIG_INET \
 	    CONFIG_NET_FASTROUTE CONFIG_NET_RADIO CONFIG_TR \
-	    CONFIG_MODVERSIONS CONFIG_PROC_FS CONFIG_SERIAL ; do
+	    CONFIG_MODVERSIONS CONFIG_PROC_FS ; do
 	    configcheck $C
 	done
 	if [ $ARCH = "alpha" ] ; then
@@ -487,6 +500,9 @@ esac
 
 if [ "$USE_APM" != "y" ] ; then CONFIG_APM=n ; fi
 printconfig
+echo ""
+
+#=======================================================================
 
 if [ "$CONFIG_PCI" != "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
     echo "Cardbus support requires kernel PCI BIOS support!"
@@ -494,8 +510,22 @@ if [ "$CONFIG_PCI" != "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
     fail
 fi
 
+if [ $VERSION_CODE -ge `version 2 3 37` -a "$CONFIG_PCMCIA" != "y" ] ; then
+    echo "2.3.37 and later kernels require that PCMCIA be configured in the"
+    echo "    kernel source tree.  To fix, reconfigure and rebuild your"
+    echo "    kernel with PCMCIA enabled."
+    fail
+fi
+
+if [ ! -r $LINUX/include/asm ] ; then
+    echo "$LINUX/include/asm does not exist!"
+    echo "    To fix, do 'ln -s asm-$ARCH asm' in $LINUX/include."
+    fail
+fi
+
 AFLAGS=
 CONFIG_ISA=y
+CONFIG_UID16=y
 if [ $ARCH = "ppc" ] ; then
     CONFIG_ISA=n
     AFLAGS="-fno-builtin -msoft-float"
@@ -507,10 +537,14 @@ elif [ $ARCH = "alpha" ] ; then
     if [ $VERSION_CODE -ge `version 2 1 26` ] ; then
 	AFLAGS="$AFLAGS -ffixed-8"
     fi
+    CONFIG_UID16=n
 fi
 echo "ARCH=$ARCH" >> $CONFIG_MK
 echo "AFLAGS=$AFLAGS" >> $CONFIG_MK
 write_bool CONFIG_ISA
+if [ $VERSION_CODE -ge `version 2 3 40` ] ; then
+    write_bool CONFIG_UID16
+fi
 
 if [ $CONF_SRC != "1" -a "$CONFIG_MODVERSIONS" = "y" ] ; then
     MODVER="$LINUX/$MODVER"
@@ -521,12 +555,6 @@ if [ $CONF_SRC != "1" -a "$CONFIG_MODVERSIONS" = "y" ] ; then
     fi
 else
     MODVER="../$MODVER"
-fi
-
-if [ ! -r $LINUX/include/asm ] ; then
-    echo "$LINUX/include/asm does not exist!"
-    echo "    To fix, do 'ln -s asm-$ARCH asm' in $LINUX/include."
-    fail
 fi
 
 if [ "$CONFIG_SMP" = "y" ] ; then
@@ -542,12 +570,16 @@ echo "" >> $CONFIG_H
 if [ $CONF_SRC -eq 1 ] ; then UTS_VERSION=`uname -v` ; fi
 
 HAS_PROC_BUS=n
-NEW_QLOGIC=n
 echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
-
-if [ $VERSION_CODE -ge `version 2 0 6` ] ; then
-    NEW_QLOGIC=y
+if [ "$CONFIG_PCMCIA" = "y" ] ; then
+    # Use our kernel config, then kernel headers, then our headers
+    CPPFLAGS="-I../include/static -I\$(LINUX)/include -I../include"
+else
+    # Use our kernel config and headers, then kernel headers
+    CPPFLAGS="-I../include -I\$(LINUX)/include"
 fi
+echo "CPPFLAGS=$CPPFLAGS" >> $CONFIG_MK
+
 if [ $VERSION_CODE -ge `version 2 1 31` -a \
      $VERSION_CODE -le `version 2 1 34` ] ; then
     echo "Kernel versions 2.1.31-33 are broken.  Upgrade to 2.1.34."
@@ -579,9 +611,7 @@ echo "#define LINUX_VERSION_CODE $VERSION_CODE" >> $CONFIG_H
 echo "" >> $CONFIG
 echo "" >> $CONFIG_MK
 echo "" >> $CONFIG_H
-echo ""
 
-write_bool NEW_QLOGIC
 write_bool HAS_PROC_BUS
 
 if [ $VERSION_CODE -ge `version 2 1 7` -o \
@@ -603,11 +633,6 @@ fi
 
 SCSI=$LINUX/drivers/scsi
 if [ "$CONFIG_SCSI" = "y" ] ; then
-    if grep "define MODULE" $SCSI/aha152x.c >/dev/null ; then
-	echo "# FIX_AHA152X is not defined" >> $CONFIG_MK
-    else
-	echo "FIX_AHA152X=y" >> $CONFIG_MK
-    fi
     if [ "$DO_APA1480" = "y" ] ; then
 	echo "DO_APA1480=y" >> $CONFIG_MK
 	if grep ADAPTEC_1480A $SCSI/aic7xxx.c >/dev/null ; then
@@ -720,7 +745,7 @@ HAS_FORMS=n
 if [ -r /usr/include/X11/Xlib.h -o \
      -r /usr/X11R6/include/X11/Xlib.h ] ; then
     echo "X Windows include files found."
-    for f in /usr/{X11/,X11R6/,local/,}lib/libforms.{so*,a} ; do
+    for f in /usr/{X11/,X11R6/,local/,}lib/libforms.{so,a} ; do
 	if [ -r $f ] ; then break ; fi
     done
     for g in /usr/{X11/,X11R6/,local/,}include/{,X11/}forms.h ; do

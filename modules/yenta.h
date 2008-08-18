@@ -1,5 +1,5 @@
 /*
- * yenta.h 1.16 1999/10/25 20:03:34
+ * yenta.h 1.17 2000/01/04 02:15:34
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -92,6 +92,7 @@
 
 #define CB_SOCKET_EVENT			0x0000
 #define  CB_SE_CSTSCHG			0x00000001
+#define  CB_SE_CCD			0x00000006
 #define  CB_SE_CCD1			0x00000002
 #define  CB_SE_CCD2			0x00000004
 #define  CB_SE_PWRCYCLE			0x00000008
@@ -103,6 +104,7 @@
 
 #define CB_SOCKET_STATE			0x0008
 #define  CB_SS_CSTSCHG			0x00000001
+#define  CB_SS_CCD			0x00000006
 #define  CB_SS_CCD1			0x00000002
 #define  CB_SS_CCD2			0x00000004
 #define  CB_SS_PWRCYCLE			0x00000008

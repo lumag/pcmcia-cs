@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.45 1999/11/24 02:52:27
+    dump_cis.c 1.48 2000/01/12 18:40:59
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -500,14 +500,84 @@ static char *fax_mod[] = {
 static char *fax_features[] = {
     "T.3", "T.4", "T.6", "error", "voice", "poll", "file", "passwd"
 };
-
+static char *cmd_protocol[] = {
+    "AT1", "AT2", "AT3", "MNP_AT", "V.25bis", "V.25A", "DMCL"
+};
+static char *uart[] = {
+    "8250", "16450", "16550", "8251", "8530", "85230"
+};
+static char *parity[] = { "space", "mark", "odd", "even" };
+static char *stop[] = { "1", "1.5", "2" };
+static char *flow[] = {
+    "XON/XOFF xmit", "XON/XOFF rcv", "hw xmit", "hw rcv", "transparent"
+};
 static void print_serial(cistpl_funce_t *funce)
 {
+    cistpl_serial_t *s;
     cistpl_data_serv_t *ds;
     cistpl_fax_serv_t *fs;
+    cistpl_modem_cap_t *cp;
     int i, j;
     
     switch (funce->type & 0x0f) {
+    case CISTPL_FUNCE_SERIAL_IF:
+    case CISTPL_FUNCE_SERIAL_IF_DATA:
+    case CISTPL_FUNCE_SERIAL_IF_FAX:
+    case CISTPL_FUNCE_SERIAL_IF_VOICE:
+	s = (cistpl_serial_t *)(funce->data);
+	printf("%sserial_interface", indent);
+	if ((funce->type & 0x0f) == CISTPL_FUNCE_SERIAL_IF_DATA)
+	    printf("_data");
+	else if ((funce->type & 0x0f) == CISTPL_FUNCE_SERIAL_IF_FAX)
+	    printf("_fax");
+	else if ((funce->type & 0x0f) == CISTPL_FUNCE_SERIAL_IF_VOICE)
+	    printf("_voice");
+	printf("\n%s  uart %s", indent,
+	       (s->uart_type < 6) ? uart[s->uart_type] : "reserved");
+	if (s->uart_cap_0) {
+	    printf(" [");
+	    for (i = 0; i < 4; i++)
+	        if (s->uart_cap_0 & (1<<i))
+		    printf("%s%s", parity[i],
+			   (s->uart_cap_0 >= (2<<i)) ? "/" : "]");
+	}
+	if (s->uart_cap_1) {
+	    int m = s->uart_cap_1 & 0x0f;
+	    int n = s->uart_cap_1 >> 4;
+	    printf(" [");
+	    for (i = 0; i < 4; i++)
+		if (m & (1<<i))
+		    printf("%d%s", i+5, (m >= (2<<i)) ? "/" : "");
+	    printf("] [");
+	    for (i = 0; i < 3; i++)
+	        if (n & (1<<i))
+		    printf("%s%s", stop[i], (n >= (2<<i)) ? "/" : "]");
+	}
+	printf("\n");
+	break;
+    case CISTPL_FUNCE_SERIAL_CAP:
+    case CISTPL_FUNCE_SERIAL_CAP_DATA:
+    case CISTPL_FUNCE_SERIAL_CAP_FAX:
+    case CISTPL_FUNCE_SERIAL_CAP_VOICE:
+	cp = (cistpl_modem_cap_t *)(funce->data);
+	printf("%sserial_modem_cap", indent);
+	if ((funce->type & 0x0f) == CISTPL_FUNCE_SERIAL_CAP_DATA)
+	    printf("_data");
+	else if ((funce->type & 0x0f) == CISTPL_FUNCE_SERIAL_CAP_FAX)
+	    printf("_fax");
+	else if ((funce->type & 0x0f) == CISTPL_FUNCE_SERIAL_CAP_VOICE)
+	    printf("_voice");
+	if (cp->flow) {
+	    printf("\n%s  flow", indent);
+	    for (i = 0; i < 5; i++)
+		if (cp->flow & (1<<i))
+		    printf(" [%s]", flow[i]);
+	}
+	printf("\n%s  cmd_buf %d rcv_buf %d xmit_buf %d\n",
+	       indent, 4*(cp->cmd_buf+1),
+	       cp->rcv_buf_0+(cp->rcv_buf_1<<8)+(cp->rcv_buf_2<<16),
+	       cp->xmit_buf_0+(cp->xmit_buf_1<<8)+(cp->xmit_buf_2<<16));
+	break;
     case CISTPL_FUNCE_SERIAL_SERV_DATA:
 	ds = (cistpl_data_serv_t *)(funce->data);
 	printf("%sserial_data_services\n", indent);
@@ -539,20 +609,9 @@ static void print_serial(cistpl_funce_t *funce)
 	}
 	if (ds->cmd_protocol) {
 	    printf("%s  cmd_protocol", indent);
-	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_AT1)
-		printf(" [AT1]");
-	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_AT2)
-		printf(" [AT2]");
-	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_AT3)
-		printf(" [AT3]");
-	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_MNP_AT)
-		printf(" [MNP_AT]");
-	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_V25BIS)
-		printf(" [V.25bis]");
-	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_V25A)
-		printf(" [V.25A]");
-	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_DMCL)
-		printf(" [DMCL]");
+	    for (i = 0; i < 7; i++)
+		if (ds->cmd_protocol & (1<<i))
+		    printf(" [%s]", cmd_protocol[i]);
 	    printf("\n");
 	}
 	break;
@@ -786,6 +845,12 @@ static void print_parse(tuple_parse_t *tup)
 	if (verbose)
 	    printf("%sno_long_link\n", indent);
 	break;
+#ifdef CISTPL_INDIRECT
+    case CISTPL_INDIRECT:
+	if (verbose)
+	    printf("%sindirect_access\n", indent);
+	break;
+#endif
     case CISTPL_LINKTARGET:
 	if (verbose)
 	    printf("%slink_target\n", indent);

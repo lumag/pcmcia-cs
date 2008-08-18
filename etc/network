@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.60 1999/11/04 19:09:05 (David Hinds)
+# network 1.61 2000/01/26 02:38:01 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -42,18 +42,24 @@ case "$ACTION" in
     elif is_true $BOOTP ; then
 	/sbin/ifconfig $DEVICE up 0.0.0.0
 	/sbin/route add default dev $DEVICE
-	eval `/sbin/bootpc --bootfile '' --returniffail \
-	    --timeoutwait 10 --dev $DEVICE`
-	/sbin/route del default
-	/sbin/ifconfig $DEVICE down
-	if [ "$GATEWAYS" ] ; then
-	    set - $GATEWAYS ; GATEWAY=$1
+	if [-x /sbin/bootpc ] ; then
+	    eval `/sbin/bootpc --bootfile '' --returniffail \
+		--timeoutwait 10 --dev $DEVICE`
+	    /sbin/route del default
+	    /sbin/ifconfig $DEVICE down
+	    if [ "$GATEWAYS" ] ; then
+		set - $GATEWAYS ; GATEWAY=$1
+	    fi
+	elif [ -x /sbin/pump ] ; then
+	    /sbin/pump -i $DEVICE
+	else
+	    exit 1
 	fi
     elif is_true $DHCP ; then
 	/sbin/ifconfig $DEVICE up 0.0.0.0
 	/sbin/route add default dev $DEVICE
 	if [ -x /sbin/dhcpcd ] ; then
-	    if /sbin/dhcpcd -V 2>&1 | grep -q DHCP ; then
+	    if /sbin/dhcpcd -V bogus 2>&1 | grep -q DHCP ; then
 		/sbin/dhcpcd $DEVICE >/dev/null 2>&1 || exit 1
 	    else
 		# Jump through hoops for lame 0.70-era dhcpcd
@@ -73,6 +79,8 @@ case "$ACTION" in
 	    fi
 	elif [ -x /sbin/dhclient ] ; then
 	    /sbin/dhclient $DEVICE >/dev/null 2>&1 || exit 1
+	elif [ -x /sbin/pump ] ; then
+	    /sbin/pump -i $DEVICE
 	else
 	    exit 1
 	fi
@@ -155,6 +163,8 @@ case "$ACTION" in
 		    rm -f /var/run/dhcpcd-$DEVICE.pid
 	    elif [ -x /sbin/dhclient ] ; then
 		kill -TERM `cat /var/run/dhclient.pid`
+	    elif [ -x /sbin/pump ] ; then
+		/sbin/pump -r -i $DEVICE
 	    fi
 	fi
     fi

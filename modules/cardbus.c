@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.66 1999/12/04 03:47:11
+    cardbus.c 1.68 2000/01/04 01:26:58
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -310,12 +310,13 @@ void read_cb_mem(socket_info_t *s, u_char fn, int space,
 
 int cb_alloc(socket_info_t *s)
 {
-    struct pci_dev tmp;
     u_short vend, v, dev;
-    u_char i, hdr, fn, bus = s->cap.cardbus;
+    u_char hdr, fn, bus = s->cap.cardbus;
     cb_config_t *c;
 
 #ifdef NEW_LINUX_PCI
+    struct pci_dev tmp;
+    int i;
     tmp.bus = s->cap.cb_bus; tmp.devfn = 0;
     tmp.next = pci_devices; pci_devices = &tmp;
 #endif
@@ -355,7 +356,7 @@ int cb_alloc(socket_info_t *s)
     }
     s->cap.cb_bus->devices = &c[0].dev;
     /* Link into PCI device chain */
-    c[s->functions-1].dev.next = pci_devices;
+    c[fn-1].dev.next = pci_devices;
     pci_devices = &c[0].dev;
     for (i = 0; i < fn; i++) {
 	c[i].dev.vendor = vend;

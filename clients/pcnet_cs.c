@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    pcnet_cs.c 1.110 1999/12/06 21:39:18
+    pcnet_cs.c 1.111 2000/01/24 17:51:14
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.110 1999/12/06 21:39:18 (David Hinds)";
+"pcnet_cs.c 1.111 2000/01/24 17:51:14 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -214,7 +214,8 @@ static hw_info_t hw_info[] = {
       DELAY_OUTPUT | HAS_MISC_REG | USE_BIG_BUF },
     { /* SuperSocket RE450T */ 0x0110, 0x00, 0xe0, 0x98, 0 },
     { /* Volktek NPL-402CT */ 0x0060, 0x00, 0x40, 0x05, 0 },
-    { /* NEC PC-9801N-J12 */ 0x0ff0, 0x00, 0x00, 0x4c, 0 }
+    { /* NEC PC-9801N-J12 */ 0x0ff0, 0x00, 0x00, 0x4c, 0 },
+    { /* PCMCIA Technology OEM */ 0x01c8, 0xa0, 0x0c, 0 }
 };
 
 #define NR_INFO		(sizeof(hw_info)/sizeof(hw_info_t))

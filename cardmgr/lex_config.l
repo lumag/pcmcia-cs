@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_config.l 1.37 1999/12/14 01:55:40
+ * lex_config.l 1.38 1999/12/29 00:57:33
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -90,6 +90,7 @@ module		return MODULE;
 mtd		return MTD;
 needs_mtd	return NEEDS_MTD;
 opts		return OPTS;
+pci		return PCI;
 port		return PORT;
 region		return REGION;
 reserve		return RESERVE;

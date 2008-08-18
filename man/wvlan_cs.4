@@ -1,0 +1,225 @@
+.\" Copyright (c) 1999 Andreas Neuhaus <andy@fasta.fh-dortmund.de>
+.\" wvlan_cs.c.4
+.\"
+.TH WVLAN_CS 4 "27/12/99" ""
+.\"
+.\" NAME part
+.\"
+.SH NAME
+wvlan_cs \- Lucent WaveLAN/IEEE 802.11 device driver
+.\"
+.\" SYNOPSIS part
+.\"
+.SH SYNOPSIS
+.B insmod wvlan_cs.o
+.RB [ irq_list=\c
+.IR i,j,... ]
+.RB [ port_type=\c
+.IR n ]
+.RB [ station_name=\c
+.IR s ]
+.RB [ network_name=\c
+.IR s ]
+.RB [ channel=\c
+.IR n ]
+.RB [ ap_density=\c
+.IR n ]
+.RB [ medium_reservation=\c
+.IR n ]
+.RB [ frag_threshold=\c
+.IR n ]
+.RB [ transmit_rate=\c
+.IR n ]
+.RB [ eth=\c
+.IR n ]
+.RB [ mtu=\c
+.IR n ]
+.\"
+.\" DESCRIPTION part
+.\"
+.SH DESCRIPTION
+.I wvlan_cs
+is the low-level Card Services driver for the Lucent
+.B WaveLAN/IEEE 802.11
+, the NCR
+.B WaveLAN/IEEE 802.11
+and the Cabletron
+.B RoamAbout 802.11 DS
+wireless ethernet adapter.  When this driver is attached to a card, it
+allocates the next available device (wvlan0..wvlan#).  This
+device name will be passed on to
+.IR cardmgr (8)
+for the card configuration, and reported in the kernel log.
+.\"
+.\" PARAMETER part
+.\"
+.SH PARAMETERS
+.TP
+.BI irq_list = i,j,...
+Specifies the set of interrupts that may be allocated by this driver.
+.TP
+.BI port_type = n
+Select WaveLAN port type:
+.RI [ 1 ]
+BSS - Basic Service Set (default),
+.RI [ 2 ]
+WDS - Wireless Distribution System,
+.RI [ 3 ]
+Pseudo-IBSS - ad-hoc network (no AccessPoint, PtP).
+.TP
+.BI station_name = s
+Sets the station name.
+The default is card-configured.
+.TP
+.BI network_name = s
+Sets the independent network name in ad-hoc mode.
+Sets the desired network (desired SSID) to connect to if using an access point.
+The default is card-configured.
+.TP
+.BI channel = n
+Channel (frequency) for ad-hoc networks and is useless if using an access point.
+Valid range:
+.RI [ 0 - 14 ]
+(depends on local restrictions) and defaults to
+.RI [ 3 ]
+.TP
+.BI ap_density = n
+Sets the access point density (sensitivity). This affects modem and roaming thresholds.
+.RI [ 1 ]
+low density (default),
+.RI [ 2 ]
+medium density,
+.RI [ 3 ]
+high density.
+.TP
+.BI medium_reservation = n
+Sets the medium reservation (RTS/CTS frame length), which affects the number of octets in a message or fragment above which a RTS/CTS handshake is performed.
+.RI [ 500 ]
+hidden stations,
+.RI [ 2347 ]
+no RTS/CTS (default). Valid range:
+.RI [ 0 - 2347]
+.TP
+.BI frag_threshold = n
+Defines the number of bytes used for the fragmentation boundary for directed messages (Fragmentation length unicast message transmission).
+.RI [ 2346 ]
+is the default, valid range:
+.RI [ 256 - 2346 ]
+(even numbers only!).
+.TP
+.BI transmit_rate = n
+Transmit rate control.
+.RI [ 1 ]
+fixed low,
+.RI [ 2 ]
+fixed high,
+.RI [ 3 ]
+auto select high (default),
+.RI [ 4 ]
+fixed medium,
+.RI [ 5 ]
+fixed high,
+.RI [ 6 ]
+auto select standard,
+.RI [ 7 ]
+auto select medium.
+.TP
+.BI eth = n
+Network device naming. By default
+.RI [ 0 ]
+devices are named wvlan#, set this to
+.RI [ 1 ]
+to have devices named eth#.
+.TP
+.BI mtu = n
+Maximum transfer unit.
+.RI [ 1500 ]
+is the default, valid range:
+.RI [ 256 - 2296 ]
+.\"
+.\" WIRELESS part
+.\"
+.SH WIRELESS EXTENSIONS
+Use
+.IR iwconfig (8)
+to manipulate wireless extensions. 
+You need a kernel which was compiled with CONFIG_NET_RADIO set.
+It is recommended that you run at least Linux kernel 2.2.11 and use wireless_tools 19.
+Older version do not support all of the current commands.
+.\"	ESSID sub part
+.SS ESSID (network ID)
+Set the network ID of the desired network to connect to (with access point)
+or the name of your private ad-hoc network (no access point).
+.\"	Frequency sub part
+.SS Frequency & channels
+For the 2.4GHz 2.00 Hardware, you are able to set the frequency by
+specifying one of the 15 defined channels or directly by its frequency value.
+The frequency is changed immediately and is only changeable in ad-hoc network mode.
+Frequency availability depend on the regulations...
+.\"	Sensitivity sub part
+.\"	Spy sub part
+.SS Statistics spy
+Set a list of MAC addresses in the driver (up to 8) and get the last
+quality of link for each of those (see
+.IR iwspy (8)).
+.\"	/proc/net/wireless part
+.SS /proc/net/wireless
+.I status
+is the status reported by the modem.
+.I Link quality
+reports the quality of the modulation on the air [max = 16].
+.I Level
+and
+.I Noise
+refer to the signal level and noise level [max = 64].
+.\"
+.\" IOCTL part
+.\"
+.SH PRIVATE IOCTL
+You may use
+.IR iwpriv (8)
+to manipulate private ioctls.
+.\"	Histogram part
+.SS Histogram
+This functionality allow to set a number of signal level intervals and
+to count the number of packets received in each of those defined
+intervals. This distribution might be used to calculate the mean value
+and standard deviation of the signal level.
+.\"
+.\" SPECIFIC part
+.\"
+.SH SPECIFIC NOTES
+Some of the mentioned features are optional. You may enable to disable
+them by changing flags in the driver header and recompile.
+.PP
+It's currently not possible to use the WaveLAN/IEEE as a bridge (MAC
+level). This is not a restriction of the driver, the NIC firmware
+doesn't allow to send out packets with another source MAC address
+than its own (which is mandatory required for bridgeing to work).
+.\"
+.\" AUTHOR part
+.\"
+.SH AUTHOR
+Andreas Neuhaus <andy@fasta.fh-dortmund.de>
+.\"
+.\" THANKS part
+.\"
+.SH THANKS
+I would like to thank Lucent Technology for making the necessary information
+available to public. Special thanks to Nico Valster and Jan Martejin at
+Lucent for technical support. Special thanks to Frank Bruegmann, who managed
+to get an access point for me so that I can now test access point stuff as
+well. Also many thanks to everybody who tested and helped me developing this
+driver :-)
+.\"
+.\" SEE ALSO part
+.\"
+.SH SEE ALSO
+.BR wavelan (4),
+.BR cardmgr (8),
+.BR pcmcia (5),
+.BR ifconfig (8),
+.BR insmod (1),
+.BR iwconfig (8),
+.BR iwspy (8),
+.BR iwpriv (8).

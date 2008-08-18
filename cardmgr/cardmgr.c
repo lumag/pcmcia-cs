@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.132 1999/11/08 23:37:32
+    cardmgr.c 1.133 2000/01/12 20:50:33
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -897,6 +897,7 @@ static void do_insert(int sn)
 #ifdef __linux__
     /* Install kernel modules */
     for (i = 0; i < card->bindings; i++) {
+	dev[i]->refs++;
 	for (j = 0; j < dev[i]->modules; j++)
 	    install_module(dev[i]->module[j], dev[i]->opts[j]);
     }
@@ -904,7 +905,6 @@ static void do_insert(int sn)
     
     /* Bind drivers by their dev_info identifiers */
     for (i = 0; i < card->bindings; i++) {
-	dev[i]->refs++;
 	bind = calloc(1, sizeof(bind_info_t));
 	strcpy((char *)bind->dev_info, (char *)dev[i]->dev_info);
 	if (strcmp(bind->dev_info, "cb_enabler") == 0)

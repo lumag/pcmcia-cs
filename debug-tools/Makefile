@@ -1,5 +1,5 @@
 #
-# debug-tools/Makefile 1.32 1999/10/28 01:22:05 (David Hinds)
+# debug-tools/Makefile 1.38 2000/01/27 00:26:28 (David Hinds)
 #
 
 # Include site dependent options
@@ -7,9 +7,7 @@ include ../config.mk
 
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 XFLAGS = -O -pipe
-CPPFLAGS = -I../include -I$(LINUX)/include -I../modules
-COFLAGS = -kv
-YFLAGS = -d
+CPPFLAGS := $(CPPFLAGS) -I../modules
 
 CC := $(CC) $(UFLAGS)
 
@@ -41,28 +39,23 @@ lspnp: lspnp.o
 
 setpnp: setpnp.o
 
-yacc_cis.c yacc_cis.h: yacc_cis.y
-	$(YACC) $(YFLAGS) yacc_cis.y
-	mv y.tab.c yacc_cis.c
-	mv y.tab.h yacc_cis.h
-
 yacc_cis.o: yacc_cis.c
-	$(CC) $(XFLAGS) $(CPPFLAGS) -c yacc_cis.c
+	$(CC) -MD $(XFLAGS) $(CPPFLAGS) -c $<
+	@mkdir -p .depfiles ; mv $*.d .depfiles
 
 lex_cis.o: lex_cis.c yacc_cis.h
-	$(CC) $(XFLAGS) $(CPPFLAGS) -c lex_cis.c
-
-pack_cis.o: pack_cis.c
+	$(CC) -MD $(XFLAGS) $(CPPFLAGS) -c $<
+	@mkdir -p .depfiles ; mv $*.d .depfiles
 
 pack_cis: pack_cis.o lex_cis.o yacc_cis.o
-	$(CC) $(LFLAGS) -o pack_cis $+ -lm
+	$(CC) $+ -o $@ -lm
 
 parser: lex_cis.o yacc_cis.c
-	$(CC) $(XFLAGS) $(CPPFLAGS) -DDEBUG -o parser yacc_cis.c lex_cis.o
+	$(CC) $(XFLAGS) $(CPPFLAGS) -DDEBUG -o $@ $+
 
 clean:
 	rm -f core core.* *.o *.s *.a *~ .depend .depfiles/*.d
-	rm -f dump_tuples dump_i365 dump_tcic dump_cisreg
+	rm -f dump_i365 dump_tcic $(TOOLS)
 
 install: $(TOOLS)
 	mkdir -p $(PREFIX)/sbin
@@ -73,10 +66,4 @@ ifdef CONFIG_PNP_BIOS
 	cp -f pnp.ids $(PREFIX)/usr/share
 endif
 
-# Stuff to automatically maintain dependency files
-
-.c.o:
-	$(CC) -MD $(CFLAGS) $(CPPFLAGS) -c $<
-	@mkdir -p .depfiles ; mv $*.d .depfiles
-
--include $(SRCS:%.c=.depfiles/%.d)
+include ../rules.mk

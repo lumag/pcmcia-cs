@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    3c589_cs.c 1.141 1999/12/04 03:45:40
+    3c589_cs.c 1.143 1999/12/30 21:28:10
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -120,7 +120,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.141 1999/12/04 03:45:40 (David Hinds)";
+"3c589_cs.c 1.143 1999/12/30 21:28:10 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -740,7 +740,6 @@ static void pop_tx_status(struct net_device *dev)
 
 static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-    struct el3_private *lp = (struct el3_private *)dev->priv;
     ioaddr_t ioaddr = dev->base_addr;
 
     /* Transmitter timeout, serious problems. */
@@ -769,6 +768,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	       dev->name);
     else {
 #if (LINUX_VERSION_CODE >= VERSION(2,1,25))
+	struct el3_private *lp = (struct el3_private *)dev->priv;
 	lp->stats.tx_bytes += skb->len;
 #endif
 	/* Put out the doubleword header... */
@@ -902,7 +902,7 @@ static void media_check(u_long arg)
 	(inb(ioaddr + EL3_TIMER) == 0xff)) {
 	if (!lp->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-	el3_interrupt(dev->irq, dev, NULL);
+	el3_interrupt(dev->irq, lp, NULL);
 	lp->fast_poll = HZ;
     }
     if (lp->fast_poll) {

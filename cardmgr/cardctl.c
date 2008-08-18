@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.51 1999/10/25 20:00:14
+    cardctl.c 1.53 2000/01/25 01:40:12
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -269,6 +269,7 @@ static void print_windows(int fd)
     
     ret = ioctl(fd, DS_GET_FIRST_WINDOW, &arg1);
     while (ret == 0) {
+	arg2.win_info.handle = arg1.win_info.handle;
 	ioctl(fd, DS_GET_MEM_PAGE, &arg2);
 	printf("  memory 0x%04x-0x%04x @ 0x%08lx",
 	       req->CardOffset, req->CardOffset+win->Size-1,
@@ -527,6 +528,8 @@ static int do_scheme(char *new)
 	    fprintf(stderr, "Only root can select a new scheme.\n");
 	    return -1;
 	}
+#else
+	setuid(geteuid());
 #endif
 	
 	/* Sanity checks... */

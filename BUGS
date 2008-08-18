@@ -1,4 +1,4 @@
-Known problems with the 3.1.7 PCMCIA release
+Known problems with the 3.1.9 PCMCIA release
 =============================================
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
@@ -24,19 +24,21 @@ o All of the SCSI drivers, and most of the CardBus drivers, do not
   but it has not been a high priority.  SCSI drivers are less likely
   to be fixed since we're more dependent on kernel code.
 
-o The apa1480_cb driver only works for 2.1.90-2.1.124, or 2.1.132 and
-  later kernels.  In 2.2.* and 2.3.*, it still seems to be broken for
-  some device types, due to instabilities in the kernel aic7xxx code.
+o The apa1480_cb driver is based on the kernel aic7xxx driver.  This
+  has been under active development in 2.2.* and 2.3.* kernels, and
+  I've received a number of hard-to-categorize reports of problems
+  with particular hardware and kernel combinations.
   
   Prognosis: If you have a problem with an older kernel, try upgrading
-  before reporting a bug.
+  to a newer one before reporting a bug.
 
 o Automatic determination of PCI interrupt routing for CardBus bridges
   is unreliable, so by default, we don't use PCI interrupts at all.
   
   Prognosis: this is a difficult issue due to the lack of proper plug
   and play support in the Linux kernel.  Without that, safe resource
-  allocation for hot swappable devices will always be a problem.
+  allocation for hot swappable devices will always be a problem.  The
+  newer 2.3 kernels do a better job of PCI interrupt discovery.
   
 o Interrupt routing on O2Micro CardBus bridges seems to have problems.
   Toshiba ToPIC97 bridges also seem to have problems, particularly
@@ -64,7 +66,7 @@ o Newer Ositech Jack of Diamonds cards don't work for some people.
   Prognosis: I'm not sure what's going on here.  I have a newer JoD
   card now, and it works fine on my systems.
 
-o The 2.2.*/2.3.* serial driver has a bug that interferes with
+o The 2.2.*/2.3.* serial driver had a bug that interfered with
   interrupt sharing for multifunction cards.  The effect is that
   opening a serial port on a multifunction card fails, giving an IO
   error.  It was fixed in 2.2.11 and 2.3.9.
@@ -73,24 +75,23 @@ o The 2.2.*/2.3.* serial driver has a bug that interferes with
   changing each use of IRQ_T(info) to IRQ_T(state).
 
 o The kernel aha152x driver, used for Adaptec 16-bit SCSI adapters,
-  has a PCMCIA compatibility problem in 2.2.* that was fixed in 2.2.9.
-  The effect is that interrupts are ignored, unless the card happens
-  to be configured for irq 9..12.
+  had a PCMCIA compatibility problem in 2.2.* that was fixed in 2.2.9.
+  The effect was that interrupts were ignored, unless the card
+  happened to be configured for irq 9..12.
 
   Either upgrade to a 2.2.9 or later kernel, or if you have an
-  appropriate interrupt availale, add to /etc/pcmcia/config.opts:
+  appropriate interrupt available, add to /etc/pcmcia/config.opts:
 
     module "aha152x_cs" opts "irq_list=9,10,11,12"
 
-o The kernel IDE driver has a bug that causes shutdown of some PCMCIA
+o The kernel IDE driver had a bug that causes shutdown of some PCMCIA
   IDE cards to cause a kernel trap.  It was introduced in 2.2.9/2.3.1
   and fixed in 2.2.10/2.3.4.
 
 o The 2.3.6 kernel update broke the PCMCIA parport_cs driver.
 
-  Prognosis: we're working on a better way of interfacing the
-  parport_cs driver with the kernel parallel port code, for a future
-  kernel release.
+  Prognosis: it should be fixable in newer 2.3.* kernels, but I just
+  have not gotten around to doing it.
 
 o Recent 2.3.* kernels may make mistakes when autoconfiguring CardBus
   bridges.  Specifically, the kernel may memory map bridges at invalid
@@ -102,8 +103,21 @@ o Recent 2.3.* kernels may make mistakes when autoconfiguring CardBus
 
 o The current serial driver seems to have a bug that results in a bad
   interaction between Red Hat 6.1's "kudzu" hardware discovery tool,
-  and subsequent configuration of PCMCIA serial devices.
+  and subsequent configuration of PCMCIA serial devices.  The problem
+  seems to only crop up with certain hardware combinations, so it has
+  not yet been localized.
 
   Prognosis: I'll try to track down the bug; the workaround is to
   either disable kudzu, or adding a "-s" flag to its invocation in
   /etc/rc.d/init.d/kudzu.
+
+o Xircom CBEM support in the tulip_cb driver seems to be extremely
+  unreliable.  A wide range of symptoms are reported, ranging from no
+  packet reception, to correct operation at certain speed/duplex
+  combinations but not others, to frequent missed interrupts.
+
+  Prognosis: there seem to be multiple revisions of the (apparently)
+  not-quite-tulip-compatible chipset in the Xircom cards, and fixes
+  that seem to help for some cards, break other cards.  Until someone
+  can try to characterize what the revision differences might be, this
+  is not going to get fixed.

@@ -7,8 +7,23 @@
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,0))
-#define copy_from_user		memcpy_fromfs
-#define copy_to_user		memcpy_tofs
+#include <linux/mm.h>
+static inline u_long copy_from_user(void *to, const void *from, u_long n)
+{
+    int i;
+    if ((i = verify_area(VERIFY_READ, to, n)) != 0)
+	return i;
+    memcpy_fromfs(to, from, n);
+    return 0;
+}
+static inline u_long copy_to_user(void *to, const void *from, u_long n)
+{
+    int i;
+    if ((i = verify_area(VERIFY_WRITE, to, n)) != 0)
+	return i;
+    memcpy_tofs(to, from, n);
+    return 0;
+}
 
 #if (!defined(__alpha__) || (LINUX_VERSION_CODE < VERSION(2,0,34)))
 #define ioremap(a,b) \

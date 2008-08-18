@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.22, 17 December 1999
+  v2.23, 06 January 2000
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -3595,7 +3595,7 @@
         A memory card has raised its ready signal.
 
      SS_DETECT
-        A card detect change (insertion or removal) has been detected.
+        A card is present.
 
      SS_POWERON
         Power has been applied to the socket.
@@ -3608,7 +3608,7 @@
         Card).
 
      SS_3VCARD
-        The card must be operated at no more than  3.3V.
+        The card must be operated at no more than 3.3V.
 
      SS_XVCARD
         The card must be operated at no more than X.XV (not yet

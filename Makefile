@@ -1,8 +1,16 @@
 #
-# Makefile 1.35 1999/06/24 04:51:25 (David Hinds)
+# Makefile 1.38 2000/01/14 20:40:25 (David Hinds)
 #
 
-DIRS = modules clients cardmgr flash debug-tools man etc
+ifeq (config.mk, $(wildcard config.mk))
+include config.mk
+endif
+
+ALL  = modules clients wireless cardmgr flash debug-tools man etc
+DIRS = clients wireless cardmgr flash debug-tools man etc
+ifndef CONFIG_PCMCIA
+DIRS := modules $(DIRS)
+endif
 
 help:
 	@echo "Pick one of the following targets:"
@@ -23,20 +31,22 @@ oldconfig:
 	@./Configure -n
 
 all:	.prereq.ok kcheck
-	set -e ; for d in $(DIRS) ; do $(MAKE) -C $$d ; done
-	for f in *.mk ; do if [ $$f != config.mk ] ; then \
+	@set -e ; for d in $(DIRS) ; do $(MAKE) -C $$d ; done
+	@for f in *.mk ; do \
+	    if [ $$f != config.mk -a $$f != rules.mk ] ; then \
 	    $(MAKE) -f $$f all ; \
 	fi ; done
 
 clean:
 	@touch config.mk
-	set -e ; for d in $(DIRS) ; do $(MAKE) -C $$d clean ; done
+	@set -e ; for d in $(ALL) ; do $(MAKE) -C $$d clean ; done
 	rm -f .prereq.ok config.mk include/pcmcia/config.h
 	rm -f include/linux/modversions.h
 
 install: .prereq.ok kcheck
-	set -e ; for d in $(DIRS) ; do $(MAKE) -C $$d install ; done
-	for f in *.mk ; do if [ $$f != config.mk ] ; then \
+	@set -e ; for d in $(DIRS) ; do $(MAKE) -C $$d install ; done
+	@for f in *.mk ; do \
+	    if [ $$f != config.mk -a $$f != rules.mk ] ; then \
 	    $(MAKE) -f $$f install ; \
 	fi ; done
 

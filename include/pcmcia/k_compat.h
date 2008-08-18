@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.102 1999/12/21 21:49:17
+ * k_compat.h 1.103 2000/01/11 01:04:56
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -252,12 +252,6 @@ typedef struct wait_queue *wait_queue_head_t;
 #define PCI_DEVFN(dev,fn)	(((dev)<<3)|((fn)&7))
 #endif
 
-#if (LINUX_VERSION_CODE > VERSION(2,1,117))
-#define NULL_FLUSH		NULL,
-#else
-#define NULL_FLUSH
-#endif
-
 #if (LINUX_VERSION_CODE < VERSION(2,1,126))
 #define SCSI_DISK0_MAJOR	SCSI_DISK_MAJOR
 #endif
@@ -302,6 +296,10 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 #include <linux/sched.h>
 #ifndef CAP_SYS_ADMIN
 #define capable(x)		(suser())
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,3,38))
+#define block_device_operations file_operations
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

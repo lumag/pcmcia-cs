@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" i82365.4 1.29 1999/12/20 20:26:25
+.\" i82365.4 1.31 2000/01/06 17:38:38
 .\"
-.TH I82365 4 "1999/12/20 20:26:25" "pcmcia-cs"
+.TH I82365 4 "2000/01/06 17:38:38" "pcmcia-cs"
 .SH NAME
 i82365 \- Intel i82365sl PCMCIA controller driver
 
@@ -146,7 +146,8 @@ interrupt not already in use.  Legal values are 15, 14, 12, 11,
 .BI poll_interval= n
 Sets the card status polling delay, in 1/100 second increments.  If
 this parameter is set, card status interrupts will be disabled.  A
-reasonable value is 100.
+reasonable value is 100.  Polling only affects detection of card
+insert and eject events.
 .TP
 .BI cycle_time= n
 Sets the length of a host bus cycle, in nanoseconds.  The default is
@@ -264,11 +265,12 @@ A flag indicating if the controller is wired for "ring indicate".
 The default is to read the current setting from the controller.
 .TP
 .BI irq_mode= n
-Selects the interrupt routing method.  A value of 1 selects ISA
-interrupt routing; 2 selects ISA interrupt routing via an external
-serial interrupt controller; and 3 selects serial routing for both PCI
-and ISA interrupts.  The default is to use whatever routing 
-method is already active, or ISA routing if no method is enabled.
+Selects the interrupt routing method.  A value of 0 selects only PCI
+interrupts; 1 selects ISA interrupt routing; 2 selects ISA interrupt
+routing via an external serial interrupt controller; and 3 selects
+serial routing for both PCI and ISA interrupts.  The default is to use
+whatever routing  method is already active, or ISA routing if no
+method is enabled.
 .TP
 .BI p2cclk= n
 A flag, indicating if the P2CCLK pin should be configured as an input

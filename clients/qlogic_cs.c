@@ -2,7 +2,7 @@
 
     A driver for the Qlogic SCSI card
 
-    qlogic_cs.c 1.75 1999/11/15 06:05:17
+    qlogic_cs.c 1.76 2000/01/09 01:44:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -51,10 +51,7 @@
 #include <../drivers/scsi/hosts.h>
 #include <scsi/scsi_ioctl.h>
 
-#ifdef NEW_QLOGIC
 #include <../drivers/scsi/qlogicfas.h>
-#define QLOGIC QLOGICFAS
-#define qlogic_preset qlogicfas_preset
 
 #if (LINUX_VERSION_CODE >= VERSION(2,1,18))
 #define qlogic_reset(h) qlogicfas_reset(h, 0)
@@ -66,10 +63,6 @@
 #endif
 #endif
 
-#else
-#include <../drivers/scsi/qlogic.h>
-#endif
-
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -77,14 +70,14 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/ciscode.h>
 
-extern void qlogic_preset(int port, int irq);
+extern void qlogicfas_preset(int port, int irq);
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"qlogic_cs.c 1.75 1999/11/15 06:05:17 (David Hinds)";
+"qlogic_cs.c 1.76 2000/01/09 01:44:55 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -116,7 +109,7 @@ static int qlogic_event(event_t event, int priority,
 static dev_link_t *qlogic_attach(void);
 static void qlogic_detach(dev_link_t *);
 
-static Scsi_Host_Template driver_template = QLOGIC;
+static Scsi_Host_Template driver_template = QLOGICFAS;
 
 static dev_link_t *dev_list = NULL;
 
@@ -295,9 +288,9 @@ static void qlogic_config(dev_link_t *link)
 
     /* The KXL-810AN has a bigger IO port window */
     if (link->io.NumPorts1 == 32)
-	qlogic_preset(link->io.BasePort1+16, link->irq.AssignedIRQ);
+	qlogicfas_preset(link->io.BasePort1+16, link->irq.AssignedIRQ);
     else
-	qlogic_preset(link->io.BasePort1, link->irq.AssignedIRQ);
+	qlogicfas_preset(link->io.BasePort1, link->irq.AssignedIRQ);
     
     scsi_register_module(MODULE_SCSI_HA, &driver_template);
 

@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" pcmcia_core.4 1.19 1999/10/25 19:50:46
+.\" pcmcia_core.4 1.20 1999/12/28 18:22:55
 .\"
-.TH PCMCIA_CORE 4 "1999/10/25 19:50:46" "pcmcia-cs"
+.TH PCMCIA_CORE 4 "1999/12/28 18:22:55" "pcmcia-cs"
 .SH NAME
 pcmcia_core \- PCMCIA Card Services core module
 .SH SYNOPSIS
@@ -94,8 +94,8 @@ Sets the maximum number of checks to make before pronouncing a card to
 be dead.  The default is 30.
 .TP
 .BI cis_speed= n
-Sets the access delay in nanoseconds for CIS memory windows.
-The default is 300 ns.
+Sets the access delay in nanoseconds for CIS memory windows.  This
+only affects card identification.  The default is 300 ns.
 .TP
 .BI io_speed= n
 Sets the access delay in nanoseconds for IO port windows.  The default
