@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.97 1999/09/08 06:15:34
+    ds.c 1.98 1999/09/15 15:32:19
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -34,6 +34,8 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/string.h>
@@ -60,7 +62,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.97 1999/09/08 06:15:34 (David Hinds)";
+"ds.c 1.98 1999/09/15 15:32:19 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -540,9 +542,9 @@ static FS_RELEASE_T ds_release(struct inode *inode, struct file *file)
 
 /*====================================================================*/
 
-static FS_SIZE_T ds_read FOPS(struct inode *inode,
-			      struct file *file, char *buf,
-			      U_FS_SIZE_T count, loff_t *ppos)
+static ssize_t ds_read FOPS(struct inode *inode,
+			    struct file *file, char *buf,
+			    size_t count, loff_t *ppos)
 {
     socket_t i = MINOR(F_INODE(file)->i_rdev);
     socket_info_t *s;
@@ -570,9 +572,9 @@ static FS_SIZE_T ds_read FOPS(struct inode *inode,
 
 /*====================================================================*/
 
-static FS_SIZE_T ds_write FOPS(struct inode *inode,
-			       struct file *file, const char *buf,
-			       U_FS_SIZE_T count, loff_t *ppos)
+static ssize_t ds_write FOPS(struct inode *inode,
+			     struct file *file, const char *buf,
+			     size_t count, loff_t *ppos)
 {
     socket_t i = MINOR(F_INODE(file)->i_rdev);
     socket_info_t *s;
@@ -852,7 +854,6 @@ static struct symbol_table ds_symtab = {
 
 #else
 
-#define register_symtab(n)
 EXPORT_SYMBOL(register_pccard_driver);
 EXPORT_SYMBOL(unregister_pccard_driver);
 
@@ -860,7 +861,7 @@ EXPORT_SYMBOL(unregister_pccard_driver);
 
 /*====================================================================*/
 
-int init_module(void)
+int __init init_pcmcia_ds(void)
 {
     client_reg_t client_reg;
     servinfo_t serv;
@@ -934,7 +935,14 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+#ifdef MODULE
+
+int __init init_module(void)
+{
+    return init_pcmcia_ds();
+}
+
+void __exit cleanup_module(void)
 {
     int i;
     if (major_dev != -1)
@@ -944,3 +952,5 @@ void cleanup_module(void)
     sockets = 0;
     kfree(socket_table);
 }
+
+#endif

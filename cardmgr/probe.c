@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.43 1999/09/03 16:43:44
+    probe.c 1.44 1999/09/28 04:05:57
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -66,7 +66,7 @@ typedef struct {
 } pci_id_t;
 
 pci_id_t pci_id[] = {
-    { 0x1013, 0x6729, "Cirrus Logic CL 6729", "Cirrus PD6729" },
+    { 0x1013, 0x1100, "Cirrus Logic CL 6729", "Cirrus PD6729" },
     { 0x1013, 0x1110, "Cirrus Logic PD 6832", "Cirrus PD6832" },
     { 0x10b3, 0xb106, "SMC 34C90", "SMC 34C90" },
     { 0x1180, 0x0465, "Ricoh RL5C465", "Ricoh RL5C465" },

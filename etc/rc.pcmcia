@@ -1,13 +1,19 @@
 #!/bin/sh
-#
-# rc.pcmcia 1.26 1999/04/15 03:02:41 (David Hinds)
+
+# chkconfig: 345 45 96
+# processname: cardmgr
+# pidfile: /var/run/cardmgr.pid
+# config: /etc/pcmcia/config
+# config: /etc/pcmcia/config.opts
+
+# rc.pcmcia 1.27 1999/09/27 16:45:01 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
 
 usage()
 {
-    echo "Usage: $0 {start|stop|restart}"
+    echo "Usage: $0 {start|stop|status|restart|reload}"
 }
 
 cleanup()
@@ -59,7 +65,7 @@ for x in "1" ; do
 
     case "$action" in
 
-    'start')
+    start)
 	echo -n "Starting PCMCIA services:"
 	SC=/var/run/pcmcia-scheme
 	if [ -L $SC -o ! -O $SC ] ; then rm -f $SC ; fi
@@ -97,7 +103,7 @@ for x in "1" ; do
 	fi
 	;;
 
-    'stop')
+    stop)
 	echo -n "Shutting down PCMCIA services:"
 	PID=`cat /var/run/cardmgr.pid`
 	kill $PID
@@ -118,10 +124,21 @@ for x in "1" ; do
 	EXITCODE=0
 	;;
 
-    'restart')
+    status)
+	pid=`pidof cardmgr`
+	if [ "$pid" != "" ] ; then
+	    echo "cardmgr (pid $pid) is running..."
+	    EXITCODE=0
+	else
+	    echo "cardmgr is stopped"
+	    EXITCODE=3
+	fi
+	;;
+
+    restart|reload)
 	$0 stop
 	$0 start
-	EXITCODE=0
+	EXITCODE=$?
 	;;
 
     *)

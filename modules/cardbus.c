@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.58 1999/09/10 06:23:11
+    cardbus.c 1.59 1999/09/15 15:32:19
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -41,6 +41,7 @@
 #include <pcmcia/k_compat.h>
 
 #ifdef __LINUX__
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/malloc.h>
@@ -363,11 +364,11 @@ int cb_alloc(socket_info_t *s)
 
 void cb_free(socket_info_t *s)
 {
-#ifdef NEW_LINUX_PCI
-    struct pci_dev **p, *q;
     cb_config_t *c = s->cb_config;
 
     if (c) {
+#ifdef NEW_LINUX_PCI
+	struct pci_dev **p, *q;
 	/* Unlink from PCI device chain */
 	for (p = &pci_devices; *p; p = &((*p)->next))
 	    if (*p == &c[0].dev) break;
@@ -377,12 +378,10 @@ void cb_free(socket_info_t *s)
 	}
 	if (*p) *p = q;
 	s->cap.cb_bus->devices = NULL;
-    }
 #endif
-    printk(KERN_INFO "cs: cb_free(bus %d)\n", s->cap.cardbus);
-    if (s->cb_config) {
 	kfree(s->cb_config);
 	s->cb_config = NULL;
+	printk(KERN_INFO "cs: cb_free(bus %d)\n", s->cap.cardbus);
     }
 }
 

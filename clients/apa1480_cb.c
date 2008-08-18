@@ -2,7 +2,7 @@
 
     A driver for the Adaptec APA1480 CardBus SCSI Host Adapter
 
-    apa1480_cb.c 1.14 1999/09/01 06:22:06
+    apa1480_cb.c 1.16 1999/09/16 03:56:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -34,6 +34,8 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/malloc.h>
@@ -44,10 +46,10 @@
 #include <linux/major.h>
 #include <linux/blk.h>
 
-#include "drivers/scsi/scsi.h"
-#include "drivers/scsi/hosts.h"
+#include <../drivers/scsi/scsi.h>
+#include <../drivers/scsi/hosts.h>
 #include <scsi/scsi_ioctl.h>
-#include "drivers/scsi/aic7xxx.h"
+#include <../drivers/scsi/aic7xxx.h>
 
 #include <pcmcia/driver_ops.h>
 
@@ -56,7 +58,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"apa1480_cb.c 1.14 1999/09/01 06:22:06 (David Hinds)";
+"apa1480_cb.c 1.16 1999/09/16 03:56:52 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -170,13 +172,16 @@ static void apa1480_detach(dev_node_t *node)
 
 /*====================================================================*/
 
-int init_module(void) {
+static int __init init_apa1480_cb(void) {
     DEBUG(0, "%s\n", version);
     register_driver(&apa1480_ops);
     return 0;
 }
 
-void cleanup_module(void) {
+static void __exit exit_apa1480_cb(void) {
     DEBUG(0, "apa1480_cs: unloading\n");
     unregister_driver(&apa1480_ops);
 }
+
+module_init(init_apa1480_cb);
+module_exit(exit_apa1480_cb);

@@ -2,7 +2,7 @@
 
     A direct memory interface driver for CardBus cards
 
-    memory_cb.c 1.7 1999/08/28 04:05:35
+    memory_cb.c 1.8 1999/09/15 15:33:08
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -34,6 +34,8 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/malloc.h>
@@ -50,7 +52,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cb.c 1.7 1999/08/28 04:05:35 (David Hinds)";
+"memory_cb.c 1.8 1999/09/15 15:33:08 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -161,8 +163,7 @@ static int memory_open(struct inode *inode, struct file *file)
     return 0;
 }
 
-static FS_RELEASE_T memory_close(struct inode *inode,
-				 struct file *file)
+static FS_RELEASE_T memory_close(struct inode *inode, struct file *file)
 {
     int minor = MINOR(F_INODE(file)->i_rdev);
     memory_dev_t *dev = dev_table[minor>>3];
@@ -175,14 +176,14 @@ static FS_RELEASE_T memory_close(struct inode *inode,
     return (FS_RELEASE_T)0;
 }
 
-static FS_SIZE_T memory_read FOPS(struct inode *inode,
-				  struct file *file, char *buf,
-				  U_FS_SIZE_T count, loff_t *ppos)
+static ssize_t memory_read FOPS(struct inode *inode,
+				struct file *file, char *buf,
+				size_t count, loff_t *ppos)
 {
     int minor = MINOR(F_INODE(file)->i_rdev);
     memory_dev_t *dev = dev_table[minor>>3];
     int space = minor & 7;
-    U_FS_SIZE_T i, pos = FPOS;
+    size_t i, pos = FPOS;
     
     DEBUG(2, "memory_read(%d, 0x%lx, 0x%lx)\n", minor,
 	  (u_long)pos, (u_long)count);
@@ -207,14 +208,14 @@ static FS_SIZE_T memory_read FOPS(struct inode *inode,
     return count;
 }
 
-static FS_SIZE_T memory_write FOPS(struct inode *inode,
-				   struct file *file, const char *buf,
-				   U_FS_SIZE_T count, loff_t *ppos)
+static ssize_t memory_write FOPS(struct inode *inode,
+				 struct file *file, const char *buf,
+				 size_t count, loff_t *ppos)
 {
     int minor = MINOR(F_INODE(file)->i_rdev);
     memory_dev_t *dev = dev_table[minor>>3];
     int space = minor & 7;
-    U_FS_SIZE_T i, pos = FPOS;
+    size_t i, pos = FPOS;
     
     DEBUG(2, "memory_read(%d, 0x%lx, 0x%lx)\n", minor,
 	  (u_long)pos, (u_long)count);
@@ -259,7 +260,8 @@ struct driver_operations memory_ops = {
     "memory_cb", memory_attach, NULL, NULL, memory_detach
 };
 
-int init_module(void) {
+static int __init init_memory_cb(void)
+{
     DEBUG(0, "%s\n", version);
     major_dev = register_chrdev(major_dev, "memory_cb", &memory_fops);
     if (major_dev == 0) {
@@ -271,9 +273,13 @@ int init_module(void) {
     return 0;
 }
 
-void cleanup_module(void) {
+static void exit_memory_cb(void)
+{
     DEBUG(0, "memory_cb: unloading\n");
     unregister_driver(&memory_ops);
     if (major_dev != 0)
 	unregister_chrdev(major_dev, "memory_cb");
 }
+
+module_init(init_memory_cb);
+module_exit(exit_memory_cb);

@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.227 1999/09/10 06:23:11
+    cs.c 1.228 1999/09/15 15:32:19
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -35,6 +35,8 @@
 #include <pcmcia/k_compat.h>
 
 #ifdef __LINUX__
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/major.h>
@@ -71,7 +73,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.227 1999/09/10 06:23:11 (David Hinds)";
+"cs.c 1.228 1999/09/15 15:32:19 (David Hinds)";
 #endif
 
 #ifdef __BEOS__
@@ -79,7 +81,9 @@ static const char *release = "BeOS PCMCIA Card Services " CS_RELEASE;
 #endif
 #ifdef __LINUX__
 static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
+#ifdef MODULE
 static const char *kernel = "kernel build: " UTS_RELEASE " " UTS_VERSION;
+#endif
 #endif
 static const char *options = "options: "
 #ifdef CONFIG_PCI
@@ -1501,8 +1505,6 @@ static int cs_release_irq(client_handle_t handle, irq_req_t *req)
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
 #ifdef __LINUX__
 	bus_free_irq(s->cap.bus, req->AssignedIRQ, req->Instance);
-	if (req->Instance)
-	    IRQ_MAP(req->AssignedIRQ, NULL);
 #endif
 #ifdef __BEOS__
 	remove_io_interrupt_handler(req->AssignedIRQ, req->Handler,
@@ -1807,8 +1809,6 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 			     (irq == s->cap.pci_irq)) ? SA_SHIRQ : 0,
 			    handle->dev_info, req->Instance))
 	    return CS_IN_USE;
-	if (req->Instance)
-	    IRQ_MAP(irq, req->Instance);
 #endif
 #ifdef __BEOS__
 	install_io_interrupt_handler(irq, req->Handler,
@@ -2248,7 +2248,6 @@ static struct symbol_table cs_symtab = {
 
 #else
 
-#define register_symtab(n)
 EXPORT_SYMBOL(register_ss_entry);
 EXPORT_SYMBOL(unregister_ss_entry);
 EXPORT_SYMBOL(CardServices);
@@ -2260,10 +2259,12 @@ EXPORT_SYMBOL(release_mem_region);
 
 #endif
 
-int init_module(void)
+static int __init init_pcmcia_cs(void)
 {
     printk(KERN_INFO "%s\n", release);
+#ifdef MODULE
     printk(KERN_INFO "  %s\n", kernel);
+#endif
     printk(KERN_INFO "  %s\n", options);
     DEBUG(0, "%s\n", version);
 #ifdef CONFIG_APM
@@ -2280,24 +2281,27 @@ int init_module(void)
     register_symtab(&cs_symtab);
 #ifdef HAS_PROC_BUS
     proc_pccard = create_proc_entry("pccard", S_IFDIR, proc_bus);
-    if (proc_pccard) {
 #ifdef CONFIG_PNP_BIOS
+    if (proc_pccard) {
 	struct proc_dir_entry *ent;
 	ent = create_proc_entry("ioport", 0, proc_pccard);
 	ent->read_proc = proc_read_io;
 	ent = create_proc_entry("irq", 0, proc_pccard);
 	ent->read_proc = proc_read_irq;
+    }
+#endif
 #ifndef HAVE_MEMRESERVE
+    if (proc_pccard) {
+	struct proc_dir_entry *ent;
 	ent = create_proc_entry("memory", 0, proc_pccard);
 	ent->read_proc = proc_read_mem;
-#endif
-#endif
     }
+#endif
 #endif
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_pcmcia_cs(void)
 {
     printk(KERN_INFO "unloading PCMCIA Card Services\n");
 #ifdef HAS_PROC_BUS
@@ -2324,6 +2328,9 @@ void cleanup_module(void)
 #endif
     release_resource_db();
 }
+
+module_init(init_pcmcia_cs);
+module_exit(exit_pcmcia_cs);
 
 #endif /* __LINUX__ */
 

@@ -127,6 +127,7 @@ Include Files
 #include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
@@ -1843,9 +1844,10 @@ static void set_multicast_list(struct net_device *dev)
 } /* set_multicast_list */
 
 /* ----------------------------------------------------------------------------
-init_module
+init_nmclan_cs
 ---------------------------------------------------------------------------- */
-int init_module(void)
+
+static int __init init_nmclan_cs(void)
 {
   servinfo_t serv;
   DEBUG(0, "%s\n", version);
@@ -1856,17 +1858,19 @@ int init_module(void)
   }
   register_pccard_driver(&dev_info, &nmclan_attach, &nmclan_detach);
   return 0;
-} /* init_module */
-
+}
 
 /* ----------------------------------------------------------------------------
-cleanup_module
+exit_nmclan_cs
 ---------------------------------------------------------------------------- */
 
-void cleanup_module(void)
+static void __exit exit_nmclan_cs(void)
 {
   DEBUG(0, "nmclan_cs: unloading\n");
   unregister_pccard_driver(&dev_info);
   while (dev_list != NULL)
     nmclan_detach(dev_list);
-} /* cleanup_module */
+}
+
+module_init(init_nmclan_cs);
+module_exit(exit_nmclan_cs);

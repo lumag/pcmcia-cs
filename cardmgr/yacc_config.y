@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_config.y 1.46 1999/08/28 04:08:01
+ * yacc_config.y 1.47 1999/09/26 01:36:50
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -185,6 +185,7 @@ resource: IRQ_NO NUMBER
 device:	  DEVICE STRING
 		{
 		    $$ = calloc(sizeof(device_info_t), 1);
+		    $$->refs = 1;
 		    strcpy($$->dev_info, $2);
 		    free($2);
 		}
@@ -196,6 +197,7 @@ device:	  DEVICE STRING
 card:	  CARD STRING
 		{
 		    $$ = calloc(sizeof(card_info_t), 1);
+		    $$->refs = 1;
 		    $$->name = $2;
 		}
 	| anonymous
@@ -366,6 +368,7 @@ class:	  device CLASS STRING
 region:	  REGION STRING
 		{
 		    $$ = calloc(sizeof(mtd_ident_t), 1);
+		    $$->refs = 1;
 		    $$->name = $2;
 		}
 	| dtype

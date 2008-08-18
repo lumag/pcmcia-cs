@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    smc91c92_cs.c 1.76 1999/09/08 06:24:25
+    smc91c92_cs.c 1.77 1999/09/15 15:33:08
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -29,8 +29,8 @@
 #include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/ptrace.h>
 #include <linux/malloc.h>
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -2003,7 +2003,7 @@ reschedule:
 
 /*====================================================================*/
 
-int init_module(void)
+static int __init init_smc91c92_cs(void)
 {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
@@ -2017,10 +2017,13 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_smc91c92_cs(void)
 {
     DEBUG(0, "smc91c92_cs: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	smc91c92_detach(dev_list);
 }
+
+module_init(init_smc91c92_cs);
+module_exit(exit_smc91c92_cs);

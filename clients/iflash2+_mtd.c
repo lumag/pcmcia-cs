@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2+ Flash devices
 
-    iflash2+_mtd.c 1.55 1999/09/08 06:23:40
+    iflash2+_mtd.c 1.56 1999/09/16 03:56:26
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -41,6 +41,7 @@
 
 #ifdef __LINUX__
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
@@ -70,7 +71,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"iflash2+_mtd.c 1.55 1999/09/08 06:23:40 (David Hinds)";
+"iflash2+_mtd.c 1.56 1999/09/16 03:56:26 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -1162,7 +1163,7 @@ static int flash_event(event_t event, int priority,
 
 #ifdef __LINUX__
 
-int init_module(void)
+static int __init init_iflash2x_mtd(void)
 {
     servinfo_t serv;
     
@@ -1186,12 +1187,15 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_iflash2x_mtd(void)
 {
     DEBUG(0, "iflash2+_mtd: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	flash_detach(dev_list);
 }
+
+module_init(init_iflash2x_mtd);
+module_exit(exit_iflash2x_mtd);
 
 #endif /* __LINUX__ */

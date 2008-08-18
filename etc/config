@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.95 1999/09/10 17:02:48 (David Hinds)
+# config 1.97 1999/09/28 16:41:05 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -123,8 +123,9 @@ card "Accton UE2216 Ethernet"
   version "PCMCIA", "PCMCIA-ETHERNET-CARD", "UE2216"
   bind "pcnet_cs"
 
-card "Allied Telesis Ethernet"
-  version "Allied Telesis,K.K", "Ethernet LAN Card"
+card "Allied Telesis LA-PCM Ethernet"
+  manfid 0xc00f, 0x0002
+  cis "cis/LA-PCM.cis"
   bind "pcnet_cs"
 
 card "AmbiCom AMB8002 Ethernet"
@@ -495,7 +496,7 @@ card "NE2000 Compatible Ethernet"
 
 card "NDC Instant-Link Ethernet"
   version "NDC", "Ethernet"
-  cis "etc/NE2K.dat"
+  cis "cis/NE2K.dat"
   bind "pcnet_cs"
 
 card "Eagle NE200 Ethernet"
@@ -1094,6 +1095,11 @@ card "3Com/Megahertz 3CCFEM556 Ethernet/Modem"
   manfid 0x0101, 0x0556
   cis "cis/3CCFEM556.dat"
   bind "3c574_cs" to 0, "serial_cs" to 1
+
+card "Accton EN2218 LAN/Modem"
+  version "PCMCIA", "EN2218-LAN/MODEM"
+  cis "cis/PCMLM28.dat"
+  bind "pcnet_cs", "serial_cs"
 
 card "Accton UE2218 LAN/Modem"
   version "PCMCIA", "UE2218-LAN/MODEM"

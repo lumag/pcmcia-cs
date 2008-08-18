@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.70 1999/09/07 15:19:32
+    rsrc_mgr.c 1.71 1999/09/15 15:32:19
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -36,6 +36,8 @@
 #include <pcmcia/k_compat.h>
 
 #ifdef __LINUX__
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -259,13 +261,13 @@ int proc_read_mem(char *buf, char **start, off_t pos,
 
 #endif /* __LINUX__ */
 
+#ifdef __BEOS__
+
 /*======================================================================
 
     BeOS resource management functions
     
 ======================================================================*/
-
-#ifdef __BEOS__
 
 #include "config_manager.h"
 #include "config_manager_p.h"

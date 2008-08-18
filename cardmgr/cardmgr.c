@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.126 1999/08/28 04:08:01
+    cardmgr.c 1.129 1999/09/26 01:36:50
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -68,7 +68,7 @@ typedef struct socket_info_t {
     int			state;
     card_info_t		*card;
     bind_info_t		*bind[MAX_BINDINGS];
-    char		*mtd[2*CISTPL_MAX_DEVICES];
+    mtd_ident_t		*mtd[2*CISTPL_MAX_DEVICES];
 } socket_info_t;
 
 #define SOCKET_PRESENT	0x01
@@ -125,9 +125,6 @@ static int do_modprobe = 0;
 
 /* If set, configure already inserted cards, then exit */
 static int one_pass = 0;
-
-/* most recent signal */
-static int caught_signal = 0;
 
 /* Extra message logging? */
 static int verbose = 0;
@@ -529,20 +526,44 @@ static void load_config(void)
 
 static void free_card(card_info_t *card)
 {
-    int i;
-    free(card->name);
-    switch(card->ident_type) {
-    case VERS_1_IDENT:
-	for (i = 0; i < card->id.vers.ns; i++)
-	    free(card->id.vers.pi[i]);
+    if (card && (--card->refs == 0)) {
+	int i;
+	free(card->name);
+	switch(card->ident_type) {
+	case VERS_1_IDENT:
+	    for (i = 0; i < card->id.vers.ns; i++)
+		free(card->id.vers.pi[i]);
 	break;
-    case TUPLE_IDENT:
-	free(card->id.tuple.info);
-	break;
-    default:
-	break;
+	case TUPLE_IDENT:
+	    free(card->id.tuple.info);
+	    break;
+	default:
+	    break;
+	}
+	free(card);
     }
-    free(card);
+}
+
+static void free_device(device_info_t *dev)
+{
+    if (dev && (--dev->refs == 0)) {
+	int i;
+	for (i = 0; i < dev->modules; i++) {
+	    free(dev->module[i]);
+	    if (dev->opts[i]) free(dev->opts[i]);
+	}
+	if (dev->class) free(dev->class);
+	free(dev);
+    }
+}
+
+static void free_mtd(mtd_ident_t *mtd)
+{
+    if (mtd && (--mtd->refs == 0)) {
+	free(mtd->name);
+	free(mtd->module);
+	free(mtd);
+    }
 }
 
 static void free_config(void)
@@ -555,14 +576,8 @@ static void free_config(void)
     
     while (root_device != NULL) {
 	device_info_t *dev = root_device;
-	int i;
 	root_device = root_device->next;
-	for (i = 0; i < dev->modules; i++) {
-	    free(dev->module[i]);
-	    if (dev->opts[i]) free(dev->opts[i]);
-	}
-	if (dev->class) free(dev->class);
-	free(dev);
+	free_device(dev);
     }
 
     while (root_card != NULL) {
@@ -581,9 +596,7 @@ static void free_config(void)
     while (root_mtd != NULL) {
 	mtd_ident_t *mtd = root_mtd;
 	root_mtd = root_mtd->next;
-	free(mtd->name);
-	free(mtd->module);
-	free(mtd);
+	free_mtd(mtd);
     }
     default_mtd = NULL;
 }
@@ -780,17 +793,18 @@ static void bind_mtd(int sn)
 	    if (mtd) {
 		/* Have we seen this MTD before? */
 		for (i = 0; i < nr; i++)
-		    if (strcmp(s->mtd[i], mtd->module) == 0) break;
+		    if (s->mtd[i] == mtd) break;
 		if (i == nr) {
 		    install_module(mtd->module, mtd->opts);
-		    s->mtd[nr] = mtd->module;
+		    s->mtd[nr] = mtd;
+		    mtd->refs++;
 		    nr++;
 		}
 		syslog(LOG_INFO, "  %s memory region at 0x%lx: %s",
 		       attr ? "Attribute" : "Common", region.CardOffset,
 		       mtd->name);
 		/* Bind MTD to this region */
-		strcpy(mtd_info.dev_info, s->mtd[i]);
+		strcpy(mtd_info.dev_info, s->mtd[i]->module);
 		mtd_info.Attributes = region.Attributes;
 		mtd_info.CardOffset = region.CardOffset;
 		if (ioctl(s->fd, DS_BIND_MTD, &mtd_info) != 0) {
@@ -806,7 +820,7 @@ static void bind_mtd(int sn)
     
     /* Now bind each unique MTD as a normal client of this socket */
     for (i = 0; i < nr; i++) {
-	strcpy(bind.dev_info, s->mtd[i]);
+	strcpy(bind.dev_info, s->mtd[i]->module);
 	if (ioctl(s->fd, DS_BIND_REQUEST, &bind) != 0)
 	    syslog(LOG_INFO, "bind MTD '%s' to socket %d failed: %m",
 		   (char *)bind.dev_info, sn);
@@ -849,6 +863,7 @@ static void do_insert(int sn)
     if (card == s->card)
 	return;
     s->card = card;
+    card->refs++;
     if (card->cis_file) update_cis(s);
 
     dev = card->device;
@@ -870,6 +885,7 @@ static void do_insert(int sn)
     
     /* Bind drivers by their dev_info identifiers */
     for (i = 0; i < card->bindings; i++) {
+	dev[i]->refs++;
 	bind = calloc(1, sizeof(bind_info_t));
 	strcpy((char *)bind->dev_info, (char *)dev[i]->dev_info);
 	if (strcmp(bind->dev_info, "cb_enabler") == 0)
@@ -999,25 +1015,28 @@ static void do_remove(int sn)
     }
     for (i = 0; (s->mtd[i] != NULL); i++) {
 	bind_info_t b;
-	strcpy(b.dev_info, s->mtd[i]);
+	strcpy(b.dev_info, s->mtd[i]->module);
 	if (ioctl(s->fd, DS_UNBIND_REQUEST, &b) != 0)
 	    syslog(LOG_INFO, "unbind MTD '%s' from socket %d failed: %m",
-		   (char *)s->mtd[i], sn);
+		   s->mtd[i]->module, sn);
     }
 
     /* remove kernel modules in inverse order */
     for (i = 0; i < card->bindings; i++) {
 	for (j = dev[i]->modules-1; j >= 0; j--)
 	    remove_module(dev[i]->module[j]);
+	free_device(dev[i]);
     }
     /* Remove any MTD's bound to this socket */
     for (i = 0; (s->mtd[i] != NULL); i++) {
-	remove_module(s->mtd[i]);
+	remove_module(s->mtd[i]->module);
+	free_mtd(s->mtd[i]);
 	s->mtd[i] = NULL;
     }
 
 done:
     beep(BEEP_TIME, BEEP_OK);
+    free_card(card);
     s->card = NULL;
     write_stab();
 }
@@ -1152,7 +1171,6 @@ static void fork_now(void)
 	syslog(LOG_INFO, "forking: %m");
     if (setsid() < 0)
 	syslog(LOG_INFO, "detaching from tty: %m");
-    write_pid();
 }    
 
 static void done(void)
@@ -1163,6 +1181,11 @@ static void done(void)
 	unlink(stabfile);
     }
 }
+
+/*====================================================================*/
+
+/* most recent signal */
+static int caught_signal = 0;
 
 static void catch_signal(int sig)
 {
@@ -1292,6 +1315,7 @@ int main(int argc, char *argv[])
     openlog("cardmgr", LOG_PID|LOG_PERROR, LOG_DAEMON);
 #else
     openlog("cardmgr", LOG_PID|LOG_CONS, LOG_DAEMON);
+    close(0); close(1); close(2);
 #endif
 
 #ifndef DEBUG
@@ -1313,7 +1337,7 @@ int main(int argc, char *argv[])
 		syslog(LOG_INFO, "uname(): %m");
 		exit(EXIT_FAILURE);
 	    }
-	    modpath = (char *)malloc(32);
+	    modpath = (char *)malloc(strlen(utsname.release)+14);
 	    sprintf(modpath, "/lib/modules/%s", utsname.release);
 	}
     }
@@ -1329,6 +1353,7 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
 
     /* If we've gotten this far, then clean up pid and stab at exit */
+    write_pid();
     write_stab();
     cleanup_files = 1;
     
@@ -1412,8 +1437,10 @@ int main(int argc, char *argv[])
 
 	if (one_pass)
 	    exit(EXIT_SUCCESS);
-	if (delay_fork)
+	if (delay_fork) {
 	    fork_now();
+	    write_pid();
+	}
 	
     } /* repeat */
     return 0;

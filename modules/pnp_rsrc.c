@@ -138,7 +138,7 @@ static void scan_pirq_table(void)
 {
     struct routing_table *r;
     struct pci_dev *router, *dev;
-    u8 (*xlate_link)(struct pci_dev *, u8);
+    u8 (*xlate_link)(struct pci_dev *, u8) = NULL;
     u8 pin, fn, *p;
     int i;
     struct slot_entry *e;
@@ -155,17 +155,17 @@ static void scan_pirq_table(void)
 	   r->major, r->minor, (u32)r & 0xfffff);
 
     router = pci_find_slot(r->bus, r->devfn);
-    if (!router) return;
-    for (i = 0; i < ROUTER_COUNT; i++)
-	if ((router->vendor == irq_router[i].vendor) &&
-	    (router->device == irq_router[i].device))
-	    break;
-    if (i == ROUTER_COUNT) {
-	printk(KERN_INFO "  unknown PCI interrupt router %04x:%04x\n",
-	       router->vendor, router->device);
-	return;
+    if (router) {
+	for (i = 0; i < ROUTER_COUNT; i++)
+	    if ((router->vendor == irq_router[i].vendor) &&
+		(router->device == irq_router[i].device))
+		break;
+	if (i == ROUTER_COUNT)
+	    printk(KERN_INFO "  unknown PCI interrupt router %04x:%04x\n",
+		   router->vendor, router->device);
+	else
+	    xlate_link = irq_router[i].xlate_link;
     }
-    xlate_link = irq_router[i].xlate_link;
 
     for (e = r->entry; (u8 *)e < p+r->size; e++) {
 	for (fn = 0; fn < 8; fn++) {
@@ -173,11 +173,21 @@ static void scan_pirq_table(void)
 	    if ((dev == NULL) || (dev->irq != 0)) continue;
 	    pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 	    if (pin == 0) continue;
-	    dev->irq = xlate_link(router, e->pin[pin-1].link);
-	    printk(KERN_INFO "  %02x:%02x.%1x -> irq %d\n", e->bus,
-		   PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn),
-		   dev->irq);
-	    pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
+	    if (xlate_link) {
+		dev->irq = xlate_link(router, e->pin[pin-1].link);
+	    } else {
+		/* Fallback: see if only one irq possible */
+		int map = e->pin[pin-1].irq_map;
+		if (map && (!(map & (map-1))))
+		    dev->irq = ffs(map)-1;
+	    }
+	    if (dev->irq) {
+		printk(KERN_INFO "  %02x:%02x.%1x -> irq %d\n",
+		       e->bus, PCI_SLOT(dev->devfn),
+		       PCI_FUNC(dev->devfn), dev->irq);
+		pci_write_config_byte(dev, PCI_INTERRUPT_LINE,
+				      dev->irq);
+	    }
 	}
     }
 }

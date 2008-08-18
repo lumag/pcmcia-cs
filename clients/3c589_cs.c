@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    3c589_cs.c 1.133 1999/09/08 06:24:24
+    3c589_cs.c 1.134 1999/09/15 15:33:09
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -20,6 +20,8 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -116,7 +118,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.133 1999/09/08 06:24:24 (David Hinds)";
+"3c589_cs.c 1.134 1999/09/15 15:33:09 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -1166,7 +1168,7 @@ static int el3_close(struct net_device *dev)
 
 /*====================================================================*/
 
-int init_module(void)
+static int __init init_3c589_cs(void)
 {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
@@ -1180,10 +1182,13 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_3c589_cs(void)
 {
     DEBUG(0, "3c589_cs: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	tc589_detach(dev_list);
 }
+
+module_init(init_3c589_cs);
+module_exit(exit_3c589_cs);

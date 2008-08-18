@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.62 1999/09/08 06:24:24
+    memory_cs.c 1.63 1999/09/15 15:33:08
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,9 +39,10 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/ptrace.h>
 #include <linux/malloc.h>
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -90,7 +91,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.62 1999/09/08 06:24:24 (David Hinds)";
+"memory_cs.c 1.63 1999/09/15 15:33:08 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -169,12 +170,12 @@ static int memory_blocksizes[MINOR_NR(MAX_DEV, 0, 0, 0)] =
 
 static int memory_ioctl(struct inode *inode, struct file *file,
 			u_int cmd, u_long arg);
-static FS_SIZE_T memory_read FOPS(struct inode *inode,
-				  struct file *file, char *buf,
-				  U_FS_SIZE_T count, loff_t *ppos);
-static FS_SIZE_T memory_write FOPS(struct inode *inode,
-				   struct file *file, const char *buf,
-				   U_FS_SIZE_T count, loff_t *ppos);
+static ssize_t memory_read FOPS(struct inode *inode,
+				struct file *file, char *buf,
+				size_t count, loff_t *ppos);
+static ssize_t memory_write FOPS(struct inode *inode,
+				 struct file *file, const char *buf,
+				 size_t count, loff_t *ppos);
 static int memory_open(struct inode *inode, struct file *file);
 static FS_RELEASE_T memory_close(struct inode *inode,
 				 struct file *file);
@@ -678,15 +679,15 @@ static FS_RELEASE_T memory_blk_close(struct inode *inode,
     
 ======================================================================*/
 
-static FS_SIZE_T direct_read FOPS(struct inode *inode,
-				  struct file *file, char *buf,
-				  U_FS_SIZE_T count, loff_t *ppos)
+static ssize_t direct_read FOPS(struct inode *inode,
+				struct file *file, char *buf,
+				size_t count, loff_t *ppos)
 {
     int minor = MINOR(F_INODE(file)->i_rdev);
     dev_link_t *link;
     memory_dev_t *dev;
     direct_dev_t *direct;
-    U_FS_SIZE_T size, pos, read, from, nb;
+    size_t size, pos, read, from, nb;
     int ret;
     modwin_t mod;
     memreq_t mem;
@@ -740,9 +741,9 @@ static FS_SIZE_T direct_read FOPS(struct inode *inode,
     return read;
 } /* direct_read */
 
-static FS_SIZE_T memory_read FOPS(struct inode *inode,
-				  struct file *file, char *buf,
-				  U_FS_SIZE_T count, loff_t *ppos)
+static ssize_t memory_read FOPS(struct inode *inode,
+				struct file *file, char *buf,
+				size_t count, loff_t *ppos)
 {
     minor_dev_t *minor;
     mem_op_t req;
@@ -776,7 +777,7 @@ static FS_SIZE_T memory_read FOPS(struct inode *inode,
     
 ======================================================================*/
 
-static int memory_erase(int minor, u_long f_pos, U_FS_SIZE_T count)
+static int memory_erase(int minor, u_long f_pos, size_t count)
 {
     dev_link_t *link = dev_table[DEVICE_NR(minor)];
     memory_dev_t *dev = link->priv;
@@ -820,15 +821,15 @@ static int memory_erase(int minor, u_long f_pos, U_FS_SIZE_T count)
     
 ======================================================================*/
 
-static FS_SIZE_T direct_write FOPS(struct inode *inode,
-				   struct file *file, const char *buf,
-				   U_FS_SIZE_T count, loff_t *ppos)
+static ssize_t direct_write FOPS(struct inode *inode,
+				 struct file *file, const char *buf,
+				 size_t count, loff_t *ppos)
 {
     int minor = MINOR(F_INODE(file)->i_rdev);
     dev_link_t *link;
     memory_dev_t *dev;
     direct_dev_t *direct;
-    U_FS_SIZE_T size, pos, wrote, to, nb;
+    size_t size, pos, wrote, to, nb;
     int ret;
     modwin_t mod;
     memreq_t mem;
@@ -887,9 +888,9 @@ static FS_SIZE_T direct_write FOPS(struct inode *inode,
     return wrote;
 } /* direct_write */
 
-static FS_SIZE_T memory_write FOPS(struct inode *inode,
-				   struct file *file, const char *buf,
-				   U_FS_SIZE_T count, loff_t *ppos)
+static ssize_t memory_write FOPS(struct inode *inode,
+				 struct file *file, const char *buf,
+				 size_t count, loff_t *ppos)
 {
     minor_dev_t *minor;
     mem_op_t req;
@@ -1110,7 +1111,7 @@ static void do_memory_request(void)
 
 /*====================================================================*/
 
-int init_module(void)
+static int __init init_memory_cs(void)
 {
     servinfo_t serv;
     int i;
@@ -1148,7 +1149,7 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_memory_cs(void)
 {
     int i;
     dev_link_t *link;
@@ -1170,3 +1171,6 @@ void cleanup_module(void)
 	}
     }
 }
+
+module_init(init_memory_cs);
+module_exit(exit_memory_cs);

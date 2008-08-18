@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.88 1999/09/06 06:55:26
+ * k_compat.h 1.92 1999/09/28 05:27:34
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -50,6 +50,7 @@
 #define REQUEST_IRQ(i,h,f,n,d)	request_irq(i,h,f,n,d)
 #define IRQ(a,b,c)		(a,b,c)
 #define DEV_ID			dev_id
+#define IRQ_MAP(irq, dev)	do { } while (0)
 
 #if (LINUX_VERSION_CODE < VERSION(2,3,1))
 #if (LINUX_VERSION_CODE < VERSION(2,0,16))
@@ -60,6 +61,10 @@
 typedef struct wait_queue *wait_queue_head_t;
 #endif
 
+#define FS_SIZE_T		ssize_t
+#define U_FS_SIZE_T		size_t
+
+#if 0
 #if (LINUX_VERSION_CODE < VERSION(2,1,4)) && !defined(__alpha__)
 #define FS_SIZE_T		int
 #define U_FS_SIZE_T		int
@@ -70,6 +75,7 @@ typedef struct wait_queue *wait_queue_head_t;
 #else
 #define FS_SIZE_T		ssize_t
 #define U_FS_SIZE_T		size_t
+#endif
 #endif
 #endif
 
@@ -90,6 +96,7 @@ typedef struct wait_queue *wait_queue_head_t;
 #if (LINUX_VERSION_CODE > VERSION(2,1,16))
 #define AUTOCONF_INCLUDED
 #define EXPORT_SYMTAB
+#define register_symtab(x)
 #endif
 #ifdef CONFIG_MODVERSIONS
 #define MODVERSIONS 1
@@ -101,37 +108,6 @@ typedef struct wait_queue *wait_queue_head_t;
 #define MODULE_PARM(a,b)	extern int __bogus_decl
 #undef  GET_USE_COUNT
 #define GET_USE_COUNT(m)	mod_use_count_
-#endif
-
-#if (LINUX_VERSION_CODE < VERSION(2,1,0))
-#define copy_from_user		memcpy_fromfs
-#define copy_to_user		memcpy_tofs
-
-#if (!defined(__alpha__) || (LINUX_VERSION_CODE < VERSION(2,0,34)))
-#define ioremap(a,b) \
-    (((a) < 0x100000) ? (void *)((u_long)(a)) : vremap(a,b))
-#define iounmap(v) \
-    do { if ((u_long)(v) > 0x100000) vfree(v); } while (0)
-#endif
-/* This is evil... throw away the built-in get_user in 2.0 */
-#include <asm/segment.h>
-#undef get_user
-
-#ifdef __alpha__
-#define get_user(x, ptr) 	((x) = __get_user((ptr), sizeof(*(ptr))))
-#undef get_fs_long
-#undef put_fs_long
-#define get_fs_long(ptr)	__get_user((ptr), sizeof(int))
-#define put_fs_long(x, ptr)	__put_user((x), (ptr), sizeof(int))
-#else
-#define get_user(x, ptr) \
-		((sizeof(*ptr) == 4) ? (x = get_fs_long(ptr)) : \
-		 (sizeof(*ptr) == 2) ? (x = get_fs_word(ptr)) : \
-		 (x = get_fs_byte(ptr)))
-#endif
-
-#else /* 2.1.X */
-#include <asm/uaccess.h>
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,45))
@@ -149,15 +125,9 @@ typedef struct wait_queue *wait_queue_head_t;
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,60))
-#ifdef CONFIG_INET
-#define IRQ_MAP(irq, dev)	irq2dev_map[irq] = dev
-#else
-#define IRQ_MAP(irq, dev)	while (0)
-#endif
 #define FOPS(i,f,b,c,p)		(i,f,b,c)
 #define FPOS			(file->f_pos)
 #else
-#define IRQ_MAP(irq, dev)	while (0)
 #define FOPS(i,f,b,c,p)		(f,b,c,p)
 #define FPOS			(*ppos)
 #endif
@@ -192,7 +162,11 @@ typedef struct wait_queue *wait_queue_head_t;
 #define spin_lock_irqsave(l,f) do { save_flags(f); cli(); } while (0)
 #define spin_unlock_irqrestore(l,f) do { restore_flags(f); } while (0)
 #else
+#if (LINUX_VERSION_CODE < VERSION(2,3,17))
 #include <asm/spinlock.h>
+#else
+#include <linux/spinlock.h>
+#endif
 #if defined(CONFIG_SMP) || (LINUX_VERSION_CODE > VERSION(2,3,6))
 #define USE_SPIN_LOCKS
 #endif
@@ -273,6 +247,9 @@ typedef struct wait_queue *wait_queue_head_t;
 typedef unsigned long k_time_t;
 #define ACQUIRE_RESOURCE_LOCK do {} while (0)
 #define RELEASE_RESOURCE_LOCK do {} while (0)
+
+/* Only for backwards compatibility */
+#include <asm/uaccess.h>
 
 #include <linux/ioport.h>
 #if defined(check_mem_region) && !defined(HAVE_MEMRESERVE)

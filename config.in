@@ -1,5 +1,5 @@
 #
-# config.in 1.11 1999/02/16 03:24:20 (David Hinds)
+# config.in 1.12 1999/09/25 04:32:46 (David Hinds)
 #
 LINUX=/usr/src/linux
 MODPATH=/lib/modules
@@ -7,6 +7,8 @@ CC=gcc
 LD=ld
 PCDEBUG=
 # UNSAFE_TOOLS is not set
+CONFIG_CARDBUS=y
+CONFIG_PNP=n
 CONF_SRC=1
 SYSV_INIT=n
 RC_DIR=/etc

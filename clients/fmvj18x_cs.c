@@ -31,6 +31,7 @@
 #include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
@@ -649,7 +650,7 @@ static int fmvj18x_init(struct net_device *dev)
 
 /*====================================================================*/
 
-int init_module(void)
+static int __init init_fmvj18x_cs(void)
 {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
@@ -663,15 +664,16 @@ int init_module(void)
     return 0;
 }
 
-/*====================================================================*/
-
-void cleanup_module(void)
+static void __exit exit_fmvj18x_cs(void)
 {
     DEBUG(0, "fmvj18x_cs: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	fmvj18x_detach(dev_list);
 }
+
+module_init(init_fmvj18x_cs);
+module_exit(exit_fmvj18x_cs);
 
 /*====================================================================*/
 

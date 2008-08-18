@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.98 1999/09/08 06:24:25
+    pcnet_cs.c 1.99 1999/09/15 15:33:09
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -31,6 +31,8 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -42,7 +44,7 @@
 #include <asm/system.h>
 
 #include <linux/netdevice.h>
-#include <drivers/net/8390.h>
+#include <../drivers/net/8390.h>
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -73,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.98 1999/09/08 06:24:25 (David Hinds)";
+"pcnet_cs.c 1.99 1999/09/15 15:33:09 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -1378,7 +1380,7 @@ failed:
 
 /*====================================================================*/
 
-int init_module(void)
+static int __init init_pcnet_cs(void)
 {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
@@ -1392,10 +1394,13 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_pcnet_cs(void)
 {
     DEBUG(0, "pcnet_cs: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	pcnet_detach(dev_list);
 }
+
+module_init(init_pcnet_cs);
+module_exit(exit_pcnet_cs);

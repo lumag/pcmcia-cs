@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.21 1999/09/08 06:24:24
+    ide_cs.c 1.22 1999/09/16 03:56:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -35,6 +35,7 @@
 #include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
@@ -61,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.21 1999/09/08 06:24:24 (David Hinds)";
+"ide_cs.c 1.22 1999/09/16 03:56:52 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -458,7 +459,7 @@ int ide_event(event_t event, int priority,
 
 /*====================================================================*/
 
-int init_module(void)
+static int __init init_ide_cs(void)
 {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
@@ -472,10 +473,13 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_ide_cs(void)
 {
     DEBUG(0, "ide_cs: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	ide_detach(dev_list);
 }
+
+module_init(init_ide_cs);
+module_exit(exit_ide_cs);

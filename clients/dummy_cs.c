@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.18 1999/09/08 06:24:24
+    dummy_cs.c 1.19 1999/09/16 03:56:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,6 +39,7 @@
 #include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
@@ -67,7 +68,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"dummy_cs.c 1.18 1999/09/08 06:24:24 (David Hinds)";
+"dummy_cs.c 1.19 1999/09/16 03:56:52 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -618,7 +619,7 @@ static int dummy_event(event_t event, int priority,
 
 /*====================================================================*/
 
-int init_module(void)
+static int __init init_dummy_cs(void)
 {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
@@ -632,7 +633,7 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_dummy_cs(void)
 {
     DEBUG(0, "dummy_cs: unloading\n");
     unregister_pccard_driver(&dev_info);
@@ -642,3 +643,6 @@ void cleanup_module(void)
 	dummy_detach(dev_list);
     }
 }
+
+module_init(init_dummy_cs);
+module_exit(exit_dummy_cs);

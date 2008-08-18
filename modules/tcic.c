@@ -2,7 +2,7 @@
 
     Device driver for Databook TCIC-2 PCMCIA controller
 
-    tcic.c 1.105 1999/09/06 06:55:14
+    tcic.c 1.106 1999/09/15 15:32:19
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -34,6 +34,8 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/string.h>
@@ -61,7 +63,7 @@
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"tcic.c 1.105 1999/09/06 06:55:14 (David Hinds)";
+"tcic.c 1.106 1999/09/15 15:32:19 (David Hinds)";
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 #else
 #define DEBUG(n, args...)
@@ -108,7 +110,7 @@ MODULE_PARM(cycle_time, "i");
 
 /*====================================================================*/
 
-static void tcic_interrupt IRQ(int irq, void *dev, struct pt_regs *regs);
+static void tcic_interrupt(int irq, void *dev, struct pt_regs *regs);
 static void tcic_timer(u_long data);
 static int tcic_service(u_int sock, u_int cmd, void *arg);
 
@@ -231,12 +233,12 @@ static int to_ns(int cycles)
 
 static volatile u_int irq_hits;
 
-static void irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
+static void __init irq_count(int irq, void *dev, struct pt_regs *regs)
 {
     irq_hits++;
 }
 
-static u_int try_irq(int irq)
+static u_int __init try_irq(int irq)
 {
     u_short cfg;
 
@@ -267,7 +269,7 @@ static u_int try_irq(int irq)
     return (irq_hits != 1);
 }
 
-static u_int irq_scan(u_int mask0)
+static u_int __init irq_scan(u_int mask0)
 {
     u_int mask1;
     int i;
@@ -322,7 +324,7 @@ static u_int irq_scan(u_int mask0)
     
 ======================================================================*/
 
-static int is_active(int s)
+static int __init is_active(int s)
 {
     u_short scf1, ioctl, base, num;
     u_char pwr, sstat;
@@ -360,7 +362,7 @@ static int is_active(int s)
     
 ======================================================================*/
 
-static int get_tcic_id(void)
+static int __init get_tcic_id(void)
 {
     u_short id;
     
@@ -373,12 +375,19 @@ static int get_tcic_id(void)
 
 /*====================================================================*/
 
-int tcic_init(void)
+static int __init init_tcic(void)
 {
     int i, sock;
     u_int mask, scan;
+    servinfo_t serv;
 
     DEBUG(0, "%s\n", version);
+    CardServices(GetCardServicesInfo, &serv);
+    if (serv.Revision != CS_RELEASE_CODE) {
+	printk(KERN_NOTICE "tcic: Card Services release "
+	       "does not match!\n");
+	return -1;
+    }
     
     printk(KERN_INFO "Databook TCIC-2 PCMCIA probe: ");
     sock = 0;
@@ -486,7 +495,7 @@ int tcic_init(void)
     }
     
     /* jump start interrupt handler, if needed */
-    tcic_interrupt IRQ(0, NULL, NULL);
+    tcic_interrupt(0, NULL, NULL);
 
     if (register_ss_entry(sockets, &tcic_service) != 0) {
 	printk(KERN_NOTICE "tcic: register_ss_entry() failed\n");
@@ -498,11 +507,11 @@ int tcic_init(void)
 
     return 0;
     
-} /* tcic_init */
+} /* init_tcic */
 
 /*====================================================================*/
 
-static void tcic_finish(void)
+static void __exit exit_tcic(void)
 {
     u_long flags;
     unregister_ss_entry(&tcic_service);
@@ -516,11 +525,11 @@ static void tcic_finish(void)
 	del_timer(&poll_timer);
     restore_flags(flags);
     release_region(tcic_base, 16);
-} /* tcic_finish */
+} /* exit_tcic */
 
 /*====================================================================*/
 
-static void tcic_interrupt IRQ(int irq, void *dev, struct pt_regs *regs)
+static void tcic_interrupt(int irq, void *dev, struct pt_regs *regs)
 {
     int i, quick = 0;
     u_char latch, sstat;
@@ -564,7 +573,7 @@ static void tcic_interrupt IRQ(int irq, void *dev, struct pt_regs *regs)
 
     /* Schedule next poll, if needed */
     if (((cs_irq == 0) || quick) && (!tcic_timer_pending)) {
-	poll_timer.expires = RUN_AT(quick ? poll_quick : poll_interval);
+	poll_timer.expires = jiffies + (quick ? poll_quick : poll_interval);
 	add_timer(&poll_timer);
 	tcic_timer_pending = 1;
     }
@@ -578,7 +587,7 @@ static void tcic_timer(u_long data)
 {
     DEBUG(2, "tcic: tcic_timer()\n");
     tcic_timer_pending = 0;
-    tcic_interrupt IRQ(0, NULL, NULL);
+    tcic_interrupt(0, NULL, NULL);
 } /* tcic_timer */
 
 /*====================================================================*/
@@ -956,19 +965,5 @@ static int tcic_service(u_int lsock, u_int cmd, void *arg)
 
 /*====================================================================*/
 
-int init_module(void)
-{
-    servinfo_t serv;
-    CardServices(GetCardServicesInfo, &serv);
-    if (serv.Revision != CS_RELEASE_CODE) {
-	printk(KERN_NOTICE "tcic: Card Services release "
-	       "does not match!\n");
-	return -1;
-    }
-    return tcic_init();
-}
-
-void cleanup_module(void)
-{
-    tcic_finish();
-}
+module_init(init_tcic);
+module_exit(exit_tcic);

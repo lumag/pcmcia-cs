@@ -2,7 +2,7 @@
 
     A simple MTD for accessing static RAM
 
-    sram_mtd.c 1.42 1999/09/08 06:23:40
+    sram_mtd.c 1.43 1999/09/16 03:56:27
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -35,6 +35,7 @@
 #include <pcmcia/k_compat.h>
 
 #ifdef __LINUX__
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -63,7 +64,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"sram_mtd.c 1.42 1999/09/08 06:23:40 (David Hinds)";
+"sram_mtd.c 1.43 1999/09/16 03:56:27 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -507,7 +508,7 @@ static int sram_event(event_t event, int priority,
 
 #ifdef __LINUX__
 
-int init_module(void)
+static int __init init_sram_mtd(void)
 {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
@@ -521,13 +522,16 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_sram_mtd(void)
 {
     DEBUG(0, "sram_mtd: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	sram_detach(dev_list);
 }
+
+module_init(init_sram_mtd);
+module_exit(exit_sram_mtd);
 
 #endif /* __LINUX__ */
 

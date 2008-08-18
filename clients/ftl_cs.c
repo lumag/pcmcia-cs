@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.53 1999/09/08 06:24:24
+    ftl_cs.c 1.55 1999/09/21 15:21:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -54,6 +54,7 @@
 /* #define PSYCHO_DEBUG */
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
@@ -66,6 +67,7 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/segment.h>
+#include <asm/uaccess.h>
 #include <stdarg.h>
 
 #if (LINUX_VERSION_CODE >= VERSION(2,1,0))
@@ -116,7 +118,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.53 1999/09/08 06:24:24 (David Hinds)";
+"ftl_cs.c 1.55 1999/09/21 15:21:55 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -1522,7 +1524,7 @@ static void do_ftl_request(void)
 
 /*====================================================================*/
 
-int init_module(void)
+static int __init init_ftl_cs(void)
 {
     servinfo_t serv;
     int i;
@@ -1561,7 +1563,7 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_ftl_cs(void)
 {
     int i;
     dev_link_t *link;
@@ -1588,3 +1590,6 @@ void cleanup_module(void)
 	    break;
 	}
 }
+
+module_init(init_ftl_cs);
+module_exit(exit_ftl_cs);

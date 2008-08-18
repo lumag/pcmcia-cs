@@ -41,6 +41,7 @@
 #include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
@@ -1612,7 +1613,7 @@ static int netwave_close(struct net_device *dev) {
     return 0;
 }
 
-int init_module(void) {
+static int __init init_netwave_cs(void) {
     servinfo_t serv;
 
     DEBUG(0, "%s\n", version);
@@ -1628,7 +1629,7 @@ int init_module(void) {
     return 0;
 }
 
-void cleanup_module(void) {
+static void __exit exit_netwave_cs(void) {
     DEBUG(1, "netwave_cs: unloading\n");
 
     unregister_pccard_driver(&dev_info);
@@ -1639,6 +1640,8 @@ void cleanup_module(void) {
         printk("netwave_cs: devices remaining when removing module\n");
 }
 
+module_init(init_netwave_cs);
+module_exit(exit_netwave_cs);
 
 /* Set or clear the multicast filter for this adaptor.
    num_addrs == -1	Promiscuous mode, receive all packets

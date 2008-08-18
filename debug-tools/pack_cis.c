@@ -3,7 +3,7 @@
     A utility to convert a plain text description of a Card
     Information Structure into its packed binary representation.
 
-    pack_cis.c 1.11 1999/08/28 04:09:24
+    pack_cis.c 1.12 1999/09/18 05:32:14
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -261,6 +261,7 @@ static int pack_tuple(tuple_info_t *t, u_char *b)
     *b = t->type;
     switch (t->type) {
     case CISTPL_DEVICE:
+    case CISTPL_DEVICE_A:
 	if (p) {
 	    pack_device(&p->device, b);
 	} else {

@@ -1,5 +1,5 @@
 /*
- * mem_op.h 1.10 1999/08/28 04:12:33
+ * mem_op.h 1.11 1999/09/15 07:14:03
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -29,6 +29,8 @@
 
 #ifndef _LINUX_MEM_OP_H
 #define _LINUX_MEM_OP_H
+
+#include <asm/uaccess.h>
 
 /*
    If UNSAFE_MEMCPY is defined, we use the (optimized) system routines

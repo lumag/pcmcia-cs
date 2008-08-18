@@ -1,3 +1,20 @@
+[28-Sep-99] Version 3.1.1
+-- A bunch of code tweaks to simplify kernel integration.
+-- Fixed data structure corruption bug in cardmgr config file reload.
+-- Fixed Toshiba ToPIC CardBus card insert/eject detection problem.
+-- Fixed an O2Micro OZ6833 interrupt delivery problem.
+-- Fixed PCI Interrupt Routing Table parser to gracefully handle a few
+   more special cases.
+-- Fixed Configure script bug in constructing module directory paths
+   for some kernels with extra version info (i.e., ac* kernels).
+-- Fixed ifuser bug in parsing of non-English-language netstat output.
+-- Fixed xirc2ps_cs problem with fast ethernet cards on 10baseT links.
+-- Fixed creation/removal rules for /var/run/cardmgr.pid.
+-- Fixed cardmgr to close some open file descriptors.
+-- Fixed a CardBus hot-eject bug introduced in the 3.1.0 PCI fixes.
+-- Fixed a debug macro mistake in bulkmem.
+-- Fixed ide script to mknod new devices, instead of using MAKEDEV.
+
 [10-Sep-99] Version 3.1.0
 -- Changed output of "cardctl config" to have a more consistent look,
    and added stuff for reporting memory windows.

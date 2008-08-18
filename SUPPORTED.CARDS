@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/09/10 17:08:13
+		Last updated: 1999/09/28 16:41:09
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -237,9 +237,9 @@ Modem and serial cards:
 	digital cellular modems should work.  The only prominent
 	exceptions are the Compaq 192, the New Media WinSurfer, the
 	Megahertz XJ/CC2560, 3Com 3CXM356/3CCM356 and 3CXM656/3CCM656,
-	and other so-called "WinModems" that require special Windows
-	drivers.  ISDN modems that emulate a standard UART are also
-	supported. ]
+	the Billionton 56K HSP, and other so-called "WinModems" that
+	require special Windows drivers.  ISDN modems that emulate a
+	standard UART are also supported. ]
 
 	[serial_cs driver] [x86,axp]
 	Advantech COMpad-32/85 dual serial
@@ -331,7 +331,7 @@ Multifunction ethernet/modem cards:
 	3Com Megahertz 3CCFEM556B
 
 	[pcnet_cs driver] [x86,axp]
-	Accton UE2218
+	Accton EN2218, UE2218
 	ActionTec ComNet 33.6
 	AnyCom Fast Ethernet + 56K Combo
 	Asus combo card
@@ -423,7 +423,8 @@ ATA/IDE CD-ROM adapters:
 The following cards have contributed drivers which are distributed as
 separate packages.  The drivers are not included in the base PCMCIA
 package for maintenance reasons: they are for less common cards and I
-cannot test them.
+cannot test them.  All are available on the Linux PCMCIA FTP site, in
+/pub/pcmcia/contrib.
 
 	[airo_cs driver]
 	Aironet PC4500, PC4800 wireless network adapters

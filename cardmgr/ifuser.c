@@ -9,7 +9,7 @@
     The exit code is 0 if any host is using the specified interface,
     and 1 if the interface is not in use (just like fuser).
     
-    ifuser.c 1.10 1999/08/28 04:08:01
+    ifuser.c 1.12 1999/09/21 03:48:51
 
     1998/10/24: Regis "HPReg" Duchesne <regis@via.ecp.fr>
       . Added network names (/etc/networks) management
@@ -51,6 +51,7 @@
 #include <string.h>
 #include <netdb.h>
 #include <errno.h>
+#include <ctype.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -118,7 +119,7 @@ int main(int argc, char *argv[])
     
     do {
 	fgets(s, 128, f);
-    } while (strstr(s, "Destination") == NULL);
+    } while (!feof(f) && !isdigit(s[0]));
     
     tail = &tbl;
     while (fgets(s, 128, f) != NULL) {

@@ -1,5 +1,5 @@
 /*
- * cardmgr.h 1.31 1999/08/28 04:08:01
+ * cardmgr.h 1.32 1999/09/26 01:36:50
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -63,6 +63,7 @@ typedef struct device_info_t {
     char		*module[MAX_MODULES];
     char		*opts[MAX_MODULES];
     char		*class;
+    int			refs;
     struct device_info_t *next;
 } device_info_t;
 
@@ -82,6 +83,7 @@ typedef struct card_info_t {
     device_info_t	*device[MAX_BINDINGS];
     int			dev_fn[MAX_BINDINGS];
     char		*cis_file;
+    int			refs;
     struct card_info_t	*next;
 } card_info_t;
 
@@ -92,6 +94,7 @@ typedef struct mtd_ident_t {
     } mtd_type;
     int			dtype, jedec_mfr, jedec_info;
     char		*module, *opts;
+    int			refs;
     struct mtd_ident_t	*next;
 } mtd_ident_t;
     

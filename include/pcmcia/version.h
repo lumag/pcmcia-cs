@@ -1,4 +1,4 @@
-/* version.h 1.72 1999/08/05 06:09:53 (David Hinds) */
+/* version.h 1.73 1999/09/21 15:26:42 (David Hinds) */
 
-#define CS_RELEASE "3.1.0"
-#define CS_RELEASE_CODE 0x3100
+#define CS_RELEASE "3.1.1"
+#define CS_RELEASE_CODE 0x3101

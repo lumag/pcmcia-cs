@@ -2,7 +2,7 @@
 
     A driver for CardBus serial devices
 
-    serial_cb.c 1.9 1999/09/05 18:27:00
+    serial_cb.c 1.10 1999/09/16 03:57:08
 
     Copyright 1998, 1999 by Donald Becker and David Hinds
     
@@ -24,6 +24,7 @@
 #include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/malloc.h>
 #include <linux/string.h>
@@ -38,7 +39,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cb.c 1.9 1999/09/05 18:27:00 (David Hinds)";
+"serial_cb.c 1.10 1999/09/16 03:57:08 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -132,15 +133,18 @@ struct driver_operations serial_ops = {
     "serial_cb", serial_attach, NULL, NULL, serial_detach
 };
 
-int init_module(void)
+static int __init init_serial_cb(void)
 {
     DEBUG(0, "%s\n", version);
     register_driver(&serial_ops);
     return 0;
 }
 
-void cleanup_module(void)
+static void __exit exit_serial_cb(void)
 {
     DEBUG(0, "serial_cb: unloading\n");
     unregister_driver(&serial_ops);
 }
+
+module_init(init_serial_cb);
+module_exit(exit_serial_cb);

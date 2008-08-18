@@ -91,11 +91,8 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
-#ifdef MODULE
-#define init_xirc2ps_cs init_module
-#endif
-
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
@@ -358,7 +355,7 @@ static void xirc2ps_detach(dev_link_t *);
  * less on other parts of the kernel.
  */
 
-void xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static void xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
 /*
  * The dev_info variable is the "key" that is used to match up this
@@ -1454,12 +1451,8 @@ xirc2ps_event(event_t event, int priority,
 
 /****************
  * This is the Interrupt service route.
- *
- * Note: We cannot use instance to initialize dev, because
- *	 RequestIRQ() does not set it (to support linux versions below 1.3.70).
- *	 So we must use the irq2dev_map[].
  */
-void
+static void
 xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
     struct net_device *dev = (struct net_device *)dev_id;
@@ -2190,6 +2183,9 @@ do_reset(struct net_device *dev, int full)
 	  #endif
 	}
 	else {
+	    SelectPage(2);
+	    PutByte(XIRCREG2_MSR, GetByte(XIRCREG2_MSR) | 0x08);
+	    busy_loop(HZ/50);
 	  #ifdef PCMCIA_DEBUG
 	    if(pc_debug)
 		printk(KERN_DEBUG "%s: MII detected; using 10mbs\n",
@@ -2392,7 +2388,7 @@ do_stop( struct net_device *dev)
 
 
 
-int
+static int __init
 init_xirc2ps_cs(void)
 {
     servinfo_t serv;
@@ -2415,9 +2411,8 @@ init_xirc2ps_cs(void)
     return 0;
 }
 
-#ifdef MODULE
-void
-cleanup_module(void)
+static void __exit
+exit_xirc2ps_cs(void)
 {
   #ifdef PCMCIA_DEBUG
     if(pc_debug)
@@ -2431,4 +2426,7 @@ cleanup_module(void)
 	    xirc2ps_detach( dev_list );
     }
 }
-#endif	/* MODULE */
+
+module_init(init_xirc2ps_cs);
+module_exit(exit_xirc2ps_cs);
+

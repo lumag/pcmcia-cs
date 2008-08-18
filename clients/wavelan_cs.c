@@ -2229,7 +2229,7 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 	  wrq->u.data.length = sizeof(struct iw_range);
 
 	  /* Set information in the range struct */
-	  range.throughput = 1.6 * 1024 * 1024;	/* don't argue on this ! */
+	  range.throughput = 1.4 * 1000 * 1000;	/* don't argue on this ! */
 	  range.min_nwid = 0x0000;
 	  range.max_nwid = 0xFFFF;
 
@@ -2389,7 +2389,10 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 
     case SIOCSIPQTHR:
       if(!suser())
-	return -EPERM;
+	{
+	  ret = -EPERM;
+	  break;
+	}
       psa.psa_quality_thr = *(wrq->u.name) & 0x0F;
       psa_write(dev, (char *)&psa.psa_quality_thr - (char *)&psa,
 	       (unsigned char *)&psa.psa_quality_thr, 1);
@@ -2425,7 +2428,9 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
     case SIOCSIPHISTO:
       /* Verif if the user is root */
       if(!suser())
-	return -EPERM;
+	{
+	  ret = -EPERM;
+	}
 
       /* Check the number of intervals */
       if(wrq->u.data.length > 16)
@@ -4789,8 +4794,8 @@ wavelan_event(event_t		event,		/* The event received */
  * Module insertion : initialisation of the module.
  * Register the card with cardmgr...
  */
-extern int
-init_module(void)
+static int __init
+init_wavelan_cs(void)
 {
   servinfo_t	serv;
 
@@ -4822,8 +4827,8 @@ init_module(void)
 /*
  * Module removal
  */
-extern void
-cleanup_module(void)
+static void __exit
+exit_wavelan_cs(void)
 {
 #ifdef DEBUG_MODULE_TRACE
   printk(KERN_DEBUG "-> cleanup_module()\n");
@@ -4851,3 +4856,6 @@ cleanup_module(void)
   printk(KERN_DEBUG "<- cleanup_module()\n");
 #endif
 }
+
+module_init(init_wavelan_cs);
+module_exit(exit_wavelan_cs);

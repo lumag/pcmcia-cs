@@ -5,7 +5,7 @@
     This driver supports the Adaptec AHA-1460, the New Media Bus
     Toaster, and the New Media Toast & Jam.
     
-    aha152x_cs.c 1.48 1999/09/08 06:24:24
+    aha152x_cs.c 1.49 1999/09/15 15:33:09
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -37,6 +37,8 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/malloc.h>
@@ -47,10 +49,10 @@
 #include <linux/major.h>
 #include <linux/blk.h>
 
-#include "drivers/scsi/scsi.h"
-#include "drivers/scsi/hosts.h"
+#include <../drivers/scsi/scsi.h>
+#include <../drivers/scsi/hosts.h>
 #include <scsi/scsi_ioctl.h>
-#include "drivers/scsi/aha152x.h"
+#include <../drivers/scsi/aha152x.h>
 
 #if (LINUX_VERSION_CODE >= VERSION(2,0,14))
 #define aha152x_reset(ptr) aha152x_reset(ptr, 0)
@@ -67,7 +69,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"aha152x_cs.c 1.48 1999/09/08 06:24:24 (David Hinds)";
+"aha152x_cs.c 1.49 1999/09/15 15:33:09 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -435,7 +437,7 @@ static int aha152x_event(event_t event, int priority,
 
 /*====================================================================*/
 
-int init_module(void) {
+static int __init init_aha152x_cs(void) {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
     CardServices(GetCardServicesInfo, &serv);
@@ -448,9 +450,13 @@ int init_module(void) {
     return 0;
 }
 
-void cleanup_module(void) {
+static void __exit exit_aha152x_cs(void) {
     DEBUG(0, "aha152x_cs: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	aha152x_detach(dev_list);
 }
+
+module_init(init_aha152x_cs);
+module_exit(exit_aha152x_cs);
+ 

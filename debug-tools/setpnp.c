@@ -2,7 +2,7 @@
 
     A utility for reconfiguring PnP BIOS devices
 
-    setpnp.c 1.3 1999/08/28 04:09:24
+    setpnp.c 1.4 1999/09/28 04:05:19
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -59,18 +59,14 @@
 
 static int verbose = 0, boot = 0;
 
-#ifdef __GLIBC__
-#include <byteswap.h>
-#else
-#define bswap_16(n) ((((n)&0x00ff)<<8) | (((n)&0xff00)>>8))
-#define bswap_32(n) \
+#define swap16(n) ((((n)&0x00ff)<<8) | (((n)&0xff00)>>8))
+#define swap32(n) \
     ((((n)&0xff000000)>>24) | (((n)&0x00ff0000)>>8) | \
      (((n)&0x0000ff00)<<8)  | (((n)&0x000000ff)<<24))
-#endif
 
 #if (__BYTE_ORDER == _BIG_ENDIAN)
-#define flip16(n)	bswap_16(n)
-#define flip32(n)	bswap_32(n)
+#define flip16(n)	swap16(n)
+#define flip32(n)	swap32(n)
 #else
 #define flip16(n)	(n)
 #define flip32(n)	(n)

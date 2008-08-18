@@ -2,7 +2,7 @@
 
     A driver for the Qlogic SCSI card
 
-    qlogic_cs.c 1.71 1999/09/08 06:24:25
+    qlogic_cs.c 1.72 1999/09/15 15:33:08
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -34,6 +34,8 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/malloc.h>
@@ -45,12 +47,12 @@
 #include <linux/major.h>
 #include <linux/blk.h>
 
-#include "drivers/scsi/scsi.h"
-#include "drivers/scsi/hosts.h"
+#include <../drivers/scsi/scsi.h>
+#include <../drivers/scsi/hosts.h>
 #include <scsi/scsi_ioctl.h>
 
 #ifdef NEW_QLOGIC
-#include "drivers/scsi/qlogicfas.h"
+#include <../drivers/scsi/qlogicfas.h>
 #define QLOGIC QLOGICFAS
 #define qlogic_preset qlogicfas_preset
 
@@ -65,7 +67,7 @@
 #endif
 
 #else
-#include "drivers/scsi/qlogic.h"
+#include <../drivers/scsi/qlogic.h>
 #endif
 
 #include <pcmcia/version.h>
@@ -82,7 +84,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"qlogic_cs.c 1.71 1999/09/08 06:24:25 (David Hinds)";
+"qlogic_cs.c 1.72 1999/09/15 15:33:08 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -427,7 +429,7 @@ static int qlogic_event(event_t event, int priority,
 
 /*====================================================================*/
 
-int init_module(void) {
+static int __init init_qlogic_cs(void) {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
     CardServices(GetCardServicesInfo, &serv);
@@ -440,9 +442,12 @@ int init_module(void) {
     return 0;
 }
 
-void cleanup_module(void) {
+static void __exit exit_qlogic_cs(void) {
     DEBUG(0, "qlogic_cs: unloading\n");
     unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	qlogic_detach(dev_list);
 }
+
+module_init(init_qlogic_cs);
+module_exit(exit_qlogic_cs);
