@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.45 2002/08/08 06:43:43 (David Hinds)
+# rc.pcmcia 1.46 2004/05/07 06:24:58 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -142,7 +142,7 @@ for x in "1" ; do
 	    done
 	fi
 	killall -q "CardBus Watcher"
-	if grep -q "ds  " /proc/modules ; then
+	if grep -q "^ds " /proc/modules ; then
 	    /sbin/rmmod ds
 	    /sbin/rmmod $PCIC 2>/dev/null || \
 		/sbin/rmmod yenta_socket 2>/dev/null

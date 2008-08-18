@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.237 2003/12/07 07:07:26 (David Hinds)
+# config 1.249 2004/07/16 16:38:24 (David Hinds)
 #
 # config.opts is now included at the very end.  In general, it is a
 # good idea to add things to that file rather than to this one.
@@ -273,6 +273,10 @@ card "CONTEC Ethernet"
   version "CONTEC Co.,Ltd."
   bind "fmvj18x_cs"
 
+card "CONTEC C-NET(PC)C-10L"
+  version "CONTEC", "C-NET(PC)C-10L"
+  bind "pcnet_cs"
+
 card "Corega PCC-T Ethernet"
   version "corega K.K.", "corega Ether PCC-T"
   bind "pcnet_cs"
@@ -383,6 +387,10 @@ card "Eiger Labs EPX-ET 10BT Ethernet"
 
 card "ELECOM Laneed LD-CDF"
   version "Laneed", "LD-CDF"
+  bind "pcnet_cs"
+
+card "ELECOM Laneed LD-CDL/T"
+  version "Laneed", "LD-CDL/T"
   bind "pcnet_cs"
 
 card "EZLink 4109 Ethernet"
@@ -602,6 +610,10 @@ card "NextCom NC5310 Ethernet"
 card "NextCom NC5310B Ethernet"
   version "NextComK.K.", "NC5310B Ver1.0       "
   bind "fmvj18x_cs"
+
+card "NE2000 Compatible Ethernet"
+  version "PCMCIA", "    Ethernet NE2000 Compatible"
+  bind "pcnet_cs"
 
 card "NE2000 Compatible Ethernet"
   version "PCMCIA", "Ethernet"
@@ -898,6 +910,10 @@ card "Corega FEther PCC-TXD"
   #manfid 0x1234, 0x5678
   bind "axnet_cs"
 
+card "Corega FEtherII PCC-TXD"
+  version "corega K.K.", "corega FEtherII PCC-TXD"
+  bind "axnet_cs"
+
 card "Corega FEther PCC-TXF"
   version "corega", "FEther PCC-TXF"
   bind "pcnet_cs"
@@ -933,6 +949,10 @@ card "D-Link DFE-670-TXD Fast Ethernet"
 card "Dynalink L100C Fast Ethernet"
   version "DYNALINK", "L100C"
   bind "smc91c92_cs"
+
+card "Dynalink L100C16 Fast Ethernet"
+  version "Dynalink", "L100C16"
+  bind "axnet_cs"
 
 card "EXP ThinLan-110 Fast Ethernet"
   version "PCMCIA", "Fast Ethernet PCCard"
@@ -972,6 +992,11 @@ card "Linksys EtherFast 10/100 Fast Ethernet"
 
 card "Linksys EtherFast 10/100 Fast Ethernet"
   version "Linksys", "EtherFast 10/100 Integrated PC Card (PCM100)"
+  #manfid 0x0149, 0xc1ab
+  bind "pcnet_cs"
+
+card "Linksys HomeLink PCM100H1 Phoneline + 10/100"
+  version "Linksys", "HomeLink Phoneline + 10/100 Network PC Card (PCM100H1)"
   #manfid 0x0149, 0xc1ab
   bind "pcnet_cs"
 
@@ -1138,6 +1163,15 @@ card "3Com AirConnect"
   version "3Com", "3CRWE737A AirConnect Wireless LAN PC Card"
   bind "orinoco_cs"
 
+card "Actiontec HWC01170-01"
+  version "ACTIONTEC", "PRISM Wireless LAN PC Card"
+  bind "orinoco_cs"
+
+card "Adaptec Ultra Wireless ANW-8030"
+  #version "Adaptec", "Wireless PC Card V3.0"
+  manfid 0x9005, 0x0021
+  bind "orinoco_cs"
+
 card "Aironet PC4500"
   manfid 0x015f, 0x0005
   bind "airo_cs"
@@ -1145,6 +1179,11 @@ card "Aironet PC4500"
 card "Aironet PC4800"
   manfid 0x015f, 0x0007
   bind "airo_cs"
+
+card "Airvast WN-100"
+  #version "WLAN", "PRISM PCMCIA CARD"
+  manfid 0x50c2, 0x7300
+  bind "orinoco_cs"
 
 card "AirWay 802.11 Adapter (PCMCIA)"
   #version "AirWay", "802.11 Adapter (PCMCIA)"
@@ -1182,6 +1221,14 @@ card "Compaq WL100 11 Mbps Wireless Adapter"
 
 card "Compaq HNW-100 11 Mbps Wireless Adapter"
   manfid 0x028a, 0x0002
+  bind "orinoco_cs"
+
+card "Conceptronic CON11Cpro"
+  manfid 0xc250, 0x0002
+  bind "orinoco_cs"
+
+card "Corega PCC-11" 
+  version "corega K.K.", "Wireless LAN PCC-11"
   bind "orinoco_cs"
 
 card "Corega PCCA-11" 
@@ -1256,6 +1303,10 @@ card "MELCO WLI-PCM-L11G"
   version "BUFFALO", "WLI-PCM-L11G"
   bind "orinoco_cs"
 
+card "Microsoft Wireless Notebook Adapter MN-520"
+  version "Microsoft", "Wireless Notebook Adapter MN-520"
+  bind "orinoco_cs"
+
 card "NCR WaveLAN Adapter"
   version "NCR", "WaveLAN/PCMCIA"
   bind "wavelan_cs"
@@ -1280,8 +1331,12 @@ card "PLANEX RoadLannerWave GW-NS11H"
   manfid 0x14ea, 0xb001
   bind "orinoco_cs"
 
-card "PROXIM LAN PC CARD HARMONY 80211B"
+card "Proxim Harmony 802.11b"
   version "PROXIM", "LAN PC CARD HARMONY 80211B"
+  bind "orinoco_cs"
+
+card "Proxim Harmony 802.11b"
+  version "PROXIM", "LAN PCI CARD HARMONY 80211B"
   bind "orinoco_cs"
 
 card "RayLink PC Card WLAN Adapter"
@@ -1298,6 +1353,10 @@ card "SAMSUNG 11Mbps WLAN Card"
 
 card "Sandisk Connect SDWCFB-000"
   manfid 0xd601, 0x0005
+  bind "orinoco_cs"
+
+card "Sohoware NCP110"
+  manfid 0x000b,0x7300
   bind "orinoco_cs"
 
 card "SpeedStream SS1021 Wireless Adapter"
@@ -1658,8 +1717,8 @@ card "Noteworthy Bus Toaster SCSI"
   version "NOTEWORTHY", "SCSI", "Bus Toaster"
   bind "aha152x_cs"
 
-card "Noteworthy NWCOMBO2 SCSI/Audio"
-  version "NOTEWORTHY", "NWCOMBO2 SCSI/AUDIO COMBO CARD"
+card "Noteworthy NWCOMB02 SCSI/Audio"
+  version "NOTEWORTHY", "NWCOMB02 SCSI/AUDIO COMBO CARD"
   bind "aha152x_cs"
 
 card "New Media BASICS SCSI"

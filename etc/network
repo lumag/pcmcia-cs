@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.86 2002/07/03 06:44:01 (David Hinds)
+# network 1.87 2004/07/17 04:48:37 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -21,6 +21,14 @@ if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 
 # Get device attributes
 get_info $DEVICE
+if [ -d /var/lib/pcmcia ] ; then
+    NAMEFILE=/var/lib/pcmcia/nameif.${SOCKET}.${INSTANCE}
+else
+    NAMEFILE=/var/run/nameif.${SOCKET}.${INSTANCE}
+fi
+if [ -r "$NAMEFILE" -a "$ACTION" != "start" ] ; then
+    DEVICE=`cat $NAMEFILE`
+fi
 HWADDR=`/sbin/ifconfig $DEVICE | sed -ne 's/.*\(..:..:..:..:..:..\).*/\1/p'`
 
 # Load site-specific settings
@@ -28,6 +36,14 @@ ADDRESS="$SCHEME,$SOCKET,$INSTANCE,$HWADDR"
 start_fn () { return; }
 stop_fn () { return; }
 . $0.opts
+
+if [ "$ACTION" = "start" ] ; then
+    if [ -r "$NAMEFILE" ] ; then rm $NAMEFILE ; fi
+    if [ -n "$NAMEIF" ] ; then
+	log /sbin/nameif $NAMEIF $HWADDR || exit 1
+	echo $NAMEIF > $NAMEFILE ; DEVICE=$NAMEIF
+    fi
+fi
 
 RESOLV=/etc/resolv.conf
 
@@ -151,6 +167,8 @@ case "$ACTION" in
     ;;
 
 'stop')
+
+    if [ -r "$NAMEFILE" ] ; then rm $NAMEFILE ; fi
 
     stop_fn $DEVICE
 

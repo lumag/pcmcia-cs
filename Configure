@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.236 2003/12/04 17:25:23
+# Configure 1.239 2004/07/13 07:33:31
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -534,6 +534,7 @@ printconfig () {
 	fi
     fi
     printflag "Preemptive kernel support" CONFIG_PREEMPT
+    printflag "Realtime Hardware Abstraction Layer" CONFIG_RTHAL
     printflag "High memory support" CONFIG_HIGHMEM
     if [ "$NEED_HZ" = "y" ] ; then
 	echo "    Timer frequency (HZ) for the kernel is $CONFIG_HZ."
@@ -554,7 +555,6 @@ printconfig () {
 	printflag " Memory leak detection support" CONFIG_MEMLEAK
 	printflag " Spinlock debugging" CONFIG_DEBUG_SPINLOCK
     fi
-    printflag "Preemptive kernel patch" CONFIG_PREEMPT
     if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
     fi
@@ -608,6 +608,7 @@ case $CONF_SRC in
 	    symcheck SMP smp_num_cpus
 	fi
 	symcheck PREEMPT preempt_schedule
+	symcheck RTHAL rthal
 	symcheck PCI pcibios
 	if [ $VERSION_CODE -lt `version 2 3 43` ] ; then
 	    symcheck PM apm_register_callback
@@ -640,7 +641,6 @@ case $CONF_SRC in
 	    symcheck 3GB ^401
 	fi
 	symcheck PROC_FS proc_root
-	symcheck PREEMPT preempt_schedule
 	symcheck KDB kdb_
 	symcheck DEBUG_MCOUNT mcount
 	symcheck MEMLEAK kmalloc_wrap
@@ -734,7 +734,7 @@ case $CONF_SRC in
 	for C in PCI SCSI SERIAL INET NET_FASTROUTE NET_RADIO NET_DIVERT \
 	    TR MODVERSIONS PROC_FS PARPORT PARPORT_PC PARPORT_PC_PCMCIA \
 	    IEEE1394 NET_PCMCIA_RADIO KERNEL_DEBUGGING MEMLEAK PREEMPT \
-	    DEBUG_KERNEL DEBUG_SPINLOCK PREEMPT HIGHMEM X86_PAE ; do
+	    DEBUG_KERNEL DEBUG_SPINLOCK RTHAL HIGHMEM X86_PAE ; do
 	    configcheck $C
 	done
 	if [ "$NEED_HZ" = "y" ] ; then
@@ -922,43 +922,9 @@ fi
 
 #=======================================================================
 
-# Check out the module stuff
-
-if [ "$CONFIG_PCMCIA" != "y" ] ; then
-
-if [ ! -x /sbin/insmod -o ! -x /sbin/rmmod -o ! -x /sbin/lsmod ] ; then
-    echo "Your module utilities (insmod, rmmod) are missing from /sbin!"
-    echo "    To fix, you should build and install the latest set" \
-         "of module tools,"
-    echo "    available from FTP sites listed in the HOWTO."
-    fail
-fi
-
-MOD_RELEASE=`/sbin/insmod -V 2>&1 | \
-    sed -n -e 's/.*[Vv]ersion \([0-9][0-9.]*[0-9]\).*/\1/p'`
-X=`echo $MOD_RELEASE | sed -e 's/\./ /g'`
-MOD_CODE=`version $X`
-if [ $VERSION_CODE -ge `version 2 1 85` ] ; then
-    NEED=`version 2 1 85` ; T=2.1.85
-elif [ $VERSION_CODE -ge `version 2 1 18` ] ; then
-    NEED=`version 2 1 23` ; T=2.1.23
-else
-    NEED=`version 2 0 0` ; T=2.0.0
-fi
-
-if [ $NEED -gt $MOD_CODE ] ; then
-    echo "Your module utilities are version $MOD_RELEASE.  That is too old"
-    echo "    for this kernel!  To fix, upgrade to at least version $T."
-    fail
-fi
-
-fi
-
-#=======================================================================
-
 # Is the boot setup OK?
 
-if [ "$PREFIX" = "" ] ; then
+if [ -z "$PREFIX" ] ; then
     if [ -f /etc/lilo.conf -a -f /boot/map ] ; then
 	if [ /vmlinuz -nt /boot/map ] ; then
 	    echo "Your boot map file is older than /vmlinuz. "\
@@ -1000,7 +966,8 @@ if [ -z "$PREFIX" -a -z "$RC_DIR" ] ; then
     write_bool SYSV_INIT
     if [ "$SYSV_INIT" = "y" ] ; then write_str RC_DIR ; fi
 elif [ -z "$PREFIX" ] ; then
-    write_str RC_DIR
+    write_bool SYSV_INIT
+    if [ "$SYSV_INIT" = "y" ] ; then write_str RC_DIR ; fi
 else
     ask_bool "System V init script layout" SYSV_INIT
     if [ "$SYSV_INIT" = "y" ] ; then

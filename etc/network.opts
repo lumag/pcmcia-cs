@@ -9,6 +9,8 @@
 case "$ADDRESS" in
 *,*,*,*)
     INFO="Sample private network setup"
+    # Use this to override the interface name -- see 'man nameif'
+    NAMEIF=""
     # Transceiver selection, for some cards -- see 'man ifport'
     IF_PORT=""
     # Use BOOTP (via /sbin/bootpc, or /sbin/pump)? [y/n]

@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.68 2002/08/19 03:19:56
+    cardctl.c 1.70 2004/04/09 03:54:53
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,6 +39,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -96,7 +97,7 @@ static int open_sock(int sock)
     };
     int fd;
     char **p, fn[64];
-    dev_t dev = (major<<8) + sock;
+    dev_t dev = makedev(major, sock);
 
     for (p = paths; *p; p++) {
 	sprintf(fn, "%s/cc-%d", *p, getpid());
@@ -453,9 +454,8 @@ static int do_cmd(int fd, int cmd)
 ======================================================================*/
 
 typedef struct stab_t {
-    int		status;
-    char	class[33];
-    char	dev[33];
+    int		socket, instance, status;
+    char	class[33], driver[33], dev[33];
 } stab_t;
 
 static stab_t stab[256];
@@ -471,8 +471,10 @@ static int fetch_stab(void)
 	return -1;
     for (nstab = 0; fgets(s, 132, f); ) {
 	if (s[0] != 'S') {
-	    sscanf(s, "%*d\t%s\t%*s\t%*d\t%s",
-		   stab[nstab].class, stab[nstab].dev);
+	    sscanf(s, "%d\t%s\t%s\t%d\t%s",
+		   &stab[nstab].socket, stab[nstab].class,
+		   stab[nstab].driver, &stab[nstab].instance,
+		   stab[nstab].dev);
 	    stab[nstab].status = 0;
 	    nstab++;
 	}
@@ -481,11 +483,23 @@ static int fetch_stab(void)
     return 0;
 }
 
+static void eprintf(char *name, char *fmt, ...)
+{
+    va_list args;
+    char s[32];
+    va_start(args, fmt);
+    vsprintf(s, fmt, args);
+    setenv(name, s, 1);
+    va_end(args);
+}
+
 static int execute(stab_t *s, char *action, char *scheme)
 {
     int ret;
     char cmd[133];
-    
+
+    eprintf("SOCKET", "%d", s->socket);
+    eprintf("INSTANCE", "%d", s->instance);
     if (scheme)
 	sprintf(cmd, "./%s %s %s %s", s->class, action, s->dev, scheme);
     else

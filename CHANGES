@@ -1,3 +1,16 @@
+[16-Jul-04] Version 3.2.8
+-- Added config check for realtime extensions, from Arno Geissel.
+-- Added capability to rename interfaces to network config script.
+-- Changed tools to use makedev() macro to construct device numbers.
+-- Fixed serial script to not try to use /dev/cua* on 2.6 kernels.
+-- Fixed 'ds' module test in rc.pcmcia script.
+-- Fixed orinoco driver's close() function to not "detach" the
+   interface, which would prevent it from being reopened.
+-- Fixed bug in Configure script's propagation of CONFIG_SYSV option,
+   from Johannes Martin.
+-- Fixed cardmgr to close open file handles when forking other
+   processes, from Dan Walsh.
+
 [15-Dec-03] Version 3.2.7
 -- Reduced kernel stack usage in CIS processing code.
 -- Changed CardBus resource management to be the responsibility of the

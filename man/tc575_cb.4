@@ -1,7 +1,7 @@
 .\" Copyright (c) 1998 Donald Becker and David Hinds.
-.\" tc575_cb.4 1.8 2001/06/22 01:12:38
+.\" tc575_cb.4 1.10 2004/03/19 15:45:01
 .\"
-.TH 3C575_CB 4 "2001/06/22 01:12:38" "pcmcia-cs"
+.TH 3C575_CB 4 "2004/03/19 15:45:01" "pcmcia-cs"
 .SH NAME
 3c575_cb \- 3Com 3c575 Etherlink XL 10/100 CardBus device driver
 
@@ -24,7 +24,8 @@ reported in the kernel log file, and the device name passed on to
 .PP
 The driver uses the N-Way autonegotiating transceiver to negotiate the
 speed and duplex of the network link.  If the link partner does not
-support negotiation only the link speed is detected.
+support negotiation, only the link speed is detected.  To monitor or
+override the autonegotiation process, see \fBmii-tool\fR(8).
 .PP
 If the on-card EEPROM is programmed for a full-duplex (FD) link, only
 FD media types are advertised and the link is assumed to be full-duplex.
@@ -56,7 +57,8 @@ polls the transmit ring for new packets.  The value is in units of 320
 ns; a value of 0 disables polling.  The default is 20 (6.4 us), and
 the maximum allowed value is 127.  Polling is more efficient but can
 consume a significant amount of PCI bus bandwidth.
-.TP auto_polarity= n
+.TP
+.BI auto_polarity= n
 This flag can be used to control the transceiver's auto polarity
 detection capability.  Some Cisco Catalyst switches are known to
 interact badly with this feature in 10baseT mode.  It defaults to 1
@@ -69,5 +71,5 @@ Linux PC Card control software: David Hinds \-
 dahinds@users.sourceforge.net et al.
 
 .SH "SEE ALSO"
-cardmgr(8), pcmcia(5).
+cardmgr(8), pcmcia(5), mii-tool(8).
 

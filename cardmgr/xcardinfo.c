@@ -1,6 +1,6 @@
 /* X PCMCIA device control program
 
-   xcardinfo.c,v 1.1 2002/10/09 15:49:21 root Exp
+   xcardinfo.c,v 1.2 2004/02/28 16:59:10 root Exp
 
    This software may be used and distributed according to the terms of
    GNU GENERAL PUBLIC LICENSE Version 2 WITHOUT ANY WARRATY.
@@ -503,7 +503,7 @@ int main(int argc, char **argv)
   }
 
   for (ns = 0; ns < MAX_SOCK; ns++) {
-    st[ns].fd = open_dev((major<<8)+ns);
+    st[ns].fd = open_dev(makedev(major, ns));
     if (st[ns].fd < 0) break;
   }
   if (ns == 0) {

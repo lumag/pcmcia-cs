@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.185 2003/11/27 22:00:14
+    cardmgr.c 1.187 2004/05/21 06:39:36
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -171,8 +171,10 @@ int open_dev(dev_t dev, int mode)
 	    if (fd < 0)
 		fd = open(fn, O_NONBLOCK|o_mode);
 	    unlink(fn);
-	    if (fd >= 0)
+	    if (fd >= 0) {
+		fcntl(fd, F_SETFL, FD_CLOEXEC);
 		return fd;
+	    }
 	    if (errno == ENODEV)
 		break;
 	}
@@ -183,8 +185,7 @@ int open_dev(dev_t dev, int mode)
 
 int open_sock(int sock, int mode)
 {
-    dev_t dev = (major<<8)+sock;
-    return open_dev(dev, mode);
+    return open_dev(makedev(major, sock), mode);
 }
 
 /*======================================================================
@@ -216,7 +217,7 @@ static int xlate_scsi_name(bind_info_t *bind)
     
     for (i = 0; i < 16; i++) {
 	minor = (bind->major == SCSI_DISK0_MAJOR) ? (i<<4) : i;
-	fd = open_dev((bind->major<<8)+minor, mode);
+	fd = open_dev(makedev(bind->major, minor), mode);
 	if (fd < 0)
 	    continue;
 	if (ioctl(fd, SCSI_IOCTL_GET_IDLUN, arg) == 0) {

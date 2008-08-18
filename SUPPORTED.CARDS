@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2003/12/09 15:13:20
+		Last updated: 2004/07/16 16:38:24
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -8,11 +8,13 @@ on this list, please let me know.  This list is complete to the best
 of my knowledge.
 
 CardBus cards are listed towards the end of each section.  All 16-bit
-PCMCIA drivers have names ending in "_cs", while CardBus drivers have
-names ending in "_cb".  Beware that some cards have 16-bit and CardBus
-versions with similar names, but completely different implementations.
-If the CardBus version is not specifically listed as supported here,
-then you should not expect it to work.
+PCMCIA drivers have names ending in "_cs".  CardBus drivers included
+in the pcmcia-cs package have names ending in "_cb"; for the kernel
+PCMCIA subsystem, the drivers for these cards are regular PCI drivers.
+Beware that some cards have 16-bit and CardBus versions with similar
+names, but completely different implementations.  If the CardBus
+version is not specifically listed as supported here, then you should
+not expect it to work.
 
 Next to each driver, I've tried to indicate which system architectures
 (x86,ppc,axp) are known to be supported.  This information is likely
@@ -75,6 +77,7 @@ Ethernet cards:
 	Compex LinkPort Ethernet
 	COMPU-SHACK BASEline Ethernet
 	Connectware LANdingGear Adapter
+	CONTEC C-NET(PC)C-10L
 	Corega Ether PCC-T, PCM-T, EtherII PCC-TD
 	CyQ've ELA-010 10baseT
 	Danpex EN-6200P2 Ethernet
@@ -88,7 +91,7 @@ Ethernet cards:
 	Edimax Technology Ethernet Combo
 	EFA InfoExpress 205, 207 Combo
 	Eiger Labs EPX-ET10T2 Combo
-	ELECOM Laneed LD-CDWA, LD-CDX, LD-CDNIA, LD-CDY, LD-CDF
+	ELECOM Laneed LD-CDWA,LD-CDX,LD-CDNIA,LD-CDY,LD-CDF,LD-CDL/T
 	EP-210 Ethernet
 	Epson Ethernet
 	EtherPRIME Ethernet
@@ -115,6 +118,7 @@ Ethernet cards:
 	LanPro EP4000A
 	Lantech Ethernet
 	Level One EPC-0100TB
+	LinkPro TL-5200
 	Linksys EtherCard, EC2T Combo, NP10T
 	Logitec LPM-LN10T, LPM-LN10BA, LPM-LN20T Ethernet
 	Longshine ShineNet LCS-8534TB Ethernet
@@ -188,7 +192,8 @@ Fast Ethernet (10/100baseT) adapters:
 	Billionton LNA-100B
 	Buffalo LPC3-CLX, LPC4-TX, LPC4-CLX
 	CNet CNF301
-	Corega FEther PCC-TXD
+	Corega FEther PCC-TXD, FEtherII PCC-TXD
+	Dynalink L100C16
 	EagleTec ET-LE100BT2
 	Edimax EP-4101
 	FEP501 Fast Ethernet
@@ -273,6 +278,10 @@ Fast Ethernet (10/100baseT) adapters:
 	3Com 3c575TX
 	3Com Megahertz 3CCFE575BT, 3CXFE575BT, 3CCFE575CT, 3CXFE575CT
 	3Com Megahertz 3C3FE575CT
+
+	[no pcmcia-cs driver]
+	[2.4+ kernel driver: 8139too]
+	D-Link 690TXD
 
 	[pcmcia-cs driver: eepro100_cb] [x86]
 	[2.4+ kernel driver: eepro100]
@@ -359,7 +368,10 @@ Wireless network adapters:
 	not be supported for all cards ]
 	3Com AirConnect
 	1stWave 1ST-PC-DSS11IS, DSS11IG, DSS11ES, DSS11EG
+	Actiontec HWC01170-01/802C12
+	Adaptec ANW-8030
 	Addtron AWP-100
+	Airvast WN-100
 	Ambicom WL1100 PC
 	ARtem Onair ComCard STD & EMB versions, 128- & 64-bit
 	ASUS SpaceLink WL-100
@@ -368,7 +380,8 @@ Wireless network adapters:
 	Buffalo WLI-PCM-S11
 	Cabletron/Enterasys RoamAbout 802.11 DS
 	Compaq WL100, HNW-100
-	Corega PCCA-11
+	Conceptronic CON11Cpro
+	Corega PCCA-11, PCC-11
 	Dell TrueMobile 1150 Series
 	D-Link DRC-650, DCF-650W, DWL-660, DCF-660W
 	D-Link DWL-650 [older version, NOT new CardBus ones or 650+]
@@ -386,6 +399,7 @@ Wireless network adapters:
 	Linksys WCF12 Wireless CompactFlash
 	Lucent Orinoco WaveLAN/IEEE 802.11(b)
 	Melco WLI-PCM-L11, WLI-PCM-L11G
+	Microsoft MN-520
 	NCR WaveLAN/IEEE 802.11
 	Netgear MA401RA
 	Nortel Networks eMobility
@@ -396,6 +410,7 @@ Wireless network adapters:
 	Sandisk Connect SDWCFB-000
 	Seg Communications XI325H
 	SMC2632W
+	Sohoware NCP110 Netblaster II
 	Tekram AIR.mate PCF 200
 	ZCOMAX AirRunner/XI=300
 
@@ -544,11 +559,11 @@ Multifunction ethernet/modem cards:
 
 	[3c589_cs driver] [x86]
 	3Com 3c562, 3c562B/C/D, 3c563B/C/D
-	3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B, 3C3FEM556C
+	3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B
 	Motorola Marquis
 
 	[3c574_cs driver] [x86,ppc]
-	3Com Megahertz 3CCFEM556B
+	3Com Megahertz 3CCFEM556B, 3C3FEM556C
 
 	[axnet_cs driver] [x86]
 	Psion 10/100 LANGLOBAL Combine iT

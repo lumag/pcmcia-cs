@@ -2,7 +2,7 @@
 
     X Windows PCMCIA device control program
 
-    cardinfo.c 1.39 2002/10/09 06:15:11
+    cardinfo.c 1.40 2004/02/28 16:59:10
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -458,7 +458,7 @@ int main(int argc, char *argv[])
     }
     
     for (ns = 0; ns < MAX_SOCK; ns++) {
-	st[ns].fd = open_dev((major<<8)+ns);
+	st[ns].fd = open_dev(makedev(major, ns));
 	if (st[ns].fd < 0) break;
     }
     if (ns == 0) {

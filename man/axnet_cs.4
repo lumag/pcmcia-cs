@@ -1,7 +1,7 @@
 .\" Copyright (C) 2001 David A. Hinds -- dahinds@users.sourceforge.net
-.\" axnet_cs.4 1.1 2001/08/17 12:51:58
+.\" axnet_cs.4 1.2 2004/03/19 15:45:00
 .\"
-.TH AXNET_CS 4 "2001/08/17 12:51:58" "pcmcia-cs"
+.TH AXNET_CS 4 "2004/03/19 15:45:00" "pcmcia-cs"
 
 .SH NAME
 axnet_cs \- Asix AX88190 chipset PCMCIA Ethernet Driver
@@ -20,9 +20,13 @@ several bugs that are sufficiently tricky to work around that a
 separate driver was deemed necessary.  When this driver is bound to a
 card, it  allocates the next available ethernet device
 .RB ( eth0 .. eth# ).
-This
-device name will be reported in the kernel log file, and passed on to
-.BR cardmgr (8).
+This device name will be reported in the kernel log file, and passed
+on to \fBcardmgr\fR(8).
+.PP
+The driver uses the N-Way autonegotiating transceiver to negotiate the
+speed and duplex of the network link.  If the link partner does not
+support negotiation, only the link speed is detected.  To monitor or
+override the autonegotiation process, see \fBmii-tool\fR(8).
 
 .SH PARAMETERS
 .TP
@@ -50,4 +54,4 @@ is an interrupt conflict and/or host bridge configuration problem.
 David Hinds \- dahinds@users.sourceforge.net
 
 .SH "SEE ALSO"
-cardmgr(8), pcmcia(5).
+cardmgr(8), pcmcia(5), mii-tool(8).

@@ -2,7 +2,7 @@
 
     Stub for free-standing PnP BIOS support module
 
-    pnp_stub.c 1.2 2003/11/09 06:28:27
+    pnp_stub.c 1.3 2003/12/29 09:19:01
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -35,6 +35,10 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pnp_bios.h>
+
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
+MODULE_DESCRIPTION("PnP BIOS interface");
+MODULE_LICENSE("Dual MPL/GPL");
 
 void pnp_bios_init(void);
 void pnp_proc_init(void);

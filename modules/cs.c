@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.286 2003/12/12 17:13:23
+    cs.c 1.287 2004/04/09 03:54:25
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -133,7 +133,7 @@ INT_MODULE_PARM(do_pnp, 1);
 int pc_debug=PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.286 2003/12/12 17:13:23 (David Hinds)";
+"cs.c 1.287 2004/04/09 03:54:25 (David Hinds)";
 #endif
 
 /*====================================================================*/
@@ -747,7 +747,7 @@ static int alloc_io_space(socket_info_t *s, u_int attr, ioaddr_t *base,
     if (*base & ~(align-1)) {
 	DEBUG(0, "odd IO request: base %04x align %04x\n",
 	      *base, align);
-	align = 0;
+	while (*base & ~(align-1)) align <<= 1;
     }
     /* Check for an already-allocated window that must conflict with
        what was asked for.  It is a hack because it does not catch all

@@ -622,7 +622,8 @@ int __orinoco_up(struct net_device *dev)
 		return err;
 	}
 
-	netif_device_attach(dev);
+	netif_start_queue(dev);
+	netif_mark_up(dev);
 
 	return 0;
 }
@@ -633,7 +634,8 @@ int __orinoco_down(struct net_device *dev)
 	struct hermes *hw = &priv->hw;
 	int err;
 
-	netif_device_detach(dev);
+	netif_stop_queue(dev);
+        netif_mark_down(dev);
 
 	if (! priv->hw_unavailable) {
 		if (! priv->broken_disableport) {

@@ -2,7 +2,7 @@
 
     GTK-based PCMCIA device monitor tool
 
-    cardinfo.c 1.2 2002/10/07 16:44:40
+    cardinfo.c 1.3 2004/02/28 16:58:59
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -356,7 +356,7 @@ int main(int argc, char *argv[])
     }
     
     for (ns = 0; ns < MAX_SOCK; ns++) {
-	st[ns].fd = open_dev((major<<8)+ns);
+	st[ns].fd = open_dev(makedev(major, ns));
 	if (st[ns].fd < 0) break;
     }
     if (ns == 0) {
