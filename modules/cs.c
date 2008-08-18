@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.216 1999/05/14 17:36:21
+    cs.c 1.217 1999/05/27 06:19:47
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -60,7 +60,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.216 1999/05/14 17:36:21 (David Hinds)";
+"cs.c 1.217 1999/05/27 06:19:47 (David Hinds)";
 #endif
 
 #ifdef __BEOS__
@@ -818,7 +818,7 @@ static int bind_device(bind_req_t *req)
     client->state = CLIENT_UNBOUND;
     client->erase_busy.next = &client->erase_busy;
     client->erase_busy.prev = &client->erase_busy;
-    init_waitqueue_head(&client->mtd_req);
+    init_waitqueue(&client->mtd_req);
     client->next = s->clients;
     s->clients = client;
     DEBUG(1, ("cs: bind_device(): client 0x%p, sock %d, dev %s\n",
@@ -1163,11 +1163,8 @@ static int modify_configuration(client_handle_t handle,
 	s->ss_entry(s->sock, SS_SetSocket, &s->socket);
     }
 
-    if (mod->Attributes & CONF_VCC_CHANGE_VALID) {
-	c->Vcc = s->socket.Vcc = mod->Vcc;
-	if (s->ss_entry(s->sock, SS_SetSocket, &s->socket))
-	    return CS_BAD_VCC;
-    }
+    if (mod->Attributes & CONF_VCC_CHANGE_VALID)
+	return CS_BAD_VCC;
 
     /* We only allow changing Vpp1 and Vpp2 to the same value */
     if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) &&
@@ -1494,11 +1491,9 @@ static int request_configuration(client_handle_t handle,
     if (c->state & CONFIG_LOCKED)
 	return CS_CONFIGURATION_LOCKED;
 
-    /* Do power control */
-    s->socket.Vcc = req->Vcc;
-    if (s->ss_entry(s->sock, SS_SetSocket, &s->socket))
+    /* Do power control.  We don't allow changes in Vcc. */
+    if (s->socket.Vcc != req->Vcc)
 	return CS_BAD_VCC;
-    
     if (req->Vpp1 != req->Vpp2)
 	return CS_BAD_VPP;
     s->socket.Vpp = req->Vpp1;
@@ -1541,7 +1536,7 @@ static int request_configuration(client_handle_t handle,
 	    if (!(c->irq.Attributes & IRQ_FORCED_PULSE))
 		c->Option |= COR_LEVEL_REQ;
 	write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &c->Option);
-	udelay(40000);
+	schedule_timeout(HZ*40/1000);
     }
     if (req->Present & PRESENT_STATUS) {
 	c->Status = req->Status;

@@ -1,3 +1,15 @@
+Version 3.0.11
+-- Added support for Quatech SPP-100 parallel port card.
+-- Tweaked pcnet_cs driver's algorithm for choosing shared memory
+   versus polled IO, to be safer.
+-- Changed smc91c92_cs driver to handle some 100baseT smc91c100 cards.
+-- Fixed dual-voltage IDE and serial device support.
+-- Fixed bug in multifunction CardBus card shutdown logic, and fixed
+   handling of CardBus devices in /proc/bus/pci.
+-- Fixed the 3c589_cs driver to enable the link LED for 3C589E cards.
+-- Fixed the 3c574_cs transceiver initialization bug.  Also did a lot
+   of general code cleanup, and added nicer link status reporting.
+
 Version 3.0.10
 -- Updated for 2.3.1 kernel wait queue changes.
 -- Updated wavelan_cs, ibmtr_cs drivers.

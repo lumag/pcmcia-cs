@@ -8,7 +8,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    smc91c92_cs.c 1.49 1998/04/19 11:51:03
+    smc91c92_cs.c 1.63 1999/05/28 02:51:07
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -115,6 +115,7 @@ struct smc_private {
     struct sk_buff		*saved_skb;
     int				packets_waiting;
     caddr_t			base;
+    u_short			cfg;
 };
 
 /* Special definitions for Megahertz multifunction cards */
@@ -159,6 +160,7 @@ struct smc_private {
 
 /* Bank 1 registers. */
 #define CONFIG			0
+#define  CFG_MII_SELECT		0x8000	/* 91C100 only */
 #define  CFG_NO_WAIT		0x1000
 #define  CFG_FULL_STEP		0x0400
 #define  CFG_SET_SQLCH		0x0200
@@ -517,10 +519,9 @@ static int mhz_mfc_config(dev_link_t *link)
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
 
-    tuple.Attributes = 0;
+    tuple.Attributes = tuple.TupleOffset = 0;
     tuple.TupleData = (cisdata_t *)buf;
     tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 
     i = first_tuple(link->handle, &tuple, &parse);
@@ -573,10 +574,9 @@ static int mhz_setup(dev_link_t *link)
     cisparse_t parse;
     u_char buf[255], *station_addr;
 
-    tuple.Attributes = 0;
+    tuple.Attributes = tuple.TupleOffset = 0;
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
 
     /* Read the station address from the CIS.  It is stored as the last
        (fourth) string in the Version 1 Version/ID tuple. */
@@ -649,8 +649,8 @@ static int mot_setup(dev_link_t *link) {
 	SMC_SELECT_BANK( 1 );
 	outw((CTL_RELOAD | CTL_EE_SELECT), ioaddr + CONTROL);
 
-	for (loop = 0; loop < 100; loop++) {
-	    mdelay(10);
+	for (loop = 0; loop < 200; loop++) {
+	    udelay(10);
 	    wait = ((CTL_RELOAD | CTL_STORE) & inw(ioaddr + CONTROL));
 	    if (wait == 0) break;
 	}
@@ -668,6 +668,36 @@ static int mot_setup(dev_link_t *link) {
 
 /*====================================================================*/
 
+static int smc_config(dev_link_t *link)
+{
+    struct device *dev = link->priv;
+    tuple_t tuple;
+    cisparse_t parse;
+    u_char buf[255];
+    cistpl_cftable_entry_t *cf = &parse.cftable_entry;
+    int i;
+
+    tuple.Attributes = tuple.TupleOffset = 0;
+    tuple.TupleData = (cisdata_t *)buf;
+    tuple.TupleDataMax = sizeof(buf);
+    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
+
+    link->io.NumPorts1 = 16;
+    i = first_tuple(link->handle, &tuple, &parse);
+    while (i != CS_NO_MORE_ITEMS) {
+	if (i == CS_SUCCESS) {
+	    link->conf.ConfigIndex = cf->index;
+	    link->io.BasePort1 = cf->io.win[0].base;
+	    i = CardServices(RequestIO, link->handle, &link->io);
+	    if (i == CS_SUCCESS) break;
+	}
+	i = next_tuple(link->handle, &tuple, &parse);
+    }
+    if (i == CS_SUCCESS)
+	dev->base_addr = link->io.BasePort1;
+    return i;
+}
+
 static int smc_setup(dev_link_t *link)
 {
     client_handle_t handle = link->handle;
@@ -677,22 +707,12 @@ static int smc_setup(dev_link_t *link)
     cistpl_lan_node_id_t *node_id;
     u_char buf[255], *station_addr;
     int i;
-    
-    tuple.Attributes = 0;
+
+    tuple.Attributes = tuple.TupleOffset = 0;
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
     
-    /* Read the station address from the CIS.  It is stored in the
-       third string in the Version 1 Version/ID tuple. */
-    tuple.DesiredTuple = CISTPL_VERS_1;
-    if (first_tuple(handle, &tuple, &parse) != CS_SUCCESS)
-	return -1;
-    station_addr = parse.version_1.str + parse.version_1.ofs[2];
-    if (cvt_ascii_address(dev, station_addr) == 0)
-	return 0;
-
-    /* Another possibility: in the LAN function extension tuples */
+    /* Check for a LAN function extension tuple */
     tuple.DesiredTuple = CISTPL_FUNCE;
     i = first_tuple(handle, &tuple, &parse);
     while (i == CS_SUCCESS) {
@@ -700,14 +720,23 @@ static int smc_setup(dev_link_t *link)
 	    break;
 	i = next_tuple(handle, &tuple, &parse);
     }
-    if (i != CS_SUCCESS)
-	return -1;
-    node_id = (cistpl_lan_node_id_t *)parse.funce.data;
-    if (node_id->nb == 6) {
-	for (i = 0; i < 6; i++)
-	    dev->dev_addr[i] = node_id->id[i];
-	return 0;
+    if (i == CS_SUCCESS) {
+	node_id = (cistpl_lan_node_id_t *)parse.funce.data;
+	if (node_id->nb == 6) {
+	    for (i = 0; i < 6; i++)
+		dev->dev_addr[i] = node_id->id[i];
+	    return 0;
+	}
     }
+    
+    /* Try the third string in the Version 1 Version/ID tuple. */
+    tuple.DesiredTuple = CISTPL_VERS_1;
+    if (first_tuple(handle, &tuple, &parse) != CS_SUCCESS)
+	return -1;
+    station_addr = parse.version_1.str + parse.version_1.ofs[2];
+    if (cvt_ascii_address(dev, station_addr) == 0)
+	return 0;
+
     return -1;
 }
 
@@ -851,10 +880,9 @@ static void smc91c92_config(dev_link_t *link)
 
     DEBUG(0, "smc91c92_config(0x%p)\n", link);
     
-    tuple.Attributes = 0;
+    tuple.Attributes = tuple.TupleOffset = 0;
     tuple.TupleData = (cisdata_t *)buf;
     tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
 
     tuple.DesiredTuple = CISTPL_CONFIG;
     i = first_tuple(handle, &tuple, &parse);
@@ -864,26 +892,23 @@ static void smc91c92_config(dev_link_t *link)
     
     tuple.DesiredTuple = CISTPL_MANFID;
     tuple.Attributes = TUPLE_RETURN_COMMON;
-    i = first_tuple(handle, &tuple, &parse);
-    CS_EXIT_TEST(i, GetFirstTuple, config_failed);
-    lp->manfid = le16_to_cpu(buf[0]);
-    lp->cardid = le16_to_cpu(buf[1]);
+    if (first_tuple(handle, &tuple, &parse) == CS_SUCCESS) {
+	lp->manfid = parse.manfid.manf;
+	lp->cardid = parse.manfid.card;
+    }
     
     /* Configure card */
     link->state |= DEV_CONFIG;
 
-    if (lp->manfid == MANFID_OSITECH)
+    if (lp->manfid == MANFID_OSITECH) {
 	i = osi_config(link);
-    else if (lp->manfid == MANFID_MOTOROLA
+    } else if (lp->manfid == MANFID_MOTOROLA
 	     || ((lp->manfid == MANFID_MEGAHERTZ)
 		 && ((lp->cardid == PRODID_MEGAHERTZ_VARIOUS)
-		     || (lp->cardid == PRODID_MEGAHERTZ_EM3288))))
-      i = mhz_mfc_config(link);
-    else {
-	link->io.NumPorts1 = 16;
-	link->conf.ConfigIndex = 0x01;
-	i = CardServices(RequestIO, link->handle, &link->io);
-	dev->base_addr = link->io.BasePort1;
+		     || (lp->cardid == PRODID_MEGAHERTZ_EM3288)))) {
+	i = mhz_mfc_config(link);
+    } else {
+	i = smc_config(link);
     }
     CS_EXIT_TEST(i, RequestIO, config_failed);
     
@@ -919,10 +944,8 @@ static void smc91c92_config(dev_link_t *link)
     case MANFID_MEGAHERTZ:
 	i = mhz_setup(link); break;
     case MANFID_MOTOROLA:
+    default: /* get the hw address from EEPROM */
 	i = mot_setup(link); break;
-    default:
-	printk(KERN_NOTICE "smc91c92_cs: unrecognized card type\n");
-	goto config_undo;
     }
     
     if (i != 0) {
@@ -1407,10 +1430,7 @@ static void smc_eph_irq(struct device *dev)
 	if (lp->stats.rx_packets < 10) {
 	    printk(KERN_INFO "%s: switching to 10base2.\n", dev->name);
 	    dev->if_port = 2;
-	    outw(CFG_NO_WAIT | CFG_16BIT | CFG_STATIC | CFG_AUI_SELECT |
-		 (lp->manfid == MANFID_OSITECH ?
-		  (CFG_IRQ_SEL_1 | CFG_IRQ_SEL_0) : 0),
-		 ioaddr + CONFIG);
+	    outw(lp->cfg | CFG_AUI_SELECT, ioaddr + CONFIG);
 	    if (lp->manfid == MANFID_OSITECH)
 		set_bits(OSI_AUI_PWR, ioaddr - 0x10 + OSITECH_AUI_PWR);
 	}
@@ -1770,11 +1790,10 @@ static void smc_reset(struct device *dev)
     /* Automatically release succesfully transmitted packets,
        Accept link errors, counter and Tx error interrupts. */
     outw(CTL_AUTO_RELEASE | 0x00e0, ioaddr + CONTROL);
-    outw(CFG_NO_WAIT | CFG_16BIT | CFG_STATIC |
-	 (lp->manfid == MANFID_OSITECH ?
-	  (CFG_IRQ_SEL_1 | CFG_IRQ_SEL_0) : 0) |
-	 (dev->if_port == 2 ? CFG_AUI_SELECT : 0),
-	 ioaddr + CONFIG);
+    lp->cfg = inw(ioaddr + CONFIG);
+    lp->cfg |= CFG_NO_WAIT | CFG_16BIT | CFG_STATIC |
+	(lp->manfid == MANFID_OSITECH ? (CFG_IRQ_SEL_1 | CFG_IRQ_SEL_0) : 0);
+    outw(lp->cfg | (dev->if_port == 2 ? CFG_AUI_SELECT : 0), ioaddr + CONFIG);
     if (lp->manfid == MANFID_OSITECH)
 	outw((dev->if_port == 2 ? OSI_AUI_PWR : 0) |
 	     (inw(ioaddr-0x10+OSITECH_AUI_PWR) & 0xff00),

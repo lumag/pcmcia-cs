@@ -58,7 +58,7 @@ configuration space registers.  Window 0 is the regular Boomerang/Odie
 register set, 1-5 are various PC card control registers, and 16-31 are
 the (reversed!) CIS table.
 
-A final note: writing the InteralConfig register in window 3 with an
+A final note: writing the InternalConfig register in window 3 with an
 invalid ramWidth is Very Bad.
 
 V. References
@@ -82,6 +82,7 @@ earlier 3Com products.
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/in.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/bitops.h>
@@ -99,20 +100,18 @@ earlier 3Com products.
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
+#include <pcmcia/mem_op.h>
 
 /* A few values that may be tweaked. */
-#if LINUX_VERSION_CODE < 0x20115
-MODULE_PARM(if_port, "i");
 MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
 MODULE_PARM(max_interrupt_work, "i");
 MODULE_PARM(use_fifo_buffer, "i");
 MODULE_PARM(use_memory_ops, "i");
 MODULE_PARM(no_wait, "i");
-#endif
+MODULE_PARM(full_duplex, "i");
 
 /* Now-standard PC card module parameters. */
-static int if_port = 0;					/* Unused */
 static u_int irq_mask = 0xdeb8;			/* IRQ3,4,5,7,9,10,11,12,14,15 */
 static int irq_list[4] = { -1 };
 
@@ -129,6 +128,8 @@ static int use_fifo_buffer = 0;
 static int use_memory_ops = 0;
 /* Set iff disabling the WAIT signal is reliable and faster. */
 static int no_wait = 0;
+/* Advertise full duplex modes? */
+static int full_duplex = 0;
 
 /* To minimize the size of the driver source and make the driver more
    readable not all constants are symbolically defined.
@@ -206,17 +207,16 @@ enum Window4 {		/* Window 4: Xcvr/media bits. */
 struct el3_private {
 	dev_node_t node;
 	struct net_device_stats stats;
-	u16 available_media;				/* From Wn3_Options. */
-	u16 capabilities, softinfo1, softinfo2;		/* Various, from EEPROM. */
 	u16 advertising;					/* NWay media advertisement */
 	unsigned char phys[2];				/* MII device addresses. */
 	unsigned int
-	  is_full_duplex:1,
-	  force_full_duplex:1,
 	  autoselect:1, default_media:3;	/* Read from the EEPROM/Wn3_Config. */
+	/* for transceiver monitoring */
+	struct timer_list media;
+	u_short media_status;
+	u_short fast_poll;
+	u_long last_irq;
 };
-
-static char *if_names[] = { "Auto", "10baseT", "10base2", "AUI", "MII" };
 
 /* Set iff a MII transceiver on any interface requires mdio preamble.
    This only set with the original DP83840 on older 3c905 boards, so the extra
@@ -244,11 +244,11 @@ static void mdio_sync(int ioaddr, int bits);
 static int mdio_read(int ioaddr, int phy_id, int location);
 static void mdio_write(int ioaddr, int phy_id, int location, int value);
 static ushort read_eeprom(int ioaddr, int index);
+static void wait_for_completion(struct device *dev, int cmd);
 
 static void tc574_reset(struct device *dev);
-static int el3_config(struct device *dev, struct ifmap *map);
+static void media_check(u_long arg);
 static int el3_open(struct device *dev);
-static void tc574_tx_timeout(struct device *dev);
 static int el3_start_xmit(struct sk_buff *skb, struct device *dev);
 static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs);
 static void update_stats(int addr, struct device *dev);
@@ -345,7 +345,6 @@ static dev_link_t *tc574_attach(void)
 
 	/* The EL3-specific entries in the device structure. */
 	dev->hard_start_xmit = &el3_start_xmit;
-	dev->set_config = &el3_config;
 	dev->get_stats = &el3_get_stats;
 #ifdef HAVE_PRIVATE_IOCTL
 	dev->do_ioctl = &private_ioctl;
@@ -441,11 +440,9 @@ static void tc574_detach(dev_link_t *link)
 } /* tc574_detach */
 
 /*
-
 	tc574_config() is scheduled to run after a CARD_INSERTION event
 	is received, to configure the PCMCIA socket, and to make the
 	ethernet device available to the system.
-
 */
 
 #define CS_CHECK(fn, args...) \
@@ -500,7 +497,8 @@ static void tc574_config(dev_link_t *link)
 	if (use_memory_ops) {
 		win_req_t req;
 		memreq_t mem;
-		req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
+		req.Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM |
+			WIN_ENABLE | WIN_USE_WAIT;
 		req.Base = 0;
 		req.Size = 0x1000;
 		req.AccessSpeed = 0;
@@ -555,30 +553,11 @@ static void tc574_config(dev_link_t *link)
 	} else
 		cardname = "3Com 3c574";
 
-	/* Extract other info from the EEPROM. */
-	lp->softinfo1 = read_eeprom(ioaddr, 13);
-	lp->softinfo2 = read_eeprom(ioaddr, 15);
-	lp->capabilities = read_eeprom(ioaddr, 16);
-
-	if (lp->softinfo1 & 0x8000)
-		lp->force_full_duplex = 1;
-
 	printk(KERN_INFO "%s: %s at I/O %#3lx, IRQ %d, "
 		   "MAC Address ", dev->name, cardname, dev->base_addr, dev->irq);
 
 	for (i = 0; i < 6; i++)
 		printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : ".\n"));
-
-	/* The if_port symbol can be set when the module is loaded,
-	   but we always ignore it for now. */
-	dev->if_port = 0;
-	if (if_port == 1  ||  if_port == 4) {
-		printk(KERN_INFO "%s: Media override to %s requested.\n",
-			   dev->name, if_names[if_port]);
-		dev->if_port = if_port;
-	} else if (if_port != 0)
-		printk(KERN_NOTICE "%s: Invalid if_port %d requested, ignored.\n",
-			   dev->name, if_port);
 
 	if (dev->mem_start)
 		printk(KERN_INFO"%s:  Acceleration window at memory base %#lx.\n",
@@ -590,13 +569,7 @@ static void tc574_config(dev_link_t *link)
 		char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
 		union wn3_config config;
 		EL3WINDOW(3);
-		lp->available_media = inw(ioaddr + Wn3_Options);
-		/* Roadrunner only: Turn on the MII transceiver. */
-		outw((lp->available_media & 0xff) | 0x8000, ioaddr + Wn3_Options);
-
 		config.i = inl(ioaddr + Wn3_Config);
-		DEBUG(1, "  Internal config register is %4.4x, transceivers %#x.\n",
-			  config.i, lp->available_media);
 		printk(KERN_INFO"  %dK FIFO split %s Rx:Tx, %sMII interface.\n",
 			   8 << config.u.ram_size, ram_split[config.u.ram_split],
 			   config.u.autoselect ? "autoselect " : "");
@@ -606,6 +579,16 @@ static void tc574_config(dev_link_t *link)
 
 	{
 		int phy, phy_idx = 0;
+		
+		/* Roadrunner only: Turn on the MII transceiver */
+		outw(0x8040, ioaddr + Wn3_Options);
+		udelay(1000);
+		outw(0xc040, ioaddr + Wn3_Options);
+		wait_for_completion(dev, TxReset);
+		wait_for_completion(dev, RxReset);
+		udelay(1000);
+		outw(0x8040, ioaddr + Wn3_Options);
+		
 		EL3WINDOW(4);
 		for (phy = 1; phy <= 32 && phy_idx < sizeof(lp->phys); phy++) {
 			int mii_status;
@@ -613,23 +596,23 @@ static void tc574_config(dev_link_t *link)
 			mii_status = mdio_read(ioaddr, phy & 0x1f, 1);
 			if (mii_status != 0xffff) {
 				lp->phys[phy_idx++] = phy & 0x1f;
-				printk(KERN_INFO "  MII transceiver at index %d, status %x.\n",
-					   phy, mii_status);
+				DEBUG(0, "  MII transceiver at index %d, status %x.\n",
+					  phy, mii_status);
 				if ((mii_status & 0x0040) == 0)
 					mii_preamble_required = 1;
 			}
 		}
 		if (phy_idx == 0) {
-			printk(KERN_NOTICE"  ***WARNING*** No MII transceivers found!\n");
-			lp->phys[0] = 24;
-			lp->advertising = 0x01e1;	/* 10,100base-HD,FD, no T4. */
-		} else {
-			lp->advertising = mdio_read(ioaddr, lp->phys[0], 4);
-			if (lp->force_full_duplex) {
-				/* Only advertise the FD media types. */
-				lp->advertising &= 0x015F;
-				mdio_write(ioaddr, lp->phys[0], 4, lp->advertising);
-			}
+			printk(KERN_NOTICE "  No MII transceivers found!\n");
+			goto failed;
+		}
+		i = mdio_read(ioaddr, lp->phys[0], 16) | 0x40;
+		mdio_write(ioaddr, lp->phys[0], 16, i);
+		lp->advertising = mdio_read(ioaddr, lp->phys[0], 4);
+		if (!full_duplex) {
+			/* Only advertise the HD media types. */
+			lp->advertising &= 0x00af;
+			mdio_write(ioaddr, lp->phys[0], 4, lp->advertising);
 		}
 	}
 
@@ -647,7 +630,6 @@ failed:
 	After a card is removed, tc574_release() will unregister the net
 	device, and release the PCMCIA configuration.  If the device is
 	still open, this will be postponed until it is closed.
-
 */
 
 static void tc574_release(u_long arg)
@@ -667,10 +649,6 @@ static void tc574_release(u_long arg)
 	CardServices(ReleaseConfiguration, link->handle);
 	CardServices(ReleaseIO, link->handle, &link->io);
 	CardServices(ReleaseIRQ, link->handle, &link->irq);
-#if CS_RELEASE_CODE <= 0x2911
-	if (dev->irq != 0)
-		irq2dev_map[dev->irq] = NULL;
-#endif
 	if (link->win) {
 		iounmap((void *)(dev->mem_start - 0x800));
 		CardServices(ReleaseWindow, link->win);
@@ -681,7 +659,6 @@ static void tc574_release(u_long arg)
 } /* tc574_release */
 
 /*
-
 	The card status event handler.  Mostly, this schedules other
 	stuff to run after an event is received.  A CARD_REMOVAL event
 	also sets some flags to discourage the net drivers from trying
@@ -736,6 +713,21 @@ static int tc574_event(event_t event, int priority,
 	return 0;
 } /* tc574_event */
 
+void dump_status(struct device *dev)
+{
+	int ioaddr = dev->base_addr;
+	EL3WINDOW(1);
+    printk(KERN_INFO "  irq status %04x, rx status %04x, tx status "
+		   "%02x, tx free %04x\n", inw(ioaddr+EL3_STATUS),
+		   inw(ioaddr+RxStatus), inb(ioaddr+TxStatus),
+		   inw(ioaddr+TxFree));
+	EL3WINDOW(4);
+    printk(KERN_INFO "  diagnostics: fifo %04x net %04x ethernet %04x"
+		   " media %04x\n", inw(ioaddr+0x04), inw(ioaddr+0x06),
+		   inw(ioaddr+0x08), inw(ioaddr+0x0a));
+	EL3WINDOW(1);
+}
+
 /*
   Use this for commands that may take time to finish
 */
@@ -765,7 +757,6 @@ static ushort read_eeprom(int ioaddr, int index)
 	return inw(ioaddr + Wn0EepromData);
 }
 
-
 /* MII transceiver control section.
    Read and write the MII registers using software-generated serial
    MDIO protocol.  See the MII specifications or DP83840A data sheet
@@ -842,7 +833,6 @@ static void mdio_write(int ioaddr, int phy_id, int location, int value)
 	return;
 }
 
-
 /* Reset and restore all of the 3c574 registers. */
 static void tc574_reset(struct device *dev)
 {
@@ -873,24 +863,22 @@ static void tc574_reset(struct device *dev)
 	for (; i < 12; i+=2)
 		outw(0, ioaddr + i);
 
-	if (dev->if_port == 2)
-		/* Start the thinnet transceiver. Note: Tx is not reliable for 50ms. */
-		outw(StartCoax, ioaddr + EL3_CMD);
-	else if (dev->if_port == 1) {
-		/* 10baseT interface, enabled link beat and jabber check. */
-		EL3WINDOW(4);
-		outw(inw(ioaddr + Wn4_Media) | MEDIA_TP, ioaddr + Wn4_Media);
-	}
-
-	EL3WINDOW(3);
 	/* Set the full-duplex bit. */
-	outb((lp->force_full_duplex || lp->is_full_duplex ? 0x20 : 0) |
+	EL3WINDOW(3);
+	outb((full_duplex ? 0x20 : 0) |
 		 (dev->mtu > 1500 ? 0x40 : 0), ioaddr + Wn3_MAC_Ctrl);
 	/* Reset config options */
 	outl((lp->autoselect ? 0x01000000 : 0) | 0x0062001b,
 		 ioaddr + Wn3_Config);
+	
 	/* Roadrunner only: Turn on the MII transceiver. */
-	outw((lp->available_media & 0xff) | 0x8000, ioaddr + Wn3_Options);
+	outw(0x8040, ioaddr + Wn3_Options);
+	udelay(1000);
+	outw(0xc040, ioaddr + Wn3_Options);
+	wait_for_completion(dev, TxReset);
+	wait_for_completion(dev, RxReset);
+	udelay(1000);
+	outw(0x8040, ioaddr + Wn3_Options);
 
 	/* Switch to the stats window, and clear all stats by reading. */
 	outw(StatsDisable, ioaddr + EL3_CMD);
@@ -922,74 +910,43 @@ static void tc574_reset(struct device *dev)
 	outw(AckIntr | IntLatch | TxAvailable | RxEarly | IntReq,
 		 ioaddr + EL3_CMD);
 	outw(SetIntrEnb | IntLatch | TxAvailable | RxComplete | StatsFull
-		 | AdapterFailure /* Optional | TxComplete */, ioaddr + EL3_CMD);
-}
-
-static int el3_config(struct device *dev, struct ifmap *map)
-{
-	if ((map->port != (u_char)(-1)) && (map->port != dev->if_port)) {
-		if (map->port <= 3) {
-			dev->if_port = map->port;
-			printk(KERN_INFO "%s: switched to %s port\n",
-				   dev->name, if_names[dev->if_port]);
-		} else
-			return -EINVAL;
-	}
-	tc574_reset(dev);
-	return 0;
+		 | AdapterFailure | RxEarly, ioaddr + EL3_CMD);
 }
 
 static int el3_open(struct device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
-	int ioaddr = dev->base_addr;
 	dev_link_t *link;
 
 	for (link = dev_list; link; link = link->next)
 		if (link->priv == dev) break;
 	if (!DEV_OK(link))
 		return -ENODEV;
-
+	
 	link->open++;
 	MOD_INC_USE_COUNT;
-
 	dev->interrupt = 0; dev->tbusy = 0; dev->start = 1;
-	{
-		int mii_reg1, mii_reg5;
-		EL3WINDOW(4);
-		/* Read BMSR (reg1) only to clear old status. */
-		mii_reg1 = mdio_read(ioaddr, lp->phys[0], 1);
-		mii_reg5 = mdio_read(ioaddr, lp->phys[0], 5);
-		if (mii_reg5 == 0xffff  ||  mii_reg5 == 0x0000)
-			;					/* No MII device or no link partner report */
-		else if ((mii_reg5 & 0x0100) != 0	/* 100baseTx-FD */
-				 || (mii_reg5 & 0x00C0) == 0x0040) /* 10T-FD, but not 100-HD */
-			lp->is_full_duplex = 1;
-		printk(KERN_INFO "%s: MII #%d status %4.4x, link partner capability "
-			   "%4.4x, setting %s-duplex.\n", dev->name, lp->phys[0],
-			   mii_reg1, mii_reg5, lp->is_full_duplex ? "full" : "half");
-	}
-
-#if CS_RELEASE_CODE <= 0x2911
-    irq2dev_map[dev->irq] = dev;
-#endif
-
+	
 	tc574_reset(dev);
-
+	lp->media.function = &media_check;
+	lp->media.data = (u_long)dev;
+	lp->media.expires = RUN_AT(HZ);
+	add_timer(&lp->media);
+	
 	DEBUG(2, "%s: opened, status %4.4x.\n",
-		  dev->name, inw(ioaddr + EL3_STATUS));
-
+		  dev->name, inw(dev->base_addr + EL3_STATUS));
+	
 	return 0;					/* Always succeed */
 }
 
-static void tc574_tx_timeout(struct device *dev)
+static void el3_tx_timeout(struct device *dev)
 {
+	struct el3_private *lp = (struct el3_private *)dev->priv;
 	int ioaddr = dev->base_addr;
-
-	printk(KERN_NOTICE "%s: Transmit timed out, Tx_status %2.2x "
-		   "status %4.4x Tx FIFO room %d.\n", dev->name,
-		   inb(ioaddr + TxStatus), inw(ioaddr + EL3_STATUS),
-		   inw(ioaddr + TxFree));
+	
+	printk(KERN_NOTICE "%s: Transmit timed out!\n", dev->name);
+	dump_status(dev);
+	lp->stats.tx_errors++;
 	dev->trans_start = jiffies;
 	/* Issue TX_RESET and TX_START commands. */
 	wait_for_completion(dev, TxReset);
@@ -1007,7 +964,6 @@ static void pop_tx_status(struct device *dev)
     for (i = 32; i > 0; i--) {
 		u_char tx_status = inb(ioaddr + TxStatus);
 		if (!(tx_status & 0x84)) break;
-		printk(KERN_INFO "tx_status 0x%02x\n", tx_status);
 		/* reset transmitter on jabber error or underrun */
 		if (tx_status & 0x30)
 			wait_for_completion(dev, TxReset);
@@ -1023,81 +979,48 @@ static void pop_tx_status(struct device *dev)
 
 static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
 {
-	struct el3_private *lp = (struct el3_private *)dev->priv;
 	int ioaddr = dev->base_addr;
-	long flags;
+	long flags = 0;
 
 	/* Transmitter timeout, serious problems. */
 	if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
-		if (jiffies - dev->trans_start >= TX_TIMEOUT) {
-			tc574_tx_timeout(dev);
-			lp->stats.tx_errors++;
-		}
-		return 1;
+		if (jiffies - dev->trans_start < TX_TIMEOUT)
+			return 1;
+		el3_tx_timeout(dev);
 	}
 
 	DEBUG(3, "%s: el3_start_xmit(length = %ld) called, "
 		  "status %4.4x.\n", dev->name, (long)skb->len,
 		  inw(ioaddr + EL3_STATUS));
 
-#ifdef PCMCIA_DEBUG
-	{							/* Error-checking code, delete someday. */
-		ushort status = inw(ioaddr + EL3_STATUS);
-		if (status & 0x0003		/* IRQ line active, missed one. */
-			&& inw(ioaddr + EL3_STATUS) & 3) { /* Make sure. */
-			printk(KERN_NOTICE "%s: missed interrupt, status then %04x"
-				   " now %04x  Tx %2.2x Rx %4.4x.\n", dev->name, status,
-				   inw(ioaddr + EL3_STATUS), inb(ioaddr + TxStatus),
-				   inw(ioaddr + RxStatus));
-			if (status & 0x0002) /* Adaptor failure */
-				tc574_reset(dev);
-			/* Fake interrupt trigger by masking, acknowledge interrupts. */
-			outw(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
-			outw(AckIntr | IntLatch | TxAvailable | RxEarly | IntReq,
-				 ioaddr + EL3_CMD);
-			outw(SetStatusEnb | 0xff, ioaddr + EL3_CMD);
-		}
-	}
-#endif
-
-#if 0
 	if (use_fifo_buffer) {
 		/* Avoid other accesses to the chip while RunnerWrCtrl is non-zero. */
 		save_flags(flags);
 		cli();
 		outw((((skb->len + 7)>>2)<<1), ioaddr + RunnerWrCtrl);
+		DEBUG(0, "TxFree %x, tx length %x, RunnerWrCtrl is %4.4x.\n",
+			  inw(ioaddr+TxFree), skb->len, inw(ioaddr+RunnerWrCtrl));
 	}
-	printk("TxFree %d, ", inw(ioaddr + TxFree));
-	printk("tx length %lx, Runner Write control is %4.4x.\n",
-		   skb->len, inw(ioaddr + RunnerWrCtrl));
-#else
-	save_flags(flags);
-	if (use_fifo_buffer) {
-		/* Avoid other accesses to the chip while RunnerWrCtrl is non-zero. */
-		cli();
-		outw((((skb->len + 7)>>2)<<1), ioaddr + RunnerWrCtrl);
-	}
-#endif
 
 	/* Put out the doubleword header... */
-	outl(skb->len, ioaddr + TX_FIFO);
 	/* ... and the packet rounded to a doubleword. */
-	if (dev->mem_start)
-		memcpy((void*)dev->mem_start, skb->data, (skb->len + 3) & ~3);
-	else
-		outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
+	if (dev->mem_start) {
+		writew(skb->len, (void *)dev->mem_start);
+		writew(0, (void *)dev->mem_start);
+		copy_to_pc((void*)dev->mem_start, skb->data, (skb->len+3)&~3);
+	} else {
+		outw(skb->len, ioaddr + TX_FIFO);
+		outw(0, ioaddr + TX_FIFO);
+		outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
+	}
 
-#if 0
 	if (use_fifo_buffer) {
-		printk("Runner Write/Read control is %4.4x/%4.4x, TxFree %d.\n",
-			   inw(ioaddr + RunnerWrCtrl), inw(ioaddr + RunnerRdCtrl),
-			   inw(ioaddr + TxFree));
+		DEBUG(0, " RunnerWr/RdCtrl is %4.4x/%4.4x, TxFree %x.\n",
+			  inw(ioaddr + RunnerWrCtrl), inw(ioaddr + RunnerRdCtrl),
+			  inw(ioaddr + TxFree));
 		restore_flags(flags);
 	}
-#else
-	restore_flags(flags);
-#endif
-
+	
 	dev->trans_start = jiffies;
 
 	/* TxFree appears only in Window 1, not offset 0x1c. */
@@ -1109,7 +1032,6 @@ static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
 		outw(SetTxThreshold + (1536>>2), ioaddr + EL3_CMD);
 
 	DEV_KFREE_SKB (skb);
-
 	pop_tx_status(dev);
 
 	return 0;
@@ -1118,11 +1040,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
 /* The EL3 interrupt handler. */
 static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 {
-#if CS_RELEASE_CODE > 0x2911
-	struct device *dev = (struct device *)dev_id;
-#else
-	struct device *dev = (struct device *)irq2dev_map[irq];
-#endif
+	struct device *dev = (struct device *)DEV_ID;
 	struct el3_private *lp;
 	int ioaddr, status;
 	int work_budget = max_interrupt_work;
@@ -1143,7 +1061,7 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 #endif
 
 	while ((status = inw(ioaddr + EL3_STATUS)) &
-		   (IntLatch | RxComplete | StatsFull)) {
+		   (IntLatch | RxComplete | RxEarly | StatsFull)) {
 		if ((dev->start == 0) || ((status & 0xe000) != 0x2000)) {
 			DEBUG(1, "%s: Interrupt from dead card\n", dev->name);
 			break;
@@ -1153,7 +1071,7 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 			work_budget = el3_rx(dev, work_budget);
 
 		if (status & TxAvailable) {
-			DEBUG(3, "    TX room bit was handled.\n");
+			DEBUG(3, "  TX room bit was handled.\n");
 			/* There's room in the FIFO for a full-sized packet. */
 			outw(AckIntr | TxAvailable, ioaddr + EL3_CMD);
 			dev->tbusy = 0;
@@ -1165,9 +1083,9 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 
 		if (status & (AdapterFailure | RxEarly | StatsFull)) {
 			/* Handle all uncommon interrupts. */
-			if (status & StatsFull)		/* Empty statistics. */
+			if (status & StatsFull)
 				update_stats(ioaddr, dev);
-			if (status & RxEarly) {	/* Rx early is unused. */
+			if (status & RxEarly) {
 				work_budget = el3_rx(dev, work_budget);
 				outw(AckIntr | RxEarly, ioaddr + EL3_CMD);
 			}
@@ -1176,16 +1094,19 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 				EL3WINDOW(4);
 				fifo_diag = inw(ioaddr + Wn4_FIFODiag);
 				EL3WINDOW(1);
-				printk(KERN_NOTICE"%s: Adapter failure, FIFO diagnostic"
-					   " register %4.4x.\n", dev->name, fifo_diag);
-				/* Adapter failure requires Rx reset and reinit. */
+				printk(KERN_NOTICE "%s: adapter failure, FIFO diagnostic"
+					   " register %04x.\n", dev->name, fifo_diag);
 				if (fifo_diag & 0x0400) {
+					/* Tx overrun */
 					wait_for_completion(dev, TxReset);
 					outw(TxEnable, ioaddr + EL3_CMD);
 				}
-				wait_for_completion(dev, RxReset);
-				set_rx_mode(dev);
-				outw(RxEnable, ioaddr + EL3_CMD);
+				if (fifo_diag & 0x2000) {
+					/* Rx underrun */
+					wait_for_completion(dev, RxReset);
+					set_rx_mode(dev);
+					outw(RxEnable, ioaddr + EL3_CMD);
+				}
 				outw(AckIntr | AdapterFailure, ioaddr + EL3_CMD);
 			}
 		}
@@ -1207,6 +1128,83 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 	dev->interrupt = 0;
 #endif
 	return;
+}
+
+/*
+    This timer serves two purposes: to check for missed interrupts
+	(and as a last resort, poll the NIC for events), and to monitor
+	the MII, reporting changes in cable status.
+*/
+static void media_check(u_long arg)
+{
+    struct device *dev = (struct device *)(arg);
+    struct el3_private *lp = (struct el3_private *)dev->priv;
+    int ioaddr = dev->base_addr;
+    u_long flags;
+	u_short cable, media, partner;
+	
+    if (dev->start == 0) return;
+	
+    /* Check for pending interrupt with expired latency timer: with
+       this, we can limp along even if the interrupt is blocked */
+    if ((inw(ioaddr + EL3_STATUS) & IntLatch) &&
+		(inb(ioaddr + Timer) == 0xff)) {
+		if (!lp->fast_poll)
+			printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+		el3_interrupt IRQ(dev->irq, dev, NULL);
+		lp->fast_poll = HZ;
+    }
+    if (lp->fast_poll) {
+		lp->fast_poll--;
+		lp->media.expires = RUN_AT(2);
+		add_timer(&lp->media);
+		return;
+    }
+
+	save_flags(flags);
+	cli();
+	outw(2<<11, ioaddr + RunnerRdCtrl);
+	cable = inw(ioaddr);
+	outw(0x20, ioaddr);
+	outw(0, ioaddr + RunnerRdCtrl);
+	EL3WINDOW(4);
+	media = mdio_read(ioaddr, lp->phys[0], 1);
+	partner = mdio_read(ioaddr, lp->phys[0], 5);
+	EL3WINDOW(1);
+	restore_flags(flags);
+
+	if (cable & 0x20)
+		printk(KERN_INFO "%s: cable %s\n", dev->name,
+			   ((cable & 0x08) ? "fixed" : "problem"));
+	if (media != lp->media_status) {
+		if ((media ^ lp->media_status) & 0x0004)
+			printk(KERN_INFO "%s: %s link beat\n", dev->name,
+				   (lp->media_status & 0x0004) ? "lost" : "found");
+		if ((media ^ lp->media_status) & 0x0020) {
+			if (lp->media_status & 0x0020) {
+				printk(KERN_INFO "%s: autonegotiation restarted\n",
+					   dev->name);
+			} else if (partner) {
+				partner &= lp->advertising;
+				printk(KERN_INFO "%s: autonegotiation complete: "
+					   "%sbaseT-%cD selected\n", dev->name,
+					   ((partner & 0x0180) ? "100" : "10"),
+					   ((partner & 0x0140) ? 'F' : 'H'));
+			} else {
+				printk(KERN_INFO "%s: link partner did not autonegotiate\n",
+					   dev->name);
+			}
+		}
+		if (media & 0x0010)
+			printk(KERN_INFO "%s: remote fault detected\n",
+				   dev->name);
+		if (media & 0x0002)
+			printk(KERN_INFO "%s: jabber detected\n", dev->name);
+		lp->media_status = media;
+	}
+	
+    lp->media.expires = RUN_AT(HZ);
+    add_timer(&lp->media);
 }
 
 static struct net_device_stats *el3_get_stats(struct device *dev)
@@ -1266,7 +1264,7 @@ static int el3_rx(struct device *dev, int worklimit)
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	int ioaddr = dev->base_addr;
 	short rx_status;
-
+	
 	DEBUG(3, "%s: in rx_packet(), status %4.4x, rx_status %4.4x.\n",
 		  dev->name, inw(ioaddr+EL3_STATUS), inw(ioaddr+RxStatus));
     while (!((rx_status = inw(ioaddr + RxStatus)) & 0x8000) &&
@@ -1288,37 +1286,35 @@ static int el3_rx(struct device *dev, int worklimit)
 
 			skb = dev_alloc_skb(pkt_len+5);
 
-			DEBUG(3, "    Receiving packet size %d status %4.4x.\n",
+			DEBUG(3, "  Receiving packet size %d status %4.4x.\n",
 				  pkt_len, rx_status);
 			if (skb != NULL) {
 				skb->dev = dev;
-
-#if 1
-				if (use_fifo_buffer)
-					outw(((pkt_len + 3)>>2)<<1, ioaddr + RunnerRdCtrl);
-#else
-				if (use_fifo_buffer)
-					outw((((pkt_len + 3)>>2)), ioaddr + RunnerRdCtrl);
-				printk("%s: Start Rx %d -- RunnerRdCtrl is %4.4x.\n",
-					   dev->name, pkt_len, inw(ioaddr + RunnerRdCtrl));
-#endif
 				skb_reserve(skb, 2);
+
+				if (use_fifo_buffer) {
+					outw(((pkt_len+3)>>2)<<1, ioaddr + RunnerRdCtrl);
+					DEBUG(0,"Start Rx %x -- RunnerRdCtrl is %4.4x.\n",
+						  pkt_len, inw(ioaddr + RunnerRdCtrl));
+				}
+				
 				if (dev->mem_start) {
-					memcpy((void*)dev->mem_start,
-						   skb_put(skb, pkt_len), (pkt_len+3)&~3);
+					copy_from_pc(skb_put(skb, pkt_len),
+								 (void*)dev->mem_start, (pkt_len+3)&~3);
 				} else {
 					insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
-							(pkt_len+3)>>2);
+							((pkt_len+3)>>2));
 				}
-				skb->protocol = eth_type_trans(skb, dev);
 
-#if 0
-				printk("%s: RunnerRdCtrl is now %4.4x.\n",
-					   dev->name, inw(ioaddr + RunnerRdCtrl));
-				outw(0, ioaddr + RunnerRdCtrl);
-				printk("%s: Rx packet with data %2.2x:%2.2x:%2.2x:....\n",
-					   dev->name, skb->head[0], skb->head[1], skb->head[2]);
-#endif
+				if (use_fifo_buffer) {
+					DEBUG(0," RunnerRdCtrl is now %4.4x.\n",
+						  inw(ioaddr + RunnerRdCtrl));
+					outw(0, ioaddr + RunnerRdCtrl);
+					DEBUG(0, " Rx packet with data %2.2x:%2.2x:%2.2x\n",
+						  skb->head[0], skb->head[1], skb->head[2]);
+				}
+				
+				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
 				lp->stats.rx_packets++;
 			} else {
@@ -1417,30 +1413,24 @@ static int el3_close(struct device *dev)
 		return -ENODEV;
 
 	DEBUG(2, "%s: shutting down ethercard.\n", dev->name);
-
-	/* Turn off statistics ASAP.  We update lp->stats below. */
-	outw(StatsDisable, ioaddr + EL3_CMD);
-
-	/* Disable the receiver and transmitter. */
-	outw(RxDisable, ioaddr + EL3_CMD);
-	outw(TxDisable, ioaddr + EL3_CMD);
-
-	if (dev->if_port == 2)
-		/* Turn off thinnet power.  Green! */
-		outw(StopCoax, ioaddr + EL3_CMD);
-	else if (dev->if_port == 1) {
-		/* Disable link beat and jabber, if_port may change ere next open(). */
-		EL3WINDOW(4);
-		outw(inw(ioaddr + Wn4_Media) & ~MEDIA_TP, ioaddr + Wn4_Media);
+	
+	if (DEV_OK(link)) {
+		/* Turn off statistics ASAP.  We update lp->stats below. */
+		outw(StatsDisable, ioaddr + EL3_CMD);
+		
+		/* Disable the receiver and transmitter. */
+		outw(RxDisable, ioaddr + EL3_CMD);
+		outw(TxDisable, ioaddr + EL3_CMD);
+		
+		/* Note: Switching to window 0 may disable the IRQ. */
+		EL3WINDOW(0);
+		
+		update_stats(ioaddr, dev);
 	}
-
-	/* Note: Switching to window 0 may disable the IRQ. */
-	EL3WINDOW(0);
-
-	update_stats(ioaddr, dev);
 
 	link->open--;
 	dev->start = 0;
+	del_timer(&((struct el3_private *)dev->priv)->media);
 	if (link->state & DEV_STALE_CONFIG) {
 		link->release.expires = RUN_AT(HZ/20);
 		link->state |= DEV_RELEASE_PENDING;
@@ -1452,7 +1442,6 @@ static int el3_close(struct device *dev)
 	return 0;
 }
 
-
 int init_module(void)
 {
 	servinfo_t serv;
@@ -1477,7 +1466,7 @@ void cleanup_module(void)
 	while (dev_list != NULL)
 		tc574_detach(dev_list);
 }
-
+
 /*
  * Local variables:
  *  compile-command: "make 3c574_cs.o"

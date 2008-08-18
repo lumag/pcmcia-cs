@@ -2,7 +2,7 @@
 
     Cardbus device enabler
 
-    cb_enabler.c 1.15 1999/04/16 15:46:37
+    cb_enabler.c 1.16 1999/05/27 06:19:47
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -50,7 +50,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.15 1999/04/16 15:46:37 (David Hinds)";
+"cb_enabler.c 1.16 1999/05/27 06:19:47 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -86,6 +86,7 @@ static driver_info_t driver[4] = {
 typedef struct bus_info_t {
     u_char		bus;
     int			flags, ncfg, nuse;
+    dev_link_t		*owner;
 } bus_info_t;
 
 #define DID_REQUEST	1
@@ -122,6 +123,7 @@ struct dev_link_t *cb_attach(int n)
     
     DEBUG(0, "cb_attach(%d)\n", n);
 
+    MOD_INC_USE_COUNT;
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
     memset(link, 0, sizeof(struct dev_link_t));
     link->release.function = &cb_release;
@@ -160,6 +162,7 @@ static void cb_detach(dev_link_t *link)
 {
     driver_info_t *dev = link->priv;
     dev_link_t **linkp;
+    bus_info_t *b = (void *)link->win;
     u_long flags;
     
     DEBUG(0, "cb_detach(0x%p)\n", link);
@@ -180,12 +183,19 @@ static void cb_detach(dev_link_t *link)
     
     if (link->state & DEV_CONFIG)
 	cb_release((u_long)link);
-
+    
+    /* Don't drop Card Services connection if we are the bus owner */
+    if ((b->flags != 0) && (link == b->owner)) {
+	link->state |= DEV_STALE_LINK;
+	return;
+    }
+    
     if (link->handle)
 	CardServices(DeregisterClient, link->handle);
     
     *linkp = link->next;
     kfree_s(link, sizeof(struct dev_link_t));
+    MOD_DEC_USE_COUNT;
 }
 
 /*====================================================================*/
@@ -225,6 +235,7 @@ static void cb_config(dev_link_t *link)
 	    return;
 	}
 	b->flags |= DID_REQUEST;
+	b->owner = link;
 	i = CardServices(RequestConfiguration, handle, &link->conf);
 	if (i != CS_SUCCESS) {
 	    cs_error(handle, RequestConfiguration, i);
@@ -261,15 +272,19 @@ static void cb_release(u_long arg)
     }
     if (link->state & DEV_CONFIG) {
 	if ((b->flags & DID_CONFIG) && (--b->ncfg == 0)) {
-	    CardServices(ReleaseConfiguration, link->handle,
-			 &link->conf);
+	    CardServices(ReleaseConfiguration, b->owner->handle,
+			 &b->owner->conf);
 	    b->flags &= ~DID_CONFIG;
 	}
 	if ((b->flags & DID_REQUEST) && (--b->nuse == 0)) {
-	    CardServices(ReleaseIO, link->handle, NULL);
+	    CardServices(ReleaseIO, b->owner->handle, NULL);
 	    b->flags &= ~DID_REQUEST;
 	}
-	if (b->flags == 0) b->bus = 0;
+	if (b->flags == 0) {
+	    if (b->owner->state & DEV_STALE_LINK)
+		cb_detach(b->owner);
+	    b->bus = 0; b->owner = NULL;
+	}
     }
     link->state &= ~DEV_CONFIG;
 }

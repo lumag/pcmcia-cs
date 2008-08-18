@@ -4,7 +4,7 @@
     
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    3c589_cs.c 1.122 1999/05/14 17:30:54
+    3c589_cs.c 1.123 1999/05/25 05:20:02
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -93,6 +93,7 @@ enum RxFilter {
 #define WN0_IRQ		0x08	/* Window 0: Set IRQ line in bits 12-15. */
 #define WN4_MEDIA	0x0A	/* Window 4: Various transcvr/media bits. */
 #define MEDIA_TP	0x00C0	/* Enable link beat and jabber for 10baseT. */
+#define MEDIA_LED	0x0001	/* Enable link light on 3C589E cards. */
 
 /* Time in jiffies before concluding Tx hung */
 #define TX_TIMEOUT	((400*HZ)/1000)
@@ -114,7 +115,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.122 1999/05/14 17:30:54 (David Hinds)";
+"3c589_cs.c 1.123 1999/05/25 05:20:02 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -599,7 +600,7 @@ static void tc589_set_xcvr(struct device *dev, int if_port)
     outw((if_port == 2) ? StartCoax : StopCoax, ioaddr + EL3_CMD);
     /* 10baseT interface, enable link beat and jabber check. */
     EL3WINDOW(4);
-    outw((if_port < 2) ? MEDIA_TP : 0, ioaddr + WN4_MEDIA);
+    outw(MEDIA_LED | ((if_port < 2) ? MEDIA_TP : 0), ioaddr + WN4_MEDIA);
     EL3WINDOW(1);
     lp->media_status = (if_port < 2) ? 0x8800 : 0x4800;
     lp->last_irq = jiffies;
@@ -1121,7 +1122,7 @@ static int el3_close(struct device *dev)
 	else if (dev->if_port == 1) {
 	    /* Disable link beat and jabber */
 	    EL3WINDOW(4);
-	    outw(inw(ioaddr + WN4_MEDIA) & ~MEDIA_TP, ioaddr + WN4_MEDIA);
+	    outw(0, ioaddr + WN4_MEDIA);
 	}
 	
 	/* Switching back to window 0 disables the IRQ. */

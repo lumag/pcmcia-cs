@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.47 1999/04/14 05:52:07
+    cardbus.c 1.48 1999/05/27 06:19:47
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -84,7 +84,7 @@ static int pc_debug = PCMCIA_DEBUG;
 #define PCDATA_INDICATOR	0x0015
 
 #ifdef __LINUX__
-#if (LINUX_VERSION_CODE >= VERSION(2,1,90))
+#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
 #define NEW_LINUX_PCI
 #endif
 #endif
@@ -304,11 +304,8 @@ int cb_config(socket_info_t *s)
     s->cb_config = c;
 
 #ifdef NEW_LINUX_PCI
-    s->pci_bus = kmalloc(sizeof(struct pci_bus), GFP_KERNEL);
-    memset(s->pci_bus, 0, sizeof(struct pci_bus));
-    s->pci_bus->number = bus;
     for (i = 0; i < fn; i++) {
-	c[i].dev.bus = s->pci_bus;
+	c[i].dev.bus = s->cap.cb_bus;
 	if (i < fn-1) {
 	    c[i].dev.sibling = c[i].dev.next = &c[i+1].dev;
 	}
@@ -319,6 +316,7 @@ int cb_config(socket_info_t *s)
 	pci_readb(bus, i, PCI_HEADER_TYPE, &j);
 	c[i].dev.hdr_type = j;	
     }
+    s->cap.cb_bus->devices = &c[0].dev;
 #endif
     
     /* Determine IO and memory space needs */
@@ -475,10 +473,6 @@ void cb_release(socket_info_t *s)
 #endif
     kfree(s->cb_config);
     s->cb_config = NULL;
-#ifdef NEW_LINUX_PCI
-    kfree(s->pci_bus);
-    s->pci_bus = NULL;
-#endif
 }
 
 /*=====================================================================
@@ -561,9 +555,7 @@ void cb_enable(socket_info_t *s)
     /* Link into PCI device chain */
     c[s->functions-1].dev.next = pci_devices;
     pci_devices = &c[0].dev;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
-    /* pci_proc_attach_device(&c[0].dev); */
-#endif
+    pci_proc_attach_device(&c[0].dev);
 #endif
 }
 
@@ -585,14 +577,13 @@ void cb_disable(socket_info_t *s)
     cb_config_t *c = s->cb_config;
     
     /* Unlink from PCI device chain */
-#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
-    /* pci_proc_detach_device(&c[0].dev); */
-#endif
+    pci_proc_detach_device(&c[0].dev);
     for (p = &pci_devices; *p; p = &((*p)->next))
 	if (*p == &c[0].dev) break;
     for (q = *p; q; q = q->next)
 	if (q->bus != (*p)->bus) break;
     if (*p) *p = q;
+    s->cap.cb_bus->devices = NULL;
 #endif
     
     DEBUG(0, ("cs: cb_disable(bus %d)\n", s->cap.cardbus));

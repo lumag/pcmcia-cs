@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.101 1999/05/05 16:17:03
+# Configure $Revision: 1.102 $ $Date: 1999/05/20 03:43:30 $
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -351,6 +351,7 @@ case $CONF_SRC in
 	symcheck scsi_register CONFIG_SCSI
 	modcheck scsi_mod CONFIG_SCSI
 	modcheck serial CONFIG_SERIAL
+	modcheck parport CONFIG_PARPORT
 	symcheck register_netdev CONFIG_INET
 	if [ -r /proc/net/wireless ] ; then
 	    CONFIG_NET_RADIO=y
@@ -490,6 +491,11 @@ if [ $VERSION_CODE -ge `version 2 1 31` -a \
     echo "Kernel versions 2.1.31-33 are broken.  Upgrade to 2.1.34."
     fail
 fi
+if [ $VERSION_CODE -ge `version 2 1 90` -a \
+     $VERSION_CODE -le `version 2 1 102` ] ; then
+    echo "Kernel versions 2.1.90-2.1.102 are broken.  Upgrade to 2.2."
+    fail
+fi
 if [ "$CONFIG_CARDBUS" = "y" -a \
      $VERSION_CODE -ge `version 2 1 90` ] ; then
     if [ $VERSION_CODE -lt `version 2 1 125` -o \
@@ -519,6 +525,10 @@ write_bool HAS_PROC_BUS
 if [ $VERSION_CODE -ge `version 2 1 7` -o \
      "$CONFIG_BLK_DEV_IDE_PCMCIA" = "y" ] ; then
     echo "DO_IDE=y" >> $CONFIG_MK
+fi
+
+if [ $VERSION_CODE -ge `version 2 2 0` ] ; then
+    echo "DO_PARPORT=y" >> $CONFIG_MK
 fi
 
 if [ "$CONFIG_NET_RADIO" = "y" -a \
@@ -655,7 +665,7 @@ if [ -r /usr/include/X11/Xlib.h -o \
     for f in /usr/{X11/,X11R6/,local/,}lib/libforms.{so,a} ; do
 	if [ -r $f ] ; then break ; fi
     done
-    for g in /usr/{include,X11R6/include}/forms.h ; do
+    for g in /usr/{X11/,X11R6/,local,}include/forms.h ; do
 	if [ -r $g ] ; then break ; fi
     done
     if [ -r $f -a -r $g ] ; then

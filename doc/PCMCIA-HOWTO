@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.32, 15 May 1999
+  v2.33, 28 May 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -116,18 +116,20 @@
      4.4 PCMCIA serial and modem devices
         4.4.1 Serial device parameters
         4.4.2 Diagnosing problems with serial devices
-     4.5 PCMCIA SCSI adapters
-        4.5.1 SCSI device parameters
-        4.5.2 Comments about specific cards
-        4.5.3 Diagnosing problems with SCSI adapters
-     4.6 PCMCIA memory cards
-        4.6.1 Memory device parameters
-        4.6.2 Using flash memory cards
-     4.7 PCMCIA ATA/IDE card drives
-        4.7.1 ATA/IDE fixed-disk device parameters
-        4.7.2 Diagnosing problems with ATA/IDE adapters
-     4.8 Multifunction cards
-
+     4.5 PCMCIA parallel port devices
+        4.5.1 Parallel device parameters
+        4.5.2 Diagnosing problems with parallel port devices
+     4.6 PCMCIA SCSI adapters
+        4.6.1 SCSI device parameters
+        4.6.2 Comments about specific cards
+        4.6.3 Diagnosing problems with SCSI adapters
+     4.7 PCMCIA memory cards
+        4.7.1 Memory device parameters
+        4.7.2 Using flash memory cards
+     4.8 PCMCIA ATA/IDE card drives
+        4.8.1 ATA/IDE fixed-disk device parameters
+        4.8.2 Diagnosing problems with ATA/IDE adapters
+     4.9 Multifunction cards
   5. Advanced topics
 
      5.1 Resource allocation for PCMCIA devices
@@ -194,8 +196,6 @@
   of such usage.  If you intend to incorporate this document in a
   published work, please contact me to make sure you have the latest
   available version.
-
-
   This document is provided ``AS IS'', with no express or implied
   warranties.  Use the information in this document at your own risk.
 
@@ -250,9 +250,9 @@
   +o  SMC 34C90
 
   +o  Texas Instruments PCI1130, PCI1131, PCI1210, PCI1220, PCI1221,
-     PCI1250A, PCI1251A, PCI1251B, PCI1450
+     PCI1225, PCI1250A, PCI1251A, PCI1251B, PCI1450
 
-  +o  Toshiba ToPIC95, ToPIC97 (experimental)
+  +o  Toshiba ToPIC95, ToPIC97 (experimental, incomplete)
 
   +o  Vadem VG465, VG468, VG469
 
@@ -276,7 +276,7 @@
   ToPIC97 chipsets, however the information is somewhat sparse.  Work
   has been hindered by the fact that much of the documentation
   apparently exists only in Japanese.  Full support for these chipsets
-  is still experimental.
+  is still experimental, and there are still some serious bugs.
 
   The Motorola 6AHC05GA controller used in some Hyundai laptops is not
   supported.  The custom host controller in the HP Omnibook 600 is also
@@ -1892,7 +1892,99 @@
      serial module should be loaded before serial_cs.
 
 
-  44..55..  PPCCMMCCIIAA SSCCSSII aaddaapptteerrss
+  44..55..  PPCCMMCCIIAA ppaarraalllleell ppoorrtt ddeevviicceess
+
+  The Linux parallel port driver is layered so that several high-level
+  device types can share use of the same low level port driver.  Printer
+  devices are accessed via the /dev/lp* special device files.  The
+  configuration of a printer device can be examined and modified with
+  the tunelp command.
+
+  The device address passed to parport.opts has three comma-separated
+  fields: the first is the scheme, the second is the socket number, and
+  the third is the device instance.  The device instance may take
+  several values for cards that support multiple parallel ports, but for
+  single-port cards, it will always be 0.  If you commonly use more than
+  one such card, you may want to specify different settings based on
+  socket position, as in:
+
+
+
+
+
+  case "$ADDRESS" in
+  *,0,*)
+      # Options for card in socket 0
+      LINK=/dev/printer0
+      ;;
+  *,1,*)
+      # Options for card in socket 1
+      LINK=/dev/printer1
+      ;;
+  esac
+
+
+
+
+  If you configure your kernel to load the basic Linux parallel port
+  driver as a module, you must edit /etc/pcmcia/config to indicate that
+  the appropriate modules must be loaded.  Edit the parallel device
+  entry to read:
+
+
+
+       device "parport_cs"
+         class "parport" module "misc/parport", "misc/parport_pc", "parport_cs"
+
+
+
+
+
+  44..55..11..  PPaarraalllleell ddeevviiccee ppaarraammeetteerrss
+
+  The following parameters can be defined in parport.opts:
+
+     LINK
+        Specifies a path for a symbolic link to be created to the
+        printer port.
+
+     LP_OPTS
+        Specifies options to be passed to the tunelp command.
+
+  For example:
+
+
+
+       case "$ADDRESS" in
+       *,*,*,*)
+           LINK="/dev/printer"
+           LP_OPTS=""
+
+
+
+
+
+  44..55..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh ppaarraalllleell ppoorrtt ddeevviicceess
+
+
+
+  +o  Is there an interrupt conflict?  If the system log looks good, but
+     the port just doesn't seem to work, try using tunelp to change the
+     irq to 0, and see if things improve.  This switches the driver to
+     polling mode.  If this seems to fix the problem, it is likely that
+     some other device in your system is using the interrupt selected by
+     parport_cs.  You should add a line to /etc/pcmcia/config.opts to
+     exclude this interrupt.
+
+  +o  If you get kernel messages indicating that the parport_cs module
+     cannot be loaded, it means that your kernel does not have parallel
+     device support.  If you have compiled the parallel driver as a
+     module, you may need to modify /etc/pcmcia/config to indicate that
+     the parport and parport_pc modules should be loaded before
+     parport_cs.
+
+
+  44..66..  PPCCMMCCIIAA SSCCSSII aaddaapptteerrss
 
   All the currently supported PCMCIA SCSI cards are work-alikes of one
   of the following ISA bus cards: the Qlogic, the Adaptec AHA-152X, or
@@ -1978,7 +2070,9 @@
   the APS SCSI Sentry 2, which has an external power supply.  When
   configuring your SCSI device chain, be aware of whether or not any of
   your devices require or can provide termination power.
-  44..55..11..  SSCCSSII ddeevviiccee ppaarraammeetteerrss
+
+
+  44..66..11..  SSCCSSII ddeevviiccee ppaarraammeetteerrss
 
   The following parameters can be defined in scsi.opts:
 
@@ -2003,42 +2097,55 @@
 
 
 
-       case "$ADDRESS" in
-       *,sd,*,0,3,0)
-           # This device has two partitions...
-           PARTS="1 2"
-           ;;
-       *,sd,*,0,3,0,1)
-           # Options for partition 1:
-           #  update /etc/fstab, and mount an ext2 fs on /usr1
-           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="ext2"
-           OPTS=""
-           MOUNTPT="/usr1"
-           ;;
-       *,sd,*,0,3,0,2)
-           # Options for partition 2:
-           #  update /etc/fstab, and mount an MS-DOS fs on /usr2
-           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="msdos"
-           OPTS=""
-           MOUNTPT="/usr2"
-           ;;
-       *,sr,*,0,6,0)
-           # Options for CD-ROM at SCSI ID 6
-           PARTS=""
-           DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
-           FSTYPE="iso9660"
-           OPTS="ro"
-           MOUNTPT="/cdrom"
-           ;;
-       esac
 
 
 
 
 
-  44..55..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
+
+
+
+
+
+
+
+
+  case "$ADDRESS" in
+  *,sd,*,0,3,0)
+      # This device has two partitions...
+      PARTS="1 2"
+      ;;
+  *,sd,*,0,3,0,1)
+      # Options for partition 1:
+      #  update /etc/fstab, and mount an ext2 fs on /usr1
+      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="ext2"
+      OPTS=""
+      MOUNTPT="/usr1"
+      ;;
+  *,sd,*,0,3,0,2)
+      # Options for partition 2:
+      #  update /etc/fstab, and mount an MS-DOS fs on /usr2
+      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="msdos"
+      OPTS=""
+      MOUNTPT="/usr2"
+      ;;
+  *,sr,*,0,6,0)
+      # Options for CD-ROM at SCSI ID 6
+      PARTS=""
+      DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
+      FSTYPE="iso9660"
+      OPTS="ro"
+      MOUNTPT="/cdrom"
+      ;;
+  esac
+
+
+
+
+
+  44..66..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
 
 
 
@@ -2060,7 +2167,7 @@
      may exist and may not be documented.
 
 
-  44..55..33..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh SSCCSSII aaddaapptteerrss
+  44..66..33..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh SSCCSSII aaddaapptteerrss
 
 
   +o  With the aha152x_cs driver (used by Adaptec, New Media, and a few
@@ -2069,7 +2176,7 @@
      ``feature,'' add the following to /etc/pcmcia/config.opts:
 
 
-       module "aha152x_cs" opts "reconnect=0"
+  module "aha152x_cs" opts "reconnect=0"
 
 
 
@@ -2103,7 +2210,7 @@
      will be ignored.
 
 
-  44..66..  PPCCMMCCIIAA mmeemmoorryy ccaarrddss
+  44..77..  PPCCMMCCIIAA mmeemmoorryy ccaarrddss
 
   The memory_cs driver handles all types of memory cards, as well as
   providing direct access to the PCMCIA memory address space for cards
@@ -2133,7 +2240,9 @@
   as dd or mkfs.
 
 
-  44..66..11..  MMeemmoorryy ddeevviiccee ppaarraammeetteerrss
+
+
+  44..77..11..  MMeemmoorryy ddeevviiccee ppaarraammeetteerrss
 
 
   The following parameters can be specified in memory.opts:
@@ -2176,7 +2285,10 @@
        esac
 
 
-  44..66..22..  UUssiinngg ffllaasshh mmeemmoorryy ccaarrddss
+
+
+
+  44..77..22..  UUssiinngg ffllaasshh mmeemmoorryy ccaarrddss
 
   The device address passed to ftl.opts consists of three or four
   fields: the scheme, the socket number, the region number, and
@@ -2193,7 +2305,6 @@
 
 
        ftl_format -i /dev/mem0c0c
-
 
 
 
@@ -2231,7 +2342,7 @@
   skip the first block when creating an FTL partition.
 
 
-  44..77..  PPCCMMCCIIAA AATTAA//IIDDEE ccaarrdd ddrriivveess
+  44..88..  PPCCMMCCIIAA AATTAA//IIDDEE ccaarrdd ddrriivveess
 
   ATA/IDE drive support is based on the regular kernel IDE driver.  The
   PCMCIA-specific part of the driver is ide_cs.  Be sure to use cardctl
@@ -2247,7 +2358,7 @@
   called for each partition.
 
 
-  44..77..11..  AATTAA//IIDDEE ffiixxeedd--ddiisskk ddeevviiccee ppaarraammeetteerrss
+  44..88..11..  AATTAA//IIDDEE ffiixxeedd--ddiisskk ddeevviiccee ppaarraammeetteerrss
 
 
   The following parameters can be specified in ide.opts:
@@ -2290,7 +2401,7 @@
 
 
 
-  44..77..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh AATTAA//IIDDEE aaddaapptteerrss
+  44..88..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh AATTAA//IIDDEE aaddaapptteerrss
 
 
   +o  Some IDE drives violate the PCMCIA specification by requiring a
@@ -2311,7 +2422,7 @@
      compile a custom kernel.
 
 
-  44..88..  MMuullttiiffuunnccttiioonn ccaarrddss
+  44..99..  MMuullttiiffuunnccttiioonn ccaarrddss
 
   A single interrupt can be shared by several drivers, such as the
   serial driver and an ethernet driver: in fact, the PCMCIA
@@ -2460,6 +2571,7 @@
   value for SCHEME (or any other PCMCIA startup option) at the boot
   prompt will be propagated into the PCMCIA startup script.
 
+
   To save even more keystrokes, schemes can be specified in lilo's
   configuration file.  For instance, you could have:
 
@@ -2572,6 +2684,7 @@
   installed under /etc in the image, and can also be customized.  See
   the man page for pcinitrd for more information.
 
+
   55..33..22..  CCrreeaattiinngg aann iinniittrrdd bboooott ffllooppppyy
 
 
@@ -2589,8 +2702,6 @@
        cp [kernel-image] /mnt/vmlinuz
        cp /boot/boot.b /mnt/boot/boot.b
        gzip < [initrd-image] > /mnt/initrd
-
-
 
 
   Create /mnt/etc/lilo.conf with the contents:
@@ -2637,8 +2748,7 @@
 
 
 
-
-  LOADLIN <kernel> initrd=<initrd-image>
+       LOADLIN <kernel> initrd=<initrd-image>
 
 
 
@@ -2655,6 +2765,7 @@
        mkdir /mnt/linux
        cp [kernel-image] /mnt/linux/vmlinuz
        cp [initrd-image] /mnt/linux/initrd
+
 
 
 
@@ -2702,8 +2813,6 @@
   root= options.
 
 
-
-
   66..  DDeeaalliinngg wwiitthh uunnssuuppppoorrtteedd ccaarrddss
 
 
@@ -2725,9 +2834,11 @@
 
 
 
-       cardmgr[460]: unsupported card in socket 1
-       cardmgr[460]: product info: "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
-       cardmgr[460]: manfid: 0x0101, 0x1234  function: 2 (serial)
+
+
+  cardmgr[460]: unsupported card in socket 1
+  cardmgr[460]: product info: "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
+  cardmgr[460]: manfid: 0x0101, 0x1234  function: 2 (serial)
 
 
 
@@ -2922,6 +3033,7 @@
   posted to my web site, so that they can be seen by others.
 
 
+
   77..22..  IInntteerrpprreettiinngg kkeerrnneell ttrraapp rreeppoorrttss
 
   If your problem involves a kernel fault, the register dump from the
@@ -2968,6 +3080,7 @@
 
 
 
+
   So, 0xc2026081 is in the 3c574_cs module, and is at an offset of
   0x0081 from the start of the module.  We cannot look up this offset in
   3c574_cs.o yet: when the kernel loads a module, it inserts a header at
@@ -2986,10 +3099,11 @@
 
 
 
-       0000002c d if_names
-       0000002c t tc574_attach
-       00000040 d mii_preamble_required
-       00000041 d dev_info
+
+  0000002c d if_names
+  0000002c t tc574_attach
+  00000040 d mii_preamble_required
+  00000041 d dev_info
 
 
 
@@ -3099,7 +3213,6 @@
   hyper.stanford.edu in /pub/pcmcia/doc, or on the web at
   <http://hyper.stanford.edu/HyperNews/get/pcmcia/home.html>.
 
-
   For devices that are close relatives of normal ISA devices, you will
   probably be able to use parts of existing Linux drivers.  In some
   cases, the biggest stumbling block will be modifying an existing
@@ -3118,7 +3231,6 @@
   I have written a dummy driver with lots of comments that explains a
   lot of how a driver communicates with Card Services; you will find
   this in the PCMCIA source distribution in clients/dummy_cs.c.
-
 
   77..66..  GGuuiiddeelliinneess ffoorr PPCCMMCCIIAA cclliieenntt ddrriivveerr aauutthhoorrss
 
@@ -3165,7 +3277,6 @@
 
 
 
-
   This makefile uses install targets defined in 2.9.10 and later
   versions of the PCMCIA package.  This makefile also includes a
   ``dist'' target for the convenience of the driver author.  You would
@@ -3182,6 +3293,7 @@
        etc/sample
        etc/sample.opts
        man/sample_cs.4
+
 
 
 
@@ -3231,52 +3343,6 @@
   previous section.  The split between integral and separate drivers is
   somewhat arbitrary and partly historical, and should not imply a
   difference in quality.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

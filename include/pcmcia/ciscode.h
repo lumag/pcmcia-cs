@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.32 1999/02/26 07:20:21
+ * ciscode.h 1.33 1999/05/18 05:47:49
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -79,6 +79,7 @@
 #define MANFID_PSION			0x016c
 
 #define MANFID_QUATECH			0x0137
+#define PRODID_QUATECH_SPP100		0x0003
 #define PRODID_QUATECH_DUAL_RS232	0x0012
 #define PRODID_QUATECH_DUAL_RS232_D1	0x0007
 #define PRODID_QUATECH_QUAD_RS232	0x001b

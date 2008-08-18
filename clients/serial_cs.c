@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.103 1999/02/13 06:47:03
+    serial_cs.c 1.104 1999/05/28 02:50:45
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -48,7 +48,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.103 1999/02/13 06:47:03 (David Hinds)";
+"serial_cs.c 1.104 1999/05/28 02:50:45 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -302,6 +302,7 @@ static int simple_config(dev_link_t *link)
 	if (info->slave)
 	    return setup_serial(info, port, config.AssignedIRQ);
     }
+    link->conf.Vcc = config.Vcc;
     
     /* First pass: look for a config entry that looks normal. */
     tuple.TupleData = (cisdata_t *)buf;

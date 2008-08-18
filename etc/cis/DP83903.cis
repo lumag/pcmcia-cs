@@ -13,6 +13,7 @@ mfc {
     Vcc Vnom 5V
     irq mask 0xffff [level]
     io  0x0000-0x001f [8bit] [16bit]
+    memory 0x0000-0x3fff @ 0x0000
 }, {
   funcid serial_port
   config base 0x1040 mask 0x0277 last_index 0x07

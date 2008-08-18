@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.99 1999/03/05 18:14:39
+# Makefile 1.101 1999/05/28 06:07:25
 #
 
 # Include site dependent options and kernel configuration
@@ -68,6 +68,11 @@ endif
 ifdef DO_IDE
 MODULES := ${MODULES} ide_cs.o
 SRCS := ${SRCS} ide_cs.c
+endif
+
+ifdef DO_PARPORT
+MODULES := ${MODULES} parport_cs.o
+SRCS := ${SRCS} parport_cs.c
 endif
 
 SCSI=$(LINUX)/drivers/scsi

@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/05/15 08:12:10
+		Last updated: 1999/05/28 06:02:06
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -18,7 +18,8 @@ then you should not expect it to work.
 Ethernet cards:
 
 	[3c589_cs driver]
-	3Com 3c589, 3c589B, 3c589C, 3c589D, 3CCE589E, 3CXE589D
+	3Com 3c589, 3c589B, 3c589C, 3c589D
+	3Com Megahertz 3CCE589E, 3CXE589D, 3CXE589EC
 	Farallon EtherWave, EtherMac
 
 	[fmvj18x_cs driver]
@@ -41,7 +42,7 @@ Ethernet cards:
 	Accton SOHO BASIC EN220
 	Addtron Ethernet
 	AIBrain EPCM-T
-	Allied Telesis CentreCOM CE6001, LA-PCM
+	Allied Telesis CentreCOM CE6001, LA-PCM, LA-PCM V2
 	AmbiCom AMB8002
 	AnyCom ECO Ethernet
 	Apollo RE450CT
@@ -137,7 +138,7 @@ Ethernet cards:
 
 Fast Ethernet (10/100baseT) adapters:
 
-	[3c574_cs driver: driver is buggy]
+	[3c574_cs driver: has performance problems]
 	3Com 3c574TX, 3CCFE574BT
 
 	[pcnet_cs driver]
@@ -153,6 +154,7 @@ Fast Ethernet (10/100baseT) adapters:
 	IO DATA PCET/TX
 	KTI KF-C16
 	Level One EPC-0100TB
+	Laneed LD-10/100CD
 	Linksys EtherFast 10/100
 	Logitec LPM-LN100TX
 	Melco LPC2-TX
@@ -161,6 +163,10 @@ Fast Ethernet (10/100baseT) adapters:
 	NetGear FA410TXC
 	Planet FNW-3600T
 
+	[smc91c92_cs driver]
+	Argosy EN220
+	Melco/SMC LPC-TX
+	
 	[xirc2ps_cs driver]
 	Accton Fast EtherCard-16
 	Compaq Netelligent 10/100
@@ -169,7 +175,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Xircom CreditCard CE3 [ beware: new cards may not work ]
 
 	[3c575_cb driver: experimental!]
-	3Com 3c575TX, 3CCFE575B, 3CXFE575B CardBus
+	3Com 3c575TX, 3CCFE575BT, 3CXFE575BT CardBus
 
 	[epic_cb driver: requires a 2.2 kernel, experimental!]
 	Ositech Seven of Spades CardBus
@@ -208,6 +214,7 @@ Modem and serial cards:
 	drivers.  ISDN modems that emulate a standard UART are also
 	supported. ]
 
+	[serial_cs driver]
 	Advantech COMpad-32/85 dual serial
 	Argosy dual serial
 	Black Box I114A RS-422/485
@@ -217,6 +224,11 @@ Modem and serial cards:
 	Socket Communications dual RS-232 card
 	Trimble Mobile GPS
 
+Parallel port cards:
+
+	 [parport_cs driver: requires a 2.2 or later kernel]
+	 Quatech SPP-100
+
 Memory cards:
 
 	[ All SRAM cards should work.  Unsupported flash cards can be
@@ -225,6 +237,7 @@ Memory cards:
 	Intel Series 2, Series 2+, and Value Series 100 Flash
 	Maxtor MobileMax 16MB Flash
 	IBM 8MB Flash
+	RATOC SmartMedia Adapter
 	TDK Flash Memory SFM20W/C 20MB
 
 SCSI adapters:
@@ -279,11 +292,11 @@ Multifunction ethernet/modem cards:
 
 	[3c589_cs driver]
 	3Com 3c562, 3c562B/C/D, 3c563B/C/D
-	3Com 3CCEM556, 3CXEM556
+	3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B
 	Motorola Marquis
 
-	[3c574_cs driver: driver is buggy]
-	3Com 3CCFEM556B
+	[3c574_cs driver: has performance problems]
+	3Com Megahertz 3CCFEM556B
 
 	[pcnet_cs driver]
 	Accton UE2218
@@ -432,6 +445,10 @@ cannot test them.
 	  ftp://ftp.rtlinux.org/pub/rtlinux/sources/DAQCard700/
 	  (Oleg Subbotin)
 
+	Proxim RangeLAN2 and Symphony wireless LAN cards
+	  http://www.komacke.com/distribution.html
+	  (Dave Koberstein <davek@komacke.com>)
+	
 	Raylink Wireless Network
 	  http://world.std.com/~corey/raylink.html
 	  (Corey Thomas <corey@world.std.com>)
@@ -483,3 +500,4 @@ help, that their cards are likely to be better supported under Linux.
 	Linksys		[ ethernet and multifunction cards ]
 	Ositech		[ ethernet/modem combo cards ]
 	Sandisk		[ ATA/IDE flash cards ]
+	Quatech		[ parallel port adapters ]

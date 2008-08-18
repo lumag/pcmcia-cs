@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.12 1999/05/02 16:46:09
+    dummy_cs.c 1.13 1999/05/28 02:50:58
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -56,7 +56,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"dummy_cs.c 1.12 1999/05/02 16:46:09 (David Hinds)";
+"dummy_cs.c 1.13 1999/05/28 02:50:58 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -312,6 +312,7 @@ static void dummy_config(dev_link_t *link)
     local_info_t *dev;
     int last_fn, last_ret;
     u_char buf[64];
+    config_info_t conf;
     win_req_t req;
     memreq_t map;
     
@@ -337,6 +338,10 @@ static void dummy_config(dev_link_t *link)
     
     /* Configure card */
     link->state |= DEV_CONFIG;
+
+    /* Look up the current Vcc */
+    CS_CHECK(GetConfigurationInfo, handle, &conf);
+    link->conf.Vcc = conf.Vcc;
 
     /*
       In this loop, we scan the CIS for configuration table entries,
@@ -370,10 +375,13 @@ static void dummy_config(dev_link_t *link)
 	
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM))
-	    link->conf.Vcc = cfg->vcc.param[CISTPL_POWER_VNOM]/10000;
-	else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM))
-	    link->conf.Vcc = dflt.vcc.param[CISTPL_POWER_VNOM]/10000;
+	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
+	    if (conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
+		goto next_entry;
+	} else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
+	    if (conf.Vcc != dflt.vcc.param[CISTPL_POWER_VNOM]/10000)
+		goto next_entry;
+	}
 	    
 	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
 	    link->conf.Vpp1 = link->conf.Vpp2 =

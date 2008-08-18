@@ -11,7 +11,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.91 1999/05/14 17:30:54
+    pcnet_cs.c 1.92 1999/05/21 15:11:33
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.91 1999/05/14 17:30:54 (David Hinds)";
+"pcnet_cs.c 1.92 1999/05/21 15:11:33 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -101,6 +101,9 @@ static int delay_output = 0;
 /* Length of delay, in microseconds */
 static int delay_time = 4;
 
+/* Use shared memory, if available? */
+static int use_shmem = -1;
+
 /* Ugh!  Let the user hardwire the hardware address for queer cards */
 static int hw_addr[6] = { 0, /* ... */ };
 
@@ -111,6 +114,7 @@ MODULE_PARM(use_big_buf, "i");
 MODULE_PARM(mem_speed, "i");
 MODULE_PARM(delay_output, "i");
 MODULE_PARM(delay_time, "i");
+MODULE_PARM(use_shmem, "i");
 MODULE_PARM(hw_addr, "6i");
 
 /*====================================================================*/
@@ -589,7 +593,7 @@ static void pcnet_config(dev_link_t *link)
     pcnet_dev_t *info;
     struct device *dev;
     int i, last_ret, last_fn, start_pg, stop_pg, cm_offset;
-    int manfid = 0, prodid = 0;
+    int manfid = 0, prodid = 0, has_shmem = 0;
     u_short buf[64];
     hw_info_t *hw_info;
 
@@ -643,6 +647,8 @@ static void pcnet_config(dev_link_t *link)
 	} else {
 	    i = link->io.NumPorts2 = 0;
 	}
+	has_shmem = ((cfg->mem.nwin == 1) &&
+		     (cfg->mem.win[0].len >= 0x4000));
 	link->io.BasePort1 = io->win[i].base;
 	link->io.NumPorts1 = io->win[i].len;
 	if (link->io.NumPorts1 + link->io.NumPorts2 >= 32) {
@@ -711,7 +717,9 @@ static void pcnet_config(dev_link_t *link)
 	cm_offset = 0;
     }
 
-    if (setup_shmem_window(link, start_pg, stop_pg, cm_offset) != 0)
+    /* has_shmem is ignored if use_shmem != -1 */
+    if ((use_shmem == 0) || (!has_shmem && (use_shmem == -1)) ||
+	(setup_shmem_window(link, start_pg, stop_pg, cm_offset) != 0))
 	setup_dma_config(link, start_pg, stop_pg);
 
     ei_status.name = "NE2000";
@@ -1280,10 +1288,10 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
     /* Try scribbling on the buffer */
     info->base = ioremap(req.Base, window_size);
     for (i = 0; i < (TX_PAGES<<8); i += 2)
-	writew_ns(i, info->base+offset+i);
+	writew_ns((i>>1), info->base+offset+i);
     udelay(100);
     for (i = 0; i < (TX_PAGES<<8); i += 2)
-	if (readw_ns(info->base+offset+i) != i) break;
+	if (readw_ns(info->base+offset+i) != (i>>1)) break;
     pcnet_reset_8390(dev);
     if (i != (TX_PAGES<<8)) {
 	iounmap(info->base);

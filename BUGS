@@ -1,10 +1,10 @@
-Known problems with the 3.0.10 PCMCIA release
+Known problems with the 3.0.11 PCMCIA release
 =============================================
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
-  on some systems, but not on others, due to PCI BIOS bugs.  Also, it
-  is harder to diagnose problems, because /proc/bus/pccard is not
-  available with these kernels.
+  on some systems, but not on others, due to PCI BIOS limitations.
+  Also, it is harder to diagnose problems, because /proc/bus/pccard is
+  not available with these kernels.
 
 o The token ring driver tweaks a problem in the memory management
   code.  To work around the problem, remove all high memory windows
@@ -17,13 +17,12 @@ o Megahertz EM3288 cards drop interrupts if the modem and ethernet are
   Prognosis: Unlikely to be fixed, since these cards are old and we
   are unlikely to ever get more complete tech info.
 
-o The 3c574_cs driver is unstable.  Sometimes it works, sometimes
-  cards do not respond at all.  This also affects the network side of
-  3CCFEM556B cards.
-  
-  Prognosis: 3Com seems to want to help, but has been slow to come
-  through.  I expect it to be fixed eventually, but I've been saying
-  that for more than a year now.
+o The 3c574_cs driver has performance problems, particularly with
+  100baseT.  The use_memory_ops and use_fifo_buffer performance
+  options are broken.
+
+  Prognosis: 3Com says that the read fifo buffer hardware is broken.
+  I'll try fiddling with some of the other stuff.
 
 o None of the CardBus drivers or SCSI drivers implement suspend/resume
   handling.
@@ -59,4 +58,14 @@ o Interrupt routing on O2Micro CardBus bridges seems to have problems.
 
 o Newer Ositech Jack of Diamonds cards don't work.
 
+  Prognosis: It would be helpful for someone with a not-working card
+  to send me the output of "dump_cis".
+  
 o Newer Xircom CE3 cards appear to not work.
+
+o The 2.2.* serial driver has a bug that interferes with interrupt
+  sharing for multifunction cards.  The effect is that opening a
+  serial port on a multifunction card fails, giving an IO error.
+
+  The bug can be fixed by editing linux/drivers/char/serial.c and
+  changing each use of IRQ_T(info) to IRQ_T(state).

@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.42 1999/05/01 04:11:33
+    ftl_cs.c 1.43 1999/05/28 02:51:45
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -20,7 +20,21 @@
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
     are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
-    
+
+    LEGAL NOTE: The FTL format is patented by M-Systems.  They have
+    granted a license for its use with PCMCIA devices:
+
+     "M-Systems grants a royalty-free, non-exclusive license under
+      any presently existing M-Systems intellectual property rights
+      necessary for the design and development of FTL-compatible
+      drivers, file systems and utilities using the data formats with
+      PCMCIA PC Cards as described in the PCMCIA Flash Translation
+      Layer (FTL) Specification."
+
+    Use of the FTL format for non-PCMCIA applications may be an
+    infringement of these patents.  For additional information,
+    contact M-Systems (http://www.m-sys.com) directly.
+      
 ======================================================================*/
 
 #include <pcmcia/config.h>
@@ -88,7 +102,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.42 1999/05/01 04:11:33 (David Hinds)";
+"ftl_cs.c 1.43 1999/05/28 02:51:45 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -164,7 +178,7 @@ typedef struct partition_t {
 typedef struct ftl_dev_t {
     eraseq_handle_t	eraseq_handle;
     eraseq_entry_t	eraseq[MAX_ERASE];
-    wait_queue_head_t	erase_pending;
+    struct wait_queue	*erase_pending;
     partition_t		minor[CISTPL_MAX_DEVICES];
 } ftl_dev_t;
 
@@ -175,7 +189,7 @@ static struct hd_struct ftl_hd[MINOR_NR(MAX_DEV, 0, 0)];
 static int ftl_sizes[MINOR_NR(MAX_DEV, 0, 0)];
 static int ftl_blocksizes[MINOR_NR(MAX_DEV, 0, 0)];
 
-static wait_queue_head_t ftl_wait_open;
+static struct wait_queue *ftl_wait_open = NULL;
 
 static struct gendisk ftl_gendisk = {
     0,			/* Major device number */
@@ -259,7 +273,7 @@ static dev_link_t *ftl_attach(void)
     
     dev = kmalloc(sizeof(struct ftl_dev_t), GFP_KERNEL);
     memset(dev, 0, sizeof(ftl_dev_t));
-    init_waitqueue_head(&dev->erase_pending);
+    init_waitqueue(&dev->erase_pending);
     link->priv = dev;
 
     /* Register with Card Services */
@@ -1518,7 +1532,7 @@ int init_module(void)
     blk_dev[major_dev].request_fn = DEVICE_REQUEST;
     ftl_gendisk.next = gendisk_head;
     gendisk_head = &ftl_gendisk;
-    init_waitqueue_head(&ftl_wait_open);
+    init_waitqueue(&ftl_wait_open);
     
     return 0;
 }

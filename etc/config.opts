@@ -19,10 +19,13 @@ exclude irq 4
 # First built-in parallel port
 exclude irq 7
 #
-# Options for loadable modules
+# Examples of options for loadable modules
 #
 # To fix sluggish network with IBM ethernet adapter...
 #module "pcnet_cs" opts "mem_speed=600"
 #
 # Options for Xircom Netwave driver...
 #module "netwave_cs" opts "domain=0x100 scramble_key=0x0"
+#
+# Options for IBM Token Ring adapters
+#module "ibmtr_cs" opts "mmiobase=0xd0000 srambase=0xd4000"

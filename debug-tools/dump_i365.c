@@ -2,7 +2,7 @@
 
     Register dump for the Intel 82365SL controller family
 
-    dump_i365.c 1.21 1998/07/26 23:10:48
+    dump_i365.c 1.22 1999/05/27 06:30:30
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -41,8 +41,8 @@ typedef unsigned short u_short;
 #include <asm/io.h>
 #endif
 #include <unistd.h>
-#define INB(a) inb_p(a)
-#define OUTB(d, a) outb_p(d, a)
+#define INB(a) inb(a)
+#define OUTB(d, a) outb(d, a)
 
 #endif /* __MSDOS__ */
 
@@ -587,7 +587,7 @@ void dump_sock(int s)
 
 /*====================================================================*/
 
-void main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     int sock, i;
     
@@ -596,4 +596,5 @@ void main(int argc, char *argv[])
 	printf("Socket %d:\n", i);
 	dump_sock(i);
     }
+    return 0;
 }

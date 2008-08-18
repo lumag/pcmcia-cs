@@ -1,5 +1,5 @@
 /*
- * ss.h 1.20 1999/04/08 06:04:16
+ * ss.h 1.21 1999/05/27 05:27:28
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -48,6 +48,7 @@ typedef struct socket_cap_t {
     u_int	map_size;
     u_char	pci_irq;
     u_char	cardbus;
+    struct pci_bus *cb_bus;
     struct bus_operations *bus;
 } socket_cap_t;
 

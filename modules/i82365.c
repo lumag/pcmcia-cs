@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.236 1999/05/14 17:36:21
+    i82365.c 1.237 1999/05/27 06:19:47
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -72,7 +72,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static const char *version =
-"i82365.c 1.236 1999/05/14 17:36:21 (David Hinds)";
+"i82365.c 1.237 1999/05/27 06:19:47 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
@@ -1654,7 +1654,10 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
     socket_info_t *s = &socket[sockets];
     u_short d, ns;
     u_char a, b, max;
-
+#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
+    struct pci_bus *parent, *child;
+#endif
+    
     /* PCI bus enumeration is broken on some systems */
     for (ns = 0; ns < sockets; ns++)
 	if ((socket[ns].bus == bus) && (socket[ns].devfn == devfn))
@@ -1700,16 +1703,36 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
 	    printk(KERN_NOTICE "i82365: ioremap failed: bad kernel!\n");
 	add_socket(0, 0, type);
     }
+    s -= ns;
     if (ns == 2) {
 	/* Nasty special check for bad bus mapping */
-	pci_readb(s[-2].bus, s[-2].devfn, CB_CARDBUS_BUS, &a);
-	pci_readb(s[-1].bus, s[-1].devfn, CB_CARDBUS_BUS, &b);
+	pci_readb(bus, s[0].devfn, CB_CARDBUS_BUS, &a);
+	pci_readb(bus, s[1].devfn, CB_CARDBUS_BUS, &b);
 	if (a == b) {
-	    pci_writeb(s[-2].bus, s[-2].devfn, CB_CARDBUS_BUS, 0);
-	    pci_writeb(s[-1].bus, s[-1].devfn, CB_CARDBUS_BUS, 0);
+	    pci_writeb(bus, s[0].devfn, CB_CARDBUS_BUS, 0);
+	    pci_writeb(bus, s[1].devfn, CB_CARDBUS_BUS, 0);
 	}
     }
     if (ns > 0) add_pcic(ns, type);
+
+    /* Set up PCI bridge structures if needed */
+#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
+    for (parent = &pci_root; parent; parent = parent->next)
+	if (parent->number == bus) break;
+    for (a = 0; a < ns; a++) {
+	for (child = parent->children; child; child = child->next)
+	    if (child->number == s[a].cap.cardbus) break;
+	if (child) continue;
+	child = kmalloc(sizeof(struct pci_bus), GFP_KERNEL);
+	memset(child, 0, sizeof(struct pci_bus));
+	child->primary = bus;
+	child->number = child->secondary = s[a].cap.cardbus;
+	child->subordinate = s[a].sub_bus;
+	child->parent = parent;
+	child->next = parent->children;
+	s[a].cap.cb_bus = parent->children = child;
+    }
+#endif
 }
 
 static void pci_probe(u_int class, void (add_fn)(int, u_char, u_char,

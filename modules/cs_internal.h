@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.35 1999/01/07 03:52:53
+ * cs_internal.h 1.36 1999/05/27 06:19:36
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -53,7 +53,7 @@ typedef struct client_t {
     struct client_t 	*next;
     u_int		mtd_count;
 #ifdef __LINUX__
-    wait_queue_head_t	mtd_req;
+    struct wait_queue	*mtd_req;
 #endif
 #ifdef __BEOS__
     struct wchan	mtd_req;
@@ -149,7 +149,6 @@ typedef struct socket_info_t {
     cb_bridge_map		cb_cis_map;
     u_char			*cb_cis_virt;
     struct cb_config_t		*cb_config;
-    struct pci_bus		*pci_bus;
 #endif
     struct {
 	u_int			AssignedIRQ;

@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.88 1999/05/15 08:11:57 (David Hinds)
+# config 1.89 1999/05/28 06:02:17 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -38,6 +38,9 @@ device "ftl_cs" needs_mtd
 
 device "serial_cs"
   class "serial" module "serial_cs"
+
+device "parport_cs"
+  class "parport" module "parport_cs"
 
 device "qlogic_cs"
   class "scsi" module "qlogic_cs"
@@ -89,7 +92,6 @@ device "epic_cb"
 
 device "serial_cb"
   class "serial" module "cb_enabler", "serial_cb"
-
 #
 # Ethernet adapter definitions
 #
@@ -157,6 +159,10 @@ card "CeLAN Ethernet"
   version "PCMCIA", "ETHERNET V1.0"
   bind "pcnet_cs"
 
+card "CentreCOM LA-PCM V2 Ethernet"
+  version "Allied Telesis, K.K.", "CentreCOM LA-PCM_V2"
+  bind "pcnet_cs"
+
 card "CNet CN30BC Ethernet"
   version "CNet  ", "CN30BC", "ETHERNET"
   bind "pcnet_cs"
@@ -191,6 +197,10 @@ card "Corega PCC-T Ethernet"
 
 card "Corega PCC-T Ethernet"
   version "corega,K.K.", "Ethernet LAN Card"
+  bind "pcnet_cs"
+
+card "Corega PCM-T Ethernet"
+  version "Corega,K.K.", "Ethernet LAN Card"
   bind "pcnet_cs"
 
 card "CyQ've 10baseT Ethernet"
@@ -609,6 +619,10 @@ card "AnyCom ECO 10/100 Fast Ethernet"
   version "AnyCom", "ECO Ethernet 10/100"
   bind "pcnet_cs"
 
+card "Argosy EN220 Fast Ethernet"
+  version "ARGOSY", "Fast Ethernet PCCard"
+  bind "smc91c92_cs"
+
 card "COMPU-SHACK FASTline 10/100 Fast Ethernet"
   version "COMPU-SHACK", "FASTline PCMCIA 10/100 Fast-Ethernet"
   bind "pcnet_cs"
@@ -633,6 +647,10 @@ card "KTI ETHER-C16 Fast ethernet"
   manfid 0x0149, 0x0230
   bind "pcnet_cs"
 
+card "Laneed LD-10/100CD Fast Ethernet"
+  version "Laneed", "LD-10/100CD"
+  bind "pcnet_cs"
+
 card "Linksys EtherFast 10/100 Fast Ethernet"
   version "Linksys", "EtherFast 10/100 PC Card (PCMPC100)"
   bind "pcnet_cs"
@@ -644,7 +662,11 @@ card "Logitec LPM-LN100TX Fast Ethernet"
 card "Melco LPC2-TX Fast Ethernet"
   version "MELCO", "LPC2-TX"
   bind "pcnet_cs"
-  
+
+card "Melco/SMC LPC-TX Fast Ethernet"
+  version "MELCO/SMC", "LPC-TX"
+  bind "smc91c92_cs"
+
 card "Microcom C.E. Travel Card 10/100 Fast Ethernet"
   version "Microcom C.E.", "Travel Card LAN 10/100"
   bind "pcnet_cs"
@@ -861,6 +883,10 @@ card "Franklink/Rolodex REX-3000"
 card "Franklink/Rolodex REX-4100"
   version "Starfish, Inc.", "REX-4100"
   bind "memory_cs"
+
+card "RATOC SmartMedia Adapter"
+  version "RATOC Systems,Inc.", "SmartMedia ADAPTER PC Card"
+  bind "memory_cs", "ftl_cs"
 
 #
 # Memory Technology Drivers
@@ -1123,6 +1149,11 @@ card "Psion Gold Card V34 Ethernet"
   cis "cis/PCMLM28.dat"
   bind "pcnet_cs", "serial_cs"
 
+card "Psion Gold Card V34 Ethernet"
+  version "Psion Dacom", "Gold Card V34 Ethernet GSM"
+  cis "cis/PCMLM28.dat"
+  bind "pcnet_cs", "serial_cs"
+
 card "Psion Gold Card Netglobal 56K+10Mb Ethernet"
   manfid 0x016c, 0x0020
   bind "smc91c92_cs" to 0, "serial_cs" to 1
@@ -1246,9 +1277,9 @@ card "IBM Smart Capture Card"
   version "IBM Corp.", "Video Capture"
   bind "iscc_cs"
 
-#card "Quatech SPP-100 Parallel Port Card"
-#  manfid 0x0137, 0x0003
-#  bind "dummy_cs"
+card "Quatech SPP-100 Parallel Port Card"
+  manfid 0x0137, 0x0003
+  bind "parport_cs"
 
 card "TELES S0/PC ISDN"
   version "TELES", "S0/PC"

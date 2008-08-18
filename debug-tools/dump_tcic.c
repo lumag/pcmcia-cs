@@ -2,7 +2,7 @@
 
     Register dump for the Databook TCIC-2 controller family
 
-    dump_tcic.c 1.16 1998/08/13 09:27:53
+    dump_tcic.c 1.17 1999/05/27 06:30:30
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -98,12 +98,10 @@ int tcic_probe(void)
 	if (tcic_getw(TCIC_ADDR) == 0xc3a5) sock = 2;
     }
     
-    if (sock == 0) {
+    if (sock == 0)
 	printf("not found.\n");
-	return -ENODEV;
-    }
-    
-    printf("%d sockets\n", sock);
+    else
+	printf("%d sockets\n", sock);
     
     return sock;
 } /* tcic_probe */
