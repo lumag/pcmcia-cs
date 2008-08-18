@@ -1,3 +1,6 @@
+[03-Mar-02] Version 3.1.33
+-- Fixed dumb, serious bug in o2micro.h that broke i82365 module.
+
 [02-Mar-02] Version 3.1.32
 -- Added "--extraver" flag to Configure script to override the kernel
    Makefile EXTRAVERSION setting, from Luca Montecchiani.

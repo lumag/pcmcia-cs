@@ -1,5 +1,5 @@
 /*
- * o2micro.h 1.19 2002/02/28 03:58:14
+ * o2micro.h 1.20 2002/03/03 14:16:57
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -144,7 +144,8 @@ typedef struct o2micro_state_t {
 } o2micro_state_t;
 
 #define O2MICRO_PCIC_ID \
-    IS_OZ6729, IS_OZ6730, IS_OZ6832, IS_OZ6836, IS_OZ6812
+    IS_OZ6729, IS_OZ6730, IS_OZ6832, IS_OZ6836, IS_OZ6812,	\
+    IS_OZ6922, IS_OZ6933, IS_OZ6912
 
 #define O2MICRO_PCIC_INFO \
     { "O2Micro OZ6729", IS_O2MICRO|IS_PCI|IS_VG_PWR, ID(O2, 6729) },	\
