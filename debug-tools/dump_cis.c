@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.29 1998/05/14 09:17:46
+    dump_cis.c 1.32 1998/07/18 17:33:34
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -19,6 +19,10 @@
     are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
+
+#ifndef __linux__
+#include <pcmcia/u_compat.h>
+#endif
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -37,6 +41,10 @@
 #include <pcmcia/ds.h>
 
 /*====================================================================*/
+
+#ifdef __linux__
+
+static int major = 0;
 
 static int lookup_dev(char *name)
 {
@@ -59,13 +67,16 @@ static int lookup_dev(char *name)
 	return -1;
 }
 
+#endif /* __linux__ */
+
 /*====================================================================*/
 
-static int open_dev(dev_t dev)
+static int open_sock(int sock)
 {
-    char *fn;
+#ifdef __linux__
     int fd;
-    
+    char *fn;
+    dev_t dev = (major<<8) + sock;
     if ((fn = tmpnam(NULL)) == NULL)
 	return -1;
     if (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) != 0)
@@ -73,7 +84,13 @@ static int open_dev(dev_t dev)
     fd = open(fn, O_RDONLY);
     unlink(fn);
     return fd;
-}
+#endif
+#ifdef __BEOS__
+    char fn[B_OS_NAME_LENGTH];
+    sprintf(fn, "/dev/pcmcia/sock%d", sock);
+    return open(fn, O_RDONLY);
+#endif
+} /* open_sock */
 
 /*====================================================================*/
 
@@ -732,16 +749,19 @@ void print_parse(tuple_parse_t *tup)
 
 int main(int argc, char *argv[])
 {
-    int i, major, fd, ret;
+    int i, fd, ret;
     ds_ioctl_arg_t arg;
 
+#ifdef __linux__
     major = lookup_dev("pcmcia");
     if (major < 0) {
 	fprintf(stderr, "no pcmcia driver in /proc/devices\n");
 	exit(EXIT_FAILURE);
     }
+#endif
+    
     for (i = 0; i < MAX_SOCKS; i++) {
-	fd = open_dev((major<<8)+i);
+	fd = open_sock(i);
 	if (fd < 0) break;
 	printf("Socket %d:\n", i);
 	ret = ioctl(fd, DS_VALIDATE_CIS, &arg);
@@ -778,7 +798,7 @@ int main(int argc, char *argv[])
 	    printf("\n");
 	    ret = ioctl(fd, DS_GET_NEXT_TUPLE, &arg);
 	    if (ret != 0) {
-		if (errno != ENODATA)
+		if (errno != ENOSPC)
 		    printf("next tuple: %s\n", strerror(errno));
 		break;
 	    }

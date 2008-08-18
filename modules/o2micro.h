@@ -1,5 +1,5 @@
 /*
- * o2micro.h 1.3 1998/05/10 11:59:46
+ * o2micro.h 1.4 1998/06/02 21:58:47
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -33,6 +33,10 @@
 
 #ifndef PCI_DEVICE_ID_O2_6832
 #define PCI_DEVICE_ID_O2_6832		0x6832
+#endif
+
+#ifndef PCI_DEVICE_ID_O2_6836
+#define PCI_DEVICE_ID_O2_6836		0x6836
 #endif
 
 #define O2_MODE_A		0x38

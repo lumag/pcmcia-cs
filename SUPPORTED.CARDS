@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1998/05/27 23:06:53
+		Last updated: 1998/07/18 09:38:44
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -31,6 +31,7 @@ Ethernet cards:
 
 	[pcnet_cs driver]
 	Accton EN2212, EN2216 EtherCard
+	Addtron Ethernet
 	Allied Telesis CentreCOM CE6001, LA-PCM
 	AmbiCom AMB8002
 	Asante FriendlyNet
@@ -47,6 +48,7 @@ Ethernet cards:
 	Digital DEPCM-AA, PCP78-AC Ethernet
 	Digital EtherWORKS Turbo Ethernet
 	D-Link DE-650, DE-660
+	DynaLink L10C Ethernet
 	Edimax Technology Ethernet Combo
 	EFA InfoExpress 205, 207 Combo
 	Eiger Labs EPX-ET10T2 Combo
@@ -75,7 +77,7 @@ Ethernet cards:
 	Lantech Ethernet
 	Linksys EtherCard
 	Logitec LPM-LN10T, LPM-LN10BA Ethernet
-	Longshine Ethernet
+	Longshine ShineNet LCS-8534TB Ethernet
 	Macnica ME-1 Ethernet
 	Maxtech PCN2000 Ethernet
 	Melco LPC-TJ, LPC-TS
@@ -198,7 +200,8 @@ SCSI adapters:
 	RATOC REX-9530 SCSI-2
 	Toshiba NWB0107ABK, SCSC200B
 
-	[apa1480_cb driver -- experimental!!!]
+	[apa1480_cb driver -- requires a 2.1.90 or later kernel,
+	 also experimental!!!]
 	Adaptec SlimSCSI 1480 CardBus
 
 	[not sure which driver]
@@ -223,9 +226,11 @@ ATA/IDE CD-ROM adapters:
 	Digital Mobile Media CD-ROM
 	EXP CD940 CD-ROM		[ Some work, some do NOT! ]
 	EXP Traveler 620 CD-ROM
+	H45 Technologies Quick 2X CD-ROM
+	H45 Technologies QuickCD 16X
 	IO-DATA CDP-TX4/PCIDE, CDP-TX6/PCIDE, CDV-HDN6/PCIDE
 	IO-DATA CDP-TX10/PCIDE, MOP-230/PCIDE
-	H45 Technologies Quick 2X CD-ROM
+	TEAC IDE Card/II
 
 Multifunction cards:
 
@@ -259,6 +264,10 @@ ATA/IDE card drives:
 
 	The very old Western Digital 40MB drives are not supported,
 	because they do not conform to the PCMCIA ATA specification.
+
+	Note that ATA/IDE CD-ROM drives are listed explicitly in a
+	separate section, because they seem to have more than their
+	share of compatibility issues, and some do not work.
 
 The following cards have contributed drivers which are distributed as
 separate packages:
@@ -314,6 +323,7 @@ cards, therefore, drivers will not be written.
 	Adaptec/Trantor APA-460 SlimSCSI
 	Canon/Compaq PCMCIA floppy drive
 	New Media .WAVjammer and all other sound cards
+	Nikon CoolPix100
 	Panasonic KXL-D720, KXL-D745
 	SMC 8016 EliteCard
 	Telxon/Aironet wireless adapters

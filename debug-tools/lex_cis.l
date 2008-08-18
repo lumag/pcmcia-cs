@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_cis.l 1.2 1998/05/10 12:17:01
+ * lex_cis.l 1.4 1998/07/17 17:11:47
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -20,6 +20,7 @@
  * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
+#include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -29,7 +30,7 @@
 #include <pcmcia/cistpl.h>
 
 #include "pack_cis.h"
-#include "y.tab.h"
+#include "yacc_cis.h"
 
 /* For assembling nice error messages */
 int current_lineno;
@@ -87,7 +88,7 @@ io		return IO;
 \[8bit\]	return BIT8;
 \[16bit\]	return BIT16;
 
-irq		return IRQ;
+irq		return IRQ_NO;
 mask		return MASK;
 \[level\]	return LEVEL;
 \[pulse\]	return PULSE;

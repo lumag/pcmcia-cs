@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_cis.y 1.2 1998/05/10 12:17:01
+ * yacc_cis.y 1.4 1998/07/17 17:11:47
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -16,6 +16,8 @@
  * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
  * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
+
+#include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -28,7 +30,14 @@
 
 #include "pack_cis.h"
 
+/* If bison: generate nicer error messages */ 
+#define YYERROR_VERBOSE 1
+ 
 extern int current_lineno;
+
+void yyerror(char *msg, ...);
+static tuple_info_t *new_tuple(u_char type, cisparse_t *parse);
+
 %}
 
 %token STRING NUMBER FLOAT
@@ -38,7 +47,7 @@ extern int current_lineno;
 %token VCC VPP1 VPP2 IO MEM
 %token DEFAULT BVD WP RDYBSY MWAIT AUDIO READONLY PWRDOWN
 %token BIT8 BIT16
-%token IRQ MASK LEVEL PULSE SHARED
+%token IRQ_NO MASK LEVEL PULSE SHARED
 
 %union {
     char *str;
@@ -108,11 +117,15 @@ vers_1:	  VERS_1 FLOAT
 		}
 	| vers_1 ',' STRING
 		{
-		    u_int pos = strlen($$->version_1.str);
-		    if (pos > 0) pos++;
-		    $$->version_1.ofs[$$->version_1.ns] = pos;
-		    strcpy($$->version_1.str+pos, $3);
-		    $$->version_1.ns++;
+		    cistpl_vers_1_t *v = &$$->version_1;
+		    u_int pos = 0;
+		    if (v->ns) {
+			pos = v->ofs[v->ns-1];
+			pos += strlen(v->str+pos)+1;
+		    }
+		    v->ofs[v->ns] = pos;
+		    strcpy(v->str+pos, $3);
+		    v->ns++;
 		}
 	;
 
@@ -159,6 +172,26 @@ pwr:	  VNOM FLOAT
 		    $$.present |= 1<<CISTPL_POWER_VMAX;
 		    $$.param[CISTPL_POWER_VMAX] = $2 * 100000;
 		}
+	| ISTATIC FLOAT
+		{
+		    $$.present |= 1<<CISTPL_POWER_ISTATIC;
+		    $$.param[CISTPL_POWER_ISTATIC] = $2 * 1000;
+		}
+	| IAVG FLOAT
+		{
+		    $$.present |= 1<<CISTPL_POWER_IAVG;
+		    $$.param[CISTPL_POWER_IAVG] = $2 * 1000;
+		}
+	| IMAX FLOAT
+		{
+		    $$.present |= 1<<CISTPL_POWER_IPEAK;
+		    $$.param[CISTPL_POWER_IPEAK] = $2 * 1000;
+		}
+	| IDOWN FLOAT
+		{
+		    $$.present |= 1<<CISTPL_POWER_IDOWN;
+		    $$.param[CISTPL_POWER_IDOWN] = $2 * 1000;
+		}
 	;
 
 pwrlist:  /* nothing */
@@ -188,9 +221,9 @@ io:	  cftab IO NUMBER '-' NUMBER
 		{ $$->cftable_entry.io.flags |= CISTPL_IO_16BIT; }
 	;	
 
-irq:	  cftab IRQ NUMBER
+irq:	  cftab IRQ_NO NUMBER
 		{ $$->cftable_entry.irq.IRQInfo1 = ($3 & 0x0f); }
-	| cftab IRQ MASK NUMBER
+	| cftab IRQ_NO MASK NUMBER
 		{
 		    $$->cftable_entry.irq.IRQInfo1 = IRQ_INFO2_VALID;
 		    $$->cftable_entry.irq.IRQInfo2 = $4;
@@ -236,7 +269,7 @@ cftab:	  CFTABLE NUMBER
 
 %%
 
-tuple_info_t *new_tuple(u_char type, cisparse_t *parse)
+static tuple_info_t *new_tuple(u_char type, cisparse_t *parse)
 {
     tuple_info_t *t = calloc(1, sizeof(tuple_info_t));
     t->type = type;

@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.107 1998/05/11 23:17:55
+    cardmgr.c 1.111 1998/07/18 17:34:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -20,6 +20,10 @@
     
 ======================================================================*/
 
+#ifndef __linux__
+#include <pcmcia/u_compat.h>
+#endif
+
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +39,6 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
-#include <sys/kd.h>
 #include <sys/file.h>
 
 #include <pcmcia/version.h>
@@ -106,8 +109,10 @@ static char *configpath = "/etc/pcmcia";
 /* Default path for pid file */
 static char *pidfile = "/var/run/cardmgr.pid";
 
+#ifdef __linux__
 /* Default path for finding modules */
 static char *modpath = NULL;
+#endif
 
 /* Default path for socket info table */
 static char *stabfile = "/var/run/stab";
@@ -128,6 +133,10 @@ static int caught_signal = 0;
 static int verbose = 0;
 
 /*====================================================================*/
+
+#ifdef __linux__
+
+static int major = 0;
 
 static int lookup_dev(char *name)
 {
@@ -150,13 +159,14 @@ static int lookup_dev(char *name)
 	return -ENODEV;
 }
 
+#endif /* __linux__ */
+
 /*====================================================================*/
 
 int open_dev(dev_t dev, int mode)
 {
-    static char *fn;
+    char *fn;
     int fd;
-
     if ((fn = tmpnam(NULL)) == NULL)
 	return -1;
     if (mknod(fn, mode, dev) != 0)
@@ -164,6 +174,20 @@ int open_dev(dev_t dev, int mode)
     fd = open(fn, (mode & S_IWRITE) ? O_RDWR: O_RDONLY);
     unlink(fn);
     return fd;
+}
+
+int open_sock(int sock, int mode)
+{
+#ifdef __linux__
+    dev_t dev = (major<<8)+sock;
+    return open_dev(dev, mode);
+#endif
+#ifdef __BEOS__
+    int fd;
+    char fn[B_OS_NAME_LENGTH];
+    sprintf(fn, "/dev/pcmcia/sock%d", sock);
+    return open(fn, (mode & S_IWRITE) ? O_RDWR: O_RDONLY);
+#endif
 }
 
 /*======================================================================
@@ -223,6 +247,10 @@ static int xlate_scsi_name(bind_info_t *bind)
 #define BEEP_WARN 2000
 #define BEEP_ERR  4000
 
+#ifdef __linux__
+
+#include <sys/kd.h>
+
 static void beep(unsigned int ms, unsigned int freq)
 {
     int fd, arg;
@@ -237,6 +265,14 @@ static void beep(unsigned int ms, unsigned int freq)
     close(fd);
     usleep(ms*1000);
 }
+
+#endif /* __linux__ */
+
+#ifdef __BEOS__
+static void beep(unsigned int ms, unsigned int freq)
+{
+}
+#endif
 
 /*====================================================================*/
 
@@ -264,10 +300,12 @@ static void write_stab(void)
 	syslog(LOG_INFO, "fopen(stabfile) failed: %m");
 	return;
     }
+#ifndef __BEOS__
     if (flock(fileno(f), LOCK_EX) != 0) {
 	syslog(LOG_INFO, "flock(stabfile) failed: %m");
 	return;
     }
+#endif
     for (i = 0; i < sockets; i++) {
 	s = &socket[i];
 	if (!(s->state & SOCKET_PRESENT))
@@ -292,7 +330,9 @@ static void write_stab(void)
 	}
     }
     fflush(f);
+#ifndef __BEOS__
     flock(fileno(f), LOCK_UN);
+#endif
     fclose(f);
 }
 
@@ -335,9 +375,9 @@ static void log_card_info(cistpl_vers_1_t *vers,
 	for (i = 0; i < vers->ns; i++)
 	    sprintf(v+strlen(v), "%s\"%s\"",
 		    (i>0) ? ", " : "", vers->str+vers->ofs[i]);
-	syslog(LOG_INFO, "  version info: %s", v);
+	syslog(LOG_INFO, "  product info: %s", v);
     } else {
-	syslog(LOG_INFO, "  no version info available");
+	syslog(LOG_INFO, "  no product info available");
     }
     *v = '\0';
     if (manfid->manf != 0)
@@ -410,7 +450,8 @@ static card_info_t *lookup_card(int ns)
 		arg.tuple.TupleOffset = card->id.tuple.ofs;
 		ret = ioctl(s->fd, DS_GET_TUPLE_DATA, &arg);
 		if (ret != 0) break;
-		if (strncmp(arg.tuple_parse.data, card->id.tuple.info,
+		if (strncmp((char *)arg.tuple_parse.data,
+			    card->id.tuple.info,
 			    strlen(card->id.tuple.info)) != 0)
 		    break;
 		match = 1;
@@ -585,6 +626,8 @@ static int execute_on_all(char *cmd, char *class, int sn, int fn)
 
 /*====================================================================*/
 
+#ifdef __linux__
+
 typedef struct module_list_t {
     char *mod;
     int usage;
@@ -657,6 +700,13 @@ static void remove_module(char *mod)
 	}
     }
 }
+
+#endif /* __linux__ */
+
+#ifdef __BEOS__
+#define install_module(a,b)
+#define remove_module(a)
+#endif
 
 /*====================================================================*/
 
@@ -733,7 +783,6 @@ static void bind_mtd(int sn)
     /* Now bind each unique MTD as a normal client of this socket */
     for (i = 0; i < nr; i++) {
 	strcpy(bind.dev_info, s->mtd[i]);
-	bind.instance = NULL;
 	if (ioctl(s->fd, DS_BIND_REQUEST, &bind) != 0)
 	    syslog(LOG_INFO, "bind MTD '%s' to socket %d failed: %m",
 		   (char *)bind.dev_info, sn);
@@ -981,7 +1030,7 @@ static void do_resume(int sn)
 
 static void wait_for_pending(void)
 {
-    status_t status;
+    cs_status_t status;
     int i;
     status.Function = 0;
     for (;;) {
@@ -1028,7 +1077,7 @@ static void adjust_resources(void)
 	if (ret != 0) {
 	    switch (al->adj.Resource) {
 	    case RES_MEMORY_RANGE:
-		sprintf(tmp, "memory %p-%p",
+		sprintf(tmp, "memory %#lx-%#lx",
 			al->adj.resource.memory.Base,
 			al->adj.resource.memory.Base +
 			al->adj.resource.memory.Size - 1);
@@ -1107,8 +1156,10 @@ static void handle_signal(void)
 	    if (socket[i].state & SOCKET_PRESENT)
 		do_insert(i);
 	break;
+#ifdef SIGPWR
     case SIGPWR:
 	break;
+#endif
     }
 }
 
@@ -1116,9 +1167,10 @@ static void handle_signal(void)
 
 static int init_sockets(void)
 {
-    int major, fd, i;
+    int fd, i;
     servinfo_t serv;
-    
+
+#ifdef __linux__
     major = lookup_dev("pcmcia");
     if (major < 0) {
 	if (major == -ENODEV)
@@ -1127,16 +1179,15 @@ static int init_sockets(void)
 	    syslog(LOG_INFO, "could not open /proc/devices: %m");
 	exit(EXIT_FAILURE);
     }
+#endif
     for (i = 0; i < MAX_SOCKS; i++) {
-	fd = open_dev((major<<8)+i, S_IFCHR|S_IREAD|S_IWRITE);
+	fd = open_sock(i, S_IFCHR|S_IREAD|S_IWRITE);
 	if (fd < 0) break;
 	socket[i].fd = fd;
 	socket[i].state = 0;
     }
-    if ((fd < 0) && (errno != ENODEV)) {
-	syslog(LOG_INFO, "open_dev(socket %d) failed: %m", i);
-	return -1;
-    }
+    if ((fd < 0) && (errno != ENODEV) && (errno != ENOENT))
+	syslog(LOG_INFO, "open_sock(socket %d) failed: %m", i);
     sockets = i;
     if (sockets == 0) {
 	syslog(LOG_INFO, "no sockets found!");
@@ -1163,7 +1214,6 @@ int main(int argc, char *argv[])
     int i, max_fd, ret, event, pass;
     int delay_fork = 0;
     struct timeval tv;
-    extern char *optarg;
     fd_set fds;
 
     errflg = 0;
@@ -1185,8 +1235,10 @@ int main(int argc, char *argv[])
 	    delay_fork = 1; break;
 	case 'c':
 	    configpath = strdup(optarg); break;
+#ifdef __linux__
 	case 'm':
 	    modpath = strdup(optarg); break;
+#endif
 	case 'p':
 	    pidfile = strdup(optarg); break;
 	case 's':
@@ -1215,8 +1267,9 @@ int main(int argc, char *argv[])
     
     syslog(LOG_INFO, "starting, version is " CS_RELEASE);
     atexit(&done);
-    setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin", 1);
-    
+    putenv("PATH=/bin:/sbin:/usr/bin:/usr/sbin");
+
+#ifdef __linux__
     if (modpath == NULL) {
 	struct utsname utsname;
 	if (uname(&utsname) != 0) {
@@ -1230,6 +1283,7 @@ int main(int argc, char *argv[])
 	syslog(LOG_INFO, "cannot access %s: %m", modpath);
 	exit(EXIT_FAILURE);
     }
+#endif /* __linux__ */
     
     load_config();
     
@@ -1246,9 +1300,11 @@ int main(int argc, char *argv[])
 	syslog(LOG_INFO, "signal(SIGTERM): %m");
     if (signal(SIGINT, catch_signal) == SIG_ERR)
 	syslog(LOG_INFO, "signal(SIGINT): %m");
+#ifdef SIGPWR
     if (signal(SIGPWR, catch_signal) == SIG_ERR)
 	syslog(LOG_INFO, "signal(SIGPWR): %m");
-
+#endif
+    
     for (i = max_fd = 0; i < sockets; i++)
 	max_fd = (socket[i].fd > max_fd) ? socket[i].fd : max_fd;
 
@@ -1279,7 +1335,7 @@ int main(int argc, char *argv[])
 		continue;
 	    ret = read(socket[i].fd, &event, 4);
 	    if ((ret == -1) && (errno != EAGAIN))
-		syslog(LOG_INFO, "read(): %m\n");
+		syslog(LOG_INFO, "read(%d): %m\n", i);
 	    if (ret != 4)
 		continue;
 	    

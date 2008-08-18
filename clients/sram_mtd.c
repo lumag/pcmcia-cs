@@ -2,7 +2,7 @@
 
     A simple MTD for accessing static RAM
 
-    sram_mtd.c 1.31 1998/05/21 11:34:04
+    sram_mtd.c 1.33 1998/07/18 09:39:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -23,6 +23,7 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#ifdef __LINUX__
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -34,6 +35,8 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/segment.h>
+#endif
+
 #include <stdarg.h>
 
 #include <pcmcia/version.h>
@@ -47,11 +50,16 @@
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"sram_mtd.c 1.31 1998/05/21 11:34:04 (David Hinds)";
+#ifdef __LINUX__
+#define _printk(args...) printk(KERN_DEBUG args)
 #else
-#define DEBUG(n, args...)
+#define _printk printk
+#endif
+#define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
+static char *version =
+"sram_mtd.c 1.33 1998/07/18 09:39:17 (David Hinds)";
+#else
+#define DEBUG(n, args) do { } while (0)
 #endif
 
 /*====================================================================*/
@@ -74,6 +82,13 @@ typedef struct sram_dev_t {
 static dev_info_t dev_info = "sram_mtd";
 
 static dev_link_t *dev_list = NULL;
+
+#ifdef __BEOS__
+static cs_socket_module_info *cs;
+static isa_module_info *isa;
+#define add_timer		cs->_add_timer
+#define del_timer		cs->_del_timer
+#endif
 
 /*====================================================================*/
 
@@ -98,7 +113,7 @@ static dev_link_t *sram_attach(void)
     sram_dev_t *dev;
     int ret;
     
-    DEBUG(0, "sram_attach()\n");
+    DEBUG(0, ("sram_attach()\n"));
 
     /* Create new memory card device */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
@@ -145,7 +160,7 @@ static void sram_detach(dev_link_t *link)
     int ret;
     long flags;
 
-    DEBUG(0, "sram_detach(0x%p)\n", link);
+    DEBUG(0, ("sram_detach(0x%p)\n", link));
     
     /* Locate device structure */
     for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
@@ -202,7 +217,7 @@ static void sram_config(dev_link_t *link)
     region_info_t region;
     int i, attr, ret;
 
-    DEBUG(0, "sram_config(0x%p)\n", link);
+    DEBUG(0, ("sram_config(0x%p)\n", link));
 
     /* Allocate a small memory window */
     req.Attributes = WIN_DATA_WIDTH_16;
@@ -258,7 +273,7 @@ static void sram_release(u_long arg)
     sram_dev_t *dev;
     int ret;
     
-    DEBUG(0, "sram_release(0x%p)\n", link);
+    DEBUG(0, ("sram_release(0x%p)\n", link));
 
     dev = link->priv;
     if (link->win) {
@@ -284,8 +299,8 @@ static int sram_read(dev_link_t *link, char *buf, mtd_request_t *req)
     u_int from, length, nb;
     int ret;
     
-    DEBUG(1, "sram_read(0x%p, 0x%lx, 0x%p, 0x%x, 0x%x)\n", link,
-	  req->MediaID, buf, req->SrcCardOffset, req->TransferLength);
+    DEBUG(1, ("sram_read(0x%p, 0x%lx, 0x%p, 0x%x, 0x%x)\n", link,
+	      req->MediaID, buf, req->SrcCardOffset, req->TransferLength));
 
     region = (region_info_t *)(req->MediaID);
     if (region->Attributes & REGION_TYPE_AM)
@@ -324,11 +339,11 @@ static int sram_write(dev_link_t *link, char *buf, mtd_request_t *req)
     mtd_mod_win_t mod;
     region_info_t *region;
     u_int from, length, nb;
-    status_t status;
+    cs_status_t status;
     int ret;
 
-    DEBUG(1, "sram_write(0x%p, 0x%lx, 0x%p, 0x%x, 0x%x)\n", link,
-	  req->MediaID, buf, req->DestCardOffset, req->TransferLength);
+    DEBUG(1, ("sram_write(0x%p, 0x%lx, 0x%p, 0x%x, 0x%x)\n", link,
+	      req->MediaID, buf, req->DestCardOffset, req->TransferLength));
 
     /* Check card write protect status */
     ret = CardServices(GetStatus, link->handle, &status);
@@ -373,14 +388,14 @@ static int sram_write(dev_link_t *link, char *buf, mtd_request_t *req)
 #if 0
 static int sram_erase(dev_link_t *link, char *buf, mtd_request_t *req)
 {
-    DEBUG(1, "sram_erase(0x%p, 0x%lx, 0x%p, 0x%x, 0x%x)\n", link,
-	  req->MediaID, buf, req->DestCardOffset, req->TransferLength);
+    DEBUG(1, ("sram_erase(0x%p, 0x%lx, 0x%p, 0x%x, 0x%x)\n", link,
+	      req->MediaID, buf, req->DestCardOffset, req->TransferLength));
 
     if (req->Function & MTD_REQ_TIMEOUT) {
-	DEBUG(2, "sram_erase: complete\n");
+	DEBUG(2, ("sram_erase: complete\n"));
 	return CS_SUCCESS;
     } else {
-	DEBUG(2, "sram_erase: starting\n");
+	DEBUG(2, ("sram_erase: starting\n"));
 	req->Status = MTD_WAITTIMER;
 	req->Timeout = 10;
 	return CS_BUSY;
@@ -432,7 +447,7 @@ static int sram_event(event_t event, int priority,
 {
     dev_link_t *link = args->client_data;
 
-    DEBUG(1, "sram_event(0x%06x)\n", event);
+    DEBUG(1, ("sram_event(0x%06x)\n", event));
     
     switch (event) {
 	
@@ -471,28 +486,65 @@ static int sram_event(event_t event, int priority,
 
 /*====================================================================*/
 
+#ifdef __LINUX__
+
 int init_module(void)
 {
     servinfo_t serv;
-    
-    DEBUG(0, "%s\n", version);
-    
+    DEBUG(0, ("%s\n", version));
     CardServices(GetCardServicesInfo, &serv);
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "sram_mtd: Card Services release "
 	       "does not match!\n");
 	return -1;
     }
-    
     register_pcmcia_driver(&dev_info, &sram_attach, &sram_detach);
-
     return 0;
 }
 
 void cleanup_module(void)
 {
-    DEBUG(0, "sram_mtd: unloading\n");
+    DEBUG(0, ("sram_mtd: unloading\n"));
     unregister_pcmcia_driver(&dev_info);
     while (dev_list != NULL)
 	sram_detach(dev_list);
 }
+
+#endif /* __LINUX__ */
+
+/*====================================================================*/
+
+#ifdef __BEOS__
+
+static status_t std_ops(int32 op)
+{
+    int ret;
+    DEBUG(0, ("sram_mtd: std_ops(%d)\n", op));
+    switch (op) {
+    case B_MODULE_INIT:
+	ret = get_module(CS_SOCKET_MODULE_NAME, (struct module_info **)&cs);
+	if (ret != B_OK) return ret;
+	ret = get_module(B_ISA_MODULE_NAME, (struct module_info **)&isa);
+	if (ret != B_OK) return ret;
+	register_pcmcia_driver(&dev_info, &sram_attach, &sram_detach);
+	break;
+    case B_MODULE_UNINIT:
+	unregister_pcmcia_driver(&dev_info);
+	while (dev_list != NULL)
+	    sram_detach(dev_list);
+	if (isa) put_module(B_ISA_MODULE_NAME);
+	if (cs) put_module(CS_SOCKET_MODULE_NAME);
+	break;
+    }
+    return B_OK;
+}
+
+static module_info sram_mtd_mod_info =
+{ "bus_managers/sram_mtd", 0, &std_ops };
+
+_EXPORT module_info *modules[] = {
+    &sram_mtd_mod_info,
+    NULL
+};
+
+#endif /* __BEOS__ */

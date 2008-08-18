@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.51 1998/05/24 18:41:29
+    cistpl.c 1.55 1998/07/09 23:43:56
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -24,6 +24,7 @@
 #define __NO_VERSION__
 #include <pcmcia/k_compat.h>
 
+#ifdef __LINUX__
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/major.h>
@@ -34,6 +35,7 @@
 #include <linux/sched.h>
 #include <linux/pci.h>
 #include <asm/io.h>
+#endif
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
@@ -79,7 +81,7 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
     u_char *sys;
     u_int inc = 1;
     
-    DEBUG(3, "cs: read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    DEBUG(3, ("cs: read_cis_mem(%d, %#x, %u)\n", attr, addr, len));
     if (setup_cis_mem(s) != 0) {
 	memset(ptr, 0xff, len);
 	return;
@@ -91,10 +93,10 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 
     for (; len > 0; sys = s->cis_virt) {
 	s->ss_entry(s->sock, SS_SetMemMap, mem);
-	DEBUG(3,  "cs:  %#2.2x %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
-	      readb(sys), readb(sys+inc), readb(sys+2*inc),
-	      readb(sys+3*inc), readb(sys+4*inc));
-	for ( ; len > 0; len--, ptr++, sys += inc) {
+	DEBUG(3,  ("cs:  %#2.2x %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
+		   readb(sys), readb(sys+inc), readb(sys+2*inc),
+		   readb(sys+3*inc), readb(sys+4*inc)));
+	for ( ; len > 0; len--, ((u_char *)ptr)++, sys += inc) {
 	    if (sys == s->cis_virt+s->cap.map_size) break;
 	    *(u_char *)ptr = readb(sys);
 	}
@@ -109,7 +111,7 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
     u_char *sys;
     int inc = 1;
     
-    DEBUG(3, "cs: write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    DEBUG(3, ("cs: write_cis_mem(%d, %#x, %u)\n", attr, addr, len));
     if (setup_cis_mem(s) != 0) return;
     mem->flags &= ~MAP_ATTRIB;
     if (attr) { mem->flags |= MAP_ATTRIB; inc++; addr *= 2; }
@@ -118,7 +120,7 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
     
     for (; len > 0; sys = s->cis_virt) {
 	s->ss_entry(s->sock, SS_SetMemMap, mem);
-	for ( ; len > 0; len--, ptr++, sys += inc) {
+	for ( ; len > 0; len--, ((u_char *)ptr)++, sys += inc) {
 	    if (sys == s->cis_virt+s->cap.map_size) break;
 	    writeb(*(u_char *)ptr, sys);
 	}
@@ -343,6 +345,8 @@ int get_first_tuple(client_handle_t handle, tuple_t *tuple)
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
     s = SOCKET(handle);
+    if (!(s->state & SOCKET_PRESENT))
+	return CS_NO_CARD;
     tuple->TupleLink = tuple->Flags = 0;
 #ifdef CONFIG_CARDBUS
     if (s->state & SOCKET_CARDBUS) {
@@ -421,8 +425,9 @@ int get_next_tuple(client_handle_t handle, tuple_t *tuple)
     
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
-
     s = SOCKET(handle);
+    if (!(s->state & SOCKET_PRESENT))
+	return CS_NO_CARD;
 
     link[1] = tuple->TupleLink;
     ofs = tuple->CISOffset + tuple->TupleLink;
@@ -492,8 +497,8 @@ int get_next_tuple(client_handle_t handle, tuple_t *tuple)
 	ofs += link[1] + 2;
     }
     if (i == MAX_TUPLES) {
-	DEBUG(1, "cs: overrun in get_next_tuple for socket %d\n",
-	      handle->Socket);
+	DEBUG(1, ("cs: overrun in get_next_tuple for socket %d\n",
+		  handle->Socket));
 	return CS_NO_MORE_ITEMS;
     }
     
@@ -582,10 +587,10 @@ static int parse_device(tuple_t *tuple, cistpl_device_t *device)
 
 static int parse_checksum(tuple_t *tuple, cistpl_checksum_t *csum)
 {
-    char *p;
+    u_char *p;
     if (tuple->TupleDataLen < 5)
 	return CS_BAD_TUPLE;
-    p = (char *)tuple->TupleData;
+    p = (u_char *)tuple->TupleData;
     csum->addr = le16_to_cpu(*(u_short *)p);
     csum->len = le16_to_cpu(*(u_short *)(p + 2));
     csum->sum = *(p+4);
@@ -610,7 +615,7 @@ static int parse_longlink_mfc(tuple_t *tuple,
     u_char *p;
     int i;
     
-    p = (char *)tuple->TupleData;
+    p = (u_char *)tuple->TupleData;
     
     link->nfn = *p; p++;
     if (tuple->TupleDataLen <= link->nfn*5)
@@ -625,7 +630,7 @@ static int parse_longlink_mfc(tuple_t *tuple,
 /*====================================================================*/
 
 static int parse_strings(u_char *p, u_char *q, int max,
-			 char *s, int *ofs, int *found)
+			 char *s, u_char *ofs, u_char *found)
 {
     int i, j, ns;
 
@@ -656,7 +661,7 @@ static int parse_vers_1(tuple_t *tuple, cistpl_vers_1_t *vers_1)
 {
     u_char *p, *q;
     
-    p = (char *)tuple->TupleData;
+    p = (u_char *)tuple->TupleData;
     q = p + tuple->TupleDataLen;
     
     vers_1->major = *p; p++;
@@ -673,7 +678,7 @@ static int parse_altstr(tuple_t *tuple, cistpl_altstr_t *altstr)
 {
     u_char *p, *q;
     
-    p = (char *)tuple->TupleData;
+    p = (u_char *)tuple->TupleData;
     q = p + tuple->TupleDataLen;
     
     return parse_strings(p, q, CISTPL_MAX_ALTSTR_STRINGS,
@@ -687,7 +692,7 @@ static int parse_jedec(tuple_t *tuple, cistpl_jedec_t *jedec)
     u_char *p, *q;
     int nid;
 
-    p = (char *)tuple->TupleData;
+    p = (u_char *)tuple->TupleData;
     q = p + tuple->TupleDataLen;
 
     for (nid = 0; nid < CISTPL_MAX_DEVICES; nid++) {
@@ -748,7 +753,7 @@ static int parse_config(tuple_t *tuple, cistpl_config_t *config)
     int rasz, rmsz, i;
     u_char *p;
 
-    p = (char *)tuple->TupleData;
+    p = (u_char *)tuple->TupleData;
     rasz = *p & 0x03;
     rmsz = (*p & 0x3c) >> 2;
     if (tuple->TupleDataLen < rasz+rmsz+4)
@@ -1052,7 +1057,7 @@ static int parse_bar(tuple_t *tuple, cistpl_bar_t *bar)
     u_char *p;
     if (tuple->TupleDataLen < 6)
 	return CS_BAD_TUPLE;
-    p = (char *)tuple->TupleData;
+    p = (u_char *)tuple->TupleData;
     bar->attr = *p;
     p += 2;
     bar->size = le32_to_cpu(*(u_int *)p);
@@ -1063,7 +1068,7 @@ static int parse_config_cb(tuple_t *tuple, cistpl_config_t *config)
 {
     u_char *p;
     
-    p = (char *)tuple->TupleData;
+    p = (u_char *)tuple->TupleData;
     if ((*p != 3) || (tuple->TupleDataLen < 6))
 	return CS_BAD_TUPLE;
     config->last_idx = *(++p);
@@ -1153,7 +1158,7 @@ static int parse_device_geo(tuple_t *tuple, cistpl_device_geo_t *geo)
     u_char *p, *q;
     int n;
 
-    p = (char *)tuple->TupleData;
+    p = (u_char *)tuple->TupleData;
     q = p + tuple->TupleDataLen;
 
     for (n = 0; n < CISTPL_MAX_DEVICES; n++) {

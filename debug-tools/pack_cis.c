@@ -3,7 +3,7 @@
     A utility to convert a plain text description of a Card
     Information Structure into its packed binary representation.
 
-    pack_cis.c 1.5 1998/05/10 12:17:39
+    pack_cis.c 1.6 1998/07/17 17:11:59
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -27,6 +27,7 @@
     
 ======================================================================*/
 
+#include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -207,8 +208,8 @@ static int pack_tuple(tuple_info_t *t, u_char *b)
 	b[3] = p->version_1.minor;
 	c = b+4;
 	for (i = 0; i < p->version_1.ns; i++) {
-	    strcpy(c, p->version_1.str+p->version_1.ofs[i]);
-	    c += strlen(c) + 1;
+	    strcpy((char *)c, p->version_1.str+p->version_1.ofs[i]);
+	    c += strlen((char *)c) + 1;
 	}
 	for (; i < 4; i++) { *c = 0; c++; }
 	*c = 0xff; c++;
@@ -299,8 +300,7 @@ int main(int argc, char *argv[])
 {
     int optch, errflg = 0;
     char *out = NULL;
-    extern char *optarg;
-    char buf[1024];
+    u_char buf[1024];
     int n;
     FILE *f;
 

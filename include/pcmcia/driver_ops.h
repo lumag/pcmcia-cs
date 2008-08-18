@@ -1,5 +1,5 @@
 /*
- * driver_ops.h 1.7 1998/05/10 12:10:34
+ * driver_ops.h 1.10 1998/07/14 00:52:14
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -19,10 +19,14 @@
 #ifndef _LINUX_DRIVER_OPS_H
 #define _LINUX_DRIVER_OPS_H
 
+#ifndef DEV_NAME_LEN
+#define DEV_NAME_LEN	32
+#endif
+
 #ifdef __KERNEL__
 
 typedef struct dev_node_t {
-    char		dev_name[8];
+    char		dev_name[DEV_NAME_LEN];
     u_short		major, minor;
     struct dev_node_t	*next;
 } dev_node_t;

@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2+ Flash devices
 
-    iflash2+_mtd.c 1.42 1998/05/21 11:34:03
+    iflash2+_mtd.c 1.44 1998/06/05 00:16:40
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -58,7 +58,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"iflash2+_mtd.c 1.42 1998/05/21 11:34:03 (David Hinds)";
+"iflash2+_mtd.c 1.44 1998/06/05 00:16:40 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -410,7 +410,7 @@ static int vpp_setup(dev_link_t *link, mtd_request_t *req)
     /* Wait for Vpp to settle if it was just applied */
     if (jiffies < dev->vpp_start + vpp_settle) {
 	req->Status = MTD_WAITTIMER;
-	req->Timeout = vpp_settle * 10;
+	req->Timeout = vpp_settle;
 	return 1;
     }
     return 0;
@@ -843,7 +843,7 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
     flash_region_t *flash;
     region_info_t *region;
     u_int from, length, nb, retry, cell;
-    status_t status;
+    cs_status_t status;
     int ret;
 #ifdef PCMCIA_DEBUG
     u_long time;
@@ -954,7 +954,7 @@ done:
 static int flash_erase(dev_link_t *link, char *buf, mtd_request_t *req)
 {
     flash_dev_t *dev = (flash_dev_t *)link->priv;
-    status_t status;
+    cs_status_t status;
     flash_region_t *flash;
     region_info_t *region;
     mtd_mod_win_t mod;

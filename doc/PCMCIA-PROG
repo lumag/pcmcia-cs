@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.7, 1998/05/24 19:11:18
+  v2.10, 1998/07/18 09:29:03
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -531,15 +531,15 @@
 
   33..22..11..  GGeettSSttaattuuss
 
-       int CardServices(GetStatus, client_handle_t client, status_t *status);
+       int CardServices(GetStatus, client_handle_t client, cs_status_t *status);
 
-  The status_t data structure is given by:
+  The cs_status_t data structure is given by:
 
-       typedef struct status_t {
+       typedef struct cs_status_t {
                u_char          Function;
                u_int           CardState;
                u_int           SocketState;
-       } status_t;
+       } cs_status_t;
 
   GetStatus returns the current status of a client's socket.  For cards
   that are configured in IO mode, GetStatus uses the Pin Replacement
@@ -912,7 +912,7 @@
                u_int           Attributes;
                u_int           Vcc, Vpp1, Vpp2;
                u_int           IntType;
-               caddr_t         ConfigBase;
+               u_int           ConfigBase;
                u_char          Status, Pin, Copy, ExtStatus;
                u_char          ConfigIndex;
                u_int           Present;
@@ -1073,7 +1073,7 @@
                u_int           Attributes;
                u_int           Vcc, Vpp1, Vpp2;
                u_int           IntType;
-               caddr_t         ConfigBase;
+               u_int           ConfigBase;
                u_char          Status, Pin, Copy, Option, ExtStatus;
                u_int           Present;
                u_int           AssignedIRQ;
@@ -1862,7 +1862,7 @@
                u_int           Attributes;
                union {
                        struct memory {
-                               caddr_t         Base;
+                               u_long          Base;
                                u_long          Size;
                        } memory;
                        struct io {
@@ -2993,7 +2993,7 @@
   #include "ds.h"
 
   typedef struct dev_node_t {
-          char                    dev_name[8];
+          char                    dev_name[DEV_NAME_LEN];
           u_char                  major, minor;
           struct dev_node_t       *next;
   }
@@ -3300,7 +3300,7 @@
                dev_info_t              dev_info;
                u_char                  function;
                struct dev_info_t       *instance;
-               char                    name[8];
+               char                    name[DEV_NAME_LEN];
                u_char                  major, minor;
                void                    *next;
        } bind_info_t;

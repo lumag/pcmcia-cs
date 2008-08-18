@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.39 1998/05/24 18:41:29
+    rsrc_mgr.c 1.47 1998/07/18 09:55:19
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -24,6 +24,7 @@
 #define __NO_VERSION__
 #include <pcmcia/k_compat.h>
 
+#ifdef __LINUX__
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -31,7 +32,9 @@
 #include <linux/malloc.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>
+#include <asm/irq.h>
 #include <asm/io.h>
+#endif
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
@@ -72,7 +75,7 @@ typedef struct resource_entry_t {
 /* An ordered linked list of allocated memory blocks */
 static resource_entry_t mem_list = { 0, 0, NULL, NULL };
 
-#if 0
+#ifdef __BEOS__
 /* An ordered linked list of allocated IO blocks */
 static resource_entry_t io_list = { 0, 0, NULL, NULL };
 #endif
@@ -97,7 +100,7 @@ typedef struct irq_info_t {
 } irq_info_t;
 
 /* Table of IRQ assignments */
-static irq_info_t irq_table[16] = { { 0, 0, 0 }, /* etc */ };
+static irq_info_t irq_table[NR_IRQS] = { { 0, 0, 0 }, /* etc */ };
 
 #endif
 
@@ -114,12 +117,10 @@ static spinlock_t rsrc_lock = SPIN_LOCK_UNLOCKED;
 static resource_entry_t *find_gap(resource_entry_t *root,
 				  resource_entry_t *entry)
 {
-    u_long flags;
     resource_entry_t *p;
     
     if (entry->base > entry->base+entry->num-1)
 	return NULL;
-    spin_lock_irqsave(&rsrc_lock, flags);
     for (p = root; ; p = p->next) {
 	if ((p != root) && (p->base+p->num-1 >= entry->base)) {
 	    p = NULL;
@@ -129,7 +130,6 @@ static resource_entry_t *find_gap(resource_entry_t *root,
 	    (p->next->base > entry->base+entry->num-1))
 	    break;
     }
-    spin_unlock_irqrestore(&rsrc_lock, flags);
     return p;
 }
 
@@ -137,9 +137,15 @@ static int check_resource(resource_entry_t *list,
 			  u_long base, u_long num)
 {
     resource_entry_t entry;
+    u_long flags;
+    int ret;
+
     entry.base = base;
     entry.num = num;
-    return (find_gap(list, &entry) == NULL) ? -EBUSY : 0;
+    spin_lock_irqsave(&rsrc_lock, flags);
+    ret = (find_gap(list, &entry) == NULL) ? -EBUSY : 0;
+    spin_unlock_irqrestore(&rsrc_lock, flags);
+    return ret;
 }
 
 static int register_resource(resource_entry_t *list,
@@ -200,7 +206,7 @@ int release_mem_region(u_long base, u_long num)
     return release_resource(&mem_list, base, num);
 }
 
-#if 0
+#ifdef __BEOS__
 int check_io_region(u_long base, u_long num)
 {
     return check_resource(&io_list, base, num);
@@ -217,7 +223,7 @@ int release_io_region(u_long base, u_long num)
 
 /*====================================================================*/
 
-#ifdef CONFIG_PROC_FS
+#ifdef HAS_PROC_BUS
 int proc_read_mem(char *buf, char **start, off_t pos,
 		  int count, int *eof, void *data)
 {
@@ -318,9 +324,9 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     for (i = base; i < base+num; i += 8) {
 	if (check_region(i, 8) != 0)
 	    continue;
-	hole = inb_p(i);
+	hole = inb(i);
 	for (j = 1; j < 8; j++)
-	    if (inb_p(i+j) != hole) break;
+	    if (inb(i+j) != hole) break;
 	if (j == 8)
 	    b[hole]++;
     }
@@ -334,7 +340,7 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
 	if (check_region(i, 8) != 0)
 	    continue;
 	for (j = 0; j < 8; j++)
-	    if (inb_p(i+j) != hole) break;
+	    if (inb(i+j) != hole) break;
 	if (j < 8) {
 	    if (!any)
 		printk(" excluding");
@@ -385,12 +391,12 @@ static int do_mem_probe(u_long base, u_long num, int pass,
     bad = 0;
     for (i = base; i < base+num; i = j + STEP) {
 	for (j = i; j < base+num; j += STEP)
-	    if ((check_mem_region(j, STEP)) == 0 && is_valid(j))
+	    if ((check_mem_region(j, STEP) == 0) && is_valid(j))
 		break;
 	if (i != j) {
 	    if (!bad) printk(" excluding");
 	    printk(" %#05lx-%#05lx", i, j-1);
-	    sub_interval(&mem_db, i, j-i);
+	    register_mem_region(i, j-1, "reserved");
 	    bad += j-i;
 	}
     }
@@ -420,8 +426,8 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long))
 	    for (i = 0; i < 4; i++) {
 		b = order[i] << 12;
 		if ((b >= m->base) && (b+0x10000 <= m->base+m->num)) {
-		    if (ok >= mem_limit)	
-			sub_interval(&mem_db, b, 0x10000);
+		    if (ok >= mem_limit)
+			register_mem_region(b, 0x10000, "skipped");
 		    else
 			ok += do_mem_probe(b, 0x10000, pass, is_valid);
 		}
@@ -512,7 +518,9 @@ int find_mem_region(u_long *base, u_long num, char *name, int low)
 
 #ifdef CONFIG_ISA
 
+#ifdef __LINUX__
 static void fake_irq IRQ(int i, void *d, struct pt_regs *r) { }
+#endif
 
 int try_irq(u_int Attributes, int irq, int specific)
 {
@@ -543,9 +551,11 @@ int try_irq(u_int Attributes, int irq, int specific)
     } else {
 	if ((info->Attributes & RES_RESERVED) && !specific)
 	    return CS_IN_USE;
+#ifdef __LINUX__
 	if (REQUEST_IRQ(irq, fake_irq, 0, "bogus", NULL) != 0)
 	    return CS_IN_USE;
 	FREE_IRQ(irq, NULL);
+#endif
 	switch (Attributes & IRQ_TYPE) {
 	case IRQ_TYPE_EXCLUSIVE:
 	    info->Attributes |= RES_ALLOCATED;
@@ -609,7 +619,7 @@ static int adjust_memory(adjust_t *adj)
     u_long base, num;
     int i;
 
-    base = (u_long)adj->resource.memory.Base;
+    base = adj->resource.memory.Base;
     num = adj->resource.memory.Size;
     if ((num == 0) || (base+num-1 < base))
 	return CS_BAD_SIZE;

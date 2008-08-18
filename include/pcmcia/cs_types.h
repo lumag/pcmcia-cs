@@ -1,5 +1,5 @@
 /*
- * cs_types.h 1.9 1998/05/10 12:10:34
+ * cs_types.h 1.13 1998/07/14 00:52:20
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -19,13 +19,15 @@
 #ifndef _LINUX_CS_TYPES_H
 #define _LINUX_CS_TYPES_H
 
+#ifdef __linux__
 #include <linux/types.h>
+#endif
 
-typedef u_short socket_t;
-typedef u_short ioaddr_t;
+typedef u_short	socket_t;
+typedef u_short	ioaddr_t;
 typedef u_int	event_t;
-typedef u_char  cisdata_t;
-typedef u_short page_t;
+typedef u_char	cisdata_t;
+typedef u_short	page_t;
 
 struct client_t;
 typedef struct client_t *client_handle_t;
@@ -39,6 +41,10 @@ typedef struct region_t *memory_handle_t;
 struct eraseq_t;
 typedef struct eraseq_t *eraseq_handle_t;
 
-typedef char dev_info_t[16];
+#ifndef DEV_NAME_LEN
+#define DEV_NAME_LEN 32
+#endif
+
+typedef char dev_info_t[DEV_NAME_LEN];
 
 #endif /* _LINUX_CS_TYPES_H */

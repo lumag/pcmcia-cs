@@ -106,7 +106,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.106 1998/05/21 11:33:58 (David Hinds)";
+"3c589_cs.c 1.107 1998/06/05 00:19:29 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -881,11 +881,16 @@ static struct net_device_stats *el3_get_stats(struct device *dev)
 {
     struct el3_private *lp = (struct el3_private *)dev->priv;
     unsigned long flags;
-    
-    save_flags(flags);
-    cli();
-    update_stats(dev->base_addr, dev);
-    restore_flags(flags);
+    dev_link_t *link;
+
+    for (link = dev_list; link; link = link->next)
+	if (link->priv == dev) break;
+    if (DEV_OK(link)) {
+	save_flags(flags);
+	cli();
+	update_stats(dev->base_addr, dev);
+	restore_flags(flags);
+    }
     return &lp->stats;
 }
 
@@ -988,6 +993,10 @@ static int el3_rx(struct device *dev)
 static void set_multicast_list(struct device *dev)
 {
     short ioaddr = dev->base_addr;
+    dev_link_t *link;
+    for (link = dev_list; link; link = link->next)
+	if (link->priv == dev) break;
+    if (!(DEV_OK(link))) return;
 #ifdef PCMCIA_DEBUG
     if (pc_debug > 2) {
 	static int old = 0;
@@ -1042,31 +1051,33 @@ static int el3_close(struct device *dev)
 	return -ENODEV;
     
     DEBUG(2, "%s: shutting down ethercard.\n", dev->name);
-    
-    /* Turn off statistics ASAP.  We update lp->stats below. */
-    outw(StatsDisable, ioaddr + EL3_CMD);
-    
-    /* Disable the receiver and transmitter. */
-    outw(RxDisable, ioaddr + EL3_CMD);
-    outw(TxDisable, ioaddr + EL3_CMD);
-    
-    if (dev->if_port == 2)
-	/* Turn off thinnet power.  Green! */
-	outw(StopCoax, ioaddr + EL3_CMD);
-    else if (dev->if_port == 1) {
-	/* Disable link beat and jabber, if_port may change ere next open(). */
-	EL3WINDOW(4);
-	outw(inw(ioaddr + WN4_MEDIA) & ~MEDIA_TP, ioaddr + WN4_MEDIA);
-    }
-    
-    /* Switching back to window 0 disables the IRQ. */
-    EL3WINDOW(0);
-    /* But we explicitly zero the IRQ line select anyway. */
-    outw(0x0f00, ioaddr + WN0_IRQ);
+
+    if (DEV_OK(link)) {
+	/* Turn off statistics ASAP.  We update lp->stats below. */
+	outw(StatsDisable, ioaddr + EL3_CMD);
+	
+	/* Disable the receiver and transmitter. */
+	outw(RxDisable, ioaddr + EL3_CMD);
+	outw(TxDisable, ioaddr + EL3_CMD);
+	
+	if (dev->if_port == 2)
+	    /* Turn off thinnet power.  Green! */
+	    outw(StopCoax, ioaddr + EL3_CMD);
+	else if (dev->if_port == 1) {
+	    /* Disable link beat and jabber */
+	    EL3WINDOW(4);
+	    outw(inw(ioaddr + WN4_MEDIA) & ~MEDIA_TP, ioaddr + WN4_MEDIA);
+	}
+	
+	/* Switching back to window 0 disables the IRQ. */
+	EL3WINDOW(0);
+	/* But we explicitly zero the IRQ line select anyway. */
+	outw(0x0f00, ioaddr + WN0_IRQ);
         
-    /* Check if the card actually exists before updating the statistics. */
-    if (inw(ioaddr+EL3_STATUS) != 0xffff)
-	update_stats(ioaddr, dev);
+	/* Check if the card still exists */
+	if ((inw(ioaddr+EL3_STATUS) & 0xe000) == 0x2000)
+	    update_stats(ioaddr, dev);
+    }
 
     link->open--;
     dev->start = 0;

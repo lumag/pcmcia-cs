@@ -1,5 +1,5 @@
 /*
- * ss.h 1.16 1998/05/24 18:42:01
+ * ss.h 1.17 1998/07/09 08:42:03
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -54,7 +54,7 @@ typedef struct socket_state_t {
     u_int	flags;
     u_int	csc_mask;
     u_char	Vcc, Vpp;
-    int		io_irq;
+    u_char	io_irq;
 } socket_state_t;
 
 /* Various card configuration flags */

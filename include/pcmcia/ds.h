@@ -1,5 +1,5 @@
 /*
- * ds.h 1.42 1998/05/14 00:13:03
+ * ds.h 1.46 1998/06/29 19:01:42
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -24,7 +24,7 @@
 
 typedef struct tuple_parse_t {
     tuple_t		tuple;
-    char		data[255];
+    cisdata_t		data[255];
     cisparse_t		parse;
 } tuple_parse_t;
 
@@ -32,7 +32,7 @@ typedef struct bind_info_t {
     dev_info_t		dev_info;
     u_char		function;
     struct dev_link_t	*instance;
-    char		name[8];
+    char		name[DEV_NAME_LEN];
     u_short		major, minor;
     void		*next;
 } bind_info_t;
@@ -50,7 +50,7 @@ typedef union ds_ioctl_arg_t {
     tuple_t		tuple;
     tuple_parse_t	tuple_parse;
     client_req_t	client_req;
-    status_t		status;
+    cs_status_t		status;
     conf_reg_t		conf_reg;
     cisinfo_t		cisinfo;
     region_info_t	region;
@@ -67,7 +67,7 @@ typedef union ds_ioctl_arg_t {
 #define DS_GET_TUPLE_DATA		_IOWR('d', 6, tuple_parse_t)
 #define DS_PARSE_TUPLE			_IOWR('d', 7, tuple_parse_t)
 #define DS_RESET_CARD			_IO  ('d', 8)
-#define DS_GET_STATUS			_IOWR('d', 9, status_t)
+#define DS_GET_STATUS			_IOWR('d', 9, cs_status_t)
 #define DS_ACCESS_CONFIGURATION_REGISTER _IOWR('d', 10, conf_reg_t)
 #define DS_VALIDATE_CIS			_IOR ('d', 11, cisinfo_t)
 #define DS_SUSPEND_CARD			_IO  ('d', 12)
@@ -121,9 +121,6 @@ int unregister_pccard_driver(dev_info_t *dev_info);
 
 #define register_pcmcia_driver register_pccard_driver
 #define unregister_pcmcia_driver unregister_pccard_driver
-
-int bind_request(int i, bind_info_t *bind_info);
-int bind_mtd(int i, mtd_info_t *mtd_info);
 
 #endif /* __KERNEL__ */
 

@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.182 1998/05/24 18:41:29
+    cs.c 1.193 1998/07/18 09:55:19
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -23,6 +23,7 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#ifdef __LINUX__
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/major.h>
@@ -35,6 +36,8 @@
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <asm/system.h>
+#include <asm/irq.h>
+#endif
 
 #define IN_CARD_SERVICES
 #include <pcmcia/version.h>
@@ -56,52 +59,28 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.182 1998/05/24 18:41:29 (David Hinds)";
+"cs.c 1.193 1998/07/18 09:55:19 (David Hinds)";
 #endif
 
 static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
+#ifdef __LINUX__
 static const char *kernel = "kernel build: " UTS_RELEASE " " UTS_VERSION;
+#endif
 static const char *options = "options: "
+#ifdef CONFIG_PCI
+" [pci]"
+#endif
 #ifdef CONFIG_CARDBUS
 " [cardbus]"
 #endif
 #ifdef CONFIG_APM
 " [apm]"
-#endif
-#if !defined(CONFIG_CARDBUS) && !defined(CONFIG_APM)
+#else
+#if !defined(CONFIG_CARDBUS) && !defined(CONFIG_PCI)
 " none"
 #endif
+#endif
 ;
-
-#if (LINUX_VERSION_CODE <= VERSION(2,1,17))
-
-#undef CONFIG_MODVERSIONS
-static struct symbol_table cs_symtab = {
-#include <linux/symtab_begin.h>
-#if (LINUX_VERSION_CODE >= VERSION(1,3,0))
-#undef X
-#define X(sym) { (void *)&sym, SYMBOL_NAME_STR(sym) }
-#endif
-    X(register_ss_entry),
-    X(unregister_ss_entry),
-    X(CardServices),
-    X(MTDHelperEntry),
-    X(register_mem_region),
-    X(release_mem_region),
-#include <linux/symtab_end.h>
-};
-
-#else
-
-#define register_symtab(n)
-EXPORT_SYMBOL(register_ss_entry);
-EXPORT_SYMBOL(unregister_ss_entry);
-EXPORT_SYMBOL(CardServices);
-EXPORT_SYMBOL(MTDHelperEntry);
-EXPORT_SYMBOL(register_mem_region);
-EXPORT_SYMBOL(release_mem_region);
-
-#endif
 
 /*====================================================================*/
 
@@ -110,7 +89,7 @@ EXPORT_SYMBOL(release_mem_region);
 static int setup_delay		= HZ/20;	/* ticks */
 static int resume_delay		= HZ/5;		/* ticks */
 static int shutdown_delay	= HZ/40;	/* ticks */
-static int vcc_settle		= HZ*0.3;	/* ticks */
+static int vcc_settle		= HZ*3/10;	/* ticks */
 static int reset_time		= 10;		/* usecs */
 static int unreset_delay	= HZ/10;	/* ticks */
 static int unreset_check	= HZ/10;	/* ticks */
@@ -143,7 +122,7 @@ static socket_state_t dead_socket = {
 socket_t sockets = 0;
 socket_info_t *socket_table[MAX_SOCK];
 
-#ifdef CONFIG_PROC_FS
+#ifdef HAS_PROC_BUS
 struct proc_dir_entry *proc_pccard = NULL;
 #endif
 
@@ -281,9 +260,7 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
     int i, ns;
     socket_info_t *s;
 
-    DEBUG(0, "cs: register_ss_entry(%d, 0x%p)\n", nsock, ss_entry);
-
-    MOD_INC_USE_COUNT;
+    DEBUG(0, ("cs: register_ss_entry(%d, 0x%p)\n", nsock, ss_entry));
 
     for (ns = 0; ns < nsock; ns++) {
 	s = kmalloc(sizeof(struct socket_info_t), GFP_KERNEL);
@@ -299,7 +276,6 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 	s->cis_mem.flags = MAP_ACTIVE;
 	s->cis_mem.speed = cis_speed;
 	s->erase_busy.next = s->erase_busy.prev = &s->erase_busy;
-	init_waitqueue(&s->mtd_ready);
 	
 	for (i = 0; i < sockets; i++)
 	    if (socket_table[i] == NULL) break;
@@ -308,7 +284,7 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 
 	init_socket(s);
 	ss_entry(ns, SS_InquireSocket, &s->cap);
-#ifdef CONFIG_PROC_FS
+#ifdef HAS_PROC_BUS
 	{
 	    char name[3];
 	    sprintf(name, "%02d", i);
@@ -326,13 +302,18 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 void unregister_ss_entry(ss_entry_t ss_entry)
 {
     int i, j;
-    socket_info_t *s;
+    socket_info_t *s = NULL;
     client_t *client;
-    
-    for (i = 0; i < sockets; i++) {
-	s = socket_table[i];
-	if (s->ss_entry == ss_entry) {
-#ifdef CONFIG_PROC_FS
+
+    for (;;) {
+	for (i = 0; i < sockets; i++) {
+	    s = socket_table[i];
+	    if (s->ss_entry == ss_entry) break;
+	}
+	if (i == sockets) {
+	    break;
+	} else {
+#ifdef HAS_PROC_BUS
 	    char name[3];
 	    sprintf(name, "%02d", i);
 	    remove_proc_entry(name, proc_pccard);
@@ -343,11 +324,11 @@ void unregister_ss_entry(ss_entry_t ss_entry)
 		kfree_s(client, sizeof(*client));
 	    }
 	    init_socket(s);
-	    s->ss_entry = NULL;
 	    release_cis_mem(s);
 #ifdef CONFIG_CARDBUS
 	    cb_release_cis_mem(s);
 #endif
+	    s->ss_entry = NULL;
 	    kfree_s(s, sizeof(struct socket_info_t));
 	    socket_table[i] = NULL;
 	    for (j = i; j < sockets-1; j++)
@@ -356,7 +337,6 @@ void unregister_ss_entry(ss_entry_t ss_entry)
 	}
     }
     
-    MOD_DEC_USE_COUNT;
 } /* unregister_ss_entry */
 
 /*======================================================================
@@ -387,8 +367,7 @@ static void shutdown_socket(u_long i)
     socket_info_t *s = socket_table[i];
     client_t **c;
     
-    sti();
-    DEBUG(1, "cs: shutdown_socket(%ld)\n", i);
+    DEBUG(1, ("cs: shutdown_socket(%ld)\n", i));
 
     /* Blank out the socket state */
     s->state &= SOCKET_PRESENT|SOCKET_SETUP_PENDING;
@@ -423,10 +402,9 @@ static void setup_socket(u_long i)
     int val;
     socket_info_t *s = socket_table[i];
 
-    sti();
     s->ss_entry(s->sock, SS_GetStatus, &val);
     if (val & SS_DETECT) {
-	DEBUG(1, "cs: setup_socket(%ld): applying power\n", i);
+	DEBUG(1, ("cs: setup_socket(%ld): applying power\n", i));
 	s->state |= SOCKET_PRESENT;
 	s->socket.flags = 0;
 	if (val & SS_3VCARD)
@@ -445,11 +423,8 @@ static void setup_socket(u_long i)
 	s->setup.function = &reset_socket;
 	s->setup.expires = RUN_AT(vcc_settle);
 	add_timer(&s->setup);
-    }
-#ifdef PCMCIA_DEBUG
-    else
-	DEBUG(0, "cs: setup_socket(%ld): no card!\n", i);
-#endif
+    } else
+	DEBUG(0, ("cs: setup_socket(%ld): no card!\n", i));
 } /* setup_socket */
 
 /*======================================================================
@@ -465,7 +440,7 @@ static void reset_socket(u_long i)
 {
     socket_info_t *s = socket_table[i];
 
-    DEBUG(1, "cs: resetting socket %ld\n", i);
+    DEBUG(1, ("cs: resetting socket %ld\n", i));
     s->socket.flags |= SS_OUTPUT_ENA | SS_RESET;
     s->ss_entry(s->sock, SS_SetSocket, &s->socket);
     udelay((long)reset_time);
@@ -485,10 +460,9 @@ static void unreset_socket(u_long i)
     socket_info_t *s = socket_table[i];
     int val;
 
-    sti();
     s->ss_entry(s->sock, SS_GetStatus, &val);
     if (val & SS_READY) {
-	DEBUG(1, "cs: reset done on socket %ld\n", i);
+	DEBUG(1, ("cs: reset done on socket %ld\n", i));
 	if (s->state & SOCKET_SUSPEND) {
 	    s->state &= ~EVENT_MASK;
 	    if (verify_cis_cache(s) != 0)
@@ -506,7 +480,7 @@ static void unreset_socket(u_long i)
 	    s->state &= ~EVENT_MASK;
 	}
     } else {
-	DEBUG(2, "cs: socket %ld not ready yet\n", i);
+	DEBUG(2, ("cs: socket %ld not ready yet\n", i));
 	if (s->unreset_timeout > unreset_limit) {
 	    printk(KERN_NOTICE "cs: socket %ld timed out during"
 		   " reset\n", i);
@@ -532,8 +506,8 @@ static int send_event(socket_info_t *s, event_t event, int priority)
 {
     client_t *client = s->clients;
     int ret;
-    DEBUG(1, "cs: send_event(sock %d, event %d, pri %d)\n",
-	  s->sock, event, priority);
+    DEBUG(1, ("cs: send_event(sock %d, event %d, pri %d)\n",
+	      s->sock, event, priority));
     ret = 0;
     for (; client; client = client->next) { 
 	if (client->state & (CLIENT_UNBOUND|CLIENT_STALE))
@@ -558,7 +532,7 @@ static void do_shutdown(socket_info_t *s)
 	if (!(client->Attributes & INFO_MASTER_CLIENT))
 	    client->state |= CLIENT_STALE;
     if (s->state & (SOCKET_SETUP_PENDING|SOCKET_RESET_PENDING)) {
-	DEBUG(0, "cs: flushing pending setup\n");
+	DEBUG(0, ("cs: flushing pending setup\n"));
 	del_timer(&s->setup);
 	s->state &= ~EVENT_MASK;
     }
@@ -574,14 +548,15 @@ static void parse_events(void *info, u_int events)
 	int status;
 	u_long flags;
 	spin_lock_irqsave(&s->lock, flags);
-	if ((s->state & SOCKET_PRESENT) &&
-	    !(s->state & SOCKET_SUSPEND))
-	    do_shutdown(s);
 	s->ss_entry(s->sock, SS_GetStatus, &status);
+	if ((s->state & SOCKET_PRESENT) &&
+	    (!(s->state & SOCKET_SUSPEND) ||
+	     !(status & SS_DETECT)))
+	    do_shutdown(s);
 	if (status & SS_DETECT) {
 	    if (s->state & SOCKET_SETUP_PENDING) {
 		del_timer(&s->setup);
-		DEBUG(1, "cs: delaying pending setup\n");
+		DEBUG(1, ("cs: delaying pending setup\n"));
 	    }
 	    s->state |= SOCKET_SETUP_PENDING;
 	    s->setup.function = &setup_socket;
@@ -592,9 +567,7 @@ static void parse_events(void *info, u_int events)
 	    add_timer(&s->setup);
 	}
 	spin_unlock_irqrestore(&s->lock, flags);
-    } else if ((s->state & SOCKET_PRESENT) &&
-	       (s->state & SOCKET_SUSPEND))
-	do_shutdown(s);
+    }
     if (events & SS_BATDEAD)
 	send_event(s, CS_EVENT_BATTERY_DEAD, CS_EVENT_PRI_LOW);
     if (events & SS_BATWARN)
@@ -602,9 +575,7 @@ static void parse_events(void *info, u_int events)
     if (events & SS_READY) {
 	if (!(s->state & SOCKET_RESET_PENDING))
 	    send_event(s, CS_EVENT_READY_CHANGE, CS_EVENT_PRI_LOW);
-#ifdef PCMCIA_DEBUG
-	else DEBUG(1, "cs: ready change during reset\n");
-#endif
+	else DEBUG(1, ("cs: ready change during reset\n"));
     }
 } /* parse_events */
 
@@ -627,7 +598,7 @@ static int handle_apm_event(apm_event_t event)
     switch (event) {
     case APM_SYS_SUSPEND:
     case APM_USER_SUSPEND:
-	DEBUG(1, "cs: received suspend notification\n");
+	DEBUG(1, ("cs: received suspend notification\n"));
 	if (down) {
 	    printk(KERN_DEBUG "cs: received extra suspend event\n");
 	    break;
@@ -645,7 +616,7 @@ static int handle_apm_event(apm_event_t event)
 	break;
     case APM_NORMAL_RESUME:
     case APM_CRITICAL_RESUME:
-	DEBUG(1, "cs: received resume notification\n");
+	DEBUG(1, ("cs: received resume notification\n"));
 	if (!down) {
 	    printk(KERN_DEBUG "cs: received bogus resume event\n");
 	    break;
@@ -795,7 +766,7 @@ static int bind_device(bind_req_t *req)
     client = (client_t *)kmalloc(sizeof(client_t), GFP_KERNEL);
     memset(client, '\0', sizeof(client_t));
     client->client_magic = CLIENT_MAGIC;
-    client->dev_info = req->dev_info;
+    strncpy(client->dev_info, (char *)req->dev_info, DEV_NAME_LEN);
     client->Socket = req->Socket;
     client->Function = req->Function;
     client->state = CLIENT_UNBOUND;
@@ -804,8 +775,8 @@ static int bind_device(bind_req_t *req)
     init_waitqueue(&client->mtd_req);
     client->next = s->clients;
     s->clients = client;
-    DEBUG(1, "cs: bind_device(): client 0x%p, sock %d, dev %s\n",
-	  client, client->Socket, (char *)client->dev_info);
+    DEBUG(1, ("cs: bind_device(): client 0x%p, sock %d, dev %s\n",
+	      client, client->Socket, client->dev_info));
     return CS_SUCCESS;
 } /* bind_device */
 
@@ -838,10 +809,10 @@ static int bind_mtd(mtd_bind_t *req)
     }
     if (!region || (region->mtd != NULL))
 	return CS_BAD_OFFSET;
-    region->dev_info = req->dev_info;
+    strncpy(region->dev_info, (char *)req->dev_info, DEV_NAME_LEN);
     
-    DEBUG(1, "cs: bind_mtd(): attr 0x%x, offset 0x%x, dev %s\n",
-	  req->Attributes, req->CardOffset, (char *)req->dev_info);
+    DEBUG(1, ("cs: bind_mtd(): attr 0x%x, offset 0x%x, dev %s\n",
+	  req->Attributes, req->CardOffset, (char *)req->dev_info));
     return CS_SUCCESS;
 } /* bind_mtd */
 
@@ -855,7 +826,7 @@ static int deregister_client(client_handle_t handle)
     u_long flags;
     int i, sn;
     
-    DEBUG(1, "cs: deregister_client(%p)\n", handle);
+    DEBUG(1, ("cs: deregister_client(%p)\n", handle));
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
     if (handle->state &
@@ -876,7 +847,8 @@ static int deregister_client(client_handle_t handle)
     
     sn = handle->Socket; s = socket_table[sn];
 
-    if (handle->state & CLIENT_STALE) {
+    if ((handle->state & CLIENT_STALE) ||
+	(handle->Attributes & INFO_MASTER_CLIENT)) {
 	spin_lock_irqsave(&s->lock, flags);
 	client = &s->clients;
 	while ((*client) && ((*client) != handle))
@@ -893,7 +865,6 @@ static int deregister_client(client_handle_t handle)
 	handle->event_handler = NULL;
     }
 
-    MOD_DEC_USE_COUNT;
     if (--s->real_clients == 0)
 	s->ss_entry(sn, SS_RegisterCallback, NULL);
     
@@ -1034,7 +1005,7 @@ static int get_next_client(client_handle_t *handle, client_req_t *req)
     
 ======================================================================*/
 
-static int get_status(client_handle_t handle, status_t *status)
+static int get_status(client_handle_t handle, cs_status_t *status)
 {
     socket_info_t *s;
     config_t *c;
@@ -1217,8 +1188,8 @@ static int register_client(client_handle_t *handle, client_reg_t *req)
     for (ns = 0; ns < sockets; ns++) {
 	client = socket_table[ns]->clients;
 	while (client != NULL) {
-	    if ((client->dev_info == req->dev_info) &&
-		(client->state & CLIENT_UNBOUND)) break;
+	    if ((strcmp(client->dev_info, (char *)req->dev_info) == 0)
+		&& (client->state & CLIENT_UNBOUND)) break;
 	    client = client->next;
 	}
 	if (client != NULL) break;
@@ -1226,7 +1197,6 @@ static int register_client(client_handle_t *handle, client_reg_t *req)
     if (client == NULL)
 	return CS_OUT_OF_RESOURCE;
 
-    MOD_INC_USE_COUNT;
     s = socket_table[ns];
     if (++s->real_clients == 1) {
 	ss_callback_t call;
@@ -1268,8 +1238,8 @@ static int register_client(client_handle_t *handle, client_reg_t *req)
 	memset(s->config, 0, sizeof(config_t) * s->functions);
     }
     
-    DEBUG(1, "cs: register_client(): client 0x%p, sock %d, dev %s\n",
-	  client, client->Socket, (char *)client->dev_info);
+    DEBUG(1, ("cs: register_client(): client 0x%p, sock %d, dev %s\n",
+	      client, client->Socket, client->dev_info));
     if (client->EventMask & CS_EVENT_REGISTRATION_COMPLETE)
 	EVENT(client, CS_EVENT_REGISTRATION_COMPLETE, CS_EVENT_PRI_LOW);
     if ((socket_table[ns]->state & SOCKET_PRESENT) &&
@@ -1399,9 +1369,14 @@ static int release_irq(client_handle_t handle, irq_req_t *req)
     }
     
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
+#ifdef __LINUX__
 	FREE_IRQ(req->AssignedIRQ, req->Instance);
 	if (req->Instance)
 	    IRQ_MAP(req->AssignedIRQ, NULL);
+#endif
+#ifdef __BEOS__
+	remove_io_interrupt_handler(req->AssignedIRQ, req->Handler);
+#endif
     }
 
 #ifdef CONFIG_ISA
@@ -1606,12 +1581,12 @@ static int request_io(client_handle_t handle, io_req_t *req)
 	return CS_BAD_ATTRIBUTE;
 
     if (alloc_io_space(s, req->Attributes1, &req->BasePort1,
-		       req->NumPorts1, (char *)handle->dev_info))
+		       req->NumPorts1, handle->dev_info))
 	return CS_IN_USE;
 
     if (req->NumPorts2) {
 	if (alloc_io_space(s, req->Attributes2, &req->BasePort2,
-			   req->NumPorts2, (char *)handle->dev_info)) {
+			   req->NumPorts2, handle->dev_info)) {
 	    release_io_space(s, req->BasePort1, req->NumPorts1);
 	    return CS_IN_USE;
 	}
@@ -1665,10 +1640,11 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 	} else
 	    ret = ((req->IRQInfo1&IRQ_MASK) == irq) ? 0 : CS_BAD_ARGS;
     } else {
+	ret = CS_IN_USE;
 	if (req->IRQInfo1 & IRQ_INFO2_VALID) {
 	    mask = req->IRQInfo2 & s->cap.irq_mask;
 	    for (try = 0; try < 2; try++) {
-		for (irq = 0; irq < 16; irq++)
+		for (irq = 0; irq < NR_IRQS; irq++)
 		    if ((mask >> irq) & 1) {
 			ret = try_irq(req->Attributes, irq, try);
 			if (ret == 0) break;
@@ -1684,14 +1660,20 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
     if (ret != 0) return ret;
 
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
+#ifdef __LINUX__
 	if (REQUEST_IRQ(irq, req->Handler,
 			((req->Attributes & IRQ_TYPE_DYNAMIC_SHARING) || 
 			 (s->functions > 1) ||
 			 (irq == s->cap.pci_irq)) ? SA_SHIRQ : 0,
-			(char *)handle->dev_info, req->Instance))
+			handle->dev_info, req->Instance))
 	    return CS_IN_USE;
 	if (req->Instance)
 	    IRQ_MAP(irq, req->Instance);
+#endif
+#ifdef __BEOS__
+	install_io_interrupt_handler(irq, req->Handler,
+				     req->Instance, 0);
+#endif
     }
 
     c->irq.Attributes = req->Attributes;
@@ -1741,8 +1723,7 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->sock = s;
     win->base = req->Base;
     win->size = req->Size;
-    if (find_mem_region(&win->base, win->size,
-			(char *)(*handle)->dev_info,
+    if (find_mem_region(&win->base, win->size, (*handle)->dev_info,
 			(s->cap.cardbus == 0)))
 	return CS_IN_USE;
     req->Base = win->base;
@@ -1801,7 +1782,7 @@ static int reset_card(client_handle_t handle, client_req_t *req)
 	handle->event_callback_args.info = (void *)(u_long)ret;
 	EVENT(handle, CS_EVENT_RESET_COMPLETE, CS_EVENT_PRI_LOW);
     } else {
-	DEBUG(1, "cs: resetting socket %d\n", i);
+	DEBUG(1, ("cs: resetting socket %d\n", i));
 	send_event(s, CS_EVENT_RESET_PHYSICAL, CS_EVENT_PRI_LOW);
 	s->reset_handle = handle;
 	reset_socket(i);
@@ -1829,7 +1810,7 @@ static int suspend_card(client_handle_t handle, client_req_t *req)
     if (s->state & SOCKET_SUSPEND)
 	return CS_IN_USE;
 
-    DEBUG(1, "cs: suspending socket %d\n", i);
+    DEBUG(1, ("cs: suspending socket %d\n", i));
     send_event(s, CS_EVENT_PM_SUSPEND, CS_EVENT_PRI_LOW);
     s->ss_entry(s->sock, SS_SetSocket, &dead_socket);
     s->state |= SOCKET_SUSPEND;
@@ -1850,7 +1831,7 @@ static int resume_card(client_handle_t handle, client_req_t *req)
     if (!(s->state & SOCKET_SUSPEND))
 	return CS_IN_USE;
 
-    DEBUG(1, "cs: waking up socket %d\n", i);
+    DEBUG(1, ("cs: waking up socket %d\n", i));
     setup_socket(i);
 
     return CS_SUCCESS;
@@ -1874,7 +1855,7 @@ static int eject_card(client_handle_t handle, client_req_t *req)
     if (!(s->state & SOCKET_PRESENT))
 	return CS_NO_CARD;
 
-    DEBUG(1, "cs: user eject request on socket %d\n", i);
+    DEBUG(1, ("cs: user eject request on socket %d\n", i));
 
     ret = send_event(s, CS_EVENT_EJECTION_REQUEST, CS_EVENT_PRI_LOW);
     if (ret != 0)
@@ -1900,7 +1881,7 @@ static int insert_card(client_handle_t handle, client_req_t *req)
     if (s->state & SOCKET_PRESENT)
 	return CS_IN_USE;
 
-    DEBUG(1, "cs: user insert request on socket %d\n", i);
+    DEBUG(1, ("cs: user insert request on socket %d\n", i));
 
     spin_lock_irqsave(&s->lock, flags);
     if (!(s->state & SOCKET_SETUP_PENDING)) {
@@ -1954,7 +1935,7 @@ static int report_error(client_handle_t handle, error_info_t *err)
     if (CHECK_HANDLE(handle))
 	printk(KERN_NOTICE);
     else
-	printk(KERN_NOTICE "%s: ", (char *)(handle->dev_info));
+	printk(KERN_NOTICE "%s: ", handle->dev_info);
     
     for (i = 0; i < SERVICE_COUNT; i++)
 	if (service_table[i].key == err->func) break;
@@ -2090,19 +2071,55 @@ int CardServices(int func, void *a1, void *a2, void *a3)
     
 } /* CardServices */
 
-/*====================================================================*/
+/*======================================================================
+
+    OS-specific module glue goes here
+    
+======================================================================*/
+
+#ifdef __LINUX__
+
+#if (LINUX_VERSION_CODE <= VERSION(2,1,17))
+
+#undef CONFIG_MODVERSIONS
+static struct symbol_table cs_symtab = {
+#include <linux/symtab_begin.h>
+#if (LINUX_VERSION_CODE >= VERSION(1,3,0))
+#undef X
+#define X(sym) { (void *)&sym, SYMBOL_NAME_STR(sym) }
+#endif
+    X(register_ss_entry),
+    X(unregister_ss_entry),
+    X(CardServices),
+    X(MTDHelperEntry),
+    X(register_mem_region),
+    X(release_mem_region),
+#include <linux/symtab_end.h>
+};
+
+#else
+
+#define register_symtab(n)
+EXPORT_SYMBOL(register_ss_entry);
+EXPORT_SYMBOL(unregister_ss_entry);
+EXPORT_SYMBOL(CardServices);
+EXPORT_SYMBOL(MTDHelperEntry);
+EXPORT_SYMBOL(register_mem_region);
+EXPORT_SYMBOL(release_mem_region);
+
+#endif
 
 int init_module(void)
 {
     printk(KERN_INFO "%s\n", release);
     printk(KERN_INFO "  %s\n", kernel);
     printk(KERN_INFO "  %s\n", options);
-    DEBUG(0, "%s\n", version);
+    DEBUG(0, ("%s\n", version));
 #ifdef CONFIG_APM
     apm_register_callback(&handle_apm_event);
 #endif
     register_symtab(&cs_symtab);
-#ifdef CONFIG_PROC_FS
+#ifdef HAS_PROC_BUS
     proc_pccard = create_proc_entry("pccard", S_IFDIR, proc_bus);
     {
 	struct proc_dir_entry *ent;
@@ -2116,7 +2133,7 @@ int init_module(void)
 void cleanup_module(void)
 {
     printk(KERN_INFO "unloading PCMCIA Card Services\n");
-#ifdef CONFIG_PROC_FS
+#ifdef HAS_PROC_BUS
     remove_proc_entry("memory", proc_pccard);
     remove_proc_entry("pccard", proc_bus);
 #endif
@@ -2125,3 +2142,70 @@ void cleanup_module(void)
 #endif
     release_resource_db();
 }
+
+#endif /* __LINUX__ */
+
+/*====================================================================*/
+
+#ifdef __BEOS__
+
+isa_module_info *isa = NULL;
+pci_module_info *pci = NULL;
+module_info *i82365 = NULL;
+
+static status_t std_ops(int32 op)
+{
+    switch (op) {
+    case B_MODULE_INIT:
+	printk(KERN_INFO "%s\n", release);
+	printk(KERN_INFO "  %s\n", options);
+	DEBUG(0, ("%s\n", version));
+	init_timer();
+	if (get_module(B_ISA_MODULE_NAME, (struct module_info **)&isa)
+	    != B_OK)
+	    return B_ERROR;
+	if (get_module(B_PCI_MODULE_NAME, (struct module_info **)&pci)
+	    != B_OK)
+	    return B_ERROR;
+	get_module("bus_managers/i82365", &i82365);
+	break;
+    case B_MODULE_UNINIT:
+	printk(KERN_INFO "unloading PCMCIA Card Services\n");
+	if (i82365 != NULL) put_module("bus_managers/i82365");
+	release_resource_db();
+	if (pci != NULL) put_module(B_PCI_MODULE_NAME);
+	if (isa != NULL) put_module(B_ISA_MODULE_NAME);
+	stop_timer();
+	break;
+    }
+    return B_OK;
+}
+
+static status_t no_ops(int32 op)
+{
+    return B_OK;
+}
+
+static cs_client_module_info cs_client_info = {
+    { { CS_CLIENT_MODULE_NAME, B_KEEP_LOADED, &std_ops }, NULL },
+    &CardServices,
+    &MTDHelperEntry,
+    &add_timer,
+    &del_timer
+};
+
+static cs_socket_module_info cs_socket_info = {
+    { { CS_SOCKET_MODULE_NAME, B_KEEP_LOADED, &no_ops }, NULL },
+    &register_ss_entry,
+    &unregister_ss_entry,
+    &add_timer,
+    &del_timer
+};
+
+_EXPORT module_info *modules[] = {
+    (module_info *)&cs_client_info,
+    (module_info *)&cs_socket_info,
+    NULL
+};
+
+#endif /* __BEOS__ */

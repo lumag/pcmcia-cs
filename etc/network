@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.42 1998/05/03 21:12:41 (David Hinds)
+# network 1.43 1998/06/20 09:15:04 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -90,7 +90,7 @@ case "$ACTION" in
 
 'stop')
 
-    stop_fn && stop_fn $DEVICE
+    stop_fn $DEVICE
     
     if is_true $BOOTP || [ "$IPADDR" != "" ] ; then
 

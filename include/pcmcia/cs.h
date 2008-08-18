@@ -1,5 +1,5 @@
 /*
- * cs.h 1.55 1998/05/10 12:10:34
+ * cs.h 1.59 1998/07/09 08:41:19
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -38,7 +38,7 @@ typedef struct adjust_t {
     u_int	Attributes;
     union {
 	struct memory {
-	    caddr_t	Base;
+	    u_long	Base;
 	    u_long	Size;
 	} memory;
 	struct io {
@@ -295,11 +295,11 @@ typedef struct win_req_t {
 #define INFO_CARD_SHARE		0x10
 #define INFO_CARD_EXCL		0x20
 
-typedef struct status_t {
+typedef struct cs_status_t {
     u_char	Function;
     event_t 	CardState;
     event_t	SocketState;
-} status_t;
+} cs_status_t;
 
 typedef struct error_info_t {
     int		func;
@@ -423,6 +423,25 @@ enum service {
 extern int CardServices(int func, void *a1, void *a2, void *a3);
 #else
 extern int CardServices(int func, ...);
+#endif
+
+#ifdef __BEOS__
+#define CS_CLIENT_MODULE_NAME "bus_managers/cs/client/v1"
+typedef struct cs_client_module_info {
+    bus_manager_info	binfo;
+    int (*_CardServices)(int, ...);
+    int (*_MTDHelperEntry)(int, ...);
+    void (*_add_timer)(struct timer_list *);
+    void (*_del_timer)(struct timer_list *);
+} cs_client_module_info;
+#define CS_SOCKET_MODULE_NAME "bus_managers/cs/socket/v1"
+typedef struct cs_socket_module_info {
+    bus_manager_info	binfo;
+    int (*_register_ss_entry)(int, ss_entry_t);
+    void (*_unregister_ss_entry)(ss_entry_t);
+    void (*_add_timer)(struct timer_list *);
+    void (*_del_timer)(struct timer_list *);
+} cs_socket_module_info;
 #endif
 
 #endif /* __KERNEL__ */

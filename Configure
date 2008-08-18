@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.71 1998/05/27 22:20:18
+# Configure 1.76 1998/07/18 09:38:14
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -145,6 +145,40 @@ if [ ! -f $LINUX/Makefile ] ; then
     exit 1
 fi
 
+# What kernel are we compiling for?
+
+echo ""
+VERSION=`sed -n -e 's/^VERSION = \(.*\)/\1/p' $LINUX/Makefile`
+PATCHLEVEL=`sed -n -e 's/^PATCHLEVEL = \(.*\)/\1/p' $LINUX/Makefile`
+SUBLEVEL=`sed -n -e 's/^SUBLEVEL = \(.*\)/\1/p' $LINUX/Makefile`
+SRC_RELEASE=$VERSION.$PATCHLEVEL.$SUBLEVEL
+VERSION_CODE=`expr $VERSION \* 65536 + $PATCHLEVEL \* 256 + $SUBLEVEL`
+echo "The kernel source tree is version $SRC_RELEASE."
+CUR_RELEASE=`uname -r`
+if [ "$SRC_RELEASE" != "$CUR_RELEASE" ] ; then
+    echo "WARNING: the current kernel is actually version $CUR_RELEASE."
+fi
+
+# Check for consistent kernel build dates
+
+CUR_D=`uname -v | sed -e 's/^#[0-9]* //;s/SMP //'`
+CUR_D=`echo $CUR_D | sed -e 's/\(:[0-9][0-9]\) .* \([12][90]\)/\1 \2/'`
+echo "The current kernel build date is $CUR_D."
+UTS_VERSION="unknown";
+if [ -f $LINUX/include/linux/compile.h ] ; then
+    UTS_VERSION=`grep UTS_VERSION $LINUX/include/linux/compile.h |
+	sed -e 's/.*"\(.*\)"/\1/'`
+    SRC_D=`echo $UTS_VERSION | sed -e 's/^#[0-9]* //;s/SMP //'`
+    SRC_D=`echo $SRC_D | sed -e 's/\(:[0-9][0-9]\) .* \([12][90]\)/\1 \2/'`
+    if [ $SRC_RELEASE = $CUR_RELEASE -a "$SRC_D" != "$CUR_D" ] ; then
+	echo "WARNING: the source tree has a build date of $SRC_D."
+	if [ `date -d "$SRC_D" +%s` -gt `date -d "$CUR_D" +%s` ] ; then
+	    echo "   Did you forget to install your new kernel?!?"
+	fi
+    fi
+fi
+echo ""
+
 ask_str "Alternate target install directory" PREFIX
 
 ask_str "C compiler name" CC
@@ -155,7 +189,10 @@ ask_str "Compiler flags for debugging" PCDEBUG
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
 
-ask_bool "Include experimental 32-bit (CardBus) card support" CONFIG_CARDBUS
+ask_bool "Include 32-bit (CardBus) card support" CONFIG_CARDBUS
+if [ "$CONFIG_CARDBUS" = "y" ] ; then
+    ask_bool "  Experimental Toshiba ToPIC chipset support" CONFIG_TOPIC
+fi
 
 echo ""
 echo "The PCMCIA drivers need to be compiled to match the kernel they"
@@ -233,7 +270,7 @@ printconfig () {
     printflag "Module version checking" CONFIG_MODVERSIONS
     printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
     printflag "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
-    printflag "/proc/bus support" CONFIG_PROC_FS
+    printflag "/proc filesystem support" CONFIG_PROC_FS
 }
 
 echo "" >> $CONFIG
@@ -279,7 +316,7 @@ case $src in
 	symcheck ide_register CONFIG_BLK_DEV_IDE_PCMCIA
 	symcheck tr_setup CONFIG_TR
 	symcheck hwrpb CONFIG_ALPHA_LCA
-	symcheck proc_bus CONFIG_PROC_FS
+	symcheck proc_root CONFIG_PROC_FS
 	echo "Extracting kernel symbol versions..."
 	$KSYMS | sed -ne 's/.* \(.*\)_R\([0-9a-f]*\)/\1 \2/p' | \
 	    awk '{ printf "#define %s\t%s_R%s\n", $1, $1, $2 }' \
@@ -301,11 +338,13 @@ case $src in
 	. $AUTOCONF
 	if grep -q "^ *SMP *= *1" $LINUX/Makefile ; then
 	    CONFIG_SMP=y
+	else
+	    CONFIG_SMP=n
 	fi
 	configcheck CONFIG_SCSI
 	configcheck CONFIG_SERIAL
 	configcheck CONFIG_TR
-	CONFIG_PROC_FS=n
+	configcheck CONFIG_PROC_FS
 	printconfig
 	;;
     3)
@@ -324,6 +363,7 @@ case $src in
 	ask_bool "Set version information for module symbols" CONFIG_MODVERSIONS
 	ask_bool "Include PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
 	ask_bool "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
+	ask_bool "/proc filesystem support" CONFIG_PROC_FS
 	;;
 esac
 
@@ -365,37 +405,10 @@ echo "" >> $CONFIG_H
 
 #=======================================================================
 
-# What kernel are we compiling for?
-
-echo ""
-VERSION=`sed -n -e 's/^VERSION = \(.*\)/\1/p' $LINUX/Makefile`
-PATCHLEVEL=`sed -n -e 's/^PATCHLEVEL = \(.*\)/\1/p' $LINUX/Makefile`
-SUBLEVEL=`sed -n -e 's/^SUBLEVEL = \(.*\)/\1/p' $LINUX/Makefile`
-SRC_RELEASE=$VERSION.$PATCHLEVEL.$SUBLEVEL
-VERSION_CODE=`expr $VERSION \* 65536 + $PATCHLEVEL \* 256 + $SUBLEVEL`
-echo "The kernel source tree is version $SRC_RELEASE."
-CUR_RELEASE=`uname -r`
-if [ "$SRC_RELEASE" != "$CUR_RELEASE" ] ; then
-    echo "WARNING: the current kernel is actually version $CUR_RELEASE."
-fi
-
-# Check for consistent kernel build dates
-
-CUR_D=`uname -v | sed -e 's/^#[0-9]* //'`
-echo "The current kernel build date is $CUR_D."
-UTS_VERSION="unknown";
-if [ -f $LINUX/include/linux/compile.h ] ; then
-    UTS_VERSION=`grep UTS_VERSION $LINUX/include/linux/compile.h |
-	sed -e 's/.*"\(.*\)"/\1/'`
-    SRC_D=`echo $UTS_VERSION | sed -e 's/^#[0-9]* //'`
-    if [ $SRC_RELEASE = $CUR_RELEASE -a "$SRC_D" != "$CUR_D" ] ; then
-	echo "WARNING: the source tree has a build date of $SRC_D."
-	if [ `date -d "$SRC_D" +%s` -gt `date -d "$CUR_D" +%s` ] ; then
-	    echo "   Did you forget to install your new kernel?!?"
-	fi
-    fi
-fi
 if [ $src -eq 1 ] ; then UTS_VERSION=`uname -v` ; fi
+
+HAS_PROC_BUS=n
+NEW_QLOGIC=n
 
 case "$VERSION.$PATCHLEVEL" in
 1.2)
@@ -430,16 +443,21 @@ case "$VERSION.$PATCHLEVEL" in
 1.99|2.0|2.1)
     echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
     if [ $PATCHLEVEL -ne 99 -o $SUBLEVEL -ge 6 ] ; then
-	echo "NEW_QLOGIC=y" >> $CONFIG_MK
-	echo "#define NEW_QLOGIC 1" >> $CONFIG_H
-    fi
-    if [ $PATCHLEVEL -eq 1 -a $SUBLEVEL -ge 8 ] ; then
-	CONFIG_BLK_DEV_IDE_PCMCIA=y
+	NEW_QLOGIC=y
     fi
     if [ $PATCHLEVEL -eq 1 ] ; then
+	if [ $SUBLEVEL -ge 8 ] ; then
+	    CONFIG_BLK_DEV_IDE_PCMCIA=y
+	fi
 	if [ $SUBLEVEL -gt 30 -a $SUBLEVEL -lt 34 ] ; then
 	    echo "Kernel versions 2.1.31-33 are broken.  Upgrade to 2.1.34."
 	    exit 1
+	fi
+	if [ "$CONFIG_CARDBUS" = "y" -a $SUBLEVEL -gt 90 ] ; then
+	    DO_APA1480=y
+	fi
+	if [ $SUBLEVEL -gt 104 ] ; then
+	    HAS_PROC_BUS=$CONFIG_PROC_FS
 	fi
     fi
     ;;
@@ -463,6 +481,9 @@ echo "" >> $CONFIG_MK
 echo "" >> $CONFIG_H
 echo ""
 
+write_bool NEW_QLOGIC
+write_bool HAS_PROC_BUS
+
 if [ "$CONFIG_BLK_DEV_IDE_PCMCIA" = "y" ] ; then
     echo "DO_IDE=y" >> $CONFIG_MK
 fi
@@ -480,10 +501,13 @@ if [ "$CONFIG_SCSI" = "y" ] ; then
     else
 	echo "FIX_AHA152X=y" >> $CONFIG_MK
     fi
-    if grep -q "define MODULE" ${LINUX}/drivers/scsi/aic7xxx.c ; then
-	echo "# FIX_AIC7XXX is not defined" >> $CONFIG_MK
-    else
-	echo "FIX_AIC7XXX=y" >> $CONFIG_MK
+    if [ "$DO_APA1480" = "y" ] ; then
+	echo "DO_APA1480=y" >> $CONFIG_MK
+	if grep -q "define MODULE" ${LINUX}/drivers/scsi/aic7xxx.c ; then
+	    echo "# FIX_AIC7XXX is not defined" >> $CONFIG_MK
+	else
+	    echo "FIX_AIC7XXX=y" >> $CONFIG_MK
+	fi
     fi
 fi
 

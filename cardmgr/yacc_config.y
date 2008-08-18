@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_config.y 1.38 1998/05/10 12:13:46
+ * yacc_config.y 1.42 1998/07/08 11:13:39
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -31,9 +31,14 @@
     
 #include "cardmgr.h"
 
+/* If bison: generate nicer error messages */ 
+#define YYERROR_VERBOSE 1
+ 
 /* from lex_config, for nice error messages */
 extern char *current_file;
 extern int current_lineno;
+
+void yyerror(char *msg, ...);
 
 static int add_binding(card_info_t *card, char *name, int fn);
 static int add_module(device_info_t *card, char *name);
@@ -160,7 +165,7 @@ resource: IRQ_NO NUMBER
 		    }
 		    $$ = calloc(sizeof(adjust_list_t), 1);
 		    $$->adj.Resource = RES_MEMORY_RANGE;
-		    $$->adj.resource.memory.Base = (caddr_t)$2;
+		    $$->adj.resource.memory.Base = $2;
 		    $$->adj.resource.memory.Size = $4 - $2 + 1;
 		}
 	;
@@ -415,7 +420,7 @@ void yyerror(char *msg, ...)
      sprintf(str, "config error, file '%s' line %d: ",
 	     current_file, current_lineno);
      vsprintf(str+strlen(str), msg, ap);
-#ifdef DEBUG
+#if YYDEBUG
      fprintf(stderr, "%s\n", str);
 #else
      syslog(LOG_INFO, "%s", str);
@@ -455,7 +460,7 @@ static int add_module(device_info_t *dev, char *name)
     return 0;
 }
 
-#ifdef DEBUG
+#if YYDEBUG
 adjust_list_t *root_adjust = NULL;
 device_info_t *root_device = NULL;
 card_info_t *root_card = NULL, *blank_card = NULL, *root_func = NULL;
@@ -463,6 +468,7 @@ mtd_ident_t *root_mtd = NULL, *default_mtd = NULL;
 
 void main(int argc, char *argv[])
 {
+    yydebug = 1;
     if (argc > 1)
 	parse_configfile(argv[1]);
 }

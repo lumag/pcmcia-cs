@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# rc.pcmcia 1.21 1998/05/18 22:19:31 (David Hinds)
+# rc.pcmcia 1.23 1998/07/18 18:49:26 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -19,10 +19,19 @@ cleanup()
     done
 }
 
+# Allow environment variables to override all options
+if [ "$PCMCIA" ] ; then readonly PCMCIA ; fi
+if [ "$PCIC" ] ; then readonly PCIC ; fi
+if [ "$PCIC_OPTS" ] ; then readonly PCIC_OPTS ; fi
+if [ "$CORE_OPTS" ] ; then readonly CORE_OPTS ; fi
+if [ "$CARDMGR_OPTS" ] ; then readonly CARDMGR_OPTS ; fi
+if [ "$SCHEME" ] ; then readonly SCHEME ; fi
+
 # Source PCMCIA configuration, if available
-if [ -f /etc/sysconfig/pcmcia ] ; then
+if [ -f /etc/pcmcia.conf ] ; then
+    . /etc/pcmcia.conf
+elif [ -f /etc/sysconfig/pcmcia ] ; then
     . /etc/sysconfig/pcmcia
-    if [ "$PCMCIA" != "yes" ] ; then exit 0 ; fi
 else
     # Should be either i82365 or tcic
     PCIC=i82365
@@ -32,7 +41,10 @@ else
     CORE_OPTS=
     # Put cardmgr options here
     CARDMGR_OPTS=
+    # To set the PCMCIA scheme at startup...
+    SCHEME=
 fi
+if [ "$PCMCIA" -a "$PCMCIA" != "yes" ] ; then exit 0 ; fi
 
 EXITCODE=1
 for x in "1" ; do
@@ -52,6 +64,7 @@ for x in "1" ; do
 	SC=/var/run/pcmcia-scheme
 	if [ -L $SC -o ! -O $SC ] ; then rm -f $SC ; fi
 	if [ ! -f $SC ] ; then umask 022 ; echo > $SC ; fi
+	if [ "$SCHEME" ] ; then umask 022 ; echo $SCHEME > $SC ; fi
 	fgrep -q pcmcia /proc/devices
 	if [ $? -ne 0 ] ; then
 	    PC=/lib/modules/`uname -r`/pcmcia

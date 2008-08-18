@@ -1,5 +1,5 @@
 /*
- * mem_op.h 1.6 1998/05/10 12:10:34
+ * mem_op.h 1.8 1998/07/17 10:12:23
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -31,19 +31,19 @@
 #define copy_from_pc memcpy_fromio
 #define copy_to_pc memcpy_toio
 
-extern inline void copy_pc_to_user(void *to, const void *from, size_t n)
+static inline void copy_pc_to_user(void *to, const void *from, size_t n)
 {
     size_t odd = (n & 3);
     n -= odd;
     while (n) {
-	put_user(readl(from), (int *)to);
-	from += 4; to += 4; n -= 4;
+	put_user(readl_ns(from), (int *)to);
+	(char *)from += 4; (char *)to += 4; n -= 4;
     }
     while (odd--)
-	put_user(readb(from++), (char *)to++);
+	put_user(readb((char *)from++), (char *)to++);
 }
 
-extern inline void copy_user_to_pc(void *to, const void *from, size_t n)
+static inline void copy_user_to_pc(void *to, const void *from, size_t n)
 {
     int l;
     char c;
@@ -51,54 +51,54 @@ extern inline void copy_user_to_pc(void *to, const void *from, size_t n)
     n -= odd;
     while (n) {
 	get_user(l, (int *)from);
-	writel(l, to);
-	to += 4; from += 4; n -= 4;
+	writel_ns(l, to);
+	(char *)to += 4; (char *)from += 4; n -= 4;
     }
     while (odd--) {
 	get_user(c, (char *)from++);
-	writeb(c, to++);
+	writeb(c, (char *)to++);
     }
 }
 
 #else /* UNSAFE_MEMCPY */
 
-extern inline void copy_from_pc(void *to, const void *from, size_t n)
+static inline void copy_from_pc(void *to, const void *from, size_t n)
 {
     size_t odd = (n & 1);
     n -= odd;
     while (n) {
-	*(u_short *)to = readw(from);
-	to += 2; from += 2; n -= 2;
+	*(u_short *)to = readw_ns(from);
+	(char *)to += 2; (char *)from += 2; n -= 2;
     }
     if (odd)
 	*(u_char *)to = readb(from);
 }
 
-extern inline void copy_to_pc(void *to, const void *from, size_t n)
+static inline void copy_to_pc(void *to, const void *from, size_t n)
 {
     size_t odd = (n & 1);
     n -= odd;
     while (n) {
-	writew(*(u_short *)from, to);
-	to += 2; from += 2; n -= 2;
+	writew_ns(*(u_short *)from, to);
+	(char *)to += 2; (char *)from += 2; n -= 2;
     }
     if (odd)
 	writeb(*(u_char *)from, to);
 }
 
-extern inline void copy_pc_to_user(void *to, const void *from, size_t n)
+static inline void copy_pc_to_user(void *to, const void *from, size_t n)
 {
     size_t odd = (n & 1);
     n -= odd;
     while (n) {
-	put_user(readw(from), (short *)to);
-	to += 2; from += 2; n -= 2;
+	put_user(readw_ns(from), (short *)to);
+	(char *)to += 2; (char *)from += 2; n -= 2;
     }
     if (odd)
 	put_user(readb(from), (char *)to);
 }
 
-extern inline void copy_user_to_pc(void *to, const void *from, size_t n)
+static inline void copy_user_to_pc(void *to, const void *from, size_t n)
 {
     short s;
     char c;
@@ -106,8 +106,8 @@ extern inline void copy_user_to_pc(void *to, const void *from, size_t n)
     n -= odd;
     while (n) {
 	get_user(s, (short *)from);
-	writew(s, to);
-	to += 2; from += 2; n -= 2;
+	writew_ns(s, to);
+	(char *)to += 2; (char *)from += 2; n -= 2;
     }
     if (odd) {
 	get_user(c, (char *)from);

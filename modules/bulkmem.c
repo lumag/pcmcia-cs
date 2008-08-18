@@ -2,7 +2,7 @@
 
     PCMCIA Bulk Memory Services
 
-    bulkmem.c 1.22 1998/05/10 12:06:44
+    bulkmem.c 1.25 1998/07/09 23:44:40
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -24,6 +24,7 @@
 #define __NO_VERSION__
 #include <pcmcia/k_compat.h>
 
+#ifdef __LINUX__
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -31,6 +32,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
+#endif
 
 #define IN_CARD_SERVICES
 #include <pcmcia/cs_types.h>
@@ -60,6 +62,7 @@ static int do_mtd_request(memory_handle_t handle, mtd_request_t *req,
     if (mtd == NULL)
 	return CS_GENERAL_FAILURE;
     s = SOCKET(mtd);
+    wacquire(&mtd->mtd_req);
     for (tries = 0; tries < 20; tries++) {
 	mtd->event_callback_args.mtdrequest = req;
 	mtd->event_callback_args.buffer = buf;
@@ -69,29 +72,24 @@ static int do_mtd_request(memory_handle_t handle, mtd_request_t *req,
 	switch (req->Status) {
 	case MTD_WAITREQ:
 	    /* Not that we should ever need this... */
-	    current->timeout = jiffies + 100;
-	    interruptible_sleep_on(&mtd->mtd_req);
+	    wsleeptimeout(&mtd->mtd_req, HZ);
 	    break;
 	case MTD_WAITTIMER:
-	    current->timeout = jiffies + req->Timeout/10;
-	    interruptible_sleep_on(&mtd->mtd_req);
+	case MTD_WAITRDY:
+	    wsleeptimeout(&mtd->mtd_req, req->Timeout*HZ/1000);
 	    req->Function |= MTD_REQ_TIMEOUT;
 	    break;
-	case MTD_WAITRDY:
-	    current->timeout = jiffies + req->Timeout/10;
-	    interruptible_sleep_on(&s->mtd_ready);
-	    req->Function |= MTD_REQ_READY;
-	    break;
 	case MTD_WAITPOWER:
-	    interruptible_sleep_on(&mtd->mtd_req);
+	    wsleep(&mtd->mtd_req);
 	    break;
 	}
 	if (signal_pending(current))
 	    printk(KERN_NOTICE "cs: do_mtd_request interrupted!\n");
     }
+    wrelease(&mtd->mtd_req);
     if (tries == 20)
 	ret = CS_GENERAL_FAILURE;
-    wake_up_interruptible(&mtd->mtd_req);
+    wakeup(&mtd->mtd_req);
     retry_erase_list(&mtd->erase_busy, 0);
     return ret;
 } /* do_mtd_request */
@@ -106,7 +104,7 @@ static int do_mtd_request(memory_handle_t handle, mtd_request_t *req,
 
 static void insert_queue(erase_busy_t *head, erase_busy_t *entry)
 {
-    DEBUG(2, "cs: adding 0x%p to queue 0x%p\n", entry, head);
+    DEBUG(2, ("cs: adding 0x%p to queue 0x%p\n", entry, head));
     entry->next = head;
     entry->prev = head->prev;
     head->prev->next = entry;
@@ -115,7 +113,7 @@ static void insert_queue(erase_busy_t *head, erase_busy_t *entry)
 
 static void remove_queue(erase_busy_t *entry)
 {
-    DEBUG(2, "cs: unqueueing 0x%p\n", entry);
+    DEBUG(2, ("cs: unqueueing 0x%p\n", entry));
     entry->next->prev = entry->prev;
     entry->prev->next = entry->next;
 }
@@ -128,7 +126,7 @@ static void retry_erase(erase_busy_t *busy, u_int cause)
     socket_info_t *s;
     int ret;
 
-    DEBUG(2, "cs: trying erase request 0x%p...\n", busy);
+    DEBUG(2, ("cs: trying erase request 0x%p...\n", busy));
     if (busy->next)
 	remove_queue(busy);
     req.Function = MTD_REQ_ERASE | cause;
@@ -138,9 +136,11 @@ static void retry_erase(erase_busy_t *busy, u_int cause)
     mtd = erase->Handle->mtd;
     s = SOCKET(mtd);
     mtd->event_callback_args.mtdrequest = &req;
+    wacquire(&mtd->mtd_req);
     ret = EVENT(mtd, CS_EVENT_MTD_REQUEST, CS_EVENT_PRI_LOW);
+    wrelease(&mtd->mtd_req);
     if (ret == CS_BUSY) {
-	DEBUG(2, "  Status = %d, requeueing.\n", req.Status);
+	DEBUG(2, ("  Status = %d, requeueing.\n", req.Status));
 	switch (req.Status) {
 	case MTD_WAITREQ:
 	case MTD_WAITPOWER:
@@ -156,7 +156,7 @@ static void retry_erase(erase_busy_t *busy, u_int cause)
 	}
     } else {
 	/* update erase queue status */
-	DEBUG(2, "  Ret = %d\n", ret);
+	DEBUG(2, ("  Ret = %d\n", ret));
 	switch (ret) {
 	case CS_SUCCESS:
 	    erase->State = ERASE_PASSED; break;
@@ -175,7 +175,7 @@ static void retry_erase(erase_busy_t *busy, u_int cause)
 	EVENT(busy->client, CS_EVENT_ERASE_COMPLETE, CS_EVENT_PRI_LOW);
 	kfree_s(busy, sizeof(*busy));
 	/* Resubmit anything waiting for a request to finish */
-	wake_up_interruptible(&mtd->mtd_req);
+	wakeup(&mtd->mtd_req);
 	retry_erase_list(&mtd->erase_busy, 0);
     }
 } /* retry_erase */
@@ -184,7 +184,7 @@ void retry_erase_list(erase_busy_t *list, u_int cause)
 {
     erase_busy_t tmp = *list;
 
-    DEBUG(2, "cs: rescanning erase queue list 0x%p\n", list);
+    DEBUG(2, ("cs: rescanning erase queue list 0x%p\n", list));
     if (list->next == list)
 	return;
     /* First, truncate the original list */
@@ -201,7 +201,7 @@ void retry_erase_list(erase_busy_t *list, u_int cause)
 
 static void handle_erase_timeout(u_long arg)
 {
-    DEBUG(0, "cs: erase timeout for entry 0x%lx\n", arg);
+    DEBUG(0, ("cs: erase timeout for entry 0x%lx\n", arg));
     retry_erase((erase_busy_t *)arg, MTD_REQ_TIMEOUT);
 }
 
@@ -320,8 +320,8 @@ static void setup_regions(client_handle_t handle, int attr,
     cistpl_device_geo_t geo;
     memory_handle_t r;
 
-    DEBUG(1, "cs: setup_regions(0x%p, %d, 0x%p)\n",
-	  handle, attr, list);
+    DEBUG(1, ("cs: setup_regions(0x%p, %d, 0x%p)\n",
+	      handle, attr, list));
 
     code = (attr) ? CISTPL_DEVICE_A : CISTPL_DEVICE;
     if (read_tuple(handle, code, &device) != CS_SUCCESS)
@@ -350,7 +350,7 @@ static void setup_regions(client_handle_t handle, int attr,
 	    r = kmalloc(sizeof(*r), GFP_KERNEL);
 	    r->region_magic = REGION_MAGIC;
 	    r->state = 0;
-	    r->dev_info = NULL;
+	    r->dev_info[0] = '\0';
 	    r->mtd = NULL;
 	    r->info.Attributes = (attr) ? REGION_TYPE_AM : 0;
 	    r->info.CardOffset = offset;
@@ -388,7 +388,7 @@ static int match_region(client_handle_t handle, memory_handle_t list,
 {
     while (list != NULL) {
 	if (!(handle->Attributes & INFO_MTD_CLIENT) ||
-	    (handle->dev_info == list->dev_info)) {
+	    (strcmp(handle->dev_info, list->dev_info) == 0)) {
 	    *match = list->info;
 	    return CS_SUCCESS;
 	}
@@ -441,14 +441,14 @@ int register_mtd(client_handle_t handle, mtd_reg_t *reg)
 	list = s->a_region;
     else
 	list = s->c_region;
-    DEBUG(1, "cs: register_mtd(0x%p, '%s', 0x%x)\n",
-	  handle, (char *)handle->dev_info, reg->Offset);
+    DEBUG(1, ("cs: register_mtd(0x%p, '%s', 0x%x)\n",
+	      handle, handle->dev_info, reg->Offset));
     while (list) {
 	if (list->info.CardOffset == reg->Offset) break;
 	list = list->info.next;
     }
     if (list && (list->mtd == NULL) &&
-	(handle->dev_info == list->dev_info)) {
+	(strcmp(handle->dev_info, list->dev_info) == 0)) {
 	list->info.Attributes = reg->Attributes;
 	list->MediaID = reg->MediaID;
 	list->mtd = handle;
@@ -529,8 +529,8 @@ int open_memory(client_handle_t *handle, open_mem_t *open)
     }
     if (region && region->mtd) {
 	*handle = (client_handle_t)region;
-	DEBUG(1, "cs: open_memory(0x%p, 0x%x) = 0x%p\n",
-	      handle, open->Offset, region);
+	DEBUG(1, ("cs: open_memory(0x%p, 0x%x) = 0x%p\n",
+		  handle, open->Offset, region));
 	return CS_SUCCESS;
     } else
 	return CS_BAD_OFFSET;
@@ -546,7 +546,7 @@ int open_memory(client_handle_t *handle, open_mem_t *open)
 
 int close_memory(memory_handle_t handle)
 {
-    DEBUG(1, "cs: close_memory(0x%p)\n", handle);
+    DEBUG(1, ("cs: close_memory(0x%p)\n", handle));
     if (CHECK_REGION(handle))
 	return CS_BAD_HANDLE;
     return CS_SUCCESS;

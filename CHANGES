@@ -1,3 +1,17 @@
+Version 3.0.4
+-- Split "modules" subdirectory: moved client drivers to "clients".
+-- Added "cardctl ident" to display card identification information.
+-- Added /proc/bus/pccard tree for 2.1.105 and later kernels.
+-- Improved option handling in startup script.
+-- Lots of code rearrangement to improve portability.
+-- Fixed 2.0.35 kernel incompatibilities.
+-- Fixed an SMP bug in memory allocation code introduced in 3.0.2.
+-- Fixed kernel build date handling bug in Configure script.
+-- Fixed bug in memory probe logic introduced in 3.0.3.
+-- Fixed bug in VIA controller detection logic.
+-- Fixed bugs in probe tool and added new controllers.
+-- Fix in i82365 module Vpp handling for older controllers.
+
 Version 3.0.3
 -- Minor updates to HOWTO, config file, xirc2ps_cs driver.
 -- Removed apparently broken 3V/5V detection for Cirrus controllers.

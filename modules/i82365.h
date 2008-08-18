@@ -1,5 +1,5 @@
 /*
- * i82365.h 1.11 1998/05/10 11:59:46
+ * i82365.h 1.12 1998/06/05 00:17:41
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -57,11 +57,17 @@
 #define I365_PWR_NORESET 0x40	/* Disable RESETDRV on resume */
 #define I365_PWR_AUTO	0x20	/* Auto pwr switch enable */
 #define I365_VCC_MASK	0x18	/* Mask for turning off Vcc */
+/* There are different layouts for B-step and DF-step chips: the B
+   step has independent Vpp1/Vpp2 control, and the DF step has only
+   Vpp1 control, plus 3V control */
 #define I365_VCC_5V	0x10	/* Vcc = 5.0v */
 #define I365_VCC_3V	0x18	/* Vcc = 3.3v */
-#define I365_VPP_MASK	0x03	/* Mask for turning off Vpp */
-#define I365_VPP_5V	0x01	/* Vpp = 5.0v */
-#define I365_VPP_12V	0x02	/* Vpp = 12.0v */
+#define I365_VPP2_MASK	0x0c	/* Mask for turning off Vpp2 */
+#define I365_VPP2_5V	0x04	/* Vpp2 = 5.0v */
+#define I365_VPP2_12V	0x08	/* Vpp2 = 12.0v */
+#define I365_VPP1_MASK	0x03	/* Mask for turning off Vpp1 */
+#define I365_VPP1_5V	0x01	/* Vpp2 = 5.0v */
+#define I365_VPP1_12V	0x02	/* Vpp2 = 12.0v */
 
 /* Flags for I365_INTCTL */
 #define I365_RING_ENA	0x80

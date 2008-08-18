@@ -8,7 +8,7 @@
 %%EndComments
 %DVIPSCommandLine: dvips -t letter PCMCIA-PROG.dvi -o PCMCIA-PROG.ps
 %DVIPSParameters: dpi=600, comments removed
-%DVIPSSource:  TeX output 1998.05.24:2003
+%DVIPSSource:  TeX output 1998.07.18:0931
 %%BeginProcSet: tex.pro
 /TeXDict 250 dict def TeXDict begin /N{def}def /B{bind def}N /S{exch}N
 /X{S N}B /TR{translate}N /isls false N /vsize 11 72 mul N /hsize 8.5 72
@@ -4595,7 +4595,7 @@ TeXDict begin
 %%Page: 1 1
 1 0 bop 0 198 a Fj(Linux)55 b(PCMCIA)f(Programmer's)h(Guide)p
 0 312 3900 24 v 0 425 a Fi(Da)n(vid)27 b(Hinds,)h Fh(dhinds@hyper.stan)
-o(fo)o(rd.)o(ed)o(u)p Fi(.)1338 b(v2.7,)27 b(1998/05/24)c(19:11:18)0
+o(fo)o(rd.)o(ed)o(u)p Fi(.)1297 b(v2.10,)26 b(1998/07/18)d(09:29:03)0
 575 y Fg(This)k(do)r(cument)g(describ)r(es)g(ho)n(w)f(to)i(write)f(k)n
 (ernel)g(device)g(drivers)h(fo)n(r)g(the)g(Linux)f(PCMCIA)h(Ca)n(rd)g
 (Services)f(interface.)37 b(It)0 688 y(also)27 b(describ)r(es)g(ho)n(w)
@@ -5297,12 +5297,12 @@ Fh(SuspendCard)c Fi(and)28 b Fh(ResumeCard)23 b Fi(can)k(b)r(e)h(used)g
 b Fi(and)j Fh(InsertCard)d Fi(essen)n(tially)i(mimic)i(real)f(card)g
 (ejection)0 1264 y(and)g(insertion)g(ev)n(en)n(ts.)0
 1537 y Fe(3.2.1)94 b(GetStatus)208 1728 y Fc(int)39 b
-(CardServices\(GetStatus,)45 b(client_handle_t)e(client,)d(status_t)h
-(*status\);)0 1967 y Fi(The)28 b Fh(status)p 440 1967
-V 29 w(t)f Fi(data)g(structure)g(is)g(giv)n(en)g(b)n(y:)208
-2181 y Fc(typedef)40 b(struct)h(status_t)g({)521 2285
-y(u_char)394 b(Function;)521 2389 y(u_int)433 b(CardState;)521
-2493 y(u_int)g(SocketState;)208 2597 y(})39 b(status_t;)0
+(CardServices\(GetStatus,)45 b(client_handle_t)e(client,)d(cs_status_t)
+i(*status\);)0 1967 y Fi(The)28 b Fh(cs)p 264 1967 V
+30 w(status)p 558 1967 V 29 w(t)f Fi(data)g(structure)h(is)f(giv)n(en)g
+(b)n(y:)208 2181 y Fc(typedef)40 b(struct)h(cs_status_t)h({)521
+2285 y(u_char)394 b(Function;)521 2389 y(u_int)433 b(CardState;)521
+2493 y(u_int)g(SocketState;)208 2597 y(})39 b(cs_status_t;)0
 2820 y Fh(GetStatus)24 b Fi(returns)j(the)h(curren)n(t)f(status)g(of)g
 (a)h(clien)n(t's)f(so)r(c)n(k)n(et.)36 b(F)-7 b(or)27
 b(cards)f(that)i(are)f(con\014gured)f(in)i(IO)g(mo)r(de,)0
@@ -5691,7 +5691,7 @@ b(client_handle_t)e(client,)e(config_req_t)h(*req\);)0
 3016 y Fc(typedef)40 b(struct)h(config_req_t)h({)521
 3120 y(u_int)433 b(Attributes;)521 3224 y(u_int)g(Vcc,)40
 b(Vpp1,)h(Vpp2;)521 3328 y(u_int)433 b(IntType;)521 3432
-y(caddr_t)355 b(ConfigBase;)521 3537 y(u_char)394 b(Status,)41
+y(u_int)g(ConfigBase;)521 3537 y(u_char)394 b(Status,)41
 b(Pin,)f(Copy,)g(ExtStatus;)521 3641 y(u_char)394 b(ConfigIndex;)521
 3745 y(u_int)433 b(Present;)208 3849 y(})39 b(config_req_t;)0
 4070 y Fh(RequestConfigura)o(tio)o(n)21 b Fi(is)28 b(resp)r(onsible)f
@@ -5846,8 +5846,8 @@ b(client_handle_t)e(client,)e(config_info_t)h(*config\);)0
 3858 y Fc(typedef)40 b(struct)h(config_info_t)h({)521
 3962 y(u_char)394 b(Function;)521 4066 y(u_int)433 b(Attributes;)521
 4170 y(u_int)g(Vcc,)40 b(Vpp1,)h(Vpp2;)521 4274 y(u_int)433
-b(IntType;)521 4378 y(caddr_t)355 b(ConfigBase;)521 4483
-y(u_char)394 b(Status,)41 b(Pin,)f(Copy,)g(Option,)h(ExtStatus;)521
+b(IntType;)521 4378 y(u_int)g(ConfigBase;)521 4483 y(u_char)394
+b(Status,)41 b(Pin,)f(Copy,)g(Option,)h(ExtStatus;)521
 4587 y(u_int)433 b(Present;)521 4691 y(u_int)g(AssignedIRQ;)521
 4795 y(u_int)g(IRQAttributes;)521 4899 y(ioaddr_t)316
 b(BasePort1;)521 5003 y(ioaddr_t)g(NumPorts1;)521 5107
@@ -6600,7 +6600,7 @@ b(CardServices\(AdjustResource)q(Info)q(,)45 b(client_handle_t)e
 806 y Fc(typedef)40 b(struct)h(adjust_t)g({)521 910 y(u_int)433
 b(Action;)521 1014 y(u_int)g(Resource;)521 1118 y(u_int)g(Attributes;)
 521 1222 y(union)41 b({)835 1326 y(struct)g(memory)f({)1149
-1430 y(caddr_t)355 b(Base;)1149 1534 y(u_long)394 b(Size;)835
+1430 y(u_long)394 b(Base;)1149 1534 y(u_long)g(Size;)835
 1638 y(})40 b(memory;)835 1743 y(struct)h(io)e({)1149
 1847 y(ioaddr_t)316 b(BasePort;)1149 1951 y(ioaddr_t)g(NumPorts;)1149
 2055 y(u_int)433 b(IOAddrLines;)835 2159 y(})40 b(io;)835
@@ -7724,7 +7724,7 @@ Fh(dev)p 308 1352 27 4 v 30 w(node)p 514 1352 V 30 w(t)f
 Fi(and)g Fh(dev)p 908 1352 V 30 w(link)p 1114 1352 V
 30 w(t)g Fi(data)g(structures)g(are)g(giv)n(en)g(b)n(y:)208
 1565 y Fc(#include)41 b("ds.h")208 1773 y(typedef)f(struct)h
-(dev_node_t)g({)521 1877 y(char)786 b(dev_name[8];)521
+(dev_node_t)g({)521 1877 y(char)786 b(dev_name[DEV_NAME_LEN];)521
 1982 y(u_char)708 b(major,)40 b(minor;)521 2086 y(struct)h(dev_node_t)
 277 b(*next;)208 2190 y(})208 2398 y(typedef)40 b(struct)h(dev_link_t)g
 ({)521 2502 y(dev_node_t)552 b(*dev;)521 2606 y(u_int)747
@@ -8061,14 +8061,14 @@ b(They)28 b(act)f(on)h Fh(bind)p 3318 162 27 4 v 29 w(info)p
 3523 162 V 30 w(t)0 275 y Fi(structures:)208 489 y Fc(typedef)40
 b(struct)h(bind_info_t)h({)521 593 y(dev_info_t)552 b(dev_info;)521
 697 y(u_char)708 b(function;)521 801 y(struct)41 b(dev_info_t)277
-b(*instance;)521 905 y(char)786 b(name[8];)521 1009 y(u_char)708
-b(major,)40 b(minor;)521 1113 y(void)786 b(*next;)208
-1217 y(})39 b(bind_info_t;)0 1457 y Fh(DS)p 93 1457 V
-31 w(BIND)p 300 1457 V 29 w(REQUEST)208 1604 y Fi(This)27
-b(call)g(connects)g(a)h(so)r(c)n(k)n(et)e(to)i(a)f(clien)n(t)h(driv)n
-(er.)35 b(The)28 b(sp)r(eci\014ed)g(device)f(ID)h Fh(dev)p
-2887 1604 V 30 w(info)e Fi(is)i(lo)r(ok)n(ed)e(up)i(in)g(the)208
-1717 y(list)f(of)h(registered)e(driv)n(ers.)35 b(If)28
+b(*instance;)521 905 y(char)786 b(name[DEV_NAME_LEN];)521
+1009 y(u_char)708 b(major,)40 b(minor;)521 1113 y(void)786
+b(*next;)208 1217 y(})39 b(bind_info_t;)0 1457 y Fh(DS)p
+93 1457 V 31 w(BIND)p 300 1457 V 29 w(REQUEST)208 1604
+y Fi(This)27 b(call)g(connects)g(a)h(so)r(c)n(k)n(et)e(to)i(a)f(clien)n
+(t)h(driv)n(er.)35 b(The)28 b(sp)r(eci\014ed)g(device)f(ID)h
+Fh(dev)p 2887 1604 V 30 w(info)e Fi(is)i(lo)r(ok)n(ed)e(up)i(in)g(the)
+208 1717 y(list)f(of)h(registered)e(driv)n(ers.)35 b(If)28
 b(this)g(is)g(a)f(m)n(ultifunction)i(card,)d(the)i Fh(function)d
 Fi(\014eld)j(iden)n(ti\014es)f(whic)n(h)h(card)208 1831
 y(function)g(is)f(b)r(eing)h(b)r(ound.)37 b(If)28 b(found,)g(the)g

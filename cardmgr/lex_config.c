@@ -515,7 +515,7 @@ char *yytext;
 
 #line 5 "lex_config.l"
 /*
- * lex_config.l 1.29 1998/05/10 12:13:46
+ * lex_config.l 1.31 1998/07/16 19:57:10
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -532,15 +532,17 @@ char *yytext;
  * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
+#undef src
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <syslog.h>
+#define src 1
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 
-#include "y.tab.h"
+#include "yacc_config.h"
 
 /* For assembling nice error messages */
 char *current_file;
@@ -701,7 +703,7 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
 
-#line 48 "lex_config.l"
+#line 50 "lex_config.l"
 
 
 
@@ -788,227 +790,227 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 50 "lex_config.l"
+#line 52 "lex_config.l"
 BEGIN(src);
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 51 "lex_config.l"
+#line 53 "lex_config.l"
 /* skip */ ;
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 52 "lex_config.l"
+#line 54 "lex_config.l"
 do_source(yytext); BEGIN(INITIAL);
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(src):
-#line 53 "lex_config.l"
+#line 55 "lex_config.l"
 if (do_eof()) yyterminate();
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 55 "lex_config.l"
+#line 57 "lex_config.l"
 current_lineno++;
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 56 "lex_config.l"
+#line 58 "lex_config.l"
 /* skip */ ;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 57 "lex_config.l"
+#line 59 "lex_config.l"
 /* skip */ ;
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 59 "lex_config.l"
+#line 61 "lex_config.l"
 return ANONYMOUS;
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 60 "lex_config.l"
+#line 62 "lex_config.l"
 return BIND;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 61 "lex_config.l"
+#line 63 "lex_config.l"
 return CIS;
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 62 "lex_config.l"
+#line 64 "lex_config.l"
 return CARD;
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 63 "lex_config.l"
+#line 65 "lex_config.l"
 return CLASS;
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 64 "lex_config.l"
+#line 66 "lex_config.l"
 return DEFAULT;
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 65 "lex_config.l"
+#line 67 "lex_config.l"
 return DEVICE;
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 66 "lex_config.l"
+#line 68 "lex_config.l"
 return DTYPE;
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 67 "lex_config.l"
+#line 69 "lex_config.l"
 return EXCLUDE;
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 68 "lex_config.l"
+#line 70 "lex_config.l"
 return FUNCTION;
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 69 "lex_config.l"
+#line 71 "lex_config.l"
 return INCLUDE;
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 70 "lex_config.l"
+#line 72 "lex_config.l"
 return IRQ_NO;
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 71 "lex_config.l"
+#line 73 "lex_config.l"
 return JEDEC;
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 72 "lex_config.l"
+#line 74 "lex_config.l"
 return MANFID;
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 73 "lex_config.l"
+#line 75 "lex_config.l"
 return MEMORY;
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 74 "lex_config.l"
+#line 76 "lex_config.l"
 return MODULE;
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 75 "lex_config.l"
+#line 77 "lex_config.l"
 return MTD;
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 76 "lex_config.l"
+#line 78 "lex_config.l"
 return NEEDS_MTD;
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 77 "lex_config.l"
+#line 79 "lex_config.l"
 return OPTS;
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 78 "lex_config.l"
+#line 80 "lex_config.l"
 return PORT;
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 79 "lex_config.l"
+#line 81 "lex_config.l"
 return REGION;
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 80 "lex_config.l"
+#line 82 "lex_config.l"
 return RESERVE;
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 81 "lex_config.l"
+#line 83 "lex_config.l"
 return TO;
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 82 "lex_config.l"
+#line 84 "lex_config.l"
 return TUPLE;
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 83 "lex_config.l"
+#line 85 "lex_config.l"
 return VERSION;
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 85 "lex_config.l"
+#line 87 "lex_config.l"
 return lex_number("1");
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 86 "lex_config.l"
+#line 88 "lex_config.l"
 return lex_number("2");
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 87 "lex_config.l"
+#line 89 "lex_config.l"
 return lex_number("3");
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 88 "lex_config.l"
+#line 90 "lex_config.l"
 return lex_number("4");
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 89 "lex_config.l"
+#line 91 "lex_config.l"
 return lex_number("5");
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 90 "lex_config.l"
+#line 92 "lex_config.l"
 return lex_number("6");
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 91 "lex_config.l"
+#line 93 "lex_config.l"
 return lex_number("7");
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 92 "lex_config.l"
+#line 94 "lex_config.l"
 return lex_number("8");
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 94 "lex_config.l"
+#line 96 "lex_config.l"
 return lex_number(yytext);
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 96 "lex_config.l"
+#line 98 "lex_config.l"
 return lex_number(yytext);
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 98 "lex_config.l"
+#line 100 "lex_config.l"
 return lex_string(yytext);
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 100 "lex_config.l"
+#line 102 "lex_config.l"
 return yytext[0];
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 102 "lex_config.l"
+#line 104 "lex_config.l"
 ECHO;
 	YY_BREAK
 
@@ -1894,7 +1896,7 @@ int main()
 	return 0;
 	}
 #endif
-#line 102 "lex_config.l"
+#line 104 "lex_config.l"
 
 
 #ifndef yywrap

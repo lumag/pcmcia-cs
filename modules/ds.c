@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.82 1998/05/14 00:27:28
+    ds.c $Revision: 1.85 $ $Date: 1998/07/14 09:23:49 $
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -33,12 +33,9 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/ioctl.h>
-
 #if (LINUX_VERSION_CODE >= VERSION(2,1,23))
 #include <linux/poll.h>
 #endif
-
-#include <asm/segment.h>
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -52,36 +49,15 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.82 1998/05/14 00:27:28 (David Hinds)";
+"ds.c $Revision: 1.85 $ $Date: 1998/07/14 09:23:49 $ (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
 
 /*====================================================================*/
 
-static void handle_removal(u_long i);
-
-static int ds_event(event_t event, int priority,
-		    event_callback_args_t *args);
-static FS_SIZE_T ds_read FOPS(struct inode *inode,
-			      struct file *file, char *buf,
-			      U_FS_SIZE_T count, loff_t *ppos);
-static FS_SIZE_T ds_write FOPS(struct inode *inode,
-			       struct file *file, CONST char *buf,
-			       U_FS_SIZE_T count, loff_t *ppos);
-#if (LINUX_VERSION_CODE < VERSION(2,1,23))
-static int ds_select(struct inode *inode, struct file *file,
-		     int sel_type, select_table *wait);
-#else
-static u_int ds_poll(struct file *file, poll_table *wait);
-#endif
-static int ds_ioctl(struct inode *inode, struct file *file,
-		    u_int cmd, u_long arg);
-static int ds_open(struct inode *inode, struct file *file);
-static FS_RELEASE_T ds_release(struct inode *inode, struct file *file);
-
 typedef struct driver_info_t {
-    dev_info_t		*dev_info;
+    dev_info_t		dev_info;
     int			use_count;
     dev_link_t		*(*attach)(void);
     void		(*detach)(dev_link_t *);
@@ -132,49 +108,6 @@ static driver_info_t *root_driver = NULL;
 static int sockets = 0, major_dev = -1;
 static socket_info_t *socket_table = NULL;
 
-static struct file_operations ds_fops = {
-    NULL,		/* lseek */
-    ds_read,		/* read */
-    ds_write,		/* write */
-    NULL,		/* readdir */
-#if (LINUX_VERSION_CODE < VERSION(2,1,23))
-    ds_select,		/* select */
-#else
-    ds_poll,		/* poll */
-#endif
-    ds_ioctl,		/* ioctl */
-    NULL,		/* mmap */
-    ds_open,		/* open */
-    ds_release,		/* release */
-    NULL		/* fsync */
-};
-
-#if (LINUX_VERSION_CODE <= VERSION(2,1,17))
-
-#undef CONFIG_MODVERSIONS
-static struct symbol_table ds_symtab = {
-#include <linux/symtab_begin.h>
-#if (LINUX_VERSION_CODE >= VERSION(1,3,0))
-#undef X
-#define X(sym) { (void *)&sym, SYMBOL_NAME_STR(sym) }
-#endif
-    X(register_pccard_driver),
-    X(unregister_pccard_driver),
-    X(bind_request),
-    X(bind_mtd),
-#include <linux/symtab_end.h>
-};
-
-#else
-
-#define register_symtab(n)
-EXPORT_SYMBOL(register_pccard_driver);
-EXPORT_SYMBOL(unregister_pccard_driver);
-EXPORT_SYMBOL(bind_request);
-EXPORT_SYMBOL(bind_mtd);
-
-#endif
-
 /*====================================================================*/
 
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -196,20 +129,36 @@ int register_pccard_driver(dev_info_t *dev_info,
 			   void (*detach)(dev_link_t *))
 {
     driver_info_t *driver;
+    socket_bind_t *b;
+    int i;
+
     DEBUG(0, "ds: register_pccard_driver('%s')\n", (char *)dev_info);
     for (driver = root_driver; driver; driver = driver->next)
-	if (strcmp((char *)dev_info, (char *)driver->dev_info) == 0)
+	if (strncmp((char *)dev_info, (char *)driver->dev_info,
+		    DEV_NAME_LEN) == 0)
 	    break;
-    if (driver)
-	return -1;
-    MOD_INC_USE_COUNT;
-    driver = kmalloc(sizeof(driver_info_t), GFP_KERNEL);
-    driver->next = root_driver;
-    driver->dev_info = dev_info;
+    if (!driver) {
+	driver = kmalloc(sizeof(driver_info_t), GFP_KERNEL);
+	strncpy(driver->dev_info, (char *)dev_info, DEV_NAME_LEN);
+	driver->use_count = 0;
+	driver->next = root_driver;
+	root_driver = driver;
+    }
+
     driver->attach = attach;
     driver->detach = detach;
-    driver->use_count = 0;
-    root_driver = driver;
+    if (driver->use_count == 0) return 0;
+    
+    /* Instantiate any already-bound devices */
+    for (i = 0; i < sockets; i++)
+	for (b = socket_table[i].bind; b; b = b->next) {
+	    if (b->driver != driver) continue;
+	    b->instance = driver->attach();
+	    if (b->instance == NULL)
+		printk(KERN_NOTICE "ds: unable to create instance "
+		       "of '%s'!\n", driver->dev_info);
+	}
+    
     return 0;
 } /* register_pccard_driver */
 
@@ -217,24 +166,29 @@ int register_pccard_driver(dev_info_t *dev_info,
 
 int unregister_pccard_driver(dev_info_t *dev_info)
 {
-    driver_info_t *target, **driver = &root_driver;
+    driver_info_t *target, **d = &root_driver;
+    socket_bind_t *b;
+    int i;
+    
     DEBUG(0, "ds: unregister_pccard_driver('%s')\n",
 	  (char *)dev_info);
-    while ((*driver) && ((*driver)->dev_info != dev_info))
-	driver = &(*driver)->next;
-    if (*driver == NULL)
+    while ((*d) && (strncmp((*d)->dev_info, (char *)dev_info,
+			    DEV_NAME_LEN) == 0))
+	d = &(*d)->next;
+    if (*d == NULL)
 	return -1;
-    target = *driver;
-    *driver = target->next;
-    if (target->use_count == 0)
+    
+    target = *d;
+    if (target->use_count == 0) {
+	*d = target->next;
 	kfree(target);
-    else {
-	char *zombie = kmalloc(sizeof(dev_info_t), GFP_KERNEL);
-	strcpy(zombie, (char *)target->dev_info);
-	target->dev_info = (dev_info_t *)zombie;
-	target->detach = NULL;
+    } else {
+	/* Blank out any left-over device instances */
+	target->attach = NULL; target->detach = NULL;
+	for (i = 0; i < sockets; i++)
+	    for (b = socket_table[i].bind; b; b = b->next)
+		if (b->driver == *d) b->instance = NULL;
     }
-    MOD_DEC_USE_COUNT;
     return 0;
 } /* unregister_pccard_driver */
 
@@ -346,7 +300,7 @@ static int ds_event(event_t event, int priority,
     
 ======================================================================*/
 
-int bind_mtd(int i, mtd_info_t *mtd_info)
+static int bind_mtd(int i, mtd_info_t *mtd_info)
 {
     struct driver_info_t *driver;
     mtd_bind_t bind_req;
@@ -359,7 +313,7 @@ int bind_mtd(int i, mtd_info_t *mtd_info)
     if (driver == NULL)
 	return -ENODEV;
 
-    bind_req.dev_info = driver->dev_info;
+    bind_req.dev_info = &driver->dev_info;
     bind_req.Attributes = mtd_info->Attributes;
     bind_req.Socket = i;
     bind_req.CardOffset = mtd_info->CardOffset;
@@ -383,7 +337,7 @@ int bind_mtd(int i, mtd_info_t *mtd_info)
     
 ======================================================================*/
 
-int bind_request(int i, bind_info_t *bind_info)
+static int bind_request(int i, bind_info_t *bind_info)
 {
     struct driver_info_t *driver;
     socket_bind_t *b;
@@ -391,12 +345,20 @@ int bind_request(int i, bind_info_t *bind_info)
     socket_info_t *s = &socket_table[i];
     int ret;
 
+    DEBUG(2, "bind_request(%d, '%s')\n", i,
+	  (char *)bind_info->dev_info);
     for (driver = root_driver; driver; driver = driver->next)
 	if (strcmp((char *)driver->dev_info,
 		   (char *)bind_info->dev_info) == 0)
 	    break;
-    if (driver == NULL)
-	return -ENODEV;
+    if (driver == NULL) {
+	driver = kmalloc(sizeof(driver_info_t), GFP_KERNEL);
+	strncpy(driver->dev_info, bind_info->dev_info, DEV_NAME_LEN);
+	driver->use_count = 0;
+	driver->next = root_driver;
+	driver->attach = NULL; driver->detach = NULL;
+	root_driver = driver;
+    }
 
     for (b = s->bind; b; b = b->next)
 	if (driver == b->driver)
@@ -408,7 +370,7 @@ int bind_request(int i, bind_info_t *bind_info)
 
     bind_req.Socket = i;
     bind_req.Function = bind_info->function;
-    bind_req.dev_info = driver->dev_info;
+    bind_req.dev_info = &driver->dev_info;
     ret = CardServices(BindDevice, &bind_req);
     if (ret != CS_SUCCESS) {
 	cs_error(NULL, BindDevice, ret);
@@ -416,21 +378,23 @@ int bind_request(int i, bind_info_t *bind_info)
 	       (char *)dev_info, i);
 	return -ENODEV;
     }
-    
-    bind_info->instance = driver->attach();
-    if (bind_info->instance == NULL) {
-	printk(KERN_NOTICE "ds: unable to creat instance of '%s'!\n",
-	       (char *)bind_info->dev_info);
-	return -ENODEV;
-    }
 
     /* Add binding to list for this socket */
     driver->use_count++;
     b = kmalloc(sizeof(socket_bind_t), GFP_KERNEL);
     b->driver = driver;
-    b->instance = bind_info->instance;
+    b->instance = NULL;
     b->next = s->bind;
     s->bind = b;
+    
+    if (driver->attach) {
+	b->instance = driver->attach();
+	if (b->instance == NULL) {
+	    printk(KERN_NOTICE "ds: unable to create instance "
+		   "of '%s'!\n", (char *)bind_info->dev_info);
+	    return -ENODEV;
+	}
+    }
     
     return 0;
 } /* bind_request */
@@ -448,16 +412,15 @@ static int get_device_info(int i, bind_info_t *bind_info)
 	    break;
     if (b == NULL)
 	return -ENODEV;
-
-    if (b->instance != bind_info->instance)
-	return -EINVAL;
-    if (b->instance->state & DEV_CONFIG_PENDING)
+    if ((b->instance == NULL) ||
+	(b->instance->state & DEV_CONFIG_PENDING))
 	return -EAGAIN;
     if (b->instance->dev == NULL)
 	return -ENODEV;
 
-    strncpy(bind_info->name, b->instance->dev->dev_name, 8);
-    bind_info->name[7] = '\0';
+    strncpy(bind_info->name, b->instance->dev->dev_name,
+	    DEV_NAME_LEN);
+    bind_info->name[DEV_NAME_LEN-1] = '\0';
     bind_info->major = b->instance->dev->major;
     bind_info->minor = b->instance->dev->minor;
     bind_info->next = b->instance->dev->next;
@@ -474,8 +437,8 @@ static int get_next_device(int i, bind_info_t *bind_info)
     if (dev == NULL)
 	return -ENODEV;
     
-    strncpy(bind_info->name, dev->dev_name, 8);
-    bind_info->name[7] = '\0';
+    strncpy(bind_info->name, dev->dev_name, DEV_NAME_LEN);
+    bind_info->name[DEV_NAME_LEN-1] = '\0';
     bind_info->major = dev->major;
     bind_info->minor = dev->minor;
     bind_info->next = dev->next;
@@ -490,6 +453,8 @@ static int unbind_request(int i, bind_info_t *bind_info)
     socket_info_t *s = &socket_table[i];
     socket_bind_t **b, *c;
 
+    DEBUG(2, "unbind_request(%d, '%s')\n", i,
+	  (char *)bind_info->dev_info);
     for (b = &s->bind; *b; b = &(*b)->next)
 	if (strcmp((char *)(*b)->driver->dev_info,
 		   (char *)bind_info->dev_info) == 0)
@@ -499,13 +464,17 @@ static int unbind_request(int i, bind_info_t *bind_info)
     
     c = *b;
     c->driver->use_count--;
-    if (c->driver->detach)
-	c->driver->detach(c->instance);
-    else
+    if (c->driver->detach) {
+	if (c->instance) c->driver->detach(c->instance);
+    } else {
 	if (c->driver->use_count == 0) {
-	    kfree(c->driver->dev_info);
-	    kfree(c->driver);
+	    driver_info_t **d;
+	    for (d = &root_driver; *d; d = &((*d)->next))
+		if (c->driver == *d) break;
+	    *d = (*d)->next;
+	    kfree_s(c->driver, sizeof(driver_info_t));
 	}
+    }
     *b = c->next;
     kfree_s(c, sizeof(socket_bind_t));
     
@@ -846,6 +815,47 @@ static int ds_ioctl(struct inode * inode, struct file * file,
      
     return err;
 } /* ds_ioctl */
+
+/*====================================================================*/
+
+static struct file_operations ds_fops = {
+    NULL,		/* lseek */
+    ds_read,		/* read */
+    ds_write,		/* write */
+    NULL,		/* readdir */
+#if (LINUX_VERSION_CODE < VERSION(2,1,23))
+    ds_select,		/* select */
+#else
+    ds_poll,		/* poll */
+#endif
+    ds_ioctl,		/* ioctl */
+    NULL,		/* mmap */
+    ds_open,		/* open */
+    ds_release,		/* release */
+    NULL		/* fsync */
+};
+
+#if (LINUX_VERSION_CODE <= VERSION(2,1,17))
+
+#undef CONFIG_MODVERSIONS
+static struct symbol_table ds_symtab = {
+#include <linux/symtab_begin.h>
+#if (LINUX_VERSION_CODE >= VERSION(1,3,0))
+#undef X
+#define X(sym) { (void *)&sym, SYMBOL_NAME_STR(sym) }
+#endif
+    X(register_pccard_driver),
+    X(unregister_pccard_driver),
+#include <linux/symtab_end.h>
+};
+
+#else
+
+#define register_symtab(n)
+EXPORT_SYMBOL(register_pccard_driver);
+EXPORT_SYMBOL(unregister_pccard_driver);
+
+#endif
 
 /*====================================================================*/
 

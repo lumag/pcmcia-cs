@@ -1,5 +1,5 @@
 #
-# cardmgr/Makefile 1.62 1998/04/27 08:10:23 (David Hinds)
+# cardmgr/Makefile 1.64 1998/07/16 20:02:35 (David Hinds)
 #
 
 # Include site dependent options
@@ -15,7 +15,7 @@ COFLAGS = -kv
 YFLAGS = -d
 
 SRCS = cardmgr.c cardctl.c yacc_config.c lex_config.c probe.c
-HDRS = cardmgr.h
+HDRS = cardmgr.h yacc_config.h
 TOOLS = cardmgr cardctl
 
 ifdef CONFIG_INET
@@ -52,16 +52,22 @@ clean:
 
 cardmgr: cardmgr.o yacc_config.o lex_config.o
 
+yacc_config.c yacc_config.h: yacc_config.y
+	$(YACC) $(YFLAGS) yacc_config.y
+	mv y.tab.c yacc_config.c
+	mv y.tab.h yacc_config.h
+
 cardmgr.o: cardmgr.c
 
 yacc_config.o: yacc_config.c
 	$(CC) $(XFLAGS) $(CPPFLAGS) -c yacc_config.c
 
-lex_config.o: lex_config.c
+lex_config.o: lex_config.c yacc_config.h
 	$(CC) $(XFLAGS) $(CPPFLAGS) -c lex_config.c
 
 parser: lex_config.o yacc_config.c
-	$(CC) $(XFLAGS) $(CPPFLAGS) -DDEBUG -o parser yacc_config.c lex_config.o
+	$(CC) $(XFLAGS) $(CPPFLAGS) -DYYDEBUG=1 -o parser \
+	    yacc_config.c lex_config.o
 
 cardinfo: cardinfo.c
 	$(CC) $(LFLAGS) $(CFLAGS) $(CPPFLAGS) -o cardinfo cardinfo.c \

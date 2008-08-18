@@ -1,5 +1,5 @@
 #
-# debug-tools/Makefile 1.24 1998/05/14 09:17:57 (David Hinds)
+# debug-tools/Makefile 1.25 1998/07/16 20:02:26 (David Hinds)
 #
 
 # Include site dependent options
@@ -33,10 +33,15 @@ dump_tcic: dump_tcic.o
 
 dump_cisreg: dump_cisreg.o
 
+yacc_cis.c yacc_cis.h: yacc_cis.y
+	$(YACC) $(YFLAGS) yacc_cis.y
+	mv y.tab.c yacc_cis.c
+	mv y.tab.h yacc_cis.h
+
 yacc_cis.o: yacc_cis.c
 	$(CC) $(XFLAGS) $(CPPFLAGS) -c yacc_cis.c
 
-lex_cis.o: lex_cis.c yacc_cis.c
+lex_cis.o: lex_cis.c yacc_cis.h
 	$(CC) $(XFLAGS) $(CPPFLAGS) -c lex_cis.c
 
 pack_cis.o: pack_cis.c

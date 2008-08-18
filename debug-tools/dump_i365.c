@@ -2,7 +2,7 @@
 
     Register dump for the Intel 82365SL controller family
 
-    dump_i365.c 1.19 1998/05/10 12:21:47
+    dump_i365.c 1.20 1998/06/05 09:24:26
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -215,10 +215,10 @@ static void dump_power(int s)
     case 0:
 	printf(" [Vcc off]"); break;
     }
-    switch (v & I365_VPP_MASK) {
-    case I365_VPP_5V:
+    switch (v & I365_VPP1_MASK) {
+    case I365_VPP1_5V:
 	printf(" [Vpp=5v]"); break;
-    case I365_VPP_12V:
+    case I365_VPP1_12V:
 	printf(" [Vpp=12v]"); break;
     case 0:
 	printf(" [Vpp off]"); break;

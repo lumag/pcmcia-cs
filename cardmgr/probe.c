@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.32 1998/05/22 23:15:21
+    probe.c 1.33 1998/06/21 12:55:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -68,8 +68,9 @@ pci_id_t pci_id[] = {
     { 0x1217, 0x673a, "O2 Micro 6730", "O2Micro OZ6730" },
     { 0x1217, 0x6832, "O2 Micro 6832", "O2Micro OZ6832" },
     { 0x1179, 0x060a, "Toshiba ToPIC95", "Toshiba ToPIC95" },
-    { 0x119b, 0x1221, NULL, "Omega Micro 82C092G" },
-    { 0x8086, 0x1221, NULL, "Intel 82092AA" }
+    { 0x1179, 0x060f, "Toshiba ToPIC97", "Toshiba ToPIC97" },
+    { 0x119b, 0x1221, "Omega Micro 82C092G", "Omega Micro 82C092G" },
+    { 0x8086, 0x1221, "Intel 82092AA", "Intel 82092AA" }
 };
 #define PCI_COUNT (sizeof(pci_id)/sizeof(pci_id_t))
 
@@ -239,6 +240,9 @@ int i365_probe(int verbose, int module)
 		name = "Cirrus CL-PD6710";
 		sock = 1;
 	    }
+	    i365_set(0, PD67_EXT_INDEX, 0xe5);
+	    if (i365_get(0, PD67_EXT_INDEX) != 0xe5)
+		name = "VIA VT83C469";
 	}
     }
 

@@ -2,7 +2,7 @@
 
     A driver for the Qlogic SCSI card
 
-    qlogic_cs.c 1.60 1998/05/21 11:34:01
+    qlogic_cs.c 1.62 1998/07/18 09:25:42
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -48,15 +48,22 @@
 #else
 #include "drivers/scsi/scsi_ioctl.h"
 #endif
+
 #ifdef NEW_QLOGIC
 #include "drivers/scsi/qlogicfas.h"
 #define QLOGIC QLOGICFAS
 #define qlogic_preset qlogicfas_preset
+
 #if (LINUX_VERSION_CODE >= VERSION(2,1,18))
+#define qlogic_reset(h) qlogicfas_reset(h, 0)
+#else
+#if (LINUX_VERSION_CODE < VERSION(2,1,0)) && (LINUX_VERSION_CODE > VERSION(2,0,34))
 #define qlogic_reset(h) qlogicfas_reset(h, 0)
 #else
 #define qlogic_reset qlogicfas_reset
 #endif
+#endif
+
 #else
 #include "drivers/scsi/qlogic.h"
 #endif
@@ -75,7 +82,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"qlogic_cs.c 1.60 1998/05/21 11:34:01 (David Hinds)";
+"qlogic_cs.c 1.62 1998/07/18 09:25:42 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

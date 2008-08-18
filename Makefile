@@ -1,8 +1,8 @@
 #
-# Makefile 1.30 1997/10/05 22:54:47 (David Hinds)
+# Makefile $Revision: 1.30 $ $Date: 1997/10/05 22:54:47 $ (David Hinds)
 #
 
-DIRS = modules cardmgr flash debug-tools man etc
+DIRS = modules clients cardmgr flash debug-tools man etc
 
 help:
 	@echo "Pick one of the following targets:"
@@ -21,7 +21,7 @@ all:	.prereq.ok kcheck
 
 clean:
 	set -e ; for d in $(DIRS) ; do $(MAKE) -C $$d clean ; done
-	rm -f .prereq.ok config.out config.mk modules/config.h
+	rm -f .prereq.ok config.mk include/pcmcia/config.h
 	rm -f include/linux/modversions.h
 
 install: .prereq.ok kcheck

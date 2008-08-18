@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_config.l 1.29 1998/05/10 12:13:46
+ * lex_config.l 1.31 1998/07/16 19:57:10
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -20,15 +20,17 @@
  * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
+#undef src
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <syslog.h>
+#define src 1
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 
-#include "y.tab.h"
+#include "yacc_config.h"
 
 /* For assembling nice error messages */
 char *current_file;

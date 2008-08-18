@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" cardctl.8 1.11 1998/05/11 23:10:40
+.\" cardctl.8 1.12 1998/06/05 08:44:52
 .\"
-.TH CARDCTL 8 "1998/05/11 23:10:40" "pcmcia-cs"
+.TH CARDCTL 8 "1998/06/05 08:44:52" "pcmcia-cs"
 .SH NAME
 cardctl \- PCMCIA card control utility
 .SH SYNOPSIS
@@ -46,6 +46,10 @@ Display the current socket status flags.
 .B config
 Display the socket configuration, including power settings, interrupt
 and I/O window settings, and configuration registers.
+.TP
+.B ident
+Display card identification information, including product
+identification strings, manufacturer ID codes, and function ID codes.
 .TP
 .B suspend
 Shut down and then disable power for a socket.

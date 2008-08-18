@@ -2,7 +2,7 @@
 
     Utility to select the transceiver type for a network device
 
-    ifport.c 1.7 1998/05/10 12:12:59
+    ifport.c 1.8 1998/06/05 00:10:18
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -30,7 +30,11 @@
 #include <string.h>
 #include <unistd.h>
 
-char *if_names[] = { "Auto", "10baseT", "10base2", "AUI", "100baseT" };
+char *if_names[] = {
+    "Auto", "10baseT", "10base2", "AUI",
+    "100baseTx", "100baseFx", "100baseT4"
+};
+#define NR_NAMES (sizeof(if_names)/sizeof(char *))
 
 /*====================================================================*/
 
@@ -52,7 +56,7 @@ static int sockets_open(void)
 void usage(char *s)
 {
     fprintf(stderr, "usage: %s interface "
-	    "[auto|10baseT|10base2|aui|100baseT|##]\n", s);
+	    "[auto|10baseT|10base2|aui|100baseTx/Fx/T4|##]\n", s);
     exit(1);
 }
 
@@ -74,13 +78,13 @@ int main(int argc, char **argv)
     else {
 	if (argc == 2) {
 	    printf("%s\t%d", argv[1], ifr.ifr_map.port);
-	    if (ifr.ifr_map.port < 5)
+	    if (ifr.ifr_map.port < NR_NAMES)
 		printf(" (%s)\n", if_names[ifr.ifr_map.port]);
 	    else
 		printf("\n");
 	}
 	else {
-	    for (i = 0; i < 5; i++)
+	    for (i = 0; i < NR_NAMES; i++)
 		if (strcasecmp(argv[2], if_names[i]) == 0)
 		    break;
 	    if (i < 5)

@@ -1,8 +1,8 @@
 /*======================================================================
 
-    PCMCIA card CIS dump
+    PCMCIA card configuration register dump
 
-    dump_cisreg.c 1.14 1998/05/10 12:21:47
+    dump_cisreg.c 1.17 1998/07/18 17:33:34
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -19,6 +19,10 @@
     are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
+
+#ifndef __linux__
+#include <pcmcia/u_compat.h>
+#endif
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -39,6 +43,10 @@
 
 /*====================================================================*/
 
+#ifdef __linux__
+
+static int major = 0;
+
 static int lookup_dev(char *name)
 {
     FILE *f;
@@ -58,15 +66,18 @@ static int lookup_dev(char *name)
 	return n;
     else
 	return -1;
-} /* lookup_dev */
+}
+
+#endif /* __linux__ */
 
 /*====================================================================*/
 
-static int open_dev(dev_t dev)
+static int open_sock(int sock)
 {
-    char *fn;
+#ifdef __linux__
     int fd;
-    
+    char *fn;
+    dev_t dev = (major<<8) + sock;
     if ((fn = tmpnam(NULL)) == NULL)
 	return -1;
     if (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) != 0)
@@ -74,7 +85,13 @@ static int open_dev(dev_t dev)
     fd = open(fn, O_RDONLY);
     unlink(fn);
     return fd;
-} /* open_dev */
+#endif
+#ifdef __BEOS__
+    char fn[B_OS_NAME_LENGTH];
+    sprintf(fn, "/dev/pcmcia/sock%d", sock);
+    return open(fn, O_RDONLY);
+#endif
+} /* open_sock */
 
 /*====================================================================*/
 
@@ -202,18 +219,20 @@ static void dump_all(int fd, int fn, int mfc, u_int mask)
 
 int main(int argc, char *argv[])
 {
-    int i, j, nfn, major, fd, ret;
+    int i, j, nfn, fd, ret;
     u_int mask;
     ds_ioctl_arg_t arg;
 
+#ifdef __linux__
     major = lookup_dev("pcmcia");
     if (major < 0) {
 	fprintf(stderr, "no pcmcia driver in /proc/devices\n");
 	exit(EXIT_FAILURE);
     }
+#endif
     
     for (i = 0; i < MAX_SOCKS; i++) {
-	fd = open_dev((major<<8)+i);
+	fd = open_sock(i);
 	if (fd < 0) break;
 	
 	arg.tuple.TupleDataMax = sizeof(arg.tuple_parse.data);

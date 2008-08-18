@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.27 1998/05/24 18:40:55
+ * cs_internal.h 1.31 1998/07/09 23:44:07
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -18,6 +18,10 @@
 
 #ifndef _LINUX_CS_INTERNAL_H
 #define _LINUX_CS_INTERNAL_H
+
+#ifdef __BEOS__
+#include "wchan.h"
+#endif
 
 typedef struct erase_busy_t {
     eraseq_entry_t	*erase;
@@ -39,7 +43,7 @@ typedef struct client_t {
     u_short		client_magic;
     socket_t		Socket;
     u_char		Function;
-    dev_info_t		*dev_info;
+    dev_info_t		dev_info;
     u_int		Attributes;
     u_int		state;
     event_t		EventMask, PendingEvents;
@@ -48,7 +52,12 @@ typedef struct client_t {
     event_callback_args_t event_callback_args;
     struct client_t 	*next;
     u_int		mtd_count;
+#ifdef __LINUX__
     struct wait_queue	*mtd_req;
+#endif
+#ifdef __BEOS__
+    struct wchan	mtd_req;
+#endif
     erase_busy_t	erase_busy;
 } client_t;
 
@@ -82,7 +91,7 @@ typedef struct window_t {
 typedef struct region_t {
     u_short		region_magic;
     u_short		state;
-    dev_info_t		*dev_info;
+    dev_info_t		dev_info;
     client_handle_t	mtd;
     u_int		MediaID;
     region_info_t	info;
@@ -149,7 +158,6 @@ typedef struct socket_info_t {
     io_window_t			io[MAX_IO_WIN];
     window_t			win[MAX_WIN];
     region_t			*c_region, *a_region;
-    struct wait_queue		*mtd_ready;
     erase_busy_t		erase_busy;
     int				cis_used;
     struct {
@@ -160,7 +168,7 @@ typedef struct socket_info_t {
     char			cis_cache[MAX_CIS_DATA];
     u_int			fake_cis_len;
     char			*fake_cis;
-#ifdef CONFIG_PROC_FS
+#ifdef HAS_PROC_BUS
     struct proc_dir_entry	*proc;
 #endif
 } socket_info_t;
@@ -255,15 +263,25 @@ int proc_read_mem(char *buf, char **start, off_t pos,
 extern socket_t sockets;
 extern socket_info_t *socket_table[MAX_SOCK];
 
-#ifdef CONFIG_PROC_FS
+#ifdef HAS_PROC_BUS
 extern struct proc_dir_entry *proc_pccard;
+#endif
+
+#ifdef __BEOS__
+extern isa_module_info *isa;
+extern pci_module_info *pci;
 #endif
 
 #ifdef PCMCIA_DEBUG
 extern int pc_debug;
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
+#ifdef __LINUX__
+#define _printk(args...) printk(KERN_DEBUG args)
 #else
-#define DEBUG(n, args...)
+#define _printk printk
+#endif
+#define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
+#else
+#define DEBUG(n, args) do { } while (0)
 #endif
 
 #endif /* _LINUX_CS_INTERNAL_H */

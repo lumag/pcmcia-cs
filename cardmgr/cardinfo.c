@@ -2,7 +2,7 @@
 
     X Windows PCMCIA device control program
 
-    cardinfo.c 1.24 1998/05/10 12:22:54
+    cardinfo.c 1.25 1998/06/05 00:09:34
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -254,7 +254,7 @@ static void do_update(FL_OBJECT *obj, long data)
 {
     FILE *f;
     int i, j, event, ret, state;
-    status_t status;
+    cs_status_t status;
     config_info_t cfg;
     char s[80], *t, d[80], io[20], irq[4];
     ioaddr_t stop;

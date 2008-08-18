@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.16, 1998/05/27 23:24:40
+  v2.19, 1998/07/18 09:29:03
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -153,11 +153,13 @@
 
   7.2.    Low level PCMCIA debugging aids
 
-  7.3.    Writing Card Services drivers for new cards
+  7.3.    /proc/bus/pccard
 
-  7.4.    Guidelines for PCMCIA client driver authors
+  7.4.    Writing Card Services drivers for new cards
 
-  7.5.    Guidelines for Linux distribution maintainers
+  7.5.    Guidelines for PCMCIA client driver authors
+
+  7.6.    Guidelines for Linux distribution maintainers
   ______________________________________________________________________
 
   11..  GGeenneerraall iinnffoorrmmaattiioonn aanndd hhaarrddwwaarree rreeqquuiirreemmeennttss
@@ -220,8 +222,8 @@
 
   If you do not feel up to compiling the drivers from scratch, pre-
   compiled drivers are included with current releases of most of the
-  major Linux distributions, including Slackware, Red Hat, Caldera, and
-  Yggdrasil, among others.
+  major Linux distributions, including Slackware, Debian, Red Hat,
+  Caldera, SuSE, and Yggdrasil, among others.
 
   11..44..  WWhhaatt ssyysstteemmss aarree ssuuppppoorrtteedd??
 
@@ -239,7 +241,7 @@
 
   +o  Intel i82365sl B, C, and DF steps, 82092AA
 
-  +o  O2Micro OZ6730, OZ6832
+  +o  O2Micro OZ6729, OZ6730, OZ6832, OZ6836
 
   +o  Omega Micro 82C092G
 
@@ -249,14 +251,19 @@
 
   +o  Texas Instruments PCI1130, PCI1131, PCI1220, PCI1250A
 
+  +o  Toshiba ToPIC95, ToPIC97 (experimental)
+
   +o  Vadem VG465, VG468, VG469
 
   +o  VLSI Technologies 82C146, VCF94365
+
+  +o  VIA VT83C469
 
   +o  Databook DB86082, DB86082A, DB86084, DB86084A, DB86072, DB86082B
 
   Other controllers that are register compatible with the Intel i82365sl
   will generally work, as well.
+
   Support for 32-bit CardBus cards is still somewhat experimental.
   Drivers prior to version 3.0 only support 16-bit cards in CardBus
   sockets.  Due to the rapid pace of technological change for laptop
@@ -264,19 +271,14 @@
   between when a new model appears on the market, and when driver
   support becomes available.
 
+  Toshiba recently made available specifications for their ToPIC95 and
+  ToPIC97 chipsets.  Work has been hindered by the fact that much of the
+  documentation exists only in Japanese.  Full support for these
+  chipsets is still experimental.
+
   The Motorola 6AHC05GA controller used in some Hyundai laptops is not
   supported.  The custom host controller in the HP Omnibook 600 is also
   unsupported.
-
-  Many recent Toshiba laptops use proprietary Toshiba CardBus bridges
-  (the ToPIC95 and related chips).  I have been unable to obtain full
-  documentation for these chips from Toshiba.  Without that information,
-  it is impossible to provide full Linux support for these controllers.
-  In particular, CardBus devices are unsupported.  I am told that
-  setting these controllers to ``PCIC mode'' in a system's BIOS setup
-  allows 16-bit cards to work under Linux.  Until documentation becomes
-  more readily available, I do not recommend use of Toshiba laptops for
-  Linux applications.
 
   11..55..  WWhhaatt ccaarrddss aarree ssuuppppoorrtteedd??
 
@@ -548,18 +550,46 @@
 
   22..33..  SSttaarrttuupp ooppttiioonnss
 
-  The PCMCIA startup script defines three groups of startup options, set
-  via environment variables.  The PCIC_OPTS variable is used for socket
-  driver options.  The CORE_OPTS variable is used for passing options to
-  the pcmcia_core module.  And CARDMGR_OPTS is used to pass options to
-  the cardmgr daemon.  Option lists need to be enclosed in quotes, and
-  multiple options should be separated by spaces.
+  The PCMCIA startup script recognizes several groups of startup
+  options, set via environment variables.  Multiple options should be
+  separated by spaces and enclosed in quotes.  Placement of startup
+  options depends on the Linux distribution used.  They may be placed
+  directly in the startup script, or they may be kept in a separate
+  option file.  See the ``Notes about specific Linux distributions'' for
+  specifics.  The following variables can be set:
 
-  Some host controllers have optional features that may or may not be
-  implemented in a particular system.  In some cases, it is impossible
-  for the socket driver to detect if these features are implemented.
-  Check the man page for your socket driver to see what optional
-  features may be present for your controller.
+     PCMCIA
+        This variable specifies whether PCMCIA support should be started
+        up, or not.  If it is set to anything other than ``yes'', then
+        the startup script will be disabled.
+
+     PCIC
+        This identifies the PC Card Interface Controller driver module.
+        There are two options: ``tcic'' or ``i82365''.  Virtually all
+        current controllers are in the ``i82365'' group.  This is the
+        only mandatory option setting.
+     PCIC_OPTS
+        This specifies options for the PCIC module.  Some host
+        controllers have optional features that may or may not be
+        implemented in a particular system.  In some cases, it is
+        impossible for the socket driver to detect if these features are
+        implemented.  See the corresponding man page for a complete
+        description of the available options.
+
+     CORE_OPTS
+        This specifies options for the pcmcia_core module, which
+        implements the core PC Card driver services.  See ``man
+        pcmcia_core'' for more information.
+
+     CARDMGR_OPTS
+        This specifies options to be passed to the cardmgr daemon.  See
+        ``man cardmgr'' for more information.
+
+     SCHEME
+        If set, then the PC Card configuration scheme will be
+        initialized to this at driver startup time.  See the ``Overview
+        of the PCMCIA configuration scripts'' for a discussion of
+        schemes.
 
   The low level socket drivers, tcic and i82365, have numerous bus
   timing parameters that may need to be adjusted for systems with
@@ -594,11 +624,6 @@
      station, the i82365 module should be loaded with the extra_sockets
      parameter set to 1.  This should not be necessary for detection of
      PCI-to-PCMCIA or PCI-to-CardBus bridges.
-
-  Placement of startup options depends on the Linux distribution used.
-  They may be placed directly in the startup script, or they may be kept
-  in a separate option file.  See the ``Notes about specific Linux
-  distributions'' for details.
 
   Here are some timing settings for specific systems:
 
@@ -698,6 +723,7 @@
   network script, breaking the link to the network control panel.  If
   you prefer the Red Hat script, either use only Red Hat RPM's, or save
   a copy of the script before installing new driver releases.
+
   Red Hat bundles their slightly modified PCMCIA source distribution in
   their kernel SRPM, rather than as a separate package.
 
@@ -866,6 +892,13 @@
   are either not physically wired to the host controller, or are
   connected to another device that does not have a driver.
 
+  In the system log, a successful probe might look like:
+
+       Intel PCIC probe:
+         TI 1130 CardBus at mem 0x10211000, 2 sockets
+         ...
+         ISA irqs (scanned) = 5,7,9,10 status change on irq 10
+
   There are two ways to proceed:
 
   +o  The interrupt probe can be restricted to a list of interrupts using
@@ -882,6 +915,7 @@
 
   In either case, the probe options can be specified using the PCIC_OPTS
   definition in the PCMCIA startup script, for example:
+
        PCIC_OPTS="irq_list=5,9,10"
 
   33..44..  IIOO ppoorrtt ssccaann ffaaiilluurreess
@@ -997,17 +1031,25 @@
 
   +o  One of the following messages will appear in the system log:
 
-  RequestIRQ: Resource in use
-  RequestWindow: Resource in use
-  GetNextTuple: No more items
-  could not allocate nn IO ports for CardBus socket n
-  could not allocate nnK memory for CardBus socket n
+       RequestIRQ: Resource in use
+       RequestWindow: Resource in use
+       GetNextTuple: No more items
+       could not allocate nn IO ports for CardBus socket n
+       could not allocate nnK memory for CardBus socket n
 
   Interrupt starvation often indicates a problem with the interrupt
   probe (see ``Interrupt probe failures'').  In some cases, the probe
   will seem to work, but only report one or two available interrupts.
+  Check your system log to see if the scan results look sensible.
   Disabling the probe and selecting interrupts manually should help.
 
+  If the interrupt probe is not working properly, the socket driver may
+  allocate an interrupt for monitoring card insertions, even when
+  interrupts are too scarce for this to be a good idea.  In that case,
+  you can switch the controller to polled mode by setting PCIC_OPTS to
+  ``poll_interval=100'.  Or, if you have a CardBus controller, try
+  ``pci_csc=1'', which selects a PCI interrupt (if available) for card
+  status changes.
   IO port starvation is fairly uncommon, but sometimes happens with
   cards that require large, contiguous, aligned regions of IO port
   space, or that only recognize a few specific IO port positions.  The
@@ -1066,8 +1108,8 @@
   eth0'' was the last command executed by cardmgr, the following
   commands would trace the script:
 
-       cd /etc/pcmcia
-       sh -x ./network start eth0
+  cd /etc/pcmcia
+  sh -x ./network start eth0
 
   44..  UUssaaggee aanndd ffeeaattuurreess
 
@@ -1127,6 +1169,7 @@
   the ``cardctl config'' command:
 
        Socket 0:
+         not configured
        Socket 1:
          Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
          Card type is memory and I/O
@@ -1137,6 +1180,14 @@
              Option = 0x63, status = 0x08
            I/O window 1: 0x0280 to 0x02bf, auto sized
            I/O window 2: 0x02f8 to 0x02ff, 8 bit
+
+  Or ``cardctl ident'', to get card identification information:
+
+       Socket 0:
+         no product info available
+       Socket 1:
+         product info: "LINKSYS", "PCMLM336", "A", "0040052D6400"
+         manfid: 0x0143, 0xc0ab  function: 0 (multi)
 
   The ``cardctl suspend'' and ``cardctl resume'' commands can be used to
   shut down a card without unloading its associated drivers.  The
@@ -2049,7 +2100,7 @@
   ``home'' and ``default'' schemes.  So, if the scheme is unset for any
   reason, it will default to the ``home'' setup.
 
-  Now, to choose between the two sets of settings, run either:
+  Now, to select between the two sets of settings, run either:
 
        cardctl scheme home
 
@@ -2066,6 +2117,30 @@
   To find out the current scheme setting, run:
 
        cardctl scheme
+
+  By default, the scheme setting is persistent across boots.  This can
+  have undesirable effects if networking is initialized for the wrong
+  environment.  Optionally, you can set the initial scheme value with
+  the SCHEME startup option (see ``Startup options'' for details).  It
+  is also possible to set the scheme from the lilo boot prompt.  Since
+  lilo passes unrecognized options to init as environment variables, a
+  value for SCHEME (or any other PCMCIA startup option) at the boot
+  prompt will be propagated into the PCMCIA startup script.
+
+  To save even more keystrokes, schemes can be specified in lilo's
+  configuration file.  For instance, you could have:
+
+  root = /dev/hda1
+  read-only
+  image = /boot/vmlinuz
+    label  = home
+    append = "SCHEME=home"
+  image = /boot/vmlinuz
+    label  = work
+    append = "SCHEME=work"
+
+  Typing ``home'' or ``work'' at the boot prompt would then boot into
+  the appropriate scheme.
 
   55..33..  BBoooottiinngg ffrroomm aa PPCCMMCCIIAA ddeevviiccee
 
@@ -2246,13 +2321,15 @@
   linked up to this card.  Check the man page for pcmcia for more
   information about the config file format.  If you insert an unknown
   card, cardmgr will normally record some identification information in
-  the system log that can be used to construct the config entry.
+  the system log that can be used to construct the config entry.  This
+  information can also be displayed with the ``cardctl ident'' command.
 
   Here is an example of how cardmgr will report an unsupported card in
   /usr/adm/messages.
 
        cardmgr[460]: unsupported card in socket 1
-       cardmgr[460]: version info: "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
+       cardmgr[460]: product info: "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
+       cardmgr[460]: manfid: 0x0101, 0x1234  function: 2 (serial)
 
   The corresponding entry in /etc/pcmcia/config would be:
 
@@ -2278,6 +2355,7 @@
 
   After editing /etc/pcmcia/config, you can signal cardmgr to reload the
   file with:
+
        kill -HUP `cat /var/run/cardmgr.pid`
 
   If you do set up an entry for a new card, please send me a copy so
@@ -2333,7 +2411,7 @@
   when the pcnet_cs module is initialized.  Edit /etc/pcmcia/config.opts
   and add a hw_addr= option, like so:
 
-  module "pcnet_cs" opts "hw_addr=0x00,0x80,0xc8,0x01,0x02,0x03"
+       module "pcnet_cs" opts "hw_addr=0x00,0x80,0xc8,0x01,0x02,0x03"
 
   Substitute your own card's hardware address in the appropriate spot,
   of course.  Beware that if you've gotten this far, it is very unlikely
@@ -2445,7 +2523,20 @@
   other drivers.  It can be used to directly access any card's attribute
   memory or common memory.
 
-  77..33..  WWrriittiinngg CCaarrdd SSeerrvviicceess ddrriivveerrss ffoorr nneeww ccaarrddss
+  77..33..  //pprroocc//bbuuss//ppccccaarrdd
+
+  Starting with 2.1.103 kernels, the PCMCIA package will create a tree
+  of status information under /proc/bus/pccard.  The memory entry shows
+  memory allocations for PC Card devices in a format similar to
+  /proc/ioports.  Each socket also has its own subdirectory of status
+  entries.  The info entry identifies the host controller and describes
+  its capabilities.  The exca entry is a dump of the ``ExCA'' Intel
+  i82365sl-compatible register set for that socket.  For CardBus
+  bridges, the pci entry is a dump of the bridge's PCI configuration
+  space, and the cardbus entry is a dump of the CardBus configuration
+  registers.
+
+  77..44..  WWrriittiinngg CCaarrdd SSeerrvviicceess ddrriivveerrss ffoorr nneeww ccaarrddss
 
   The Linux PCMCIA Programmer's Guide is the best documentation for the
   client driver interface.  The latest version is always available from
@@ -2471,7 +2562,7 @@
   lot of how a driver communicates with Card Services; you will find
   this in the PCMCIA source distribution in modules/dummy_cs.c.
 
-  77..44..  GGuuiiddeelliinneess ffoorr PPCCMMCCIIAA cclliieenntt ddrriivveerr aauutthhoorrss
+  77..55..  GGuuiiddeelliinneess ffoorr PPCCMMCCIIAA cclliieenntt ddrriivveerr aauutthhoorrss
 
   I have decided that it is not really feasible for me to distribute all
   PCMCIA client drivers as part of the PCMCIA package.  Each new driver
@@ -2542,7 +2633,7 @@
   package.  I will try to notify authors of contributed drivers of
   changes that require updates to their drivers.
 
-  77..55..  GGuuiiddeelliinneess ffoorr LLiinnuuxx ddiissttrriibbuuttiioonn mmaaiinnttaaiinneerrss
+  77..66..  GGuuiiddeelliinneess ffoorr LLiinnuuxx ddiissttrriibbuuttiioonn mmaaiinnttaaiinneerrss
 
   If your distribution has system configuration tools that you would
   like to be PCMCIA-aware, please use the *.opts files in /etc/pcmcia

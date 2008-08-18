@@ -1,5 +1,5 @@
 #
-# config.sample 1.79 1998/05/27 23:23:50 (David Hinds)
+# config.sample 1.80 1998/07/18 09:37:52 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -173,6 +173,10 @@ card "D-Link DE-660 Ethernet"
 
 card "D-Link DE-650 Ethernet"
   tuple 0x40, 0x0009, "D-Link PC Ethernet Card"
+  bind "pcnet_cs"
+
+card "DynaLink L10C Ethernet"
+  version "DYNALINK", "L10C"
   bind "pcnet_cs"
 
 card "E2000 NE2000-Compatible Ethernet"
@@ -890,6 +894,10 @@ card "OTI-SCYLLA ATAPI CD-ROM"
   version "PCMCIA", "CD-ROM"
   bind "ide_cs"
 
+card "TEAC IDE Card/II"
+  version " ", "NinjaATA-"
+  bind "ide_cs"
+
 #
 # Non-ATA/IDE CD-ROM's
 #
@@ -920,6 +928,10 @@ card "3Com 3c575-TX Fast EtherLink XL"
 card "Adaptec APA-1480 SCSI Host Adapter"
   manfid 0x012f, 0xcb01
   bind "apa1480_cb"
+
+card "Linksys EtherFast 10/100"
+  manfid 0x0149, 0x0231
+  bind "tulip_cb"
 
 card "Linksys EtherFast 10/100"
   manfid 0x0149, 0xc2ab

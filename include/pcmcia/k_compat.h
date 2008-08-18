@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.53 1998/05/22 22:40:53
+ * k_compat.h 1.57 1998/06/10 08:24:09
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -19,6 +19,7 @@
 #ifndef _LINUX_K_COMPAT_H
 #define _LINUX_K_COMPAT_H
 
+#define __LINUX__
 #define VERSION(v,p,s)		(((v)<<16)+(p<<8)+s)
 
 #if (LINUX_VERSION_CODE < VERSION(1,3,0))
@@ -238,10 +239,6 @@ char kernel_version[] = UTS_RELEASE;
 #define cpu_to_le32(x)		(x)
 #endif
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,93))
-#include <linux/bios32.h>
-#endif
-
 #if (LINUX_VERSION_CODE < VERSION(2,1,90))
 #define spin_lock_irqsave(l,f) do { save_flags(f); cli(); } while (0)
 #define spin_unlock_irqrestore(l,f) do { restore_flags(f); } while (0)
@@ -251,6 +248,31 @@ char kernel_version[] = UTS_RELEASE;
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,104))
 #define mdelay(x) { int i; for (i=0;i<x;i++) udelay(1000); }
+#endif
+
+#define wacquire(w)		do { } while (0)
+#define wrelease(w)		do { } while (0)
+#define wsleep(w)		interruptible_sleep_on(w)
+#define wsleeptimeout(w,t) \
+    do { current->timeout = jiffies+(t); wsleep(w); } while (0);
+#define wakeup(w)		wake_up_interruptible(w)
+
+#include <asm/io.h>
+#ifndef readw_ns
+#define readw_ns(p)		readw(p)
+#define readl_ns(p)		readl(p)
+#define writew_ns(w,p)		writew(w,p)
+#define writel_ns(l,p)		writel(l,p)
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,1,93))
+#include <linux/bios32.h>
+#endif
+#include <linux/pci.h>
+#ifndef PCI_FUNC
+#define PCI_FUNC(devfn)		((devfn)&7)
+#define PCI_SLOT(devfn)		((devfn)>>3)
+#define PCI_DEVFN(dev,fn)	(((dev)<<3)|((fn)&7))
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

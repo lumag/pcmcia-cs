@@ -10,7 +10,7 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #define YYPREFIX "yy"
 #line 2 "yacc_cis.y"
 /*
- * yacc_cis.y 1.2 1998/05/10 12:17:01
+ * yacc_cis.y 1.4 1998/07/17 17:11:47
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -26,6 +26,8 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
  * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
  * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
+
+#include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -38,8 +40,15 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 
 #include "pack_cis.h"
 
+/* If bison: generate nicer error messages */ 
+#define YYERROR_VERBOSE 1
+ 
 extern int current_lineno;
-#line 43 "yacc_cis.y"
+
+void yyerror(char *msg, ...);
+static tuple_info_t *new_tuple(u_char type, cisparse_t *parse);
+
+#line 52 "yacc_cis.y"
 typedef union {
     char *str;
     u_long num;
@@ -48,7 +57,7 @@ typedef union {
     cisparse_t *parse;
     tuple_info_t *tuple;
 } YYSTYPE;
-#line 52 "y.tab.c"
+#line 61 "y.tab.c"
 #define STRING 257
 #define NUMBER 258
 #define FLOAT 259
@@ -82,7 +91,7 @@ typedef union {
 #define PWRDOWN 287
 #define BIT8 288
 #define BIT16 289
-#define IRQ 290
+#define IRQ_NO 290
 #define MASK 291
 #define LEVEL 292
 #define PULSE 293
@@ -91,50 +100,53 @@ typedef union {
 short yylhs[] = {                                        -1,
     0,    0,   11,   11,   12,   12,   10,   10,   10,   10,
    10,    3,    3,    4,    5,    5,    5,    6,    1,    1,
-    1,    2,    2,    8,    8,    8,    8,    9,    9,    9,
-    9,    9,    7,    7,    7,    7,    7,    7,    7,    7,
-    7,    7,    7,    7,    7,    7,
+    1,    1,    1,    1,    1,    2,    2,    8,    8,    8,
+    8,    9,    9,    9,    9,    9,    7,    7,    7,    7,
+    7,    7,    7,    7,    7,    7,    7,    7,    7,    7,
 };
 short yylen[] = {                                         2,
     1,    2,    0,    2,    4,    5,    1,    1,    1,    1,
     1,    2,    3,    4,    2,    2,    2,    6,    2,    2,
-    2,    0,    2,    5,    5,    2,    2,    3,    4,    2,
-    2,    2,    2,    2,    2,    2,    2,    2,    2,    2,
-    2,    3,    3,    3,    1,    1,
+    2,    2,    2,    2,    2,    0,    2,    5,    5,    2,
+    2,    3,    4,    2,    2,    2,    2,    2,    2,    2,
+    2,    2,    2,    2,    2,    3,    3,    3,    1,    1,
 };
 short yydefred[] = {                                      3,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    8,
     0,   10,    0,    0,    0,    4,    0,   12,    0,   15,
-    0,   33,    3,    0,   16,   17,   22,   22,   22,    0,
-   34,   35,   36,   37,   38,   39,   40,   41,    0,   26,
-   27,    0,   31,   30,   32,    0,    0,    0,    0,   13,
-    0,    0,    0,    0,   28,    0,    0,    3,   14,    0,
-    5,    0,    0,    0,   23,    0,   29,    0,    0,    0,
-   19,   20,   21,   24,   25,    6,   18,
+    0,   37,    3,    0,   16,   17,   26,   26,   26,    0,
+   38,   39,   40,   41,   42,   43,   44,   45,    0,   30,
+   31,    0,   35,   34,   36,    0,    0,    0,    0,   13,
+    0,    0,    0,    0,   32,    0,    0,    3,   14,    0,
+    5,    0,    0,    0,    0,    0,    0,    0,   27,    0,
+   33,    0,    0,    0,   19,   20,   21,   22,   23,   24,
+   25,   28,   29,    6,   18,
 };
 short yydgoto[] = {                                       1,
-   65,   51,    9,   10,   11,   12,   13,   14,   15,   16,
+   69,   51,    9,   10,   11,   12,   13,   14,   15,   16,
     2,   17,
 };
 short yysindex[] = {                                      0,
-    0, -235, -246, -227, -221, -215, -214,  -78,    2,    0,
- -261,    0, -266,  -44, -259,    0,    3,    0,    4,    0,
-    5,    0,    0, -207,    0,    0,    0,    0,    0, -206,
+    0, -220, -246, -221, -212, -211, -210,  -74,    6,    0,
+ -261,    0, -266,  -44, -259,    0,    8,    0,    9,    0,
+   10,    0,    0, -206,    0,    0,    0,    0,    0, -203,
     0,    0,    0,    0,    0,    0,    0,    0, -255,    0,
-    0, -205,    0,    0,    0,  -72, -204, -203, -123,    0,
- -228, -228, -228,   11,    0, -201,   13,    0,    0,   15,
-    0, -199, -198, -197,    0, -194,    0, -193, -117, -192,
-    0,    0,    0,    0,    0,    0,    0,
+    0, -202,    0,    0,    0,  -66, -200, -199, -123,    0,
+ -243, -243, -243,   15,    0, -197,   17,    0,    0,   20,
+    0, -194, -193, -192, -191, -189, -188, -187,    0, -185,
+    0, -184, -117, -183,    0,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,
 };
 short yyrindex[] = {                                      0,
-    0,   67,    0,    0,    0,    0,    0,    0,    7,    0,
-   38,    0,   69,    1,   32,    0,   68,    0,    0,    0,
+    0,   76,    0,    0,    0,    0,    0,    0,    7,    0,
+   38,    0,   69,    1,   32,    0,   77,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
    63,   94,  125,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,
 };
 short yygindex[] = {                                      0,
     0,   -6,    0,    0,    0,    0,    0,    0,    0,    0,
@@ -142,58 +154,58 @@ short yygindex[] = {                                      0,
 };
 #define YYTABLESIZE 415
 short yytable[] = {                                      42,
-   45,   61,   55,   49,   25,   26,    7,   76,   27,   28,
+   49,   61,   55,   49,   25,   26,    7,   84,   27,   28,
    29,   30,   18,   31,   32,   33,   34,   35,   36,   37,
-   38,   52,   53,   39,    3,    4,    5,    6,    7,    8,
-   19,   46,   43,   44,   45,   56,   20,    9,   69,   62,
-   63,   64,   21,   22,   23,   24,   46,   47,   48,   50,
-   58,   54,   57,   59,   60,   66,   67,   68,   70,   71,
-   72,   73,   42,   74,   75,   77,    1,    2,   11,    0,
+   38,   52,   53,   39,   62,   63,   64,   65,   66,   67,
+   68,   50,   43,   44,   45,   56,   19,    9,   73,    3,
+    4,    5,    6,    7,    8,   20,   21,   22,   23,   24,
+   50,   46,   47,   48,   54,   57,   58,   59,   60,   70,
+   71,   72,   46,   74,   75,   76,   77,   78,   11,   79,
+   80,   81,   82,   83,   85,    1,    2,    0,    0,    0,
+    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+    0,    0,    0,   47,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,   43,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,   44,   45,    0,    0,    0,    0,
+    0,    0,    0,    0,   48,   49,    0,    0,    0,    0,
     0,    7,    0,    0,    0,    0,    3,    4,    5,    6,
     7,    0,    3,    4,    5,    6,    7,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,   46,    0,    0,    0,
+    0,    0,    0,    0,    0,    0,   50,    0,    0,    0,
     0,    0,    9,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,   42,    0,    0,
+    0,    0,    0,    0,    0,    0,    0,   46,    0,    0,
     0,    0,    0,   11,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,   43,    0,
+    0,    0,    0,    0,    0,    0,    0,    0,   47,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,   40,   41,    0,    0,    0,    0,   44,
+    0,    0,    0,   40,   41,    0,    0,    0,    0,   48,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-   45,   45,   45,   45,   45,   45,    7,    7,    7,    7,
-    7,    7,    0,    0,    0,   45,   45,   45,   45,    0,
-   45,   45,   45,   45,   45,   45,   45,   45,    0,    0,
-   45,   46,   46,   46,   46,   46,   46,    9,    9,    9,
-    9,    9,    9,    0,    0,    0,   46,   46,   46,   46,
-    0,   46,   46,   46,   46,   46,   46,   46,   46,    0,
-    0,   46,   42,   42,   42,   42,   42,   42,   11,   11,
-   11,   11,   11,   11,    0,    0,    0,   42,   42,   42,
-   42,    0,   42,   42,   42,   42,   42,   42,   42,   42,
-    0,    0,   42,   43,   43,   43,   43,   43,   43,    0,
-    0,    0,    0,    0,    0,    0,    0,    0,   43,   43,
-   43,   43,    0,   43,   43,   43,   43,   43,   43,   43,
-   43,    0,    0,   43,   44,   44,   44,   44,   44,   44,
-    0,    0,    0,    0,    0,    0,    0,    0,    0,   44,
-   44,   44,   44,    0,   44,   44,   44,   44,   44,   44,
-   44,   44,    0,    0,   44,
+   49,   49,   49,   49,   49,   49,    7,    7,    7,    7,
+    7,    7,    0,    0,    0,   49,   49,   49,   49,    0,
+   49,   49,   49,   49,   49,   49,   49,   49,    0,    0,
+   49,   50,   50,   50,   50,   50,   50,    9,    9,    9,
+    9,    9,    9,    0,    0,    0,   50,   50,   50,   50,
+    0,   50,   50,   50,   50,   50,   50,   50,   50,    0,
+    0,   50,   46,   46,   46,   46,   46,   46,   11,   11,
+   11,   11,   11,   11,    0,    0,    0,   46,   46,   46,
+   46,    0,   46,   46,   46,   46,   46,   46,   46,   46,
+    0,    0,   46,   47,   47,   47,   47,   47,   47,    0,
+    0,    0,    0,    0,    0,    0,    0,    0,   47,   47,
+   47,   47,    0,   47,   47,   47,   47,   47,   47,   47,
+   47,    0,    0,   47,   48,   48,   48,   48,   48,   48,
+    0,    0,    0,    0,    0,    0,    0,    0,    0,   48,
+   48,   48,   48,    0,   48,   48,   48,   48,   48,   48,
+   48,   48,    0,    0,   48,
 };
 short yycheck[] = {                                      44,
     0,  125,  258,   23,  266,  267,    0,  125,  275,  276,
   277,  278,  259,  280,  281,  282,  283,  284,  285,  286,
-  287,   28,   29,  290,  260,  261,  262,  263,  264,  265,
-  258,    0,  292,  293,  294,  291,  258,    0,   58,  268,
-  269,  270,  258,  258,  123,   44,   44,   44,   44,  257,
-  123,  258,  258,  258,  258,   45,  258,   45,   44,  259,
-  259,  259,    0,  258,  258,  258,    0,    0,    0,   -1,
-   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+  287,   28,   29,  290,  268,  269,  270,  271,  272,  273,
+  274,    0,  292,  293,  294,  291,  258,    0,   58,  260,
+  261,  262,  263,  264,  265,  258,  258,  258,  123,   44,
+  257,   44,   44,   44,  258,  258,  123,  258,  258,   45,
+  258,   45,    0,   44,  259,  259,  259,  259,    0,  259,
+  259,  259,  258,  258,  258,    0,    0,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,    0,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
@@ -246,7 +258,7 @@ char *yyname[] = {
 "FLOAT","VERS_1","MANFID","FUNCID","CONFIG","CFTABLE","MFC","POST","ROM","VNOM",
 "VMIN","VMAX","ISTATIC","IAVG","IMAX","IDOWN","VCC","VPP1","VPP2","IO","MEM",
 "DEFAULT","BVD","WP","RDYBSY","MWAIT","AUDIO","READONLY","PWRDOWN","BIT8",
-"BIT16","IRQ","MASK","LEVEL","PULSE","SHARED",
+"BIT16","IRQ_NO","MASK","LEVEL","PULSE","SHARED",
 };
 char *yyrule[] = {
 "$accept : cis",
@@ -271,14 +283,18 @@ char *yyrule[] = {
 "pwr : VNOM FLOAT",
 "pwr : VMIN FLOAT",
 "pwr : VMAX FLOAT",
+"pwr : ISTATIC FLOAT",
+"pwr : IAVG FLOAT",
+"pwr : IMAX FLOAT",
+"pwr : IDOWN FLOAT",
 "pwrlist :",
 "pwrlist : pwrlist pwr",
 "io : cftab IO NUMBER '-' NUMBER",
 "io : io ',' NUMBER '-' NUMBER",
 "io : io BIT8",
 "io : io BIT16",
-"irq : cftab IRQ NUMBER",
-"irq : cftab IRQ MASK NUMBER",
+"irq : cftab IRQ_NO NUMBER",
+"irq : cftab IRQ_NO MASK NUMBER",
 "irq : irq PULSE",
 "irq : irq LEVEL",
 "irq : irq SHARED",
@@ -320,9 +336,9 @@ YYSTYPE yylval;
 short yyss[YYSTACKSIZE];
 YYSTYPE yyvs[YYSTACKSIZE];
 #define yystacksize YYSTACKSIZE
-#line 238 "yacc_cis.y"
+#line 271 "yacc_cis.y"
 
-tuple_info_t *new_tuple(u_char type, cisparse_t *parse)
+static tuple_info_t *new_tuple(u_char type, cisparse_t *parse)
 {
     tuple_info_t *t = calloc(1, sizeof(tuple_info_t));
     t->type = type;
@@ -349,7 +365,7 @@ void main(int argc, char *argv[])
 	parse_cis(argv[1]);
 }
 #endif
-#line 353 "y.tab.c"
+#line 369 "y.tab.c"
 #define YYABORT goto yyabort
 #define YYREJECT goto yyabort
 #define YYACCEPT goto yyaccept
@@ -491,19 +507,19 @@ yyreduce:
     switch (yyn)
     {
 case 1:
-#line 61 "yacc_cis.y"
+#line 70 "yacc_cis.y"
 { cis_root = yyvsp[0].tuple; }
 break;
 case 2:
-#line 63 "yacc_cis.y"
+#line 72 "yacc_cis.y"
 { cis_root = yyvsp[-1].tuple; }
 break;
 case 3:
-#line 67 "yacc_cis.y"
+#line 76 "yacc_cis.y"
 { yyval.tuple = NULL; }
 break;
 case 4:
-#line 69 "yacc_cis.y"
+#line 78 "yacc_cis.y"
 {
 		    if (yyvsp[-1].tuple == NULL)
 			yyval.tuple = yyvsp[0].tuple;
@@ -516,35 +532,35 @@ case 4:
 		}
 break;
 case 5:
-#line 82 "yacc_cis.y"
+#line 91 "yacc_cis.y"
 { mfc[nf++] = yyvsp[-1].tuple; }
 break;
 case 6:
-#line 84 "yacc_cis.y"
+#line 93 "yacc_cis.y"
 { mfc[nf++] = yyvsp[-1].tuple; }
 break;
 case 7:
-#line 88 "yacc_cis.y"
+#line 97 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_VERS_1, yyvsp[0].parse); }
 break;
 case 8:
-#line 90 "yacc_cis.y"
+#line 99 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_MANFID, yyvsp[0].parse); }
 break;
 case 9:
-#line 92 "yacc_cis.y"
+#line 101 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_FUNCID, yyvsp[0].parse); }
 break;
 case 10:
-#line 94 "yacc_cis.y"
+#line 103 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_CONFIG, yyvsp[0].parse); }
 break;
 case 11:
-#line 96 "yacc_cis.y"
+#line 105 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_CFTABLE_ENTRY, yyvsp[0].parse); }
 break;
 case 12:
-#line 100 "yacc_cis.y"
+#line 109 "yacc_cis.y"
 {
 		    yyval.parse = calloc(1, sizeof(cisparse_t));
 		    yyval.parse->version_1.major = yyvsp[0].flt;
@@ -556,17 +572,21 @@ case 12:
 		}
 break;
 case 13:
-#line 110 "yacc_cis.y"
+#line 119 "yacc_cis.y"
 {
-		    u_int pos = strlen(yyval.parse->version_1.str);
-		    if (pos > 0) pos++;
-		    yyval.parse->version_1.ofs[yyval.parse->version_1.ns] = pos;
-		    strcpy(yyval.parse->version_1.str+pos, yyvsp[0].str);
-		    yyval.parse->version_1.ns++;
+		    cistpl_vers_1_t *v = &yyval.parse->version_1;
+		    u_int pos = 0;
+		    if (v->ns) {
+			pos = v->ofs[v->ns-1];
+			pos += strlen(v->str+pos)+1;
+		    }
+		    v->ofs[v->ns] = pos;
+		    strcpy(v->str+pos, yyvsp[0].str);
+		    v->ns++;
 		}
 break;
 case 14:
-#line 120 "yacc_cis.y"
+#line 133 "yacc_cis.y"
 {
 		    yyval.parse = calloc(1, sizeof(cisparse_t));
 		    yyval.parse->manfid.manf = yyvsp[-2].num;
@@ -574,22 +594,22 @@ case 14:
 		}
 break;
 case 15:
-#line 128 "yacc_cis.y"
+#line 141 "yacc_cis.y"
 {
 		    yyval.parse = calloc(1, sizeof(cisparse_t));
 		    yyval.parse->funcid.func = yyvsp[0].num;
 		}
 break;
 case 16:
-#line 133 "yacc_cis.y"
+#line 146 "yacc_cis.y"
 { yyval.parse->funcid.sysinit |= CISTPL_SYSINIT_POST; }
 break;
 case 17:
-#line 135 "yacc_cis.y"
+#line 148 "yacc_cis.y"
 { yyval.parse->funcid.sysinit |= CISTPL_SYSINIT_ROM; }
 break;
 case 18:
-#line 139 "yacc_cis.y"
+#line 152 "yacc_cis.y"
 {
 		    yyval.parse = calloc(1, sizeof(cisparse_t));
 		    yyval.parse->config.last_idx = yyvsp[-4].num;
@@ -598,133 +618,161 @@ case 18:
 		}
 break;
 case 19:
-#line 148 "yacc_cis.y"
+#line 161 "yacc_cis.y"
 {
 		    yyval.pwr.present |= 1<<CISTPL_POWER_VNOM;
 		    yyval.pwr.param[CISTPL_POWER_VNOM] = yyvsp[0].flt * 100000;
 		}
 break;
 case 20:
-#line 153 "yacc_cis.y"
+#line 166 "yacc_cis.y"
 {
 		    yyval.pwr.present |= 1<<CISTPL_POWER_VMIN;
 		    yyval.pwr.param[CISTPL_POWER_VMIN] = yyvsp[0].flt * 100000;
 		}
 break;
 case 21:
-#line 158 "yacc_cis.y"
+#line 171 "yacc_cis.y"
 {
 		    yyval.pwr.present |= 1<<CISTPL_POWER_VMAX;
 		    yyval.pwr.param[CISTPL_POWER_VMAX] = yyvsp[0].flt * 100000;
 		}
 break;
 case 22:
-#line 165 "yacc_cis.y"
+#line 176 "yacc_cis.y"
+{
+		    yyval.pwr.present |= 1<<CISTPL_POWER_ISTATIC;
+		    yyval.pwr.param[CISTPL_POWER_ISTATIC] = yyvsp[0].flt * 1000;
+		}
+break;
+case 23:
+#line 181 "yacc_cis.y"
+{
+		    yyval.pwr.present |= 1<<CISTPL_POWER_IAVG;
+		    yyval.pwr.param[CISTPL_POWER_IAVG] = yyvsp[0].flt * 1000;
+		}
+break;
+case 24:
+#line 186 "yacc_cis.y"
+{
+		    yyval.pwr.present |= 1<<CISTPL_POWER_IPEAK;
+		    yyval.pwr.param[CISTPL_POWER_IPEAK] = yyvsp[0].flt * 1000;
+		}
+break;
+case 25:
+#line 191 "yacc_cis.y"
+{
+		    yyval.pwr.present |= 1<<CISTPL_POWER_IDOWN;
+		    yyval.pwr.param[CISTPL_POWER_IDOWN] = yyvsp[0].flt * 1000;
+		}
+break;
+case 26:
+#line 198 "yacc_cis.y"
 {
 		    yyval.pwr.present = 0;
 		}
 break;
-case 24:
-#line 172 "yacc_cis.y"
-{
-		    int n = yyval.parse->cftable_entry.io.nwin;
-		    yyval.parse->cftable_entry.io.win[n].base = yyvsp[-2].num;
-		    yyval.parse->cftable_entry.io.win[n].len = yyvsp[0].num-yyvsp[-2].num+1;
-		    yyval.parse->cftable_entry.io.nwin++;
-		}
-break;
-case 25:
-#line 179 "yacc_cis.y"
-{
-		    int n = yyval.parse->cftable_entry.io.nwin;
-		    yyval.parse->cftable_entry.io.win[n].base = yyvsp[-2].num;
-		    yyval.parse->cftable_entry.io.win[n].len = yyvsp[0].num-yyvsp[-2].num+1;
-		    yyval.parse->cftable_entry.io.nwin++;
-		}
-break;
-case 26:
-#line 186 "yacc_cis.y"
-{ yyval.parse->cftable_entry.io.flags |= CISTPL_IO_8BIT; }
-break;
-case 27:
-#line 188 "yacc_cis.y"
-{ yyval.parse->cftable_entry.io.flags |= CISTPL_IO_16BIT; }
-break;
 case 28:
-#line 192 "yacc_cis.y"
-{ yyval.parse->cftable_entry.irq.IRQInfo1 = (yyvsp[0].num & 0x0f); }
+#line 205 "yacc_cis.y"
+{
+		    int n = yyval.parse->cftable_entry.io.nwin;
+		    yyval.parse->cftable_entry.io.win[n].base = yyvsp[-2].num;
+		    yyval.parse->cftable_entry.io.win[n].len = yyvsp[0].num-yyvsp[-2].num+1;
+		    yyval.parse->cftable_entry.io.nwin++;
+		}
 break;
 case 29:
-#line 194 "yacc_cis.y"
+#line 212 "yacc_cis.y"
+{
+		    int n = yyval.parse->cftable_entry.io.nwin;
+		    yyval.parse->cftable_entry.io.win[n].base = yyvsp[-2].num;
+		    yyval.parse->cftable_entry.io.win[n].len = yyvsp[0].num-yyvsp[-2].num+1;
+		    yyval.parse->cftable_entry.io.nwin++;
+		}
+break;
+case 30:
+#line 219 "yacc_cis.y"
+{ yyval.parse->cftable_entry.io.flags |= CISTPL_IO_8BIT; }
+break;
+case 31:
+#line 221 "yacc_cis.y"
+{ yyval.parse->cftable_entry.io.flags |= CISTPL_IO_16BIT; }
+break;
+case 32:
+#line 225 "yacc_cis.y"
+{ yyval.parse->cftable_entry.irq.IRQInfo1 = (yyvsp[0].num & 0x0f); }
+break;
+case 33:
+#line 227 "yacc_cis.y"
 {
 		    yyval.parse->cftable_entry.irq.IRQInfo1 = IRQ_INFO2_VALID;
 		    yyval.parse->cftable_entry.irq.IRQInfo2 = yyvsp[0].num;
 		}
 break;
-case 30:
-#line 199 "yacc_cis.y"
+case 34:
+#line 232 "yacc_cis.y"
 { yyval.parse->cftable_entry.irq.IRQInfo1 |= IRQ_PULSE_ID; }
 break;
-case 31:
-#line 201 "yacc_cis.y"
+case 35:
+#line 234 "yacc_cis.y"
 { yyval.parse->cftable_entry.irq.IRQInfo1 |= IRQ_LEVEL_ID; }
 break;
-case 32:
-#line 203 "yacc_cis.y"
+case 36:
+#line 236 "yacc_cis.y"
 { yyval.parse->cftable_entry.irq.IRQInfo1 |= IRQ_SHARE_ID; }
 break;
-case 33:
-#line 207 "yacc_cis.y"
+case 37:
+#line 240 "yacc_cis.y"
 {
 		    yyval.parse = calloc(1, sizeof(cisparse_t));
 		    yyval.parse->cftable_entry.index = yyvsp[0].num;
 		}
 break;
-case 34:
-#line 212 "yacc_cis.y"
+case 38:
+#line 245 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_DEFAULT; }
 break;
-case 35:
-#line 214 "yacc_cis.y"
+case 39:
+#line 247 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_BVDS; }
 break;
-case 36:
-#line 216 "yacc_cis.y"
+case 40:
+#line 249 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_WP; }
 break;
-case 37:
-#line 218 "yacc_cis.y"
+case 41:
+#line 251 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_RDYBSY; }
 break;
-case 38:
-#line 220 "yacc_cis.y"
+case 42:
+#line 253 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_MWAIT; }
 break;
-case 39:
-#line 222 "yacc_cis.y"
+case 43:
+#line 255 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_AUDIO; }
 break;
-case 40:
-#line 224 "yacc_cis.y"
+case 44:
+#line 257 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_READONLY; }
 break;
-case 41:
-#line 226 "yacc_cis.y"
+case 45:
+#line 259 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_PWRDOWN; }
 break;
-case 42:
-#line 228 "yacc_cis.y"
+case 46:
+#line 261 "yacc_cis.y"
 { yyval.parse->cftable_entry.vcc = yyvsp[0].pwr; }
 break;
-case 43:
-#line 230 "yacc_cis.y"
+case 47:
+#line 263 "yacc_cis.y"
 { yyval.parse->cftable_entry.vpp1 = yyvsp[0].pwr; }
 break;
-case 44:
-#line 232 "yacc_cis.y"
+case 48:
+#line 265 "yacc_cis.y"
 { yyval.parse->cftable_entry.vpp2 = yyvsp[0].pwr; }
 break;
-#line 728 "y.tab.c"
+#line 776 "y.tab.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

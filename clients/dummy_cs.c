@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.8 1998/05/21 11:33:58
+    dummy_cs.c 1.9 1998/07/16 23:44:06
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -55,7 +55,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"dummy_cs.c 1.8 1998/05/21 11:33:58 (David Hinds)";
+"dummy_cs.c 1.9 1998/07/16 23:44:06 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -466,7 +466,7 @@ static void dummy_config(dev_link_t *link)
 	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 	       link->io.BasePort1+link->io.NumPorts1-1);
     if (link->io.NumPorts2)
-	printk("& 0x%04x-0x%04x", link->io.BasePort2,
+	printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 	       link->io.BasePort2+link->io.NumPorts2-1);
     if (link->win)
 	printk(", mem 0x%06lx-0x%06lx", req.Base,

@@ -1,5 +1,5 @@
 /*
- * cistpl.h 1.25 1998/05/10 12:47:12
+ * cistpl.h 1.26 1998/07/09 08:41:19
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -82,8 +82,8 @@ typedef struct cistpl_longlink_mfc_t {
 #define CISTPL_MAX_ALTSTR_STRINGS	4
 
 typedef struct cistpl_altstr_t {
-    int		ns;
-    int		ofs[CISTPL_MAX_ALTSTR_STRINGS];
+    u_char	ns;
+    u_char	ofs[CISTPL_MAX_ALTSTR_STRINGS];
     char	str[254];
 } cistpl_altstr_t;
 
@@ -101,7 +101,7 @@ typedef struct cistpl_altstr_t {
 #define CISTPL_MAX_DEVICES	4
 
 typedef struct cistpl_device_t {
-    int		ndev;
+    u_char	ndev;
     struct device_info {
 	u_char 	type;
 	u_char	wp;
@@ -123,13 +123,13 @@ typedef struct cistpl_device_o_t {
 typedef struct cistpl_vers_1_t {
     u_char	major;
     u_char	minor;
-    int		ns;
-    int		ofs[CISTPL_VERS_1_MAX_PROD_STRINGS];
+    u_char	ns;
+    u_char	ofs[CISTPL_VERS_1_MAX_PROD_STRINGS];
     char	str[254];
 } cistpl_vers_1_t;
 
 typedef struct cistpl_jedec_t {
-    int		nid;
+    u_char	nid;
     struct jedec_id {
 	u_char	mfr;
 	u_char	info;
@@ -390,7 +390,7 @@ typedef struct cistpl_timing_t {
 
 typedef struct cistpl_io_t {
     u_char	flags;
-    int		nwin;
+    u_char	nwin;
     struct {
 	u_int	base;
 	u_int	len;
@@ -456,7 +456,7 @@ typedef struct cistpl_cftable_entry_cb_t {
 } cistpl_cftable_entry_cb_t;
 
 typedef struct cistpl_device_geo_t {
-    int		ngeo;
+    u_char		ngeo;
     struct geo {
 	u_char		buswidth;
 	u_int		erase_block;
@@ -473,7 +473,7 @@ typedef struct cistpl_vers_2_t {
     u_short	dindex;
     u_char	vspec8, vspec9;
     u_char	nhdr;
-    int		vendor, info;
+    u_char	vendor, info;
     char	str[244];
 } cistpl_vers_2_t;
 

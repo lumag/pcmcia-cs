@@ -1,7 +1,14 @@
 Copyright (c) 1998 David A. Hinds
 
 Unless otherwise indicated, this code is distributed under version 1.0
-of the Mozilla Public License, included here in the LICENSE file.
+of the Mozilla Public License ("MPL"), included in the LICENSE file.
+
+Where this software is combined with software released under the terms
+of the GNU Public License ("GPL") and the terms of the GPL would
+require the combined work to also be released under the terms of the
+GPL, the terms and conditions of the MPL will apply in addition to
+those of the GPL with the exception of any terms or conditions of the
+MPL that conflict with, or are expressly prohibited by, the GPL.
 
 Some of the client drivers (nmclan_cs.c, 3c589_cs.c, 3c574_cs.c,
 3c575_cb.c, ibmtr_cs.c, pcnet_cs.c, smc91c92_cs.c, fmvj18x_cs.c,

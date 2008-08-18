@@ -31,7 +31,7 @@
 #define PWRDOWN 287
 #define BIT8 288
 #define BIT16 289
-#define IRQ 290
+#define IRQ_NO 290
 #define MASK 291
 #define LEVEL 292
 #define PULSE 293

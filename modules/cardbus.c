@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.27 1998/05/26 23:26:33
+    cardbus.c 1.30 1998/07/18 09:55:19
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -29,13 +29,16 @@
 #define __NO_VERSION__
 #include <pcmcia/k_compat.h>
 
+#ifdef __LINUX__
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/malloc.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
+#include <asm/irq.h>
 #include <asm/io.h>
+#endif
 
 #ifndef PCMCIA_DEBUG
 #define PCMCIA_DEBUG 2
@@ -118,6 +121,7 @@ static void dump_rom(u_char *b)
 	b += sz; ofs += sz; img++;
 	if (readb(b+data+PCDATA_INDICATOR) & 0x80) break;
     }
+    if (img == 0) printk(KERN_INFO "  no valid images found!\n");
 }
 
 static u_int xlate_rom_addr(u_char *b, u_int addr)
@@ -141,7 +145,7 @@ static u_int xlate_rom_addr(u_char *b, u_int addr)
 void read_cb_mem(socket_info_t *s, u_char fn, int space,
 		 u_int addr, u_int len, void *ptr)
 {
-    DEBUG(3, "cs: read_cb_mem(%d, %#x, %u)\n", space, addr, len);
+    DEBUG(3, ("cs: read_cb_mem(%d, %#x, %u)\n", space, addr, len));
     if (space == 0) {
 	for (; len; addr++, ptr++, len--)
 	    pcibios_read_config_byte(s->cap.cardbus, fn, addr, ptr);
@@ -173,7 +177,7 @@ int cb_setup_cis_mem(socket_info_t *s, int space)
 	return CS_SUCCESS;
     else if (s->cb_cis_space != 0)
 	cb_release_cis_mem(s);
-    DEBUG(1, "cs: cb_setup_cis_mem(space %d)\n", space);
+    DEBUG(1, ("cs: cb_setup_cis_mem(space %d)\n", space));
     /* If socket is configured, then use existing memory mapping */
     if (s->lock_count) {
 	s->cb_cis_virt =
@@ -195,8 +199,8 @@ int cb_setup_cis_mem(socket_info_t *s, int space)
 	return CS_OUT_OF_RESOURCE;
     }
     s->cb_cis_virt = ioremap(base, sz);
-    DEBUG(1, "  base 0x%08lx, sz 0x%06x, virt 0x%08lx\n",
-	  base, sz, (u_long)s->cb_cis_virt);
+    DEBUG(1, ("  base 0x%08lx, sz 0x%06x, virt 0x%08lx\n",
+	      base, sz, (u_long)s->cb_cis_virt));
     pci_writel(s->cap.cardbus, 0, br, base | 1);
     pci_writeb(s->cap.cardbus, 0, PCI_COMMAND, PCI_COMMAND_MEMORY);
     m->map = 0; m->flags = MAP_ACTIVE;
@@ -211,7 +215,7 @@ void cb_release_cis_mem(socket_info_t *s)
     cb_bridge_map *m = &s->cb_cis_map;
     u_int br;
     if (s->cb_cis_virt) {
-	DEBUG(1, "cs: cb_release_cis_mem()\n");
+	DEBUG(1, ("cs: cb_release_cis_mem()\n"));
 	iounmap(s->cb_cis_virt);
 	s->cb_cis_virt = NULL;
 	s->cb_cis_space = 0;
@@ -250,7 +254,7 @@ void cb_enable(socket_info_t *s)
     u_char i, j, bus = s->cap.cardbus;
     cb_config_t *c = s->cb_config;
     
-    DEBUG(1, "cs: cb_enable(bus %d)\n", bus);
+    DEBUG(1, ("cs: cb_enable(bus %d)\n", bus));
     
     /* Configure bridge */
     if (s->cb_cis_map.start)
@@ -275,8 +279,8 @@ void cb_enable(socket_info_t *s)
 	    break;
 	}
 	if (m.start == 0) continue;
-	DEBUG(1, "cs: bridge map %d (flags 0x%x): 0x%x-0x%x\n",
-	      m.map, m.flags, m.start, m.stop);
+	DEBUG(1, ("cs: bridge map %d (flags 0x%x): 0x%x-0x%x\n",
+		  m.map, m.flags, m.start, m.stop));
 	s->ss_entry(s->sock, SS_SetBridge, &m);
     }
 
@@ -342,7 +346,7 @@ void cb_disable(socket_info_t *s)
     }
 #endif
     
-    DEBUG(1, "cs: cb_disable(bus %d)\n", s->cap.cardbus);
+    DEBUG(1, ("cs: cb_disable(bus %d)\n", s->cap.cardbus));
     
     /* Turn off bridge windows */
     if (s->cb_cis_map.start)
@@ -379,8 +383,8 @@ int cb_config(socket_info_t *s)
     
     pci_readw(bus, 0, PCI_VENDOR_ID, &vend);
     pci_readw(bus, 0, PCI_DEVICE_ID, &dev);
-    DEBUG(1, "cs: cb_config(bus %d): vendor 0x%04x, device 0x%04x\n",
-	  bus, vend, dev);
+    DEBUG(1, ("cs: cb_config(bus %d): vendor 0x%04x, device 0x%04x\n",
+	      bus, vend, dev));
 
     pci_readb(bus, 0, PCI_HEADER_TYPE, &fn);
     if (fn != 0) {
@@ -487,11 +491,11 @@ int cb_config(socket_info_t *s)
 		if (sz && (sz == num[m])) {
 		    base[m] -= sz;
 		    if (j < 6) {
-			DEBUG(1, " fn %d bar %d: %s base 0x%x, sz 0x%x\n",
-			      i, j, (m) ? "mem" : "io", base[m], sz);
+			DEBUG(1, (" fn %d bar %d: %s base 0x%x, sz 0x%x\n",
+				  i, j, (m) ? "mem" : "io", base[m], sz));
 		    } else {
-			DEBUG(1, " fn %d rom: %s base 0x%x, sz 0x%x\n",
-			      i, (m) ? "mem" : "io", base[m], sz);
+			DEBUG(1, (" fn %d rom: %s base 0x%x, sz 0x%x\n",
+				  i, (m) ? "mem" : "io", base[m], sz));
 		    }
 		    c[i].dev.base_address[j] = base[m];
 		}
@@ -510,7 +514,7 @@ int cb_config(socket_info_t *s)
 #ifdef CONFIG_ISA
 	    else
 		for (try = 0; try < 2; try++) {
-		    for (irq = 0; irq < 16; irq++)
+		    for (irq = 0; irq < NR_IRQS; irq++)
 			if ((s->cap.irq_mask >> irq) & 1) {
 			    ret = try_irq(IRQ_TYPE_EXCLUSIVE, irq, try);
 			    if (ret == 0) break;
@@ -543,7 +547,7 @@ failed:
 
 void cb_release(socket_info_t *s)
 {
-    DEBUG(1, "cs: cb_release(bus %d)\n", s->cap.cardbus);
+    DEBUG(1, ("cs: cb_release(bus %d)\n", s->cap.cardbus));
     
     if (s->win[0].size > 0)
 	release_mem_region(s->win[0].base, s->win[0].size);

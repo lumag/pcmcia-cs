@@ -1,5 +1,5 @@
 /*
- * pd67xx.h 1.5 1998/05/10 11:59:46
+ * pd67xx.h 1.6 1998/06/10 10:19:49
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -18,6 +18,13 @@
 
 #ifndef _LINUX_PD67XX_H
 #define _LINUX_PD67XX_H
+
+#ifndef PCI_VENDOR_ID_CIRRUS
+#define PCI_VENDOR_ID_CIRRUS		0x1013
+#endif
+#ifndef PCI_DEVICE_ID_CIRRUS_6729
+#define PCI_DEVICE_ID_CIRRUS_6729	0x1100
+#endif
 
 #define PD67_MISC_CTL_1		0x16	/* Misc control 1 */
 #define PD67_FIFO_CTL		0x17	/* FIFO control */

@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.31 1998/05/11 23:17:55
+    cardctl.c $Revision: 1.37 $ $Date: 1998/07/18 17:34:37 $
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -19,6 +19,10 @@
     are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
 
 ======================================================================*/
+
+#ifndef __linux__
+#include <pcmcia/u_compat.h>
+#endif
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -54,6 +58,10 @@ static char *stabfile = "/var/run/stab";
 
 /*====================================================================*/
 
+#ifdef __linux__
+
+static int major = 0;
+
 static int lookup_dev(char *name)
 {
     FILE *f;
@@ -75,52 +83,58 @@ static int lookup_dev(char *name)
 	return -ENODEV;
 } /* lookup_dev */
 
+#endif /* __linux__ */
+
 /*====================================================================*/
 
-static int open_dev(dev_t dev)
+static int open_sock(int sock)
 {
-    char *fn;
+#ifdef __linux__
     int fd;
-    
+    char *fn;
+    dev_t dev = (major<<8) + sock;
     if ((fn = tmpnam(NULL)) == NULL)
 	return -1;
     if (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) != 0)
 	return -1;
-    if ((fd = open(fn, O_RDONLY)) < 0) {
-	unlink(fn);
-	return -1;
-    }
-    if (unlink(fn) != 0) {
-	close(fd);
-	return -1;
-    }
+    fd = open(fn, O_RDONLY);
+    unlink(fn);
     return fd;
-} /* open_dev */
+#endif
+#ifdef __BEOS__
+    char fn[B_OS_NAME_LENGTH];
+    sprintf(fn, "/dev/pcmcia/sock%d", sock);
+    return open(fn, O_RDONLY);
+#endif
+} /* open_sock */
 
 /*====================================================================*/
 
-static void print_status(status_t *status)
+static void print_status(cs_status_t *status)
 {
-    printf("  Function %d:\n", status->Function);
-    printf("  ");
-    if (status->CardState & CS_EVENT_CB_DETECT)
-	printf("cardbus card present");
-    else if (status->CardState & CS_EVENT_CARD_DETECT)
-	printf("card present");
-    else {
-	printf("no card\n");
-	return;
+    char *v = "5";
+    if (status->Function == 0) {
+	printf("  ");
+	if (status->CardState & CS_EVENT_3VCARD)
+	    v = "3.3";
+	else if (status->CardState & CS_EVENT_XVCARD)
+	    v = "X.X";
+	if (status->CardState & CS_EVENT_CB_DETECT)
+	    printf("%sV cardbus card present", v);
+	else if (status->CardState & CS_EVENT_CARD_DETECT)
+	    printf("%sV 16-bit card present", v);
+	else
+	    printf("no card");
+	if (status->CardState & CS_EVENT_PM_SUSPEND)
+	    printf(", suspended");
+	printf("\n");
     }
-    if (status->CardState & CS_EVENT_3VCARD)
-	printf(", 3.3V card");
-    if (status->CardState & CS_EVENT_XVCARD)
-	printf(", X.XV card");
-    if (status->CardState & CS_EVENT_PM_SUSPEND) {
-	printf(", suspended\n");
+    if ((status->CardState & CS_EVENT_PM_SUSPEND) ||
+	!(status->CardState & CS_EVENT_CARD_DETECT))
 	return;
-    }
-    if (status->CardState & CS_EVENT_READY_CHANGE)
-	printf(", ready");
+    printf("  Function %d: ", status->Function);
+    printf("%s", (status->CardState & CS_EVENT_READY_CHANGE)
+	   ? "ready" : "busy");
     if (status->CardState & CS_EVENT_WRITE_PROTECT)
 	printf(", write protect");
     if (status->CardState & CS_EVENT_BATTERY_DEAD)
@@ -141,7 +155,7 @@ static void print_config(config_info_t *config)
 	       config->Vcc/10.0, config->Vpp1/10.0, config->Vpp2/10.0);
 	if (!(config->Attributes & CONF_VALID_CLIENT))
 	    return;
-	printf("  Card type is ");
+	printf("  Interface type is ");
 	switch (config->IntType) {
 	case INT_MEMORY:
 	    printf("memory-only\n"); break;
@@ -232,12 +246,61 @@ static void print_config(config_info_t *config)
 
 /*====================================================================*/
 
+static int get_tuple(int fd, cisdata_t code, ds_ioctl_arg_t *arg)
+{
+    arg->tuple.DesiredTuple = code;
+    arg->tuple.Attributes = 0;
+    arg->tuple.TupleOffset = 0;
+    if ((ioctl(fd, DS_GET_FIRST_TUPLE, arg) == 0) &&
+	(ioctl(fd, DS_GET_TUPLE_DATA, arg) == 0) &&
+	(ioctl(fd, DS_PARSE_TUPLE, arg) == 0))
+	return 0;
+    else
+	return -1;
+}
+
+static void print_ident(int fd)
+{
+    ds_ioctl_arg_t arg;
+    cistpl_vers_1_t *vers = &arg.tuple_parse.parse.version_1;
+    cistpl_manfid_t *manfid = &arg.tuple_parse.parse.manfid;
+    cistpl_funcid_t *funcid = &arg.tuple_parse.parse.funcid;
+    char v[256];
+    int i;
+    static char *fn[] = {
+	"multi", "memory", "serial", "parallel", "fixed disk",
+	"video", "network", "AIMS", "SCSI"
+    };
+    
+    if (get_tuple(fd, CISTPL_VERS_1, &arg) == 0) {
+	printf("  product info: ");
+	for (i = 0; i < vers->ns; i++)
+	    printf("%s\"%s\"", (i>0) ? ", " : "",
+		   vers->str+vers->ofs[i]);
+	printf("\n");
+    } else {
+	printf("  no product info available\n");
+    }
+    *v = '\0';
+    if (get_tuple(fd, CISTPL_MANFID, &arg) == 0)
+	sprintf(v, "  manfid: 0x%04x, 0x%04x",
+		manfid->manf, manfid->card);
+    if (get_tuple(fd, CISTPL_FUNCID, &arg) == 0)
+	sprintf(v+strlen(v), "  function: %d (%s)", funcid->func,
+		fn[funcid->func]);
+    if (strlen(v) > 0) printf("%s\n", v);
+}
+
+/*====================================================================*/
+
 typedef enum cmd_t {
-    C_STATUS, C_CONFIG, C_SUSPEND, C_RESUME, C_RESET, C_EJECT, C_INSERT
+    C_STATUS, C_CONFIG, C_IDENT, C_SUSPEND,
+    C_RESUME, C_RESET, C_EJECT, C_INSERT
 } cmd_t;
 
 static char *cmdname[] = {
-    "status", "config", "suspend", "resume", "reset", "eject", "insert"
+    "status", "config", "ident", "suspend",
+    "resume", "reset", "eject", "insert"
 };
 
 #define NCMD (sizeof(cmdname)/sizeof(char *))
@@ -245,7 +308,7 @@ static char *cmdname[] = {
 static int do_cmd(int fd, int cmd)
 {
     int i, ret;
-    status_t status;
+    cs_status_t status;
     config_info_t config;
 
     ret = 0;
@@ -256,6 +319,15 @@ static int do_cmd(int fd, int cmd)
 	    status.Function = i;
 	    if (ioctl(fd, DS_GET_STATUS, &status) == 0)
 		print_status(&status);
+	    else {
+		if (i == 0) {
+		    if (errno == ENODEV)
+			printf("  no card\n");
+		    else
+			perror("ioctl()");
+		}
+		break;
+	    }
 	}
 	break;
 	
@@ -264,9 +336,17 @@ static int do_cmd(int fd, int cmd)
 	    config.Function = i;
 	    if (ioctl(fd, DS_GET_CONFIGURATION_INFO, &config) == 0)
 		print_config(&config);
+	    else {
+		if (i == 0) printf("  not configured\n");
+		break;
+	    }
 	}
 	break;
 
+    case C_IDENT:
+	print_ident(fd);
+	break;
+	
     case C_SUSPEND:
 	ret = ioctl(fd, DS_SUSPEND_CARD);
 	break;
@@ -441,9 +521,7 @@ static int do_scheme(char *new)
 	if (start_scheme() != 0)
 	    fprintf(stderr, "Some devices did not start cleanly.\n");
 	
-    }
-    
-    else {
+    } else {
 	if (old[0])
 	    printf("Current scheme: '%s'.\n", old);
 	else
@@ -473,10 +551,9 @@ void usage(char *name)
 
 int main(int argc, char *argv[])
 {
-    int major, cmd, fd[MAX_SOCKS], ns, ret, i;
+    int cmd, fd[MAX_SOCKS], ns, ret, i;
     int optch, errflg;
-    extern char *optarg;
-
+    
     errflg = 0;
     while ((optch = getopt(argc, argv, "Vc:f:s:")) != -1) {
 	switch (optch) {
@@ -502,7 +579,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "cardctl must be setuid root\n");
 	exit(EXIT_FAILURE);
     }
-    
+
+#ifdef __linux__
     major = lookup_dev("pcmcia");
     if (major < 0) {
 	if (major == -ENODEV)
@@ -511,6 +589,7 @@ int main(int argc, char *argv[])
 	    perror("could not open /proc/devices");
 	exit(EXIT_FAILURE);
     }
+#endif
 
     if (strcmp(argv[1], "scheme") == 0) {
 #ifndef UNSAFE_TOOLS
@@ -530,9 +609,9 @@ int main(int argc, char *argv[])
     ret = 0;
     if (argc == 3) {
 	ns = atoi(argv[2]);
-	fd[0] = open_dev((major<<8)+ns);
+	fd[0] = open_sock(ns);
 	if (fd[0] < 0) {
-	    perror("open_dev()");
+	    perror("open_sock()");
 	    exit(EXIT_FAILURE);
 	}
 #ifndef UNSAFE_TOOLS
@@ -541,21 +620,20 @@ int main(int argc, char *argv[])
 	ret = do_cmd(fd[0], cmd);
 	if (ret != 0)
 	    perror("ioctl()");
-    }
-    else {
+    } else {
 	for (ns = 0; ns < MAX_SOCKS; ns++) {
-	    fd[ns] = open_dev((major<<8)+ns);
+	    fd[ns] = open_sock(ns);
 	    if (fd[ns] < 0) break;
 	}
 #ifndef UNSAFE_TOOLS
 	setuid(getuid());
 #endif
 	if (ns == 0) {
-	    perror("open_dev()");
+	    perror("open_sock()");
 	    exit(EXIT_FAILURE);
 	}
 	for (ns = 0; (ns < MAX_SOCKS) && (fd[ns] >= 0); ns++) {
-	    if (cmd <= C_CONFIG)
+	    if (cmd <= C_IDENT)
 		printf("Socket %d:\n", ns);
 	    i = do_cmd(fd[ns], cmd);
 	    if ((i != 0) && (errno != ENODEV)) {

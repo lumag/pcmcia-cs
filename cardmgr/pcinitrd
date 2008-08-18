@@ -4,7 +4,7 @@
 #
 # Copyright (C) David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# pcinitrd 1.12 1998/03/08 20:34:07
+# pcinitrd 1.13 1998/06/28 11:31:21
 #
 RELEASE=""
 ALL=""
@@ -67,7 +67,7 @@ if [ $# -lt 1 ] ; then usage ; fi
 TARGET=$1 ; shift
 if [ "$ALL" = "y" ] ; then
     for MOD in $SOCK $BLK $MEM ; do
-	if [ -f $ROOT/lib/modules/$KERNEL/pcmcia$MOD ] ; then
+	if [ -f $ROOT/lib/modules/$KERNEL/pcmcia/$MOD ] ; then
 	    MODULES="$MODULES pcmcia/$MOD"
 	fi
     done

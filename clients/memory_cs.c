@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.49 1998/05/21 11:34:00
+    memory_cs.c 1.50 1998/05/28 22:41:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.49 1998/05/21 11:34:00 (David Hinds)";
+"memory_cs.c 1.50 1998/05/28 22:41:55 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -390,7 +390,7 @@ static void memory_config(dev_link_t *link)
     memory_dev_t *dev;
     minor_dev_t *minor;
     region_info_t region;
-    status_t status;
+    cs_status_t status;
     win_req_t req;
     int nd, i, last_ret, last_fn, attr, ret, nr[2];
 
