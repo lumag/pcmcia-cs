@@ -1,5 +1,5 @@
 #
-# config.sample 1.83 1998/11/19 08:06:38 (David Hinds)
+# config.sample 1.85 1999/01/05 17:07:00 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -93,8 +93,12 @@ card "3Com 3c589D Ethernet"
   version "3Com Corporation", "3C589D"
   bind "3c589_cs"
 
+card "3Com 3CXE589E Ethernet"
+  version "3Com", "Megahertz 589E"
+  bind "3c589_cs"
+
 card "Accton EN2212 Ethernet"
-  version "ACCTON", "EN2212", "ETHERNET"
+  version "ACCTON", "EN2212"
   bind "pcnet_cs"
 
 card "Accton EN2216 Ethernet"
@@ -102,7 +106,7 @@ card "Accton EN2216 Ethernet"
   bind "pcnet_cs"
 
 card "Accton UE2212 Ethernet"
-  version "PCMCIA", "UE2212", "ETHERNET"
+  version "PCMCIA", "UE2212"
   bind "pcnet_cs"
 
 card "Accton UE2216 Ethernet"
@@ -418,6 +422,10 @@ card "I-O DATA PCLA/T Ethernet"
   version "I-O DATA", "PCLA", "ETHERNET"
   bind "pcnet_cs"
 
+card "I-O DATA PCLA/TE Ethernet"
+  version "IO DATA", "PCLATE", "ETHERNET"
+  bind "pcnet_cs"
+
 card "Panasonic CF-VEL211 Ethernet"
   version "Matsushita Electric Industrial Co.,LTD.", "CF-VEL211"
   bind "pcnet_cs"
@@ -558,6 +566,14 @@ card "Compaq 28.8K Modem"
 
 card "Compaq 33.6K Modem"
   version "COMPAQ", "PCMCIA 33600 FAX/DATA MODEM"
+  bind "serial_cs"
+
+card "Dr. Neuhaus 14.4K FURY Card"
+  version "Dr. Neuhaus", "FURY CARD 14K4"
+  bind "serial_cs"
+
+card "E.TECH Bullet 33.6K Modem"
+  version "PCMCIA   ", "C336MX     "
   bind "serial_cs"
 
 card "Gateway 2000 TelePath Fax Modem"
@@ -823,6 +839,10 @@ card "Apex MultiCard Ethernet/Modem"
   version "APEX DATA", "MULTICARD", "ETHERNET-MODEM"
   bind "pcnet_cs" to 0, "serial_cs" to 1
 
+card "Compaq Microcom CPQ550 Ethernet/Modem"
+  manfid 0x0138, 0x110a
+  bind "xirc2ps_cs", "serial_cs"
+
 card "Dayna Communicard Ethernet/Modem"
   version "DAYNA COMMUNICATIONS", "LAN AND MODEM MULTIFUNCTION"
   cis "cis/DP83903.dat"
@@ -974,12 +994,20 @@ card "Freecom IQ-drive"
   version "FREECOM", "PCCARD-IDE"
   bind "ide_cs"
 
+card "IBM Max Portable CD-ROM"
+  manfid 0x00a4, 0x002d
+  bind "ide_cs"
+
 card "IO-DATA CDP-TX/PCIDE"
   version "IO DATA", "PCIDE"
   bind "ide_cs"
 
 card "IO-DATA PCIDE II"
   version "IO DATA", "PCIDEII"
+  bind "ide_cs"
+
+card "IO-DATA CBIDE"
+  version "WIT", "IDE16"
   bind "ide_cs"
 
 card "OTI-SCYLLA ATAPI CD-ROM"
@@ -1028,6 +1056,10 @@ card "3Com 3CCFE575B/3CXFE575B Fast EtherLink XL"
 card "Adaptec APA-1480 SCSI Host Adapter"
   manfid 0x012f, 0xcb01
   bind "apa1480_cb"
+
+card "D-Link DFE-660"
+  manfid 0x50c7, 0xcafe
+  bind "tulip_cb"
 
 card "Linksys EtherFast 10/100"
   manfid 0x0149, 0x0231

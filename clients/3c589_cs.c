@@ -92,6 +92,9 @@ enum RxFilter {
 #define WN4_MEDIA	0x0A	/* Window 4: Various transcvr/media bits. */
 #define MEDIA_TP	0x00C0	/* Enable link beat and jabber for 10baseT. */
 
+/* Time in jiffies before concluding Tx hung */
+#define TX_TIMEOUT	((400*HZ)/1000)
+
 struct el3_private {
     dev_node_t node;
     struct net_device_stats stats;
@@ -106,7 +109,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.109 1998/11/03 05:31:23 (David Hinds)";
+"3c589_cs.c 1.111 1998/12/24 20:33:34 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -145,11 +148,7 @@ static struct net_device_stats *el3_get_stats(struct device *dev);
 static int el3_rx(struct device *dev);
 static int el3_close(struct device *dev);
 
-#ifdef NEW_MULTICAST
 static void set_multicast_list(struct device *dev);
-#else
-static void set_multicast_list(struct device *dev, int num_addrs, void *addrs);
-#endif
 
 static dev_info_t dev_info = "3c589_cs";
 
@@ -652,7 +651,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
     /* Transmitter timeout, serious problems. */
     if (dev->tbusy) {
 	int tickssofar = jiffies - dev->trans_start;
-	if (tickssofar < 10)
+	if (tickssofar < TX_TIMEOUT)
 	    return 1;
 	printk(KERN_NOTICE "%s: transmit timed out, Tx_status %2.2x "
 	       "status %4.4x Tx FIFO room %d.", dev->name,
@@ -795,9 +794,7 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 	    if (status & AdapterFailure) {
 		/* Adapter failure requires Rx reset and reinit. */
 		outw(RxReset, ioaddr + EL3_CMD);
-#ifdef NEW_MULTICAST
 		set_multicast_list(dev);
-#endif
 		outw(RxEnable, ioaddr + EL3_CMD); /* Re-enable the receiver. */
 		outw(AckIntr | AdapterFailure, ioaddr + EL3_CMD);
 	    }
@@ -950,15 +947,17 @@ static int el3_rx(struct device *dev)
 	    short pkt_len = rx_status & 0x7ff;
 	    struct sk_buff *skb;
 	    
-	    skb = ALLOC_SKB(pkt_len+3);
+	    skb = dev_alloc_skb(pkt_len+5);
 	    
 	    DEBUG(3, "    Receiving packet size %d status %4.4x.\n",
 		  pkt_len, rx_status);
 	    if (skb != NULL) {
 		skb->dev = dev;
 		
-#define BLOCK_INPUT(buf, len) insl_ns(ioaddr+RX_FIFO, buf, (len+3)>>2)
-		GET_PACKET(dev, skb, pkt_len);
+		skb_reserve(skb, 2);
+		insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
+			(pkt_len+3)>>2);
+		skb->protocol = eth_type_trans(skb, dev);
 		
 		netif_rx(skb);
 		outw(RxDiscard, ioaddr + EL3_CMD); /* Pop top Rx packet. */
@@ -989,7 +988,6 @@ static int el3_rx(struct device *dev)
    num_addrs > 0	Multicast mode, receive normal and MC packets, and do
 			best-effort filtering.
  */
-#ifdef NEW_MULTICAST
 static void set_multicast_list(struct device *dev)
 {
     short ioaddr = dev->base_addr;
@@ -1015,30 +1013,6 @@ static void set_multicast_list(struct device *dev)
     else
 	outw(SetRxFilter | RxStation | RxBroadcast, ioaddr + EL3_CMD);
 }
-#else
-static void
-set_multicast_list(struct device *dev, int num_addrs, void *addrs)
-{
-    short ioaddr = dev->base_addr;
-#ifdef PCMCIA_DEBUG
-    if (pc_debug > 2) {
-	static int old = 0;
-	if (old != num_addrs) {
-	    old = num_addrs;
-	    DEBUG(0, "%s: setting Rx mode to %d addresses.\n",
-		  dev->name, num_addrs);
-	}
-    }
-#endif
-    if ((num_addrs > 0) || (num_addrs == -2))
-	outw(SetRxFilter|RxStation|RxMulticast|RxBroadcast, ioaddr + EL3_CMD);
-    else if (num_addrs < 0)
-	outw(SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm,
-	     ioaddr + EL3_CMD);
-    else
-	outw(SetRxFilter | RxStation | RxBroadcast, ioaddr + EL3_CMD);
-}
-#endif
 
 static int el3_close(struct device *dev)
 {

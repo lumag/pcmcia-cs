@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.83 1998/11/19 08:08:39
+# Configure 1.84 1999/01/05 05:32:14
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -147,13 +147,22 @@ fi
 
 # What kernel are we compiling for?
 
+version () {
+    expr $1 \* 65536 + $2 \* 256 + $3
+}
+
 echo ""
 VERSION=`sed -n -e 's/^VERSION = \(.*\)/\1/p' $LINUX/Makefile`
 PATCHLEVEL=`sed -n -e 's/^PATCHLEVEL = \(.*\)/\1/p' $LINUX/Makefile`
 SUBLEVEL=`sed -n -e 's/^SUBLEVEL = \(.*\)/\1/p' $LINUX/Makefile`
-SRC_RELEASE=$VERSION.$PATCHLEVEL.$SUBLEVEL
-VERSION_CODE=`expr $VERSION \* 65536 + $PATCHLEVEL \* 256 + $SUBLEVEL`
+EXTRAVERSION=`sed -n -e 's/^EXTRAVERSION =\(.*\)/\1/p' $LINUX/Makefile`
+SRC_RELEASE=$VERSION.$PATCHLEVEL.$SUBLEVEL$EXTRAVERSION
+VERSION_CODE=`version $VERSION $PATCHLEVEL $SUBLEVEL`
 echo "The kernel source tree is version $SRC_RELEASE."
+if [ $VERSION_CODE -lt `version 2 0 0` ] ; then
+    echo "This package requires at least a 2.0 series kernel."
+    exit 1
+fi
 CUR_RELEASE=`uname -r`
 if [ "$SRC_RELEASE" != "$CUR_RELEASE" ] ; then
     echo "WARNING: the current kernel is actually version $CUR_RELEASE."
@@ -233,10 +242,13 @@ modcheck () {
 }
 
 configcheck () {
-    value=`eval echo '$'$1`
-    if [ "$value" = "m" ] ; then
+    if grep -q "^$1=y" $AUTOCONF ; then
+	eval "$1=y"
+    elif grep -q "^$1=m" $AUTOCONF ; then
 	eval "$1=y"
 	INSTALL_DEPMOD=y
+    else
+	eval "$1=n"
     fi
 }
 
@@ -336,16 +348,17 @@ case $src in
 	echo "/* Options from $AUTOCONF */" >> $CONFIG_H
 	echo "CHECK=\"$AUTOCONF\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < $AUTOCONF`\"" >> $CONFIG
-	. $AUTOCONF
 	if grep -q "^ *SMP *= *1" $LINUX/Makefile ; then
 	    CONFIG_SMP=y
 	else
-	    CONFIG_SMP=n
+	    configcheck CONFIG_SMP
 	fi
-	configcheck CONFIG_SCSI
-	configcheck CONFIG_SERIAL
-	configcheck CONFIG_TR
-	configcheck CONFIG_PROC_FS
+	for C in CONFIG_PCI CONFIG_APM CONFIG_SCSI CONFIG_INET \
+	    CONFIG_IPV6 CONFIG_NET_RADIO CONFIG_TR CONFIG_MODVERSIONS \
+	    CONFIG_BLK_DEV_IDE_PCMCIA CONFIG_ALPHA_LCA CONFIG_PROC_FS \
+	    CONFIG_SERIAL ; do
+	    configcheck $C
+	done
 	printconfig
 	;;
     3)
@@ -378,12 +391,12 @@ ARCH=`uname -m`
 AFLAGS=
 if [ $ARCH = "ppc" ] ; then
     AFLAGS="-fno-builtin -msoft-float"
-    if [ $VERSION -eq 2 -a $PATCHLEVEL -eq 1 -a $SUBLEVEL -ge 26 ] ; then
+    if [ $VERSION_CODE -ge `version 2 1 26` ] ; then
 	AFLAGS="$AFLAGS -ffixed-r2"
     fi
 elif [ $ARCH = "alpha" ] ; then
     AFLAGS="-mno-fp-regs"
-    if [ $VERSION -eq 2 -a $PATCHLEVEL -eq 1 -a $SUBLEVEL -ge 26 ] ; then
+    if [ $VERSION_CODE -ge `version 2 1 26` ] ; then
 	AFLAGS="$AFLAGS -ffixed-8"
     fi
 fi
@@ -424,35 +437,27 @@ if [ $src -eq 1 ] ; then UTS_VERSION=`uname -v` ; fi
 
 HAS_PROC_BUS=n
 NEW_QLOGIC=n
+echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
 
-case "$VERSION.$PATCHLEVEL" in
-2.0|2.1)
-    echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
-    if [ $SUBLEVEL -ge 6 ] ; then
-	NEW_QLOGIC=y
-    fi
-    if [ $PATCHLEVEL -eq 1 ] ; then
-	if [ $SUBLEVEL -ge 8 ] ; then
-	    CONFIG_BLK_DEV_IDE_PCMCIA=y
-	fi
-	if [ $SUBLEVEL -gt 30 -a $SUBLEVEL -lt 34 ] ; then
-	    echo "Kernel versions 2.1.31-33 are broken.  Upgrade to 2.1.34."
-	    exit 1
-	fi
-	if [ "$CONFIG_CARDBUS" = "y" -a $SUBLEVEL -gt 90 \
-	    -a $SUBLEVEL -lt 125 ] ; then
-	    DO_APA1480=y
-	fi
-	if [ $SUBLEVEL -gt 104 ] ; then
-	    HAS_PROC_BUS=$CONFIG_PROC_FS
-	fi
-    fi
-    ;;
-*)
-    echo "This package requires a 2.0 or 2.1 series kernel."
+if [ $VERSION_CODE -ge `version 2 0 6` ] ; then
+    NEW_QLOGIC=y
+fi
+if [ $VERSION_CODE -ge `version 2 1 8` ] ; then
+    CONFIG_BLK_DEV_IDE_PCMCIA=y
+fi
+if [ $VERSION_CODE -ge `version 2 1 31` -a \
+     $VERSION_CODE -le `version 2 1 34` ] ; then
+    echo "Kernel versions 2.1.31-33 are broken.  Upgrade to 2.1.34."
     exit 1
-    ;;
-esac
+fi
+if [ "$CONFIG_CARDBUS" = "y" -a \
+     $VERSION_CODE -ge `version 2 1 90` -a \
+     $VERSION_CODE -lt `version 2 1 125` ] ; then
+    DO_APA1480=y
+fi
+if [ $VERSION_CODE -gt `version 2 1 104` ] ; then
+    HAS_PROC_BUS=$CONFIG_PROC_FS
+fi
 
 UTS_RELEASE=$SRC_RELEASE
 write_str UTS_RELEASE
@@ -511,26 +516,17 @@ fi
 MOD_RELEASE=`/sbin/insmod -V 2>&1 | \
     sed -n -e 's/.*[Vv]ersion \([0-9][0-9.]*\)/\1/p'`
 echo "Your module utilities are version $MOD_RELEASE."
-case "$VERSION.$PATCHLEVEL" in
-1.[23])
-    NEED=1.2.8
-    ;;
-2.0)
-    NEED=2.0.0
-    ;;
-2.1)
-    if [ $SUBLEVEL -lt 18 ] ; then
-	NEED=2.0.0
-    elif [ $SUBLEVEL -lt 85 ] ; then
-	NEED=2.1.23
-    else
-	NEED=2.1.85
-    fi
-    ;;
-esac
+X=`echo $MOD_RELEASE | sed -e 's/\./ /g'`
+MOD_CODE=`version $X`
+if [ $VERSION_CODE -ge `version 2 1 85` ] ; then
+    NEED=`version 2 1 85`
+elif [ $VERSION_CODE -ge `version 2 1 18` ] ; then
+    NEED=`version 2 1 23`
+else
+    NEED=`version 2 0 0`
+fi
 
-MIN=`/bin/echo "$MOD_RELEASE\n$NEED" | sort -t. +0n -1 +1n -2 +2n | head -1`
-if [ "$MIN" != "$NEED" ] ; then
+if [ $NEED -gt $MOD_CODE ] ; then
     echo "Your module utilities are too old for this kernel!"
     echo "    To fix, upgrade to at least version $NEED."
     exit 1

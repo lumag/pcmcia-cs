@@ -241,11 +241,7 @@ static struct iw_statistics* netwave_get_wireless_stats(struct device *dev);
 #endif
 static int netwave_ioctl(struct device *, struct ifreq *, int);
 
-#ifdef NEW_MULTICAST
 static void set_multicast_list(struct device *dev);
-#else
-static void set_multicast_list(struct device *dev, int num_addrs, void *addrs);
-#endif
 
 
 /*
@@ -1621,7 +1617,6 @@ void cleanup_module(void) {
    num_addrs > 0	Multicast mode, receive normal and MC packets, and do
    best-effort filtering.
  */
-#ifdef NEW_MULTICAST
 static void set_multicast_list(struct device *dev)
 {
     short iobase = dev->base_addr;
@@ -1657,38 +1652,3 @@ static void set_multicast_list(struct device *dev)
     writeb(rcvMode, ramBase + NETWAVE_EREG_CB + 1);
     writeb(NETWAVE_CMD_EOC, ramBase + NETWAVE_EREG_CB + 2);
 }
-#else
-static void set_multicast_list(struct device *dev, int num_addrs, void *addrs) {
-    short iobase = dev->base_addr;
-    u_char* ramBase = ((netwave_private*) dev->priv)->ramBase;
-    u_char  rcvMode = 0;
-	
-    if (netwave_debug > 3) {
-	static int old = 0;
-	if (old != num_addrs) {
-	    old = num_addrs;
-	    printk("%s: setting Rx mode to %d addresses.\n",
-		   dev->name, num_addrs);
-	}
-    }
-	
-    if ((num_addrs > 0) || (num_addrs == -2)) {
-	/* Multicast Mode */
-	rcvMode = rxConfRxEna + rxConfAMP + rxConfBcast;
-    } else if (num_addrs < 0) {
-	/* Promiscous mode */
-	rcvMode = rxConfRxEna + rxConfPro + rxConfAMP + rxConfBcast;
-    } else {
-	/* Normal mode */
-	rcvMode = rxConfRxEna + rxConfBcast;
-    }
-	
-    printk("netwave set_multicast_list: rcvMode to %x\n", rcvMode);
-    /* Now set receive mode */
-    wait_WOC(iobase);
-    writeb(NETWAVE_CMD_SRC, ramBase + NETWAVE_EREG_CB + 0);
-    writeb(rcvMode, ramBase + NETWAVE_EREG_CB + 1);
-    writeb(NETWAVE_CMD_EOC, ramBase + NETWAVE_EREG_CB + 2);
-}
-#endif
-

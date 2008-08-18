@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.42 1998/08/09 00:15:41
+    cardctl.c 1.43 1998/12/07 06:04:32
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -31,6 +31,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <ctype.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -467,6 +468,7 @@ static int do_scheme(char *new)
 {
     FILE *f;
     char old[33];
+    int i;
     
     f = fopen(scheme, "r");
     if (f && fgets(old, 32, f))
@@ -485,8 +487,10 @@ static int do_scheme(char *new)
 #endif
 	
 	/* Sanity checks... */
-	if ((strlen(new) < 1) || (strlen(new) > 32) ||
-	    strchr(new, ',')) {
+	for (i = 0; i < strlen(new); i++)
+	    if (!isalnum(new[i])) break;
+	if ((i != strlen(new)) || (strlen(new) < 1) ||
+	    (strlen(new) > 32)) {
 	    fprintf(stderr, "Bad scheme name.\n");
 	    return -1;
 	}
@@ -554,9 +558,10 @@ int main(int argc, char *argv[])
 {
     int cmd, fd[MAX_SOCKS], ns, ret, i;
     int optch, errflg;
-    
+    char *opts = (getuid() == 0) ? "Vc:f:s:" : "V";
+
     errflg = 0;
-    while ((optch = getopt(argc, argv, "Vc:f:s:")) != -1) {
+    while ((optch = getopt(argc, argv, opts)) != -1) {
 	switch (optch) {
 	case 'V':
 	    fprintf(stderr, "cardctl version " CS_RELEASE "\n");

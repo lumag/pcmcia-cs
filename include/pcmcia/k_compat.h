@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.70 1998/11/18 08:10:16
+ * k_compat.h 1.74 1999/01/07 03:46:29
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -81,10 +81,9 @@
 #include <linux/module.h>
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,18))
-#define MOD_USE_COUNT		mod_use_count_
 #define MODULE_PARM(a,b)	extern int __bogus_decl
-#else
-#define MOD_USE_COUNT 		__this_module.usecount
+#undef  GET_USE_COUNT
+#define GET_USE_COUNT(m)	mod_use_count_
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,0))
@@ -167,6 +166,8 @@
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,90))
+#define spin_lock(l) do { } while (0)
+#define spin_unlock(l) do { } while (0)
 #define spin_lock_irqsave(l,f) do { save_flags(f); cli(); } while (0)
 #define spin_unlock_irqrestore(l,f) do { restore_flags(f); } while (0)
 #else

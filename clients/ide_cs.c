@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.12 1998/11/12 03:19:08
+    ide_cs.c 1.14 1998/12/11 07:00:04
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -50,7 +50,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.12 1998/11/12 03:19:08 (David Hinds)";
+"ide_cs.c 1.14 1998/12/11 07:00:04 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -290,8 +290,8 @@ void ide_config(dev_link_t *link)
 		CFG_CHECK(RequestIO, link->handle, &link->io);
 		io_base = link->io.BasePort1;
 		ctl_base = link->io.BasePort2;
-	    } else if (io->nwin == 1) {
-		link->io.NumPorts1 = 16;
+	    } else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
+		link->io.NumPorts1 = io->win[0].len;
 		link->io.NumPorts2 = 0;
 		CFG_CHECK(RequestIO, link->handle, &link->io);
 		io_base = link->io.BasePort1;
@@ -318,6 +318,14 @@ void ide_config(dev_link_t *link)
     for (i = 0; i < 10; i++) {
 	hd = ide_register(io_base, ctl_base, link->irq.AssignedIRQ);
 	if (hd >= 0) break;
+	if (link->io.NumPorts1 == 0x20) {
+	    hd = ide_register(io_base+0x10, ctl_base+0x10,
+			      link->irq.AssignedIRQ);
+	    if (hd >= 0) {
+		io_base += 0x10; ctl_base += 0x10;
+		break;
+	    }
+	}
 	current->state = TASK_INTERRUPTIBLE;
 	schedule_timeout(HZ/10);
     }

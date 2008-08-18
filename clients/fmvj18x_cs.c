@@ -125,12 +125,7 @@ static void fjn_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs);
 static void fjn_rx(struct device *dev);
 static void fjn_reset(struct device *dev);
 static struct net_device_stats *fjn_get_stats(struct device *dev);
-
-#ifdef NEW_MULTICAST
 static void set_rx_mode(struct device *dev);
-#else
-#warning "This driver does not support multicast with old kernels."
-#endif /* NEW_MULTICAST */
 
 static dev_info_t dev_info = "fmvj18x_cs";
 static dev_link_t *dev_list = NULL;
@@ -305,9 +300,7 @@ static dev_link_t *fmvj18x_attach(void)
     dev->hard_start_xmit = &fjn_start_xmit;
     dev->set_config = &fjn_config;
     dev->get_stats = &fjn_get_stats;
-#ifdef NEW_MULTICAST
     dev->set_multicast_list = &set_rx_mode;
-#endif
     ether_setup(dev);
     dev->name = ((local_info_t *)dev->priv)->node.dev_name;
     dev->init = &fmvj18x_init;
@@ -985,7 +978,7 @@ static void fjn_rx(struct device *dev)
 		lp->stats.rx_errors++;
 		break;
 	    }
-	    skb = ALLOC_SKB(pkt_len);
+	    skb = dev_alloc_skb(pkt_len+2);
 	    if (skb == NULL) {
 		printk(KERN_NOTICE "%s: Memory squeeze, dropping "
 		       "packet (len %d).\n", dev->name, pkt_len);
@@ -995,10 +988,10 @@ static void fjn_rx(struct device *dev)
 	    }
 	    skb->dev = dev;
 
-#define BLOCK_INPUT(buf, len) \
-	    insw_ns(ioaddr + DATAPORT, buf, (len + 1) >> 1)
-
-	    GET_PACKET(dev, skb, pkt_len);
+	    skb_reserve(skb, 2);
+	    insw_ns(ioaddr + DATAPORT, skb_put(skb, pkt_len),
+		    (pkt_len + 1) >> 1);
+	    skb->protocol = eth_type_trans(skb, dev);
 
 	    if (fmvj18x_debug > 5) {
 		int i;
@@ -1163,7 +1156,6 @@ static inline unsigned ether_crc_le(int length, unsigned char *data)
     return crc;
 }
 
-#ifdef NEW_MULTICAST
 static void set_rx_mode(struct device *dev)
 {
     int ioaddr = dev->base_addr;
@@ -1209,4 +1201,3 @@ static void set_rx_mode(struct device *dev)
     }
     restore_flags(flags);
 }
-#endif

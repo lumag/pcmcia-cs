@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.207 1998/11/18 07:55:34
+    cs.c 1.209 1998/12/09 07:36:01
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -59,11 +59,14 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.207 1998/11/18 07:55:34 (David Hinds)";
+"cs.c 1.209 1998/12/09 07:36:01 (David Hinds)";
 #endif
 
-static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
+#ifdef __BEOS__
+static const char *release = "BeOS PCMCIA Card Services " CS_RELEASE;
+#endif
 #ifdef __LINUX__
+static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
 static const char *kernel = "kernel build: " UTS_RELEASE " " UTS_VERSION;
 #endif
 static const char *options = "options: "
@@ -1772,6 +1775,7 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->base = req->Base;
     win->size = req->Size;
     if (find_mem_region(&win->base, win->size, (*handle)->dev_info,
+			(req->Attributes & WIN_MAP_BELOW_1MB) ||
 			!(s->cap.features & SS_HAS_PAGE_REGS)))
 	return CS_IN_USE;
     req->Base = win->base;

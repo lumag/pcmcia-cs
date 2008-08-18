@@ -5,7 +5,7 @@
     This driver supports the Adaptec AHA-1460, the New Media Bus
     Toaster, and the New Media Toast & Jam.
     
-    aha152x_cs.c 1.42 1998/11/18 08:01:13
+    aha152x_cs.c 1.43 1998/12/24 20:33:04
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -56,7 +56,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"aha152x_cs.c 1.42 1998/11/18 08:01:13 (David Hinds)";
+"aha152x_cs.c 1.43 1998/12/24 20:33:04 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -245,7 +245,7 @@ static void aha152x_config_cs(dev_link_t *link)
 #if (LINUX_VERSION_CODE >= VERSION(2,1,23))
     driver_template.module = &__this_module;
 #else
-    driver_template.usage_count = &MOD_USE_COUNT;
+    driver_template.usage_count = &GET_USE_COUNT(&__this_module);
 #endif
     link->state |= DEV_CONFIG;
 
@@ -357,7 +357,7 @@ static void aha152x_release_cs(u_long arg)
 #if (LINUX_VERSION_CODE < VERSION(2,1,23))
     if (*driver_template.usage_count != 0) {
 #else
-    if (driver_template.module->usecount != 0) {
+    if (GET_USE_COUNT(driver_template.module) != 0) {
 #endif
 	DEBUG(1, "aha152x_cs: release postponed, "
 	      "device still open\n");

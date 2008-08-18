@@ -91,7 +91,7 @@ MODULE_PARM(irq_list, "1-4i");
 #define USE_32_BIT		1
 
 /* Time in jiffies before concluding Tx hung */
-#define TX_TIMEOUT		40
+#define TX_TIMEOUT		((400*HZ)/1000)
 
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 #define INTR_WORK		4
@@ -324,11 +324,7 @@ static dev_link_t *smc91c92_attach(void)
     dev->hard_start_xmit = &smc_start_xmit;
     dev->get_stats = &smc91c92_get_stats;
     dev->set_config = &s9k_config;
-#ifdef NEW_MULTICAST
     dev->set_multicast_list = &set_rx_mode;
-#else
-#warning "This driver does not support multicast with old kernels."
-#endif
     ether_setup(dev);
     dev->name = ((struct smc_private *)dev->priv)->node.dev_name;
     dev->init = &smc91c92_init;
@@ -1565,7 +1561,7 @@ static void smc_rx(struct device *dev)
 	struct sk_buff *skb;
 	
 	/* Note: packet_length adds 5 or 6 extra bytes here! */
-	skb = ALLOC_SKB(packet_length);
+	skb = dev_alloc_skb(packet_length+2);
 	
 	if ( skb == NULL ) {
 	    DEBUG(1, "%s: Low memory, packet dropped.\n", dev->name);
@@ -1575,9 +1571,10 @@ static void smc_rx(struct device *dev)
 	}
 	
 	packet_length -= (rx_status & RS_ODDFRAME ? 5 : 6);
-
-#define BLOCK_INPUT(buf, len) insw_ns(ioaddr+DATA_1, buf, (len+1)>>1)
-	GET_PACKET(dev, skb, packet_length);
+	skb_reserve(skb, 2);
+	insw_ns(ioaddr+DATA_1, skb_put(skb, packet_length),
+		(packet_length+1)>>1);
+	skb->protocol = eth_type_trans(skb, dev);
 	
 	skb->dev = dev;
 	netif_rx(skb);

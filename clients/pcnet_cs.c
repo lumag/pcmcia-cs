@@ -11,7 +11,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.78 1998/11/18 08:01:13
+    pcnet_cs.c 1.79 1998/12/03 17:55:08
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.78 1998/11/18 08:01:13 (David Hinds)";
+"pcnet_cs.c 1.79 1998/12/03 17:55:08 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -657,9 +657,6 @@ static void pcnet_config(dev_link_t *link)
     if (hw_info == NULL)
 	hw_info = get_hwired(link);
     
-    if ((manfid == MANFID_SOCKET) && (prodid == PRODID_SOCKET_LPE))
-	info->flags &= ~USE_BIG_BUF;
-    
     if (hw_info == NULL) {
 	printk(KERN_NOTICE "pcnet_cs: unable to read hardware net address\n");
 	goto config_undo;
@@ -668,6 +665,8 @@ static void pcnet_config(dev_link_t *link)
     info->flags = hw_info->flags;
     /* Check for user overrides */
     info->flags |= (delay_output) ? DELAY_OUTPUT : 0;
+    if ((manfid == MANFID_SOCKET) && (prodid == PRODID_SOCKET_LPE))
+	info->flags &= ~USE_BIG_BUF;
     if (!use_big_buf)
 	info->flags &= ~USE_BIG_BUF;
     if (use_shmem != -1) {

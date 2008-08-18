@@ -2,7 +2,7 @@
 
     A driver for the Qlogic SCSI card
 
-    qlogic_cs.c 1.64 1998/11/18 08:01:13
+    qlogic_cs.c 1.65 1998/12/24 20:33:04
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -71,7 +71,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"qlogic_cs.c 1.64 1998/11/18 08:01:13 (David Hinds)";
+"qlogic_cs.c 1.65 1998/12/24 20:33:04 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -250,7 +250,7 @@ static void qlogic_config(dev_link_t *link)
 #if (LINUX_VERSION_CODE >= VERSION(2,1,23))
     driver_template.module = &__this_module;
 #else
-    driver_template.usage_count = &MOD_USE_COUNT;
+    driver_template.usage_count = &GET_USE_COUNT(__this_module);
 #endif
     link->state |= DEV_CONFIG;
 
@@ -347,11 +347,7 @@ static void qlogic_release(u_long arg)
 
     DEBUG(0, "qlogic_release(0x%p)\n", link);
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,23))
-    if (*driver_template.usage_count != 0) {
-#else
-    if (driver_template.module->usecount != 0) {
-#endif
+    if (GET_USE_COUNT(&__this_module) != 0) {
 	DEBUG(0, "qlogic_cs: release postponed, device still open\n");
 	link->state |= DEV_STALE_CONFIG;
 	return;

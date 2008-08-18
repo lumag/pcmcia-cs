@@ -1,3 +1,16 @@
+Version 3.0.7
+-- Added DHCP support to network script.
+-- Updated for pre-2.2 kernels.
+-- Cleaned up memory probe algorithm.
+-- Changed i82365 interrupt probe to be less aggressive.
+-- Cleaned up some obsolete cruft for old kernels, in network drivers.
+-- Updated ibmtr_cs driver for 2.1.* kernels, tweaked memory mapping
+   algorithm, and added a man page.
+-- Updated SCSI clients for changes in kernel module support.
+-- Fixed glitch in Configure script reading of kernel config options.
+-- Fixed dumb bug in 3c575_cb driver introduced in 3.0.6.
+-- Fixed compilation under 2.0.* SMP.
+
 Version 3.0.6
 -- Performance improvements in CardBus bridge setup code.
 -- Minor Xircom driver update.
@@ -8,8 +21,7 @@ Version 3.0.6
 -- Added support for 3CCFEM556B cards: still flaky.
 -- Added description of socket driver layer to programming guide.
 -- Added some support for PCI power management specification.
--- Improved interrupt scan logic, with better fault recovery: also we
-   now try to PCI interrupts whenever possible.
+-- Improved interrupt scan logic, with better fault recovery.
 -- Improved probe logic for PCI host controllers.
 -- Cleaner multifunction card detection logic in serial driver.
 -- Cleaner, simpler IO port configuration logic in pcnet_cs driver.

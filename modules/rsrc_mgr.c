@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.54 1998/11/18 08:11:30
+    rsrc_mgr.c 1.58 1999/01/07 03:52:53
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -89,7 +89,7 @@ static irq_info_t irq_table[NR_IRQS] = { { 0, 0, 0 }, /* etc */ };
 
 #endif
 
-#ifdef __SMP__
+#if defined(CONFIG_SMP) && defined(SPIN_LOCK_UNLOCKED)
 static spinlock_t rsrc_lock = SPIN_LOCK_UNLOCKED;
 #endif
 
@@ -419,25 +419,33 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     
 ======================================================================*/
 
-static int do_mem_probe(u_long base, u_long num, int pass,
-			int (*is_valid)(u_long))
+static int do_mem_probe(u_long base, u_long num,
+			int (*is_valid)(u_long), int (*do_cksum)(u_long))
 {
-    u_long i, j, bad, step;
+    u_long i, j, bad, fail, step;
 
     printk(KERN_INFO "cs: memory probe 0x%06lx-0x%06lx:",
 	   base, base+num-1);
     ACQUIRE_RESOURCE_LOCK;
-    if (pass != 0) release_mem_region(base, num);
-    bad = 0;
+    bad = fail = 0;
     step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
     for (i = base; i < base+num; i = j + step) {
-	for (j = i; j < base+num; j += step)
-	    if ((check_mem_region(j, step) == 0) && is_valid(j))
-		break;
+	if (!fail) {	
+	    for (j = i; j < base+num; j += step)
+		if ((check_mem_region(j, step) == 0) && is_valid(j))
+		    break;
+	    fail = ((i == base) && (j == base+num));
+	}
+	if (fail) {
+	    for (j = i; j < base+num; j += 2*step)
+		if ((check_mem_region(j, 2*step) == 0) &&
+		    do_cksum(j) && do_cksum(j+step))
+		    break;
+	}
 	if (i != j) {
 	    if (!bad) printk(" excluding");
 	    printk(" %#05lx-%#05lx", i, j-1);
-	    register_mem_region(i, j-i, "reserved");
+	    sub_interval(&mem_db, i, j-i);
 	    bad += j-i;
 	}
     }
@@ -454,49 +462,39 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
     resource_map_t *m;
     static u_char order[] = { 0xd0, 0xe0, 0xc0, 0xf0 };
     static int hi = 0, lo = 0;
-    u_long b, ok = 0;
-    int i, pass;
+    u_long b, i, ok = 0;
     
     if (!probe_mem) return;
     /* We do up to four passes through the list */
     if (!force_low) {
 	if (hi++) return;
-	for (pass = 0; pass < 2; pass++) {
-	    for (m = mem_db.next; m != &mem_db; m = m->next) {
-		/* Only probe > 1 MB */
-		if (m->base < 0x100000) continue;
-		ok += do_mem_probe(m->base, m->num, pass,
-				   pass?do_cksum:is_valid);
-	    }
+	for (m = mem_db.next; m != &mem_db; m = m->next) {
+	    /* Only probe > 1 MB */
+	    if (m->base < 0x100000) continue;
+	    ok += do_mem_probe(m->base, m->num, is_valid, do_cksum);
 	    if (ok) return;
 	}
 	printk(KERN_NOTICE "cs: warning: no high memory space "
 	       "available!\n");
     }
     if (lo++) return;
-    for (pass = 0; pass < 2; pass++) {
-	for (m = mem_db.next; m != &mem_db; m = m->next) {
-	    /* Only probe < 1 MB */
-	    if (m->base >= 0x100000) continue;
-	    if ((m->base | m->num) & 0xffff) {
-		ok += do_mem_probe(m->base, m->num, pass,
-				   pass?do_cksum:is_valid);
-		continue;
-	    }
-	    /* Special probe for 64K-aligned block */
-	    for (i = 0; i < 4; i++) {
-		b = order[i] << 12;
-		if ((b >= m->base) && (b+0x10000 <= m->base+m->num)) {
-		    if (ok >= mem_limit)
-			register_mem_region(b, 0x10000, "skipped");
-		    else
-			ok += do_mem_probe(b, 0x10000, pass,
-					   pass?do_cksum:is_valid);
-		    
-		}
+    for (m = mem_db.next; m != &mem_db; m = m->next) {
+	/* Only probe < 1 MB */
+	if (m->base >= 0x100000) continue;
+	if ((m->base | m->num) & 0xffff) {
+	    ok += do_mem_probe(m->base, m->num, is_valid, do_cksum);
+	    continue;
+	}
+	/* Special probe for 64K-aligned block */
+	for (i = 0; i < 4; i++) {
+	    b = order[i] << 12;
+	    if ((b >= m->base) && (b+0x10000 <= m->base+m->num)) {
+		if (ok >= mem_limit)
+		    sub_interval(&mem_db, b, 0x10000);
+		else
+		    ok += do_mem_probe(b, 0x10000, is_valid, do_cksum);
 	    }
 	}
-	if (ok) return;
     }
 }
 
@@ -511,11 +509,9 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
     
     if (!probe_mem || done++)
 	return;
-    for (pass = 0; pass < 2; pass++) {
-	for (m = mem_db.next; m != &mem_db; m = m->next)
-	    if (do_mem_probe(m->base, m->num, pass,
-			     pass?do_cksum:is_valid)) return;
-    }
+    for (m = mem_db.next; m != &mem_db; m = m->next)
+	if (do_mem_probe(m->base, m->num, is_valid, do_cksum))
+	    return;
 }
 
 #endif /* CONFIG_ISA */

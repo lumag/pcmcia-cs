@@ -93,7 +93,9 @@ static dev_link_t *dev_list;
 
 extern int trdev_init(struct device *dev);
 extern void tok_interrupt(int irq, struct pt_regs *regs);
+#if (LINUX_VERSION_CODE < VERSION(2,1,100))
 extern struct timer_list tr_timer;
+#endif
 
 /*====================================================================*/
 
@@ -203,6 +205,7 @@ static dev_link_t *ibmtr_attach(void)
 
 static void ibmtr_detach(dev_link_t *link)
 {
+    struct ibmtr_dev_t *info = link->priv;
     dev_link_t **linkp;
     long flags;
 
@@ -216,7 +219,14 @@ static void ibmtr_detach(dev_link_t *link)
 
     save_flags(flags);
     cli();
+#if (LINUX_VERSION_CODE < VERSION(2,1,100))
     if (tr_timer.next) del_timer(&tr_timer);
+#else
+    {
+	struct tok_info *ti = (struct tok_info *)info->dev.priv;
+	if (ti->tr_timer.next) del_timer(&(ti->tr_timer));
+    }
+#endif
     if (link->state & DEV_RELEASE_PENDING) {
         del_timer(&link->release);
         link->state &= ~DEV_RELEASE_PENDING;
@@ -236,11 +246,10 @@ static void ibmtr_detach(dev_link_t *link)
 
     /* Unlink device structure, free bits */
     *linkp = link->next;
-    if (link->priv) {
-        struct device *dev = link->priv;
-        if (dev->priv)
-            kfree_s(dev->priv, sizeof(struct tok_info));
-        kfree_s(dev, sizeof(struct ibmtr_dev_t));
+    if (info) {
+        if (info->dev.priv)
+            kfree_s(info->dev.priv, sizeof(struct tok_info));
+        kfree_s(info, sizeof(struct ibmtr_dev_t));
     }
     kfree_s(link, sizeof(struct dev_link_t));
 
@@ -319,21 +328,21 @@ static void ibmtr_config(dev_link_t *link)
     req.Attributes |= WIN_USE_WAIT;
     req.Base = mmiobase;
     req.Size = 0x2000;
-    req.AccessSpeed = 0x81;
+    req.AccessSpeed = 250;
     link->win = (window_handle_t)link->handle;
     CS_CHECK(RequestWindow, &link->win, &req);
 
     mem.CardOffset = req.Base;
     mem.Page = 0;
     CS_CHECK(MapMemPage, link->win, &mem);
-    ti->mmio = req.Base;
+    ti->mmio = (u_long)ioremap(req.Base, req.Size);
 
     /* Allocate the SRAM memory window */
     req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
-    req.Attributes |= WIN_USE_WAIT;
+    req.Attributes |= WIN_USE_WAIT | WIN_MAP_BELOW_1MB;
     req.Base = srambase;
     req.Size = sramsize * 1024;
-    req.AccessSpeed = 0x81;
+    req.AccessSpeed = 250;
     info->sram_win_handle = (window_handle_t)link->handle;
     CS_CHECK(RequestWindow, &info->sram_win_handle, &req);
 
@@ -421,8 +430,12 @@ static void ibmtr_release(u_long arg)
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
-    CardServices(ReleaseWindow, link->win);
-    CardServices(ReleaseWindow, info->sram_win_handle);
+    if (link->win) {
+	struct tok_info *ti = info->dev.priv;
+	iounmap((void *)ti->mmio);
+	CardServices(ReleaseWindow, link->win);
+	CardServices(ReleaseWindow, info->sram_win_handle);
+    }
 
     link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
     if (link->state & DEV_STALE_LINK)

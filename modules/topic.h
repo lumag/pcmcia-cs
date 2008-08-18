@@ -1,5 +1,5 @@
 /*
- * topic.h 1.5 1998/07/17 22:56:19
+ * topic.h 1.6 1998/12/09 17:27:39
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -14,7 +14,7 @@
  * The initial developer of the original code is David A. Hinds
  * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
  * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
- * topic.h $Release$ 1998/07/17 22:56:19
+ * topic.h $Release$ 1998/12/09 17:27:39
  */
 
 #ifndef _LINUX_TOPIC_H
@@ -23,11 +23,12 @@
 #ifndef PCI_VENDOR_ID_TOSHIBA
 #define PCI_VENDOR_ID_TOSHIBA		0x1179
 #endif
-
-#ifndef PCI_DEVICE_ID_TOSHIBA_TOPIC95
-#define PCI_DEVICE_ID_TOSHIBA_TOPIC95	0x060a
+#ifndef PCI_DEVICE_ID_TOSHIBA_TOPIC95_A
+#define PCI_DEVICE_ID_TOSHIBA_TOPIC95_A	0x0603
 #endif
-
+#ifndef PCI_DEVICE_ID_TOSHIBA_TOPIC95_B
+#define PCI_DEVICE_ID_TOSHIBA_TOPIC95_B	0x060a
+#endif
 #ifndef PCI_DEVICE_ID_TOSHIBA_TOPIC97
 #define PCI_DEVICE_ID_TOSHIBA_TOPIC97	0x060f
 #endif

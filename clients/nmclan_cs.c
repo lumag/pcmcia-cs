@@ -448,11 +448,7 @@ static struct net_device_stats *mace_get_stats(struct device *dev);
 static int mace_rx(struct device *dev, unsigned char RxCnt);
 static void restore_multicast_list(struct device *dev);
 
-#ifdef NEW_MULTICAST
 static void set_multicast_list(struct device *dev);
-#else
-static void set_multicast_list(struct device *dev, int num_addrs, void *addrs);
-#endif
 
 static dev_link_t *nmclan_attach(void);
 static void nmclan_detach(dev_link_t *);
@@ -1410,23 +1406,16 @@ static int mace_rx(struct device *dev, unsigned char RxCnt)
       DEBUG(3, "    receiving packet size 0x%X rx_status"
 	    " 0x%X.\n", pkt_len, rx_status);
       
-      skb = ALLOC_SKB(pkt_len);
+      skb = dev_alloc_skb(pkt_len+2);
       
       if (skb != NULL) {
 	skb->dev = dev;
 
-#if (LINUX_VERSION_CODE < VERSION(1,3,0))
-	skb->len = pkt_len;
-	insw_ns(ioaddr + AM2150_RCV, skb->data, pkt_len>>1);
-	if (pkt_len & 1)
-	    skb->data[pkt_len-1] = inb(ioaddr + AM2150_RCV);
-#else
 	skb_reserve(skb, 2);
 	insw_ns(ioaddr + AM2150_RCV, skb_put(skb, pkt_len), pkt_len>>1);
 	if (pkt_len & 1)
 	    *(skb->tail-1) = inb(ioaddr + AM2150_RCV);
 	skb->protocol = eth_type_trans(skb, dev);
-#endif
 	
 	netif_rx(skb); /* Send the packet to the upper (protocol) layers. */
 
@@ -1761,25 +1750,19 @@ Output
 	multicast_num_addrs
 	multicast_ladrf[]
 ---------------------------------------------------------------------------- */
-#ifdef NEW_MULTICAST
-#define num_addrs dev->mc_count
+
 static void set_multicast_list(struct device *dev)
-#else
-static void set_multicast_list(struct device *dev, int num_addrs, void *addrs)
-#endif
 {
   mace_private *lp = (mace_private *)dev->priv;
   int adr[ETHER_ADDR_LEN] = {0}; /* Ethernet address */
   int i;
-#ifdef NEW_MULTICAST
   struct dev_mc_list *dmi = dev->mc_list;
-#endif
 
 #ifdef PCMCIA_DEBUG
   if (pc_debug > 1) {
     static int old = 0;
-    if (num_addrs != old) {
-      old = num_addrs;
+    if (dev->mc_count != old) {
+      old = dev->mc_count;
       DEBUG(0, "%s: setting Rx mode to %d addresses.\n",
 	    dev->name, old);
     }
@@ -1787,20 +1770,16 @@ static void set_multicast_list(struct device *dev, int num_addrs, void *addrs)
 #endif
 
   /* Set multicast_num_addrs. */
-  lp->multicast_num_addrs = num_addrs;
+  lp->multicast_num_addrs = dev->mc_count;
 
 
   /* Set multicast_ladrf. */
   if (num_addrs > 0) {
     /* Calculate multicast logical address filter */
     memset(lp->multicast_ladrf, 0, MACE_LADRF_LEN);
-    for (i = 0; i < num_addrs; i++) {
-#ifdef NEW_MULTICAST
+    for (i = 0; i < dev->mc_count; i++) {
       memcpy(adr, dmi->dmi_addr, ETHER_ADDR_LEN);
       dmi = dmi->next;
-#else
-      memcpy(adr, (char *)addrs + (ETHER_ADDR_LEN*i), ETHER_ADDR_LEN);
-#endif
       BuildLAF(lp->multicast_ladrf, adr);
     }
   }
@@ -1819,11 +1798,7 @@ static void restore_multicast_list(struct device *dev)
   DEBUG(2, "%s: restoring Rx mode to %d addresses.\n", dev->name,
 	((mace_private *)(dev->priv))->multicast_num_addrs);
   
-#ifdef NEW_MULTICAST
   if (dev->flags & IFF_PROMISC) {
-#else
-  if (((mace_private *)(dev->priv))->multicast_num_addrs < 0) {
-#endif
     /* Promiscuous mode: receive all packets */
     mace_write(ioaddr, MACE_UTR, MACE_UTR_LOOP_EXTERNAL);
     mace_write(ioaddr, MACE_MACCC,
@@ -1836,27 +1811,22 @@ static void restore_multicast_list(struct device *dev)
   }
 } /* restore_multicast_list */
 
-#ifdef NEW_MULTICAST
-#define num_addrs dev->mc_count
 static void set_multicast_list(struct device *dev)
-#else
-static void set_multicast_list(struct device *dev, int num_addrs, void *addrs)
-#endif
 {
   mace_private *lp = (mace_private *)dev->priv;
 
 #ifdef PCMCIA_DEBUG
   if (pc_debug > 1) {
     static int old = 0;
-    if (num_addrs != old) {
-      old = num_addrs;
+    if (dev->mc_count != old) {
+      old = dev->mc_count;
       DEBUG(0, "%s: setting Rx mode to %d addresses.\n",
 	    dev->name, old);
     }
   }
 #endif
 
-  lp->multicast_num_addrs = num_addrs;
+  lp->multicast_num_addrs = dev->mc_count;
   restore_multicast_list(dev);
 
 } /* set_multicast_list */

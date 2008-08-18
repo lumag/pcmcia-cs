@@ -1149,7 +1149,6 @@ wavelan_get_stats(device *	dev)
  * num_addrs > 0	Multicast mode, receive normal and MC packets,
  *			and do best-effort filtering.
  */
-#ifdef NEW_MULTICAST
 
 static void
 wavelan_set_multicast_list(device *	dev)
@@ -1242,75 +1241,6 @@ wavelan_set_multicast_list(device *	dev)
   printk(KERN_DEBUG "%s: <-wavelan_set_multicast_list()\n", dev->name);
 #endif
 }
-
-#else	/* NEW_MULTICAST */
-
-static void
-wavelan_set_multicast_list(device *	dev,
-			   int		num_addrs,
-			   void *	addrs)
-{
-  net_local *lp = (net_local *)dev->priv;
-
-#ifdef DEBUG_IOCTL_TRACE
-  printk(KERN_DEBUG "%s: ->wavelan_set_multicast_list()\n", dev->name);
-#endif
-
-#ifdef DEBUG_IOCTL_INFO
-  printk(KERN_DEBUG "%s: setting Rx mode to %d addresses.\n",
-	 dev->name, dev->mc_count);
-#endif
-
-  if(num_addrs < 0)
-    {
-      /*
-       * Enable promiscuous mode: receive all packets.
-       */
-      if(!lp->promiscuous)
-	{
-	  lp->promiscuous = 1;
-	  lp->allmulticast = 0;
-	  lp->mc_count = 0;
-	  wv_82593_reconfig(dev);
-	}
-    }
-  else
-    if(num_addrs > 0)
-      {
-	/*
-	 * Disable promiscuous mode, but receive all packets
-	 * in multicast list.
-	 */
-#ifdef MULTICAST_AVOID
-	if(lp->promiscuous ||
-	   (dev->mc_count != lp->mc_count))
-#endif
-	  {
-	    lp->promiscuous = 0;
-	    lp->allmulticast = 0;
-	    lp->mc_count = dev->mc_count;
-	    wv_82593_reconfig(dev);
-	  }
-      }
-    else
-      {
-	/*
-	 * Switch to normal mode: disable promiscuous mode and 
-	 * clear the multicast list.
-	 */
-	if(lp->promiscuous)
-	  {
-	    lp->promiscuous = lp->allmulticast = 0;
-	    lp->mc_count = 0;
-	    wv_82593_reconfig(dev);
-	  }
-      }
-#ifdef DEBUG_IOCTL_TRACE
-  printk(KERN_DEBUG "%s: <-wavelan_set_multicast_list()\n", dev->name);
-#endif
-}
-
-#endif	/* NEW_MULTICAST */
 
 /*------------------------------------------------------------------*/
 /*
@@ -2239,7 +2169,7 @@ wv_packet_read(device *		dev,
 #endif
 
   /* Allocate some buffer for the new packet */
-  if((skb = ALLOC_SKB(sksize)) == (struct sk_buff *) NULL)
+  if((skb = dev_alloc_skb(sksize+2)) == (struct sk_buff *) NULL)
     {
 #ifdef DEBUG_RX_ERROR
       printk(KERN_INFO "%s: wv_packet_read(): could not alloc_skb(%d, GFP_ATOMIC)\n",
@@ -2254,12 +2184,10 @@ wv_packet_read(device *		dev,
     }
 
   skb->dev = dev;
-    
-#define BLOCK_INPUT(buf, len) fd_p = read_ringbuf(dev, fd_p, (char *) buf, len)
 
-  GET_PACKET(dev, skb, sksize);
-
-#undef BLOCK_INPUT
+  skb_reserve(skb, 2);
+  fd_p = read_ringbuf(dev, fd_p, (char *) skb_put(skb, sksize), sksize);
+  skb->protocol = eth_type_trans(skb, dev);
 
 #ifdef DEBUG_RX_INFO
   /* Another glitch : Due to the way the GET_PACKET macro is written,

@@ -4,7 +4,7 @@
 #
 # Copyright (C) David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# pcinitrd 1.17 1998/11/09 18:40:18
+# pcinitrd 1.18 1998/12/09 07:35:31
 #
 RELEASE=""
 ALL=""
@@ -80,11 +80,24 @@ if [ "$ALL" = "y" ] ; then
 fi
 
 BIN="bin/mount bin/umount sbin/insmod sbin/cardmgr"
+LIB=`ls $ROOT/lib/libc.so.? | sort | tail -1`
+ETC="/etc/ld.so.cache /etc/pcmcia/config /etc/pcmcia/config.opts"
+DEV="/dev/console /dev/null /dev/ram /dev/tty1 /dev/tty2 /dev/tty3 /dev/tty4"
+LF=`file -bL $LIB`
 for F in $* ; do
     if [ -f $MODDIR/$F ] ; then
 	MODULES="$MODULES $F"
-    elif [ -x $F ] ; then
-	BIN="$BIN $F"
+    elif [ -x $ROOT/$F ] ; then
+	FT=`file -bL $ROOT/$F`
+	if [ "$FT" = "$LF" ] ; then
+	    LIB="$LIB $F"
+	else
+	    BIN="$BIN $F"
+	fi
+    elif [ -b $ROOT/$F -o -c $ROOT/$F ] ; then
+	DEV="$DEV $F"
+    elif [ -f $ROOT/$F ] ; then
+	ETC="$ETC $F"
     else
 	echo "$F not found." 1>&2
 	exit 1
@@ -150,7 +163,7 @@ for DIR in block misc fs net pcmcia ; do
 done
 
 for DEV in console null ram tty1 tty2 tty3 tty4 ; do
-    cp -a $VERBOSE $ROOT/dev/$DEV $MNT/dev || fail
+    cp -a $VERBOSE $ROOT/$F $MNT/dev || fail
 done
 if [ -e $ROOT/dev/systty ] ; then
     cp -a $VERBOSE $ROOT/dev/systty $MNT/dev || fail
@@ -161,13 +174,13 @@ for F in $BIN ; do
 done
 strip_cp --strip-all $ROOT/bin/ash $MNT/bin/sh
 
-LIBC=`ls $ROOT/lib/libc.so.? | sort | tail -1`
-strip_cp --strip-debug $LIBC $MNT/lib
+for F in $LIB ; do
+    strip_cp --strip-debug $F $MNT/lib
+done
 cp $VERBOSE $ROOT/lib/ld-linux.so.? $MNT/lib || fail
 
-ETC="ld.so.cache protocols services pcmcia/config pcmcia/config.opts"
 for F in $ETC ; do
-    cp $VERBOSE $ROOT/etc/$F $MNT/etc || fail
+    cp $VERBOSE $ROOT/$F $MNT/etc || fail
 done
 for F in scsi network ftl ide memory serial ; do
     touch $MNT/etc/$F ; chmod +x $MNT/etc/$F

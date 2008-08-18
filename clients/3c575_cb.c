@@ -1240,7 +1240,7 @@ static void vortex_timer(unsigned long data)
 			printk(KERN_DEBUG "%s: Media selection failed, now trying "
 				   "%s port.\n",
 				   dev->name, media_tbl[dev->if_port].name);
-		  next_tick = RUN_AT(media_tbl[dev->if_port].wait);
+		  next_tick = media_tbl[dev->if_port].wait;
 		}
 		outw((media_status & ~(Media_10TP|Media_SQE)) |
 			 media_tbl[dev->if_port].media_bits, ioaddr + Wn4_Media);
@@ -1582,7 +1582,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		printk(KERN_DEBUG "%s: interrupt, status %4.4x, latency %d ticks.\n",
 			   dev->name, status, latency);
 	do {
-		if ((dev->start == 0) || ((status & 0x0808) != 0)) {
+		if ((dev->start == 0) || (status == 0xffff)) {
 			if (vortex_debug > 1)
 				printk(KERN_DEBUG "%s: interrupt from dead card: %04x\n",
 					   dev->name, status);
@@ -1642,11 +1642,8 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			}
 		}
 		/* Check for all uncommon interrupts at once. */
-		if (status & (HostError | RxEarly | StatsFull | TxComplete | IntReq)) {
-			if (status == 0xffff)
-				break;
+		if (status & (HostError | RxEarly | StatsFull | TxComplete | IntReq))
 			vortex_error(dev, status);
-		}
 
 		if (--work_done < 0) {
 			if ((status & (0x7fe - (UpComplete | DownComplete))) == 0) {

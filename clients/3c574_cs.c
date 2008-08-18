@@ -213,7 +213,6 @@ struct el3_private {
 	u16 capabilities, softinfo1, softinfo2;		/* Various, from EEPROM. */
 	u16 advertising;					/* NWay media advertisement */
 	unsigned char phys[2];				/* MII device addresses. */
-	int probe_port;
 	unsigned int
 	  is_full_duplex:1,
 	  force_full_duplex:1,
@@ -262,11 +261,7 @@ static int el3_close(struct device *dev);
 #ifdef HAVE_PRIVATE_IOCTL
 static int private_ioctl(struct device *dev, struct ifreq *rq, int cmd);
 #endif
-#ifdef NEW_MULTICAST
 static void set_rx_mode(struct device *dev);
-#else
-static void set_multicast_list(struct device *dev, int num_addrs, void *addrs);
-#endif
 
 static dev_info_t dev_info = "3c574_cs";
 
@@ -571,7 +566,7 @@ static void tc574_config(dev_link_t *link)
 		printk(KERN_INFO "%s: Media override to %s requested.\n",
 			   dev->name, if_names[if_port]);
 		dev->if_port = if_port;
-	} else
+	} else if (if_port != 0)
 		printk(KERN_NOTICE "%s: Invalid if_port %d requested, ignored.\n",
 			   dev->name, if_port);
 
@@ -920,7 +915,6 @@ static int el3_config(struct device *dev, struct ifmap *map)
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	if ((map->port != (u_char)(-1)) && (map->port != dev->if_port)) {
 		if (map->port <= 3) {
-			lp->probe_port = 0;
 			dev->if_port = map->port;
 			printk(KERN_INFO "%s: switched to %s port\n",
 				   dev->name, if_names[dev->if_port]);
@@ -1276,7 +1270,7 @@ static int el3_rx(struct device *dev, int worklimit)
 			short pkt_len = rx_status & 0x7ff;
 			struct sk_buff *skb;
 
-			skb = ALLOC_SKB(pkt_len+3);
+			skb = dev_alloc_skb(pkt_len+5);
 
 			DEBUG(3, "    Receiving packet size %d status %4.4x.\n",
 				  pkt_len, rx_status);
@@ -1292,14 +1286,15 @@ static int el3_rx(struct device *dev, int worklimit)
 				printk("%s: Start Rx %d -- RunnerRdCtrl is %4.4x.\n",
 					   dev->name, pkt_len, inw(ioaddr + RunnerRdCtrl));
 #endif
+				skb_reserve(skb, 2);
 				if (dev->mem_start) {
-#define BLOCK_INPUT(buf, len) memcpy((void*)dev->mem_start, buf, (len+3)&~3);
-					GET_PACKET(dev, skb, pkt_len);
+					memcpy((void*)dev->mem_start,
+						   skb_put(skb, pkt_len), (pkt_len+3)&~3);
 				} else {
-#undef BLOCK_INPUT
-#define BLOCK_INPUT(buf, len) insl(ioaddr+RX_FIFO, buf, (len+3)>>2)
-					GET_PACKET(dev, skb, pkt_len);
+					insl(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
+						 (pkt_len+3)>>2);
 				}
+				skb->protocol = eth_type_trans(skb, dev);
 
 #if 0
 				printk("%s: RunnerRdCtrl is now %4.4x.\n",
@@ -1390,11 +1385,7 @@ static int private_ioctl(struct device *dev, struct ifreq *rq, int cmd)
    typical PC card machines, so we omit the message.
    */
 
-#ifdef NEW_MULTICAST
 static void set_rx_mode(struct device *dev)
-#else
-static void set_rx_mode(struct device *dev, int num_addrs, void *addrs)
-#endif
 {
 	int ioaddr = dev->base_addr;
 

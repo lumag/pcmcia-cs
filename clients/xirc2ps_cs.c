@@ -1,4 +1,4 @@
-/* [xirc2ps_cs.c wk 14.04.97] (1.30 1998/09/15 12:40:59)
+/* [xirc2ps_cs.c wk 14.04.97] (1.31 1998/12/09 19:32:55)
  * Xircom Creditcard Ethernet Adapter IIps driver
  *
  * This driver works for the CE2, CEM28, CEM33, CE3 and CEM56 cards.
@@ -31,7 +31,7 @@
  * the beginning of a line to "xircom-devel-request@isil.d.shuttle.de").
  *
  ************************************************************************
- * Copyright (c) 1997 by Werner Koch (dd9jn)
+ * Copyright (c) 1997,1998 Werner Koch (dd9jn)
  *
  * This driver is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -136,7 +136,7 @@
 
 
 /* Time in jiffies before concluding Tx hung */
-#define TX_TIMEOUT	40
+#define TX_TIMEOUT	((400*HZ)/1000)
 
 /****************
  * Some constants used to access the hardware
@@ -260,7 +260,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #endif
 static char *version =
-"xirc2ps_cs.c 1.30 1998/09/15 12:40:59 (dd9jn+kvh)";
+"xirc2ps_cs.c 1.31 1998/12/09 19:32:55 (dd9jn+kvh)";
 	    /* !--- CVS revision */
 #define KDBG_XIRC KERN_DEBUG   "xirc2ps_cs: "
 #define KERR_XIRC KERN_ERR     "xirc2ps_cs: "
@@ -422,9 +422,7 @@ typedef struct local_info_t {
 static int do_start_xmit(struct sk_buff *skb, struct device *dev);
 static struct enet_statistics *do_get_stats(struct device *dev);
 static void set_addresses(struct device *dev);
-#ifdef NEW_MULTICAST
 static void set_multicast_list(struct device *dev);
-#endif
 static int do_init(struct device *dev);
 static int set_card_type( dev_link_t *link, const void *s );
 static int do_config(struct device *dev, struct ifmap *map);
@@ -719,11 +717,7 @@ xirc2ps_attach(void)
     dev->set_config = &do_config;
     dev->get_stats = &do_get_stats;
     dev->do_ioctl = &do_ioctl;
-  #ifdef NEW_MULTICAST
     dev->set_multicast_list = &set_multicast_list;
-  #else
-    #warning "This driver does not support multicast with old kernels."
-  #endif
     ether_setup(dev);
     dev->name = local->node.dev_name;
     dev->init = &do_init;
@@ -826,7 +820,7 @@ xirc2ps_detach(dev_link_t * link)
 /****************
  * Detect the type of the card. s is the buffer with the data of tuple 0x20
  * Returns: 0 := not supported
- *
+ *		       mediaid=11 and prodid=47
  * Media-Id bits:
  *  Ethernet	    0x01
  *  Tokenring	    0x02
@@ -880,7 +874,9 @@ set_card_type( dev_link_t *link, const void *s )
 	  case 5: local->card_type = XIR_CEM56M;
 		  local->mohawk = 1;
 		  break;
-	  case 6: local->card_type = XIR_CEM56 ;
+	  case 6:
+	  case 7: /* 7 is the RealPort 10/56 */
+		  local->card_type = XIR_CEM56 ;
 		  local->mohawk = 1;
 		  local->dingo = 1;
 		  break;
@@ -1538,7 +1534,7 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 		printk(KDBG_XIRC "rsr=%#02x packet_length=%u\n", rsr, pktlen );
 	  #endif
 
-	    skb = ALLOC_SKB(pktlen+1); /* 1 extra byte, so we can use insw */
+	    skb = dev_alloc_skb(pktlen+3); /* 1 extra so we can use insw */
 	    if( !skb ) {
 	      #ifdef PCMCIA_DEBUG
 		if( pc_debug )
@@ -1548,6 +1544,7 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 		lp->stats.rx_dropped++;
 	    }
 	    else { /* okay get the packet */
+		skb_reserve(skb, 2);
 		if( lp->silicon == 0  ) { /* work around a hardware bug */
 		    unsigned rhsa; /* receive start address */
 
@@ -1559,22 +1556,17 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 			rhsa = 0;
 		    if( rhsa + pktlen > 0x8000 ) {
 			unsigned i;
-			#define BLOCK_INPUT(buf, len) \
-			    for(i=0; i < len ; i--, rhsa++ ) { \
-				buf[i] = GetByte(XIRCREG_EDP); \
-				if( rhsa == 0x8000 ) {	       \
-				    rhsa = 0;		       \
-				    i--;		       \
-				}			       \
+			u_char *buf = skb_put(skb, pktlen);
+			for(i=0; i < pktlen ; i++, rhsa++ ) {
+			    buf[i] = GetByte(XIRCREG_EDP);
+			    if( rhsa == 0x8000 ) {
+				rhsa = 0;
+				i--;
 			    }
-			GET_PACKET(dev, skb, pktlen );
-			#undef BLOCK_INPUT
-		    }
-		    else {
-		       #define BLOCK_INPUT(buf, len) \
-				insw_ns(ioaddr+XIRCREG_EDP, buf, (len+1)>>1 )
-			 GET_PACKET(dev, skb, pktlen );
-		       #undef BLOCK_INPUT
+			}
+		    } else {
+			insw_ns(ioaddr+XIRCREG_EDP,
+				skb_put(skb, pktlen), (pktlen+1)>>1 );
 		    }
 		}
 	      #if 0
@@ -1588,27 +1580,23 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 		     * Note: don't forget to change the ALLOC_SKB to .. +3
 		     */
 		    unsigned i;
-		    u_long *p;
+		    u_long *p = skb_put(skb, pktlen);
 		    register u_long a;
 		    u_short edpreg = ioaddr+XIRCREG_EDP-2;
-		    #define BLOCK_INPUT(buf, len) \
-			for(i=0,p=(void*)buf; i < len ; i += 4, p++ ) { \
-			    a = inl(edpreg);		   \
-			    __asm__("rorl $16,%0\n\t"      \
-				    :"=q" (a)              \
-				    : "0" (a));            \
-			    *p = a;			   \
-			}
-		    GET_PACKET(dev, skb, pktlen );
-		    #undef BLOCK_INPUT
+		    for(i=0; i < len ; i += 4, p++ ) {
+			a = inl(edpreg);
+			__asm__("rorl $16,%0\n\t"
+				:"=q" (a)
+				: "0" (a));
+			*p = a;
+		    }
 		}
 	      #endif
 		else {
-		   #define BLOCK_INPUT(buf, len) \
-			    insw_ns(ioaddr+XIRCREG_EDP, buf, (len+1)>>1 )
-		     GET_PACKET(dev, skb, pktlen );
-		   #undef BLOCK_INPUT
+		    insw_ns(ioaddr+XIRCREG_EDP, skb_put(skb, pktlen),
+			    (pktlen+1)>>1 );
 		}
+		skb->protocol = eth_type_trans(skb, dev);
 		skb->dev = dev;
 		netif_rx(skb);
 		lp->stats.rx_packets++;
@@ -1893,7 +1881,6 @@ set_addresses(struct device *dev)
  * multicast promiscuous mode.
  */
 
-#ifdef NEW_MULTICAST
 static void
 set_multicast_list(struct device *dev)
 {
@@ -1919,7 +1906,6 @@ set_multicast_list(struct device *dev)
     }
     SelectPage(0);
 }
-#endif /* NEW_MULTICAST */
 
 
 /****************

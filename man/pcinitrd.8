@@ -1,5 +1,5 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" pcinitrd.8 1.7 1998/11/03 17:28:58
+.\" pcinitrd.8 1.8 1998/12/09 07:35:04
 .\"
 .TH PCINITRD 8 "$Date" "pcmcia-cs"
 .SH NAME
@@ -58,9 +58,16 @@ or
 Alternatively, if
 .B -a
 is specified, then all available PCMCIA socket drivers and block
-device drivers will be included in the image.  Additional executable
-programs may also be listed on the command line, to be included in the
-image.
+device drivers will be included in the image.  Additional files to be
+copied to the initrd image may also be listed on the command line.
+Executable programs will be installed in
+.IR /bin ,
+shared libraries will be installed in
+.IR /lib ,
+device files will be installed in
+.IR /dev ,
+and any other files will be placed in
+.I /etc .
 .PP
 The startup script in the resulting image,
 .IR linuxrc ,

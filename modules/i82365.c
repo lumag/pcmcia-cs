@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.219 1998/11/20 22:57:01
+    i82365.c 1.223 1999/01/07 03:52:53
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -72,7 +72,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static const char *version =
-"i82365.c 1.219 1998/11/20 22:57:01 (David Hinds)";
+"i82365.c 1.223 1999/01/07 03:52:53 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
@@ -291,7 +291,7 @@ static void pcic_proc_remove(u_short sock);
 
 #ifdef CONFIG_ISA
 static int grab_irq;
-#ifdef __SMP__
+#if defined(CONFIG_SMP) && defined(SPIN_LOCK_UNLOCKED)
 static spinlock_t isa_lock = SPIN_LOCK_UNLOCKED;
 #endif
 #endif
@@ -342,7 +342,7 @@ typedef enum pcic_id {
     IS_RL5C465, IS_RL5C466, IS_RL5C475, IS_RL5C476, IS_RL5C478,
     IS_SMC34C90,
     IS_TI1130, IS_TI1131, IS_TI1250A, IS_TI1220, IS_TI1221, IS_TI1210,
-    IS_TOPIC95, IS_TOPIC97,
+    IS_TOPIC95_A, IS_TOPIC95_B, IS_TOPIC97,
     IS_UNK_PCI, IS_UNK_CARDBUS
 #endif
 } pcic_id;
@@ -426,8 +426,10 @@ static pcic_t pcic[] = {
       PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1221 },
     { "TI 1210", IS_TI|IS_CARDBUS|IS_DF_PWR,
       PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1210 },
-    { "Toshiba ToPIC95", IS_CARDBUS|IS_TOPIC|IS_DF_PWR,
-      PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC95 },
+    { "Toshiba ToPIC95-A", IS_CARDBUS|IS_TOPIC|IS_DF_PWR,
+      PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC95_A },
+    { "Toshiba ToPIC95-B", IS_CARDBUS|IS_TOPIC|IS_DF_PWR,
+      PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC95_B },
     { "Toshiba ToPIC97", IS_CARDBUS|IS_TOPIC|IS_DF_PWR,
       PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC97 },
     { "Unknown", IS_PCI|IS_UNKNOWN, 0, 0 },
@@ -978,12 +980,12 @@ static void topic_set_state(u_short s)
 
 static int topic_set_irq_mode(u_short s, int pcsc, int pint)
 {
-    if (socket[s].type == IS_TOPIC95) {
-	return !pcsc;
-    } else {
+    if (socket[s].type == IS_TOPIC97) {
 	topic_state_t *p = &socket[s].state.topic;
 	flip(p->ccr, TOPIC97_ICR_IRQSEL, pcsc);
 	return 0;
+    } else {
+	return !pcsc;
     }
 }
 
@@ -1079,7 +1081,8 @@ static void cb_set_opts(u_short s, char *buf)
     if (t->pci_lat == 0) t->pci_lat = 0xa8;
     if (cb_latency >= 0) t->cb_lat = cb_latency;
     if (t->cb_lat == 0) t->cb_lat = 0xb0;
-    if ((t->cap.pci_irq == 0) && do_scan) pci_scan(s);
+    if ((t->cap.pci_irq == 0) && (pci_csc || pci_int) && do_scan)
+	pci_scan(s);
     if (t->cap.pci_irq == 0)
 	strcat(buf, " [no pci irq]");
     else
@@ -1216,14 +1219,16 @@ static u_short irq_sock;
 
 static irq_ret_t irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
 {
-#ifdef CONFIG_NEW_PROBE
+#if defined(CONFIG_PCI) && defined(CONFIG_NEW_PROBE)
     if (socket[irq_sock].flags & IS_CARDBUS) {
 	cb_writel(irq_sock, CB_SOCKET_EVENT, -1);
     } else
 #endif
     i365_get(irq_sock, I365_CSC);
     irq_hits++;
+#ifndef __BEOS__
     DEBUG(2, ("-> hit on irq %d\n", irq));
+#endif
     return (irq_ret_t)1;
 }
 
@@ -1242,7 +1247,7 @@ static u_int test_irq(u_short sock, int irq, int pci)
     }
 
     /* Generate one interrupt */
-#ifdef CONFIG_NEW_PROBE
+#if defined(CONFIG_PCI) && defined(CONFIG_NEW_PROBE)
     if (socket[sock].flags & IS_CARDBUS) {
 	cb_writel(sock, CB_SOCKET_EVENT, -1);
 	i365_set(sock, I365_CSCINT, I365_CSC_STSCHG | (csc << 4));
@@ -1672,7 +1677,7 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
 	    printk(KERN_NOTICE "i82365: ioremap failed: bad kernel!\n");
 	add_socket(0, 0, type);
     }
-    add_pcic(ns, type);
+    if (ns > 0) add_pcic(ns, type);
 }
 
 static void pci_probe(u_int class, void (add_fn)(int, u_char, u_char,

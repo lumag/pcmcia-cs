@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.118 1998/11/18 16:58:47
+    cardmgr.c 1.119 1998/11/25 22:37:40
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -266,7 +266,7 @@ static void beep(unsigned int ms, unsigned int freq)
 #ifdef __BEOS__
 static void beep(unsigned int ms, unsigned int freq)
 {
-    system("/bin/beep");
+    if (!be_quiet) system("/bin/beep");
 }
 #endif
 
