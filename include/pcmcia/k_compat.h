@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.100 1999/12/09 20:55:59
+ * k_compat.h 1.102 1999/12/21 21:49:17
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -288,6 +288,20 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 
 #if (LINUX_VERSION_CODE < VERSION(2,2,0))
 #define in_interrupt()		(intr_count)
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,3,32))
+#define BLK_DEFAULT_QUEUE(n)	blk_dev[n].request_fn
+#define blk_init_queue(q, req)	q = (req)
+#define blk_cleanup_queue(q)	q = NULL
+#define request_arg_t		void
+#else
+#define request_arg_t		request_queue_t *q
+#endif
+
+#include <linux/sched.h>
+#ifndef CAP_SYS_ADMIN
+#define capable(x)		(suser())
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

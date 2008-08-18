@@ -1379,7 +1379,7 @@ static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			int saved_window;
 			long flags;
 
-			if (!suser())
+			if (!capable(CAP_NET_ADMIN))
 				return -EPERM;
 			save_flags(flags);
 			cli();

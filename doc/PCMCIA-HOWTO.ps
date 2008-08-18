@@ -8,7 +8,7 @@
 %DVIPSWebPage: (www.radicaleye.com)
 %DVIPSCommandLine: dvips -t letter PCMCIA-HOWTO.dvi -o PCMCIA-HOWTO.ps
 %DVIPSParameters: dpi=600, compressed
-%DVIPSSource:  TeX output 1999.12.16:1738
+%DVIPSSource:  TeX output 1999.12.21:1723
 %%BeginProcSet: texc.pro
 %!
 /TeXDict 300 dict def TeXDict begin/N{def}def/B{bind def}N/S{exch}N/X{S
@@ -1523,7 +1523,7 @@ letter
 y(X)h(L)398 145 y Fl(A)435 162 y Fm(T)481 180 y(E)527
 162 y(X)0 348 y Fk(Linux)54 b(PCMCIA)f(HO)l(WTO)p 0 461
 3900 24 v 0 575 a Fm(Da)n(vid)27 b(Hinds,)h Fj(dhinds@pcmcia.so)o(urc)o
-(ef)o(or)o(ge.)o(or)o(g)p Fm(.)1198 b(v2.48,)26 b(17)h(Decem)n(b)r(er)g
+(ef)o(or)o(ge.)o(or)o(g)p Fm(.)1198 b(v2.49,)26 b(22)h(Decem)n(b)r(er)g
 (1999)0 881 y Fi(This)j(do)r(cument)f(describ)r(es)h(ho)n(w)f(to)g
 (install)g(and)h(use)f(PCMCIA)i(Ca)n(rd)e(Services)h(fo)n(r)g(Linux,)h
 (and)f(answ)n(ers)f(some)g(frequently)0 994 y(ask)n(ed)38
@@ -2075,9 +2075,9 @@ b(age)26 b(is)i(not)f(tec)n(hnically)g(di\036cult,)i(it)f(do)r(es)f
 (require)f(some)h(general)f(Lin)n(ux)i(familiarit)n(y)-7
 b(.)0 4712 y(The)28 b(follo)n(wing)e(things)i(should)f(b)r(e)h
 (installed)f(on)h(y)n(our)e(system)h(b)r(efore)g(y)n(ou)g(b)r(egin:)125
-4935 y Fd(\017)41 b Fm(A)27 b(2.0.*,)g(2.1.*,)f(or)h(2.2.*)f(series)h
-(k)n(ernel)f(source)h(tree.)125 5115 y Fd(\017)41 b Fm(An)28
-b(appropriate)d(set)j(of)f(mo)r(dule)h(utilities.)125
+4935 y Fd(\017)41 b Fm(A)27 b(2.0.*,)g(2.1.*,)f(2.2.*,)g(or)h(2.3.*)f
+(series)h(k)n(ernel)g(source)f(tree.)125 5115 y Fd(\017)41
+b Fm(An)28 b(appropriate)d(set)j(of)f(mo)r(dule)h(utilities.)125
 5295 y Fd(\017)41 b Fm(\(Optional\))27 b(the)h(\020XF)-7
 b(orms\021)33 b(X11)27 b(user)g(in)n(terface)g(to)r(olkit.)p
 eop
@@ -2421,50 +2421,52 @@ p eop
 11 10 bop 0 -167 3900 5 v 0 -200 a Ff(2.)73 b(Compilation)29
 b(and)k(installation)2473 b Fm(11)125 162 y Fd(\017)41
 b Fm(On)27 b(the)h(AMS)g(SoundPro,)f(exclude)h(irq)f(10.)125
-339 y Fd(\017)41 b Fm(On)27 b(some)g(AMS)h(T)-7 b(ra)n(v)n(elPro)25
+331 y Fd(\017)41 b Fm(On)27 b(some)g(AMS)h(T)-7 b(ra)n(v)n(elPro)25
 b(5300)h(mo)r(dels,)h(use)h(memory)f(0xc8000-0xc\033\033.)125
-516 y Fd(\017)41 b Fm(On)27 b(the)h(BMX)g(486D)n(X2-66,)c(exclude)k
-(irq)f(5,)g(irq)g(9.)125 693 y Fd(\017)41 b Fm(On)27
+499 y Fd(\017)41 b Fm(On)27 b(the)h(BMX)g(486D)n(X2-66,)c(exclude)k
+(irq)f(5,)g(irq)g(9.)125 668 y Fd(\017)41 b Fm(On)27
 b(the)h(Chicon)n(y)f(NB5,)g(use)g(memory)g(0xda000-0xd\033\033.)125
-870 y Fd(\017)41 b Fm(On)27 b(the)h(Compaq)f(Presario)e(1020,)h
+837 y Fd(\017)41 b Fm(On)27 b(the)h(Compaq)f(Presario)e(1020,)h
 (exclude)i(p)r(ort)f(0x2f8-0x2\033,)e(irq)i(3,)g(irq)h(5.)125
-1047 y Fd(\017)41 b Fm(On)27 b(the)h(HP)g(Omnib)r(o)r(ok)f(4000C,)f
-(exclude)h(p)r(ort)h(0x300-0x30f.)125 1224 y Fd(\017)41
+1006 y Fd(\017)41 b Fm(On)27 b(the)h(HP)g(Omnib)r(o)r(ok)f(4000C,)f
+(exclude)h(p)r(ort)h(0x300-0x30f.)125 1175 y Fd(\017)41
 b Fm(On)27 b(the)h(IBM)f(ThinkP)n(ad)h(380,)e(and)h(ma)n(yb)r(e)h(the)g
 (385)e(and)h(600)f(series,)h(exclude)g(p)r(ort)h(0x230-0x233,)23
-b(and)k(irq)g(5.)125 1401 y Fd(\017)41 b Fm(On)27 b(IBM)g(ThinkP)n(ad)h
+b(and)k(irq)g(5.)125 1344 y Fd(\017)41 b Fm(On)27 b(IBM)g(ThinkP)n(ad)h
 (600)e(and)h(770)g(mo)r(dels)g(with)h(in)n(ternal)f(mo)r(dems,)h
-(exclude)f(p)r(ort)g(0x2f8-0x2\033.)125 1577 y Fd(\017)41
+(exclude)f(p)r(ort)g(0x2f8-0x2\033.)125 1513 y Fd(\017)41
 b Fm(On)27 b(the)h(IBM)f(ThinkP)n(ad)h(600E)f(and)g(770Z,)f(c)n(hange)g
 (the)i(high)g(memory)e(windo)n(w)h(to)h(0x60000000-0x60)o
-(\033\033\033.)125 1754 y Fd(\017)41 b Fm(On)27 b(the)h(Micron)f
+(\033\033\033.)125 1682 y Fd(\017)41 b Fm(On)27 b(the)h(Micron)f
 (Millenia)g(T)-7 b(ransp)r(ort,)26 b(exclude)i(irq)f(5,)g(irq)g(9.)125
-1931 y Fd(\017)41 b Fm(On)27 b(the)h(NEC)g(V)-7 b(ersa)27
+1850 y Fd(\017)41 b Fm(On)27 b(the)h(NEC)g(V)-7 b(ersa)27
 b(M,)h(exclude)f(irq)g(9,)g(p)r(ort)h(0x2e0-2\033.)125
-2108 y Fd(\017)41 b Fm(On)27 b(the)h(NEC)g(V)-7 b(ersa)27
-b(P/75,)g(exclude)g(irq)g(5,)g(irq)g(9.)125 2285 y Fd(\017)41
+2019 y Fd(\017)41 b Fm(On)27 b(the)h(NEC)g(V)-7 b(ersa)27
+b(P/75,)g(exclude)g(irq)g(5,)g(irq)g(9.)125 2188 y Fd(\017)41
 b Fm(On)27 b(the)h(NEC)g(V)-7 b(ersa)27 b(S,)h(exclude)f(irq)g(9,)g
-(irq)g(12.)125 2462 y Fd(\017)41 b Fm(On)27 b(the)h(NEC)g(V)-7
+(irq)g(12.)125 2357 y Fd(\017)41 b Fm(On)27 b(the)h(NEC)g(V)-7
 b(ersa)27 b(6000)f(series,)g(exclude)h(p)r(ort)h(0x2f8-0x33f,)d(irq)i
-(9,)g(irq)g(10.)125 2639 y Fd(\017)41 b Fm(On)33 b(the)i(ProStar)e
-(9200,)h(Altima)h(Virage,)f(and)g(A)n(cquiline)g(Hurricane)g(D)n
-(X4-100,)f(exclude)i(irq)e(5,)j(p)r(ort)e(0x330-)208
-2753 y(0x35f.)h(Ma)n(yb)r(e)27 b(use)h(memory)e(0xd8000-0xd\033\033.)
-125 2930 y Fd(\017)41 b Fm(On)27 b(the)h(Siemens)f(Nixdorf)h(SIMA)-7
-b(TIC)28 b(PG)g(720C,)e(use)i(memory)e(0xc0000-0xc\033\033,)f(p)r(ort)i
-(0x300-0x3bf.)125 3107 y Fd(\017)41 b Fm(On)27 b(the)h(TI)f(T)-7
+(9,)g(irq)g(10.)125 2526 y Fd(\017)41 b Fm(On)27 b(the)h(NEC)g(V)-7
+b(ersa)27 b(SX,)h(exclude)f(p)r(ort)h(0x300-0x31f.)125
+2695 y Fd(\017)41 b Fm(On)33 b(the)i(ProStar)e(9200,)h(Altima)h
+(Virage,)f(and)g(A)n(cquiline)g(Hurricane)g(D)n(X4-100,)f(exclude)i
+(irq)e(5,)j(p)r(ort)e(0x330-)208 2808 y(0x35f.)h(Ma)n(yb)r(e)27
+b(use)h(memory)e(0xd8000-0xd\033\033.)125 2977 y Fd(\017)41
+b Fm(On)27 b(the)h(Siemens)f(Nixdorf)h(SIMA)-7 b(TIC)28
+b(PG)g(720C,)e(use)i(memory)e(0xc0000-0xc\033\033,)f(p)r(ort)i
+(0x300-0x3bf.)125 3146 y Fd(\017)41 b Fm(On)27 b(the)h(TI)f(T)-7
 b(ra)n(v)n(elMate)26 b(5000,)g(use)h(memory)g(0xd4000-0xd\033\033.)125
-3284 y Fd(\017)41 b Fm(On)27 b(the)h(T)-7 b(oshiba)27
+3315 y Fd(\017)41 b Fm(On)27 b(the)h(T)-7 b(oshiba)27
 b(T4900)e(CT,)j(exclude)f(irq)g(5,)g(p)r(ort)h(0x2e0-0x2e8,)c(p)r(ort)j
-(0x330-0x338.)125 3461 y Fd(\017)41 b Fm(On)27 b(the)h(T)-7
+(0x330-0x338.)125 3484 y Fd(\017)41 b Fm(On)27 b(the)h(T)-7
 b(oshiba)27 b(T)-7 b(ecra)26 b(8000,)g(exclude)h(irq)g(3,)g(irq)g(5,)h
-(irq)f(9.)125 3638 y Fd(\017)41 b Fm(On)27 b(the)h(T)-7
+(irq)f(9.)125 3653 y Fd(\017)41 b Fm(On)27 b(the)h(T)-7
 b(winhead)27 b(5100,)f(HP)i(4000,)e(Sharp)h(PC-8700)f(and)h(PC-8900,)f
-(exclude)i(irq)f(9)g(\(sound\),)h(irq)f(12.)125 3815
+(exclude)i(irq)f(9)g(\(sound\),)h(irq)f(12.)125 3822
 y Fd(\017)41 b Fm(On)27 b(an)g(MPC)h(800)f(Series,)f(exclude)i(irq)f
 (5,)g(p)r(ort)h(0x300-0x30f)23 b(for)k(the)h(CD-R)n(OM.)0
-4105 y Fe(2.5)112 b(Notes)37 b(ab)s(out)h(sp)s(eci\034c)f(Lin)m(ux)h
-(distributions)0 4315 y Fm(This)28 b(section)f(is)g(incomplete.)37
+4108 y Fe(2.5)112 b(Notes)37 b(ab)s(out)h(sp)s(eci\034c)f(Lin)m(ux)h
+(distributions)0 4319 y Fm(This)28 b(section)f(is)g(incomplete.)37
 b(Corrections)26 b(and)h(additions)g(are)g(w)n(elcome.)0
 4586 y Ff(2.5.1)94 b(Debian)0 4796 y Fm(Debian)59 b(uses)f(a)g(System)h
 (V)g(b)r(o)r(ot)f(script)h(arrangemen)n(t.)127 b(The)59

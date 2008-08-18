@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.274 1999/12/14 00:23:37
+    i82365.c 1.275 1999/12/21 23:11:12
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.274 1999/12/14 00:23:37 (David Hinds)";
+"i82365.c 1.275 1999/12/21 23:11:12 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -166,11 +166,14 @@ static u_int cb_mem_base[] = { 0x68000000, 0xf8000000 };
 MODULE_PARM(cb_mem_base, "i");
 INT_MODULE_PARM(do_pci_probe, 1);	/* Scan for PCI bridges? */
 INT_MODULE_PARM(fast_pci, -1);
-INT_MODULE_PARM(hold_time, -1);
-INT_MODULE_PARM(irq_mode, -1);		/* Override BIOS routing? */
 INT_MODULE_PARM(cb_bus_base, 0);
 INT_MODULE_PARM(cb_bus_step, 2);
 INT_MODULE_PARM(cb_write_post, -1);
+INT_MODULE_PARM(irq_mode, -1);		/* Override BIOS routing? */
+/* Ricoh option */
+INT_MODULE_PARM(hold_time, -1);
+/* TI option */
+INT_MODULE_PARM(p2cclk, -1);
 #endif
 
 #if defined(CONFIG_ISA) && defined(CONFIG_PCI)
@@ -719,6 +722,7 @@ static u_int __init ti113x_set_opts(u_short s, char *buf)
     flip(p->cardctl, TI113X_CCR_RIENB, has_ring);
     p->cardctl &= ~TI113X_CCR_ZVENABLE;
     p->cardctl |= TI113X_CCR_SPKROUTEN;
+    if (!old) flip(p->sysctl, TI122X_SCR_P2CCLK, p2cclk);
     switch (irq_mode) {
     case 1:
 	p->devctl &= ~TI113X_DCR_IMODE_MASK;

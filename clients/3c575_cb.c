@@ -1481,10 +1481,10 @@ vortex_error(struct net_device *dev, int status)
 			   dev->name, fifo_diag);
 		/* Adapter failure requires Tx/Rx reset and reinit. */
 		if (vp->full_bus_master_tx) {
+			/* In this case, blow the card away */
+			vortex_down(dev);
 			wait_for_completion(dev, TotalReset | 0xff);
-			/* Re-enable the receiver. */
-			outw(RxEnable, ioaddr + EL3_CMD);
-			outw(TxEnable, ioaddr + EL3_CMD);
+			vortex_up(dev);
 		} else if (fifo_diag & 0x0400)
 			do_tx_reset = 1;
 		if (fifo_diag & 0x3000) {

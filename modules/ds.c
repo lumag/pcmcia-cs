@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.102 1999/12/09 20:17:29
+    ds.c 1.103 1999/12/21 23:11:12
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.102 1999/12/09 20:17:29 (David Hinds)";
+"ds.c 1.103 1999/12/21 23:11:12 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -704,7 +704,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
     if (size > sizeof(ds_ioctl_arg_t)) return -EINVAL;
 
     /* Permission check */
-    if (!(cmd & IOC_OUT) && !suser())
+    if (!(cmd & IOC_OUT) && !capable(CAP_SYS_ADMIN))
 	return -EPERM;
 	
     if (cmd & IOC_IN) {
@@ -774,7 +774,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	ret = CardServices(InsertCard, s->handle, NULL);
 	break;
     case DS_ACCESS_CONFIGURATION_REGISTER:
-	if ((buf.conf_reg.Action == CS_WRITE) && !suser())
+	if ((buf.conf_reg.Action == CS_WRITE) && !capable(CAP_SYS_ADMIN))
 	    return -EPERM;
 	ret = CardServices(AccessConfigurationRegister, s->handle,
 			   &buf.conf_reg);
@@ -802,7 +802,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	ret = CardServices(ReplaceCIS, s->handle, &buf.cisdump);
 	break;
     case DS_BIND_REQUEST:
-	if (!suser()) return -EPERM;
+	if (!capable(CAP_SYS_ADMIN)) return -EPERM;
 	err = bind_request(i, &buf.bind_info);
 	break;
     case DS_GET_DEVICE_INFO:
@@ -815,7 +815,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	err = unbind_request(i, &buf.bind_info);
 	break;
     case DS_BIND_MTD:
-	if (!suser()) return -EPERM;
+	if (!capable(CAP_SYS_ADMIN)) return -EPERM;
 	err = bind_mtd(i, &buf.mtd_info);
 	break;
     default:

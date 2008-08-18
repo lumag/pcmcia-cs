@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.57 1999/11/16 02:14:55
+    ftl_cs.c 1.59 1999/12/21 23:11:30
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -118,7 +118,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.57 1999/11/16 02:14:55 (David Hinds)";
+"ftl_cs.c 1.59 1999/12/21 23:11:30 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -148,9 +148,6 @@ static int ftl_event(event_t event, int priority,
 
 static dev_link_t *ftl_attach(void);
 static void ftl_detach(dev_link_t *);
-
-/* Block IO request handler stuff */
-static void do_ftl_request(void);
 
 /* Each memory region corresponds to a minor device */
 typedef struct partition_t {
@@ -1403,7 +1400,7 @@ static int ftl_ioctl(struct inode *inode, struct file *file,
 	break;
 #if (LINUX_VERSION_CODE < VERSION(2,3,3))
     case BLKFLSBUF:
-	if (!suser()) return -EACCES;
+	if (!capable(CAP_SYS_ADMIN)) return -EACCES;
 	fsync_dev(inode->i_rdev);
 	invalidate_buffers(inode->i_rdev);
 	break;
@@ -1479,7 +1476,7 @@ static int ftl_reread_partitions(int minor)
 
 ======================================================================*/
 
-static void do_ftl_request(void)
+static void do_ftl_request(request_arg_t)
 {
     int ret, minor;
     dev_link_t *link;
@@ -1554,7 +1551,7 @@ static int __init init_ftl_cs(void)
     }
     blksize_size[major_dev] = ftl_blocksizes;
     ftl_gendisk.major = major_dev;
-    blk_dev[major_dev].request_fn = DEVICE_REQUEST;
+    blk_init_queue(BLK_DEFAULT_QUEUE(major_dev), &do_ftl_request);
     ftl_gendisk.next = gendisk_head;
     gendisk_head = &ftl_gendisk;
     init_waitqueue_head(&ftl_wait_open);
@@ -1572,7 +1569,7 @@ static void __exit exit_ftl_cs(void)
     unregister_pccard_driver(&dev_info);
     if (major_dev != 0) {
 	unregister_blkdev(major_dev, "ftl");
-	blk_dev[major_dev].request_fn = NULL;
+	blk_cleanup_queue(BLK_DEFAULT_QUEUE(major_dev));
 	blksize_size[major_dev] = NULL;
     }
     for (i = 0; i < MAX_DEV; i++) {

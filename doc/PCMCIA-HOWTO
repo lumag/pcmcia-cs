@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.48, 17 December 1999
+  v2.49, 22 December 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -343,7 +343,7 @@
   The following things should be installed on your system before you
   begin:
 
-  +o  A 2.0.*, 2.1.*, or 2.2.* series kernel source tree.
+  +o  A 2.0.*, 2.1.*, 2.2.*, or 2.3.* series kernel source tree.
 
   +o  An appropriate set of module utilities.
 
@@ -648,6 +648,8 @@
   +o  On the NEC Versa 6000 series, exclude port 0x2f8-0x33f, irq 9, irq
      10.
 
+  +o  On the NEC Versa SX, exclude port 0x300-0x31f.
+
   +o  On the ProStar 9200, Altima Virage, and Acquiline Hurricane
      DX4-100, exclude irq 5, port 0x330-0x35f.  Maybe use memory
      0xd8000-0xdffff.
@@ -819,7 +821,6 @@
      is easily done if you already have the kernel source tree
      installed.  See ``Compilation and installation'' for detailed
      instructions.
-
   +o  In some cases, incompatibilities in other system components can
      prevent correct loading of kernel modules.  If you have upgraded
      your own kernel, pay attention to the ``minimal requirements'' for

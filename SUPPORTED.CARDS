@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/12/17 01:35:41
+		Last updated: 1999/12/22 01:18:04
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -134,6 +134,7 @@ Ethernet cards:
 	Surecom Ethernet
 	SVEC PN605C
 	Thomas-Conrad Ethernet
+	TRENDnet Ethernet
 	Trust Ethernet Combo
 	Volktek NPL-402CT Ethernet
 
@@ -146,7 +147,7 @@ Ethernet cards:
 
 	[xirc2ps_cs driver] [x86,axp]
 	Compaq Ethernet Adapter
-	Xircom CreditCard CE2, RE-10
+	Xircom CreditCard CE2, CE IIps, RE-10
 
 Fast Ethernet (10/100baseT) adapters:
 
@@ -562,7 +563,7 @@ email just to ask if their status has changed.
 	Nikon CoolPix100
 	Panasonic KXL-D720, KXL-D745
 	SMC 8016 EliteCard
-	Xircom CE II Ethernet/Modem
+	Xircom CEM II Ethernet/Modem
 	Xircom CE-10BT Ethernet
 	Xircom CBE-10/100 CardBus
 

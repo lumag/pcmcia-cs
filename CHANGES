@@ -1,3 +1,10 @@
+[21-Dec-99] Version 3.1.8
+-- Updated drivers to use capabilities instead of suser().
+-- Added "p2cclk" option to i82365 driver... see man page for details.
+-- Fixes for block device driver API changes in 2.3.32 kernel.
+-- Fixed a 3c575_cb driver bug, in the "HostError" recovery code.
+-- Fixed man/Makefile to install the Intel flash driver man pages.
+
 [16-Dec-99] Version 3.1.7
 -- Took out some i82365 options that have turned out to probably never
    be needed: has_clkrun, clkrun_sel, pci_latency, and cb_latency.

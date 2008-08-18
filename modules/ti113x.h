@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.16 1999/10/25 20:03:34
+ * ti113x.h 1.17 1999/12/17 03:27:49
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -101,6 +101,7 @@
 
 #define  TI122X_SCR_SER_STEP		0xc0000000
 #define  TI122X_SCR_INTRTIE		0x20000000
+#define  TI122X_SCR_P2CCLK		0x08000000
 #define  TI122X_SCR_CBRSVD		0x00400000
 #define  TI122X_SCR_MRBURSTDN		0x00008000
 #define  TI122X_SCR_MRBURSTUP		0x00004000

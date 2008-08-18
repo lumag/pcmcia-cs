@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" i82365.4 1.28 1999/12/16 02:47:51
+.\" i82365.4 1.29 1999/12/20 20:26:25
 .\"
-.TH I82365 4 "1999/12/16 02:47:51" "pcmcia-cs"
+.TH I82365 4 "1999/12/20 20:26:25" "pcmcia-cs"
 .SH NAME
 i82365 \- Intel i82365sl PCMCIA controller driver
 
@@ -64,6 +64,8 @@ i82365 \- Intel i82365sl PCMCIA controller driver
 .RB [ cable_mode=\c
 .IR n ]
 .RB [ irq_mode=\c
+.IR n ]
+.RB [ p2cclk=\c
 .IR n ]
 
 .SH DESCRIPTION
@@ -267,6 +269,12 @@ interrupt routing; 2 selects ISA interrupt routing via an external
 serial interrupt controller; and 3 selects serial routing for both PCI
 and ISA interrupts.  The default is to use whatever routing 
 method is already active, or ISA routing if no method is enabled.
+.TP
+.BI p2cclk= n
+A flag, indicating if the P2CCLK pin should be configured as an input
+(0) or an output (1).  This signal is used for communicating with a
+socket power controller; if set incorrectly, the bridge will be unable
+to power up cards.  The default is to use the BIOS setting.
 
 .SH AUTHOR
 David Hinds \- dhinds@pcmcia.sourceforge.org

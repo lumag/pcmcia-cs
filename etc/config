@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.103 1999/12/11 04:07:29 (David Hinds)
+# config 1.104 1999/12/19 19:17:04 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -129,7 +129,7 @@ card "Accton UE2216 Ethernet"
 
 card "Allied Telesis LA-PCM Ethernet"
   manfid 0xc00f, 0x0002
-  cis "cis/LA-PCM.cis"
+  cis "cis/LA-PCM.dat"
   bind "pcnet_cs"
 
 card "AmbiCom AMB8002 Ethernet"

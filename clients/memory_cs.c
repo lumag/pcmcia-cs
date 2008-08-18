@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.65 1999/11/16 02:14:54
+    memory_cs.c 1.67 1999/12/21 23:11:30
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -91,7 +91,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.65 1999/11/16 02:14:54 (David Hinds)";
+"memory_cs.c 1.67 1999/12/21 23:11:30 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -973,7 +973,7 @@ static int memory_ioctl(struct inode *inode, struct file *file,
 	break;
 #if (LINUX_VERSION_CODE < VERSION(2,3,3))
     case BLKFLSBUF:
-	if (!suser()) return -EACCES;
+	if (!capable(CAP_SYS_ADMIN)) return -EACCES;
 	if (!(inode->i_rdev)) return -EINVAL;
 	fsync_dev(inode->i_rdev);
 	invalidate_buffers(inode->i_rdev);
@@ -1053,7 +1053,7 @@ static void do_direct_request(dev_link_t *link)
     }
 } /* do_direct_request */
 
-static void do_memory_request(void)
+static void do_memory_request(request_arg_t)
 {
     int ret, minor;
     char *buf;
@@ -1135,7 +1135,7 @@ static int __init init_memory_cs(void)
     }
 
     major_dev = i;
-    blk_dev[major_dev].request_fn = DEVICE_REQUEST;
+    blk_init_queue(BLK_DEFAULT_QUEUE(MAJOR_NR), &do_memory_request);
     for (i = 0; i < MINOR_NR(MAX_DEV, 0, 0, 0); i++)
 	memory_blocksizes[i] = 1024;
     blksize_size[major_dev] = memory_blocksizes;
@@ -1153,7 +1153,7 @@ static void __exit exit_memory_cs(void)
     if (major_dev != 0) {
 	unregister_chrdev(major_dev, "memory");
 	unregister_blkdev(major_dev, "memory");
-	blk_dev[major_dev].request_fn = NULL;
+	blk_cleanup_queue(BLK_DEFAULT_QUEUE(MAJOR_NR));
 	blksize_size[major_dev] = NULL;
     }
     for (i = 0; i < MAX_DEV; i++) {
