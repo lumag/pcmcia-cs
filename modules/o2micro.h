@@ -1,5 +1,5 @@
 /*
- * o2micro.h 1.4 1998/06/02 21:58:47
+ * o2micro.h 1.5 1998/07/28 09:22:41
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -22,19 +22,15 @@
 #ifndef PCI_VENDOR_ID_O2
 #define PCI_VENDOR_ID_O2		0x1217
 #endif
-
 #ifndef PCI_DEVICE_ID_O2_6729
 #define PCI_DEVICE_ID_O2_6729		0x6729
 #endif
-
 #ifndef PCI_DEVICE_ID_O2_6730
 #define PCI_DEVICE_ID_O2_6730		0x673a
 #endif
-
 #ifndef PCI_DEVICE_ID_O2_6832
 #define PCI_DEVICE_ID_O2_6832		0x6832
 #endif
-
 #ifndef PCI_DEVICE_ID_O2_6836
 #define PCI_DEVICE_ID_O2_6836		0x6836
 #endif
@@ -61,6 +57,11 @@
 #define  O2_MODE_D_PCI_FIFO	0x40	/* for OZ6729, OZ6730 */
 #define  O2_MODE_D_W97_IRQ	0x40	/* for OZ6832 */
 #define  O2_MODE_D_ISA_IRQ	0x80
+
+#define O2_MHPG_DMA		0x3c
+#define  O2_MHPG_CHANNEL	0x07
+#define  O2_MHPG_CINT_ENA	0x08
+#define  O2_MHPG_CSC_ENA	0x10
 
 #define O2_FIFO_ENA		0x3d
 #define  O2_FIFO_ZVIDEO_3	0x08

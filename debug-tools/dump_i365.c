@@ -2,7 +2,7 @@
 
     Register dump for the Intel 82365SL controller family
 
-    dump_i365.c 1.20 1998/06/05 09:24:26
+    dump_i365.c 1.21 1998/07/26 23:10:48
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -47,7 +47,7 @@ typedef unsigned short u_short;
 #endif /* __MSDOS__ */
 
 #include "i82365.h"
-#include "pd67xx.h"
+#include "cirrus.h"
 #include "vg468.h"
 
 static int i365_base = 0x03e0;

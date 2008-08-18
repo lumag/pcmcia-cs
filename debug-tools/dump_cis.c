@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.32 1998/07/18 17:33:34
+    dump_cis.c 1.38 1998/08/13 09:27:53
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -39,6 +39,9 @@
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
+
+static int verbose = 0;
+static char indent[10] = "  ";
 
 /*====================================================================*/
 
@@ -97,41 +100,41 @@ static int open_sock(int sock)
 static void print_tuple(tuple_parse_t *tup)
 {
     int i;
-    printf("  Offset: 0x%2.2x, tuple: %#2.2x, link: %#2.2x\n",
-	   tup->tuple.CISOffset, tup->tuple.TupleCode,
+    printf("%soffset 0x%2.2x, tuple 0x%2.2x, link 0x%2.2x\n",
+	   indent, tup->tuple.CISOffset, tup->tuple.TupleCode,
 	   tup->tuple.TupleLink);
     for (i = 0; i < tup->tuple.TupleDataLen; i++) {
-	if ((i % 16) == 0) printf("    ");
+	if ((i % 16) == 0) printf("%s  ", indent);
 	printf("%2.2x ", (u_char)tup->data[i]);
-	if ((i % 16) == 15) printf("\n");
+	if ((i % 16) == 15) putchar('\n');
     }
-    if ((i % 16) != 0) printf("\n");
+    if ((i % 16) != 0) putchar('\n');
 }
 
 /*====================================================================*/
 
 static void print_funcid(cistpl_funcid_t *fn)
 {
-    printf("  Function: ");
+    printf("%sfuncid ", indent);
     switch (fn->func) {
     case CISTPL_FUNCID_MULTI:
-	printf("multi-function"); break;
+	printf("multi_function"); break;
     case CISTPL_FUNCID_MEMORY:
-	printf("memory card"); break;
+	printf("memory_card"); break;
     case CISTPL_FUNCID_SERIAL:
-	printf("serial port"); break;
+	printf("serial_port"); break;
     case CISTPL_FUNCID_PARALLEL:
-	printf("parallel port"); break;
+	printf("parallel_port"); break;
     case CISTPL_FUNCID_FIXED:
-	printf("fixed disk"); break;
+	printf("fixed_disk"); break;
     case CISTPL_FUNCID_VIDEO:
-	printf("video adapter"); break;
+	printf("video_adapter"); break;
     case CISTPL_FUNCID_NETWORK:
-	printf("network adapter"); break;
+	printf("network_adapter"); break;
     case CISTPL_FUNCID_AIMS:
-	printf("auto-inc mass storage"); break;
+	printf("aims_card"); break;
     case CISTPL_FUNCID_SCSI:
-	printf("SCSI adapter"); break;
+	printf("scsi_adapter"); break;
     default:
 	printf("unknown"); break;
     }
@@ -139,7 +142,7 @@ static void print_funcid(cistpl_funcid_t *fn)
 	printf(" [post]");
     if (fn->sysinit & CISTPL_SYSINIT_ROM)
 	printf(" [rom]");
-    printf("\n");
+    putchar('\n');
 }
 
 /*====================================================================*/
@@ -147,130 +150,116 @@ static void print_funcid(cistpl_funcid_t *fn)
 static void print_size(u_int size)
 {
     if (size < 1024)
-	printf("%u bytes", size);
+	printf("%ub", size);
     else if (size < 1024*1024)
-	printf("%u kb", size/1024);
+	printf("%ukb", size/1024);
     else
-	printf("%u mb", size/(1024*1024));
+	printf("%umb", size/(1024*1024));
+}
+
+static void print_unit(u_int v, char *unit, char tag)
+{
+    int n;
+    for (n = 0; (v % 1000) == 0; n++) v /= 1000;
+    printf("%u", v);
+    if (n < strlen(unit)) putchar(unit[n]);
+    putchar(tag);
 }
 
 static void print_time(u_int tm, u_long scale)
 {
-    float t = (float)(tm) * scale * 0.000000001;
-    if (t > 1.0)
-	printf("%.1f s", t);
-    else if (t > 0.001)
-	printf("%.0f ms", t*1000.0);
-    else if (t > 0.000001)
-	printf("%.0f us", t*1000000.0);
-    else
-	printf("%.0f ns", t*1000000000.0);
+    print_unit(tm * scale, "num", 's');
 }
 
-static void print_volt(u_long vi)
+static void print_volt(u_int vi)
 {
-    float v = vi * 0.00001;
-    if (v > 1.0)
-	printf("%.1f V", v);
-    else if (v > 0.001)
-	printf("%.0f mV", v*1000.0);
-    else
-	printf("%.0f uV", v*1000000.0);
+    print_unit(vi * 10, "um", 'V');
 }
     
-static void print_current(u_long ii)
+static void print_current(u_int ii)
 {
-    float i = ii * 0.0000001;
-    if (i > 1.0)
-	printf("%.1f A", i);
-    else if (i > 0.001)
-	printf("%.0f mA", i*1000.0);
-    else
-	printf("%.0f uA", i*1000000.0);
+    print_unit(ii / 10, "um", 'A');
 }
 
 static void print_speed(u_int b)
 {
-    if (b < 1024)
+    if (b < 1000)
 	printf("%u bits/sec", b);
-    else if (b < 1024*1024)
-	printf("%u kbits/sec", b/1024);
+    else if (b < 1000000)
+	printf("%u kb/sec", b/1000);
     else
-	printf("%u mbits/sec", b/(1024*1024));
+	printf("%u mb/sec", b/1000000);
 }
 
 /*====================================================================*/
 
 static const char *dtype[] = {
     "NULL", "ROM", "OTPROM", "EPROM", "EEPROM", "FLASH", "SRAM",
-    "DRAM", "rsvd", "rsvd", "rsvd", "rsvd", "rsvd", "Function-specific",
-    "Extended", "rsvd"
+    "DRAM", "rsvd", "rsvd", "rsvd", "rsvd", "rsvd", "fn_specific",
+    "extended", "rsvd"
 };
 
 static void print_device(cistpl_device_t *dev)
 {
     int i;
     for (i = 0; i < dev->ndev; i++) {
-	printf("    %s: ", dtype[dev->dev[i].type]);
-	printf("%u ns, ", dev->dev[i].speed);
+	printf("%s  %s ", indent, dtype[dev->dev[i].type]);
+	printf("%uns, ", dev->dev[i].speed);
 	print_size(dev->dev[i].size);
-	printf("\n");
+	putchar('\n');
     }
     if (dev->ndev == 0)
-	printf("    No device info.\n");
+	printf("%s  no_info\n", indent);
 }
 
 /*====================================================================*/
 
 static void print_power(char *tag, cistpl_power_t *power)
 {
-    int first = 1;
-    printf("  %s: ", tag);
+    int i, n;
+    for (i = n = 0; i < 8; i++)
+	if (power->present & (1<<i)) n++;
+    i = 0;
+    printf("%s  %s", indent, tag);
     if (power->present & (1<<CISTPL_POWER_VNOM)) {
-	first = 0;
-	printf(" Vnom ");
+	printf(" Vnom "); i++;
 	print_volt(power->param[CISTPL_POWER_VNOM]);
     }
     if (power->present & (1<<CISTPL_POWER_VMIN)) {
-	if (!first) putchar(','); else first = 0;
-	printf(" Vmin ");
+	printf(" Vmin "); i++;
 	print_volt(power->param[CISTPL_POWER_VMIN]);
     }
     if (power->present & (1<<CISTPL_POWER_VMAX)) {
-	if (!first) putchar(','); else first = 0;
- 	printf(" Vmax ");
+ 	printf(" Vmax "); i++;
 	print_volt(power->param[CISTPL_POWER_VMAX]);
     }
-    printf("\n       "); first = 1;
     if (power->present & (1<<CISTPL_POWER_ISTATIC)) {
-	first = 0;
-	printf(" Istatic ");
+	printf(" Istatic "); i++;
 	print_current(power->param[CISTPL_POWER_ISTATIC]);
     }
     if (power->present & (1<<CISTPL_POWER_IAVG)) {
-	if (!first) putchar(','); else first = 0;
+	if (++i == 5) printf("\n%s   ", indent);
 	printf(" Iavg ");
 	print_current(power->param[CISTPL_POWER_IAVG]);
     }
     if (power->present & (1<<CISTPL_POWER_IPEAK)) {
-	if (!first) putchar(','); else first = 0;
+	if (++i == 5) printf("\n%s ", indent);
 	printf(" Ipeak ");
 	print_current(power->param[CISTPL_POWER_IPEAK]);
     }
     if (power->present & (1<<CISTPL_POWER_IDOWN)) {
-	if (!first) putchar(','); else first = 0;
+	if (++i == 5) printf("\n%s ", indent);
 	printf(" Idown ");
 	print_current(power->param[CISTPL_POWER_IDOWN]);
     }
     if (power->flags & CISTPL_POWER_HIGHZ_OK) {
-	if (!first) putchar(','); else first = 0;
-	printf(" highz OK");
+	if (++i == 5) printf("\n%s ", indent);
+	printf(" [highz OK]");
     }
     if (power->flags & CISTPL_POWER_HIGHZ_REQ) {
-	if (!first) putchar(','); else first = 0;
-	printf(" highz");
+	printf(" [highz]");
     }
-    printf("\n");
+    putchar('\n');
 }
 
 /*====================================================================*/
@@ -279,11 +268,11 @@ static void print_cftable_entry(cistpl_cftable_entry_t *entry)
 {
     int i;
     
-    printf("  Config entry %#2.2x%s:\n", entry->index,
-	   (entry->flags & CISTPL_CFTABLE_DEFAULT) ? " (default)" : "");
+    printf("%scftable_entry 0x%2.2x%s\n", indent, entry->index,
+	   (entry->flags & CISTPL_CFTABLE_DEFAULT) ? " [default]" : "");
 
     if (entry->flags & ~CISTPL_CFTABLE_DEFAULT) {
-	printf(" ");
+	printf("%s ", indent);
 	if (entry->flags & CISTPL_CFTABLE_BVDS)
 	    printf(" [bvd]");
 	if (entry->flags & CISTPL_CFTABLE_WP)
@@ -298,7 +287,7 @@ static void print_cftable_entry(cistpl_cftable_entry_t *entry)
 	    printf(" [readonly]");
 	if (entry->flags & CISTPL_CFTABLE_PWRDOWN)
 	    printf(" [pwrdown]");
-	printf("\n");
+	putchar('\n');
     }
     
     if (entry->vcc.present)
@@ -310,7 +299,7 @@ static void print_cftable_entry(cistpl_cftable_entry_t *entry)
 
     if ((entry->timing.wait != 0) || (entry->timing.ready != 0) ||
 	(entry->timing.reserved != 0)) {
-	printf("  Timing:");
+	printf("%s  timing", indent);
 	if (entry->timing.wait != 0) {
 	    printf(" wait ");
 	    print_time(entry->timing.wait, entry->timing.waitscale);
@@ -323,45 +312,50 @@ static void print_cftable_entry(cistpl_cftable_entry_t *entry)
 	    printf(" reserved ");
 	    print_time(entry->timing.reserved, entry->timing.rsvscale);
 	}
-	printf("\n");
+	putchar('\n');
     }
     
     if (entry->io.nwin) {
 	cistpl_io_t *io = &entry->io;
-	printf("  I/O windows: [lines = %d]",
-	       io->flags & CISTPL_IO_LINES_MASK);
-	if (io->flags & CISTPL_IO_8BIT) printf(" [8 bit]");
-	if (io->flags & CISTPL_IO_16BIT) printf(" [16 bit]");
+	printf("%s  io", indent);
+	for (i = 0; i < io->nwin; i++) {
+	    if (i) putchar(',');
+	    printf(" 0x%4.4x-0x%4.4x", io->win[i].base,
+		   io->win[i].base+io->win[i].len-1);
+	}
+	printf(" [lines=%d]", io->flags & CISTPL_IO_LINES_MASK);
+	if (io->flags & CISTPL_IO_8BIT) printf(" [8bit]");
+	if (io->flags & CISTPL_IO_16BIT) printf(" [16bit]");
 	if (io->flags & CISTPL_IO_RANGE) printf(" [range]");
-	printf("\n");
-	for (i = 0; i < io->nwin; i++)
-	    printf("    base = %#4.4x, length = %#4.4x\n",
-		   io->win[i].base, io->win[i].len);
+	putchar('\n');
     }
 
     if (entry->irq.IRQInfo1) {
-	printf("  Interrupt ");
+	printf("%s  irq ", indent);
 	if (entry->irq.IRQInfo1 & IRQ_INFO2_VALID)
-	    printf("mask = 0x%04x", entry->irq.IRQInfo2);
+	    printf("mask 0x%04x", entry->irq.IRQInfo2);
 	else
 	    printf("%u", entry->irq.IRQInfo1 & IRQ_MASK);
 	if (entry->irq.IRQInfo1 & IRQ_LEVEL_ID) printf(" [level]");
 	if (entry->irq.IRQInfo1 & IRQ_PULSE_ID) printf(" [pulse]");
 	if (entry->irq.IRQInfo1 & IRQ_SHARE_ID) printf(" [shared]");
-	printf("\n");
+	putchar('\n');
     }
 
     if (entry->mem.nwin) {
 	cistpl_mem_t *mem = &entry->mem;
-	printf("  Memory windows:\n");
-	for (i = 0; i < mem->nwin; i++)
-	    printf("    card = 0x%4.4x, host = 0x%4.4lx, length = "
-		   "0x%4.4x\n", mem->win[i].card_addr,
-		   (u_long)mem->win[i].host_addr, mem->win[i].len);
+	printf("%s  memory", indent);
+	for (i = 0; i < mem->nwin; i++) {
+	    if (i) putchar(',');
+	    printf(" 0x%4.4x-0x%4.4x @ 0x%4.4x", mem->win[i].card_addr,
+		   mem->win[i].card_addr + mem->win[i].len-1,
+		   mem->win[i].host_addr);
+	}
+	putchar('\n');
     }
 
-    if (entry->subtuples)
-	printf("  %d bytes in subtuples\n", entry->subtuples);
+    if (verbose && entry->subtuples)
+	printf("%s  %d bytes in subtuples\n", indent, entry->subtuples);
     
 }
 
@@ -371,11 +365,11 @@ static void print_cftable_entry_cb(cistpl_cftable_entry_cb_t *entry)
 {
     int i;
     
-    printf("  Config entry %#2.2x%s:\n", entry->index,
-	   (entry->flags & CISTPL_CFTABLE_DEFAULT) ? " (default)" : "");
+    printf("%scftable_entry_cb 0x%2.2x%s\n", indent, entry->index,
+	   (entry->flags & CISTPL_CFTABLE_DEFAULT) ? " [default]" : "");
 
     if (entry->flags & ~CISTPL_CFTABLE_DEFAULT) {
-	printf(" ");
+	printf("%s ", indent);
 	if (entry->flags & CISTPL_CFTABLE_MASTER)
 	    printf(" [master]");
 	if (entry->flags & CISTPL_CFTABLE_INVALIDATE)
@@ -394,7 +388,7 @@ static void print_cftable_entry_cb(cistpl_cftable_entry_cb_t *entry)
 	    printf(" [binary audio]");
 	if (entry->flags & CISTPL_CFTABLE_PWM_AUDIO)
 	    printf(" [pwm audio]");
-	printf("\n");
+	putchar('\n');
     }
     
     if (entry->vcc.present)
@@ -405,45 +399,46 @@ static void print_cftable_entry_cb(cistpl_cftable_entry_cb_t *entry)
 	print_power("Vpp2", &entry->vpp2);
 
     if (entry->io) {
-	printf("  IO base registers: ");
+	printf("%s  io_base", indent);
 	for (i = 0; i < 8; i++)
 	    if (entry->io & (1<<i)) printf(" %d", i);
-	printf("\n");
+	putchar('\n');
     }
 
     if (entry->irq.IRQInfo1) {
-	printf("  Interrupt ");
+	printf("%s  irq ", indent);
 	if (entry->irq.IRQInfo1 & IRQ_INFO2_VALID)
-	    printf("mask = 0x%#4.4x", entry->irq.IRQInfo2);
+	    printf("mask 0x%4.4x", entry->irq.IRQInfo2);
 	else
 	    printf("%u", entry->irq.IRQInfo1 & IRQ_MASK);
 	if (entry->irq.IRQInfo1 & IRQ_LEVEL_ID) printf(" [level]");
 	if (entry->irq.IRQInfo1 & IRQ_PULSE_ID) printf(" [pulse]");
 	if (entry->irq.IRQInfo1 & IRQ_SHARE_ID) printf(" [shared]");
-	printf("\n");
+	putchar('\n');
     }
 
     if (entry->mem) {
-	printf("  Memory base registers: ");
+	printf("%s  mem_base", indent);
 	for (i = 0; i < 8; i++)
 	    if (entry->mem & (1<<i)) printf(" %d", i);
-	printf("\n");
+	putchar('\n');
     }
 
-    if (entry->subtuples)
-	printf("  %d bytes in subtuples\n", entry->subtuples);
+    if (verbose && entry->subtuples)
+	printf("%s  %d bytes in subtuples\n", indent,  entry->subtuples);
     
 }
 
 /*====================================================================*/
 
-static void print_jedec(cistpl_jedec_t *jedec)
+static void print_jedec(cistpl_jedec_t *j)
 {
     int i;
-    for (i = 0; i < jedec->nid; i++) {
-	printf("    mfr 0x%02x, info 0x%02x\n",
-	       jedec->id[i].mfr, jedec->id[i].info);
+    for (i = 0; i < j->nid; i++) {
+	if (i != 0) putchar(',');
+	printf(" 0x%02x 0x%02x", j->id[i].mfr, j->id[i].info);
     }
+    putchar('\n');
 }
 
 /*====================================================================*/
@@ -452,8 +447,8 @@ static void print_device_geo(cistpl_device_geo_t *geo)
 {
     int i;
     for (i = 0; i < geo->ngeo; i++) {
-	printf("    bus %d, erase %#x, read %#x, write %#x, "
-	       "partition %#x, interleave %#x\n",
+	printf("%s  width %d erase 0x%x read 0x%x write 0x%x "
+	       "partition 0x%x interleave 0x%x\n", indent,
 	       geo->geo[i].buswidth, geo->geo[i].erase_block,
 	       geo->geo[i].read_block, geo->geo[i].write_block,
 	       geo->geo[i].partition, geo->geo[i].interleave);
@@ -464,19 +459,19 @@ static void print_device_geo(cistpl_device_geo_t *geo)
 
 static void print_org(cistpl_org_t *org)
 {
-    printf("  Data organization: ");
+    printf("%sdata_org ", indent);
     switch (org->data_org) {
     case CISTPL_ORG_FS:
-	printf("filesystem"); break;
+	printf("[filesystem]"); break;
     case CISTPL_ORG_APPSPEC:
-	printf("app-specific"); break;
+	printf("[app_specific]"); break;
     case CISTPL_ORG_XIP:
-	printf("executable code"); break;
+	printf("[code]"); break;
     default:
 	if (org->data_org < 0x80)
-	    printf("reserved");
+	    printf("[reserved]");
 	else
-	    printf("vendor-specific");
+	    printf("[vendor_specific]");
     }
     printf(", \"%s\"\n", org->desc);
 }
@@ -497,16 +492,16 @@ static void print_fixed(cistpl_funce_t *funce)
     switch (funce->type) {
     case CISTPL_FUNCE_IDE_IFACE:
 	i = (cistpl_ide_interface_t *)(funce->data);
-	printf("  Fixed-disk interface: ");
+	printf("%sdisk_interface ", indent);
 	if (i->interface == CISTPL_IDE_INTERFACE)
-	    printf("IDE\n");
+	    printf("[ide]\n");
 	else
-	    printf("Undefined\n");
+	    printf("[undefined]\n");
 	break;
     case CISTPL_FUNCE_IDE_MASTER:
     case CISTPL_FUNCE_IDE_SLAVE:
 	f = (cistpl_ide_feature_t *)(funce->data);
-	printf("  Fixed-disk features:");
+	printf("%sdisk_features", indent);
 	if (f->feature1 & CISTPL_IDE_SILICON)
 	    printf(" [silicon]");
 	else
@@ -518,7 +513,7 @@ static void print_fixed(cistpl_funce_t *funce)
 	else
 	    printf(" [single]");
 	if (f->feature1 && f->feature2)
-	    printf("\n    ");
+	    printf("\n%s ", indent);
 	if (f->feature2 & CISTPL_IDE_HAS_SLEEP)
 	    printf(" [sleep]");
 	if (f->feature2 & CISTPL_IDE_HAS_STANDBY)
@@ -533,7 +528,7 @@ static void print_fixed(cistpl_funce_t *funce)
 	    printf(" [index]");
 	if (f->feature2 & CISTPL_IDE_IOIS16)
 	    printf(" [iois16]");
-	printf("\n");
+	putchar('\n');
 	break;
     }
 }
@@ -541,14 +536,14 @@ static void print_fixed(cistpl_funce_t *funce)
 /*====================================================================*/
 
 static const char *tech[] = {
-    "Undefined", "ARCnet", "Ethernet", "Token-Ring", "Localtalk",
-    "FDDI/CDDI", "ATM", "Wireless"
+    "undefined", "ARCnet", "ethernet", "token_ring", "localtalk",
+    "FDDI/CDDI", "ATM", "wireless"
 };
 
 static const char *media[] = {
-    "Undefined", "Unshielded Twisted Pair", "Shielded Twisted Pair",
-    "Thin Coax", "Thick Coax", "Fiber", "900 MHz", "2.4 GHz",
-    "5.4 GHz", "Diffuse Infrared", "Point-to-Point Infrared"
+    "undefined", "unshielded_twisted_pair", "shielded_twisted_pair",
+    "thin_coax", "thick_coax", "fiber", "900_MHz", "2.4_GHz",
+    "5.4_GHz", "diffuse_infrared", "point_to_point_infrared"
 };
 
 static void print_network(cistpl_funce_t *funce)
@@ -563,28 +558,28 @@ static void print_network(cistpl_funce_t *funce)
     switch (funce->type) {
     case CISTPL_FUNCE_LAN_TECH:
 	t = (cistpl_lan_tech_t *)(funce->data);
-	printf("  LAN technology: %s\n", tech[t->tech]);
+	printf("%slan_technology %s\n", indent, tech[t->tech]);
 	break;
     case CISTPL_FUNCE_LAN_SPEED:
 	s = (cistpl_lan_speed_t *)(funce->data);
-	printf("  LAN speed: ");
+	printf("%slan_speed ", indent);
 	print_speed(s->speed);
-	printf("\n");
+	putchar('\n');
 	break;
     case CISTPL_FUNCE_LAN_MEDIA:
 	m = (cistpl_lan_media_t *)(funce->data);
-	printf("  LAN media: %s\n", media[m->media]);
+	printf("%slan_media %s\n", indent, media[m->media]);
 	break;
     case CISTPL_FUNCE_LAN_NODE_ID:
 	n = (cistpl_lan_node_id_t *)(funce->data);
-	printf("  LAN node ID:");
+	printf("%slan_node_id", indent);
 	for (i = 0; i < n->nb; i++)
 	    printf(" %02x", n->id[i]);
-	printf("\n");
+	putchar('\n');
 	break;
     case CISTPL_FUNCE_LAN_CONNECTOR:
 	c = (cistpl_lan_connector_t *)(funce->data);
-	printf("  LAN connector: ");
+	printf("%slan_connector ", indent);
 	if (c->code == 0)
 	    printf("Open connector standard\n");
 	else
@@ -595,19 +590,58 @@ static void print_network(cistpl_funce_t *funce)
 
 /*====================================================================*/
 
-void print_vers_2(cistpl_vers_2_t *v2)
+static void print_vers_1(cistpl_vers_1_t *v1)
 {
-    printf("  Version 0x%2.2x, compliance 0x%2.2x, dindex 0x%4.4x\n",
-	   v2->vers, v2->comply, v2->dindex);
-    printf("  vspec8 = 0x%2.2x, vspec9 = 0x%2.2x, nhdr = %d\n",
-	   v2->vspec8, v2->vspec9, v2->nhdr);
-    printf("  Vendor \"%s\"\n", v2->str+v2->vendor);
-    printf("  Info: %s\n", v2->str+v2->info);
+    int i, n;
+    char s[32];
+    sprintf(s, "%svers_1 %d.%d", indent, v1->major, v1->minor);
+    printf("%s", s);
+    n = strlen(s);
+    for (i = 0; i < v1->ns; i++) {
+	if (n + strlen(v1->str + v1->ofs[i]) + 4 > 72) {
+	    n = strlen(indent) + 2;
+	    printf(",\n%s  ", indent);
+	} else {
+	    printf(", ");
+	    n += 2;
+	}
+	printf("\"%s\"", v1->str + v1->ofs[i]);
+	n += strlen(v1->str + v1->ofs[i]) + 2;
+    }
+    putchar('\n');
 }
 
 /*====================================================================*/
 
-void print_parse(tuple_parse_t *tup)
+static void print_vers_2(cistpl_vers_2_t *v2)
+{
+    printf("%sversion 0x%2.2x, compliance 0x%2.2x, dindex 0x%4.4x\n",
+	   indent, v2->vers, v2->comply, v2->dindex);
+    printf("%s  vspec8 0x%2.2x, vspec9 0x%2.2x, nhdr %d\n",
+	   indent, v2->vspec8, v2->vspec9, v2->nhdr);
+    printf("%s  vendor \"%s\"\n", indent, v2->str+v2->vendor);
+    printf("%s  info \"%s\"\n", indent, v2->str+v2->info);
+}
+
+/*====================================================================*/
+
+static void print_config(int code, cistpl_config_t *cfg)
+{
+    printf("%sconfig%s base 0x%4.4x", indent,
+	   (code == CISTPL_CONFIG_CB) ? "_cb" : "",
+	   cfg->base);
+    if (code == CISTPL_CONFIG)
+	printf(" mask 0x%4.4x", cfg->rmask[0]);
+    printf(" last_index 0x%2.2x\n", cfg->last_idx);
+    if (verbose && cfg->subtuples)
+	printf("%s  %d bytes in subtuples\n", indent, cfg->subtuples);
+}
+
+/*====================================================================*/
+
+static int nfn = 0, cur = 0;
+
+static void print_parse(tuple_parse_t *tup)
 {
     static int func = 0;
     int i;
@@ -616,65 +650,75 @@ void print_parse(tuple_parse_t *tup)
     case CISTPL_DEVICE:
     case CISTPL_DEVICE_A:
 	if (tup->tuple.TupleCode == CISTPL_DEVICE)
-	    printf("  Common memory devices: \n");
+	    printf("%sdev_info\n", indent);
 	else
-	    printf("  Attribute memory devices: \n");
+	    printf("%sattr_dev_info\n", indent);
 	print_device(&tup->parse.device);
 	break;
     case CISTPL_CHECKSUM:
-	printf("  Checksum start 0x%04x, len 0x%04x, sum 0x%02x\n",
-	       tup->parse.checksum.addr, tup->parse.checksum.len,
+	printf("%schecksum 0x%04x-0x%04x = 0x%02x\n",
+	       indent, tup->parse.checksum.addr,
+	       tup->parse.checksum.addr+tup->parse.checksum.len-1,
 	       tup->parse.checksum.sum);
 	break;
     case CISTPL_LONGLINK_A:
-	printf("  Long link attr 0x%04x\n", tup->parse.longlink.addr);
+	if (verbose)
+	    printf("%slong_link_attr 0x%04x\n", indent,
+		   tup->parse.longlink.addr);
 	break;
     case CISTPL_LONGLINK_C:
-	printf("  Long link common 0x%04x\n", tup->parse.longlink.addr);
+	if (verbose)
+	    printf("%slong_link 0x%04x\n", indent,
+		   tup->parse.longlink.addr);
 	break;
     case CISTPL_LONGLINK_MFC:
-	printf("  Multifunction long links:\n");
-	for (i = 0; i < tup->parse.longlink_mfc.nfn; i++)
-	    printf("   function %d: %s 0x%04x\n", i,
-		   tup->parse.longlink_mfc.fn[i].space ? "common" : "attr",
-		   tup->parse.longlink_mfc.fn[i].addr);
+	if (verbose) {
+	    printf("%smfc_long_link\n", indent);
+	    for (i = 0; i < tup->parse.longlink_mfc.nfn; i++)
+		printf("%s function %d: %s 0x%04x\n", indent, i,
+		       tup->parse.longlink_mfc.fn[i].space ? "common" : "attr",
+		       tup->parse.longlink_mfc.fn[i].addr);
+	} else {
+	    printf("%smfc {\n", indent);
+	    nfn = tup->parse.longlink_mfc.nfn;
+	    cur = 0;
+	    strcat(indent, "  ");
+	}
 	break;
     case CISTPL_NO_LINK:
-	printf("  No long link present\n");
+	if (verbose)
+	    printf("%sno_long_link\n", indent);
 	break;
     case CISTPL_LINKTARGET:
-	printf("  Link target\n");
+	if (verbose)
+	    printf("%slink_target\n", indent);
+	else {
+	    if (cur++) printf("%s}, {\n", indent+2);
+	}
 	break;
     case CISTPL_VERS_1:
-	printf("  Version %d.%d\n", tup->parse.version_1.major,
-	       tup->parse.version_1.minor);
-	for (i = 0; i < tup->parse.version_1.ns; i++) {
-	    printf("%s", (i == 0) ? "  " : ", ");
-	    printf("\"%s\"", tup->parse.version_1.str +
-		   tup->parse.version_1.ofs[i]);
-	}
-	printf("\n");
+	print_vers_1(&tup->parse.version_1);
 	break;
     case CISTPL_ALTSTR:
 	break;
     case CISTPL_JEDEC_A:
     case CISTPL_JEDEC_C:
 	if (tup->tuple.TupleCode == CISTPL_JEDEC_C)
-	    printf("  Common memory JEDEC: \n");
+	    printf("%scommon_jedec", indent);
 	else
-	    printf("  Attribute memory JEDEC: \n");
+	    printf("%sattr_jedec", indent);
 	print_jedec(&tup->parse.jedec);
 	break;
     case CISTPL_DEVICE_GEO:
     case CISTPL_DEVICE_GEO_A:
 	if (tup->tuple.TupleCode == CISTPL_DEVICE_GEO)
-	    printf("  Common memory device geometry: \n");
+	    printf("%scommon_geometry\n", indent);
 	else
-	    printf("  Attribute memory device geometry: \n");
+	    printf("%sattr_geometry\n", indent);
 	print_device_geo(&tup->parse.device_geo);
 	break;
     case CISTPL_MANFID:
-	printf("  Manufacturer %#4.4x, card ID %#4.4x\n",
+	printf("%smanfid 0x%4.4x, 0x%4.4x\n", indent,
 	       tup->parse.manfid.manf, tup->parse.manfid.card);
 	break;
     case CISTPL_FUNCID:
@@ -695,7 +739,7 @@ void print_parse(tuple_parse_t *tup)
 	}
 	break;
     case CISTPL_BAR:
-	printf("  Base address register %d: size = ",
+	printf("%sBAR %d size ", indent,
 	       tup->parse.bar.attr & CISTPL_BAR_SPACE);
 	print_size(tup->parse.bar.size);
 	if (tup->parse.bar.attr & CISTPL_BAR_SPACE_IO)
@@ -707,26 +751,12 @@ void print_parse(tuple_parse_t *tup)
 	if (tup->parse.bar.attr & CISTPL_BAR_CACHEABLE)
 	    printf(" [cacheable]");
 	if (tup->parse.bar.attr & CISTPL_BAR_1MEG_MAP)
-	    printf(" [below 1mb]");
-	printf("\n");
+	    printf(" [<1mb]");
+	putchar('\n');
 	break;
     case CISTPL_CONFIG:
     case CISTPL_CONFIG_CB:
-	printf("  Config base = %#4.4x, ", tup->parse.config.base);
-	if (tup->tuple.TupleCode == CISTPL_CONFIG)
-	    printf("mask = %#4.4x, ", tup->parse.config.rmask[0]);
-	printf("last config index = %#2.2x\n",
-	       tup->parse.config.last_idx);
-	if (tup->parse.config.subtuples)
-	    printf("  %d bytes in subtuples\n",
-		   tup->parse.config.subtuples);
-	break;
-	printf("  Config base = %#4.4x, ", tup->parse.config.base);
-	printf("last config index = %#2.2x\n",
-	       tup->parse.config.last_idx);
-	if (tup->parse.config.subtuples)
-	    printf("  %d bytes in subtuples\n",
-		   tup->parse.config.subtuples);
+	print_config(tup->tuple.TupleCode, &tup->parse.config);
 	break;
     case CISTPL_CFTABLE_ENTRY:
 	print_cftable_entry(&tup->parse.cftable_entry);
@@ -745,13 +775,72 @@ void print_parse(tuple_parse_t *tup)
 
 /*====================================================================*/
 
+static int get_tuple_buf(int fd, ds_ioctl_arg_t *arg, int first)
+{
+    u_int ofs;
+    static int nb = 0;
+    static u_char buf[1024];
+    
+    if (first) {
+	nb = read(fd, buf, sizeof(buf));
+	arg->tuple.TupleLink = arg->tuple.CISOffset = 0;
+    }
+    ofs = arg->tuple.CISOffset + arg->tuple.TupleLink;
+    if (ofs >= nb) return -1;
+    arg->tuple.TupleCode = buf[ofs++];
+    arg->tuple.TupleDataLen = arg->tuple.TupleLink = buf[ofs++];
+    arg->tuple.CISOffset = ofs;
+    memcpy(arg->tuple_parse.data, buf+ofs, arg->tuple.TupleLink);
+    return 0;
+}
+
+static int get_tuple(int fd, ds_ioctl_arg_t *arg, int first)
+{
+    int cmd = (first) ? DS_GET_FIRST_TUPLE : DS_GET_NEXT_TUPLE;
+    if (ioctl(fd, cmd, arg) != 0) {
+	if (errno == ENODEV)
+	    printf("%sno card\n", indent);
+	else if (errno != ENODATA)
+	    printf("%sget tuple: %s\n", indent, strerror(errno));
+	return -1;
+    }
+    if (ioctl(fd, DS_GET_TUPLE_DATA, arg) != 0) {
+	printf("%sget tuple data: %s\n", indent, strerror(errno));
+	return -1;
+    }
+    return 0;
+}
+
+/*====================================================================*/
+
 #define MAX_SOCKS 8
 
 int main(int argc, char *argv[])
 {
-    int i, fd, ret;
+    int i, fd, pfd;
     ds_ioctl_arg_t arg;
+    int optch, errflg, first;
+    int force = 0;
+    char *infile = NULL;
 
+    errflg = 0;
+    while ((optch = getopt(argc, argv, "fvi:")) != -1) {
+	switch (optch) {
+	case 'f':
+	    force = 1; break;
+	case 'v':
+	    verbose = 1; break;
+	case 'i':
+	    infile = strdup(optarg); break;
+	default:
+	    errflg = 1; break;
+	}
+    }
+    if (errflg || (optind < argc)) {
+	fprintf(stderr, "usage: %s [-v] [-f]\n", argv[0]);
+	exit(EXIT_FAILURE);
+    }
+    
 #ifdef __linux__
     major = lookup_dev("pcmcia");
     if (major < 0) {
@@ -760,49 +849,58 @@ int main(int argc, char *argv[])
     }
 #endif
     
-    for (i = 0; i < MAX_SOCKS; i++) {
-	fd = open_sock(i);
-	if (fd < 0) break;
-	printf("Socket %d:\n", i);
-	ret = ioctl(fd, DS_VALIDATE_CIS, &arg);
-	if (ret != 0) {
-	    perror("invalid CIS");
-	    continue;
+    arg.tuple.TupleDataMax = sizeof(arg.tuple_parse.data);
+    arg.tuple.Attributes = TUPLE_RETURN_LINK | TUPLE_RETURN_COMMON;
+    arg.tuple.DesiredTuple = RETURN_FIRST_TUPLE;
+    arg.tuple.TupleOffset = 0;
+
+    for (i = 0; (i < MAX_SOCKS) && !(i && infile); i++) {
+	nfn = cur = 0;
+	if (infile) {
+	    indent[0] = '\0';
+	    fd = open(infile, O_RDONLY);
+	    if (fd < 0) {
+		perror("open()");
+		return -1;
+	    }
+	    pfd = open_sock(0);
+	} else {
+	    strcpy(indent, "  ");
+	    fd = pfd = open_sock(i);
+	    if (fd < 0) break;
 	}
-	if (arg.cisinfo.Chains == 0) {
-	    fprintf(stderr, "no CIS found\n");
-	    continue;
+	if (!verbose && (i > 0)) putchar('\n');
+	if (!infile) printf("Socket %d:\n", i);
+	
+	if (!force && !infile) {
+	    if (ioctl(fd, DS_VALIDATE_CIS, &arg) != 0) {
+		printf("%svalidate CIS: %s\n", indent, strerror(errno));
+		continue;
+	    }
+	    if (arg.cisinfo.Chains == 0) {
+		printf("%sno CIS present\n", indent);
+		continue;
+	    }
 	}
-	arg.tuple.TupleDataMax = sizeof(arg.tuple_parse.data);
-	arg.tuple.Attributes = TUPLE_RETURN_LINK | TUPLE_RETURN_COMMON;
-	arg.tuple.DesiredTuple = RETURN_FIRST_TUPLE;
-	arg.tuple.TupleOffset = 0;
-	ret = ioctl(fd, DS_GET_FIRST_TUPLE, &arg);
-	if (ret != 0) {
-	    perror("no first tuple");
-	    continue;
-	}
-	for (;;) {
-	    if (ioctl(fd, DS_GET_TUPLE_DATA, &arg) == 0) {
-		print_tuple(&arg.tuple_parse);
-		ret = ioctl(fd, DS_PARSE_TUPLE, &arg);
-		if (ret != 0) {
-		    if (errno != ENOSYS)
-			printf("  parse error: %s\n", strerror(errno));
-		} else
-		    print_parse(&arg.tuple_parse);
+	
+	for (first = 1; ; first = 0) {
+	    if (infile) {
+		if (get_tuple_buf(fd, &arg, first) != 0) break;
 	    } else {
-		printf("  get tuple data: %s\n", strerror(errno));
-		break;
+		if (get_tuple(fd, &arg, first) != 0) break;
 	    }
-	    printf("\n");
-	    ret = ioctl(fd, DS_GET_NEXT_TUPLE, &arg);
-	    if (ret != 0) {
-		if (errno != ENOSPC)
-		    printf("next tuple: %s\n", strerror(errno));
-		break;
-	    }
+	    if (verbose) print_tuple(&arg.tuple_parse);
+	    if (ioctl(pfd, DS_PARSE_TUPLE, &arg) == 0)
+		print_parse(&arg.tuple_parse);
+	    else if (errno != ENOSYS)
+		printf("%sparse error: %s\n", indent,
+		       strerror(errno));
+	    if (verbose) putchar('\n');
 	}
+	
+	if (!verbose && (nfn > 0))
+	    printf("%s}\n", indent+2);
     }
+    
     return 0;
 }

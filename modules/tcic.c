@@ -2,7 +2,7 @@
 
     Device driver for Databook TCIC-2 PCMCIA controller
 
-    tcic.c 1.95 1998/07/09 23:44:16
+    tcic.c 1.96 1998/08/13 09:26:20
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -50,7 +50,7 @@
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"tcic.c 1.95 1998/07/09 23:44:16 (David Hinds)";
+"tcic.c 1.96 1998/08/13 09:26:20 (David Hinds)";
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 #else
 #define DEBUG(n, args...)
@@ -640,16 +640,17 @@ static int tcic_get_socket(u_short lsock, socket_state_t *state)
 
     reg = tcic_getb(TCIC_PWR);
     state->Vcc = state->Vpp = 0;
-    if (reg & TCIC_PWR_VCC(psock))
+    if (reg & TCIC_PWR_VCC(psock)) {
 	if (reg & TCIC_PWR_VPP(psock))
 	    state->Vcc = 50;
 	else
 	    state->Vcc = state->Vpp = 50;
-    else
+    } else {
 	if (reg & TCIC_PWR_VPP(psock)) {
 	    state->Vcc = 50;
 	    state->Vpp = 120;
 	}
+    }
     reg = tcic_aux_getb(TCIC_AUX_ILOCK);
     state->flags |= (reg & TCIC_ILOCK_CRESET) ? SS_RESET : 0;
 

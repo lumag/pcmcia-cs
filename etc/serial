@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.26 1998/05/22 09:05:50 (David Hinds)
+# serial 1.27 1998/08/20 23:01:07 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -38,14 +38,14 @@ case "$ACTION" in
 	cd /dev
 	./MAKEDEV $DEVICE
     fi
-    if [ "$LINK" != "" ] ; then
+    if [ "$LINK" ] ; then
 	mv -f $LINK $LINK.O 2>/dev/null
 	ln -s /dev/$DIALOUT $LINK
     fi
-    if [ "$SERIAL_OPTS" != "" ] ; then
+    if [ "$SERIAL_OPTS" ] ; then
 	setserial /dev/$DEVICE $SERIAL_OPTS
     fi
-    if [ "$INITTAB" != "" ] ; then
+    if [ "$INITTAB" ] ; then
 	echo "S$NR:12345:respawn:$INITTAB $DEVICE" >> /etc/inittab
 	telinit q
     fi
@@ -60,7 +60,7 @@ case "$ACTION" in
     ;;
     
 'stop')
-    if [ "$INITTAB" != "" ] ; then
+    if [ "$INITTAB" ] ; then
 	fgrep -v $DEVICE /etc/inittab > /etc/inittab.new
 	mv /etc/inittab.new /etc/inittab
 	telinit q
@@ -74,7 +74,7 @@ case "$ACTION" in
     ;;
 
 'resume')
-    if [ "$SERIAL_OPTS" != "" ] ; then
+    if [ "$SERIAL_OPTS" ] ; then
 	setserial /dev/$DEVICE $SERIAL_OPTS
     fi
     fuser -s -k -CONT /dev/$DEVICE /dev/$DIALOUT $LINK

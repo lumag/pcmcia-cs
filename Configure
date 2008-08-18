@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.76 1998/07/18 09:38:14
+# Configure 1.78 1998/08/20 22:59:14
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -279,7 +279,7 @@ echo "" >> $CONFIG_H
 
 case $src in
     1)
-	if /sbin/ksyms -a | grep -q printk ; then
+	if [ -x /sbin/ksyms ] ; then
 	    KSYMS="/sbin/ksyms -a"
 	else
 	    echo "Hmmm... /sbin/ksyms is broken.  Using /proc/ksyms..."
@@ -396,7 +396,7 @@ if [ ! -r $LINUX/include/asm ] ; then
 fi
 
 if [ "$CONFIG_SMP" = "y" ] ; then
-    echo "#define __SMP__" >> $CONFIG_H
+    echo "#define __SMP__ 1" >> $CONFIG_H
 fi
 
 echo "" >> $CONFIG

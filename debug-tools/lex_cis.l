@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_cis.l 1.4 1998/07/17 17:11:47
+ * lex_cis.l 1.6 1998/08/02 11:56:35
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -20,11 +20,12 @@
  * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
-#include <sys/types.h>
+#undef src
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <syslog.h>
+#define src 1
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cistpl.h>
@@ -35,9 +36,10 @@
 /* For assembling nice error messages */
 int current_lineno;
 
-static int lex_number(char *s);
-static int lex_float(char *s);
-static int lex_string(char *s);
+static int lex_number(char *);
+static int lex_units(char *, int, int);
+static int lex_float(char *);
+static int lex_string(char *);
 
 %}
 
@@ -52,16 +54,30 @@ str	\"([^"]|\\.)*\"
 [ \t]*		/* skip */ ;
 [ ]*[#;].*	/* skip */ ;
 
-mfc		return MFC;
-
-vers_1		return VERS_1;
-manfid		return MANFID;
-
 funcid		return FUNCID;
+mfc		return MFC;
+manfid		return MANFID;
+vers_1		return VERS_1;
+checksum	return CHECKSUM;
+
+dev_info	return DEV_INFO;
+attr_dev_info	return ATTR_DEV_INFO;
+no_info		return NO_INFO;
+ROM		return lex_number("1");
+EPROM		return lex_number("3");
+EEPROM		return lex_number("4");
+FLASH		return lex_number("5");
+SRAM		return lex_number("6");
+DRAM		return lex_number("7");
+fn_specific	return lex_number("13");
+
+config		return CONFIG;
+base		return BASE;
+mask		return MASK;
+last_index	return LAST_INDEX;
 \[post\]	return POST;
 \[rom\]		return ROM;
 
-config		return CONFIG;
 cftable_entry	return CFTABLE;
 \[default\]	return DEFAULT;
 \[bvd\]		return BVD;
@@ -72,28 +88,34 @@ cftable_entry	return CFTABLE;
 \[readonly\]	return READONLY;
 \[pwrdown\]	return PWRDOWN;
 
+Vcc		return VCC;
+Vpp1		return VPP1;
+Vpp2		return VPP2;
 Vnom		return VNOM;
 Vmin		return VMIN;
 Vmax		return VMAX;
 Istatic		return ISTATIC;
 Iavg		return IAVG;
-Imax		return IMAX;
+Ipeak		return IPEAK;
 Idown		return IDOWN;
-
-Vcc		return VCC;
-Vpp1		return VPP1;
-Vpp2		return VPP2;
 
 io		return IO;
 \[8bit\]	return BIT8;
 \[16bit\]	return BIT16;
+\[lines		return LINES;
+\[range\]	return RANGE;
 
 irq		return IRQ_NO;
-mask		return MASK;
 \[level\]	return LEVEL;
 \[pulse\]	return PULSE;
 \[shared\]	return SHARED;
 
+timing		return TIMING;
+wait		return WAIT;
+ready		return READY;
+reserved	return RESERVED;
+
+multi_function	return lex_number("0");
 memory_card	return lex_number("1");
 serial_port	return lex_number("2");
 parallel_port	return lex_number("3");
@@ -104,8 +126,24 @@ aims_card	return lex_number("7");
 scsi_adapter	return lex_number("8");
 
 {int}		return lex_number(yytext);
-
 {hex}		return lex_number(yytext);
+
+{int}b		return lex_units(yytext, 1024*1024, SIZE);
+{int}kb		return lex_units(yytext, 1024, SIZE);
+{int}mb		return lex_units(yytext, 1, SIZE);
+
+{int}s		return lex_units(yytext, 1000000000, TIME);
+{int}ms		return lex_units(yytext, 1000000, TIME);
+{int}us		return lex_units(yytext, 1000, TIME);
+{int}ns		return lex_units(yytext, 1, TIME);
+
+{int}V		return lex_units(yytext, 100000, VOLTAGE);
+{int}mV		return lex_units(yytext, 100, VOLTAGE);
+{int}uV		return lex_units(yytext, 0.1, VOLTAGE);
+
+{int}A		return lex_units(yytext, 10000000, CURRENT);
+{int}mA		return lex_units(yytext, 10000, CURRENT);
+{int}uA		return lex_units(yytext, 10, CURRENT);
 
 {flt}		return lex_float(yytext);
 
@@ -135,6 +173,12 @@ static int lex_float(char *s)
 {
     yylval.flt = strtod(s, NULL);
     return FLOAT;
+}
+
+static int lex_units(char *s, int scale, int token)
+{
+    yylval.num = strtoul(s, NULL, 0) * scale;
+    return token;
 }
 
 static int lex_string(char *s)

@@ -1,5 +1,5 @@
 #
-# Makefile $Revision: 1.30 $ $Date: 1997/10/05 22:54:47 $ (David Hinds)
+# Makefile 1.31 1998/08/13 10:09:03 (David Hinds)
 #
 
 DIRS = modules clients cardmgr flash debug-tools man etc

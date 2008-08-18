@@ -1203,12 +1203,12 @@ static void smc_hardware_send_packet( struct device * dev )
 	    outsl(ioaddr + DATA_1, buf,  length >> 2 );
 	    outw( *((uint16 *)(buf + (length & 0xFFFFFFFC))),ioaddr +DATA_1);
 	} else
-	    outsl(ioaddr + DATA_1, buf,  length >> 2 );
+	    outsl_ns(ioaddr + DATA_1, buf,  length >> 2 );
 #else
 	/* send the packet length: +6 for status words, length, and ctl */
 	outw( 0, ioaddr + DATA_1 );
 	outw(length + 6, ioaddr + DATA_1 );
-	outsw(ioaddr + DATA_1 , buf, length >> 1);
+	outsw_ns(ioaddr + DATA_1 , buf, length >> 1);
 #endif
 	
 	/* The odd last byte, if there is one, goes in the control word. */
@@ -1576,7 +1576,7 @@ static void smc_rx(struct device *dev)
 	
 	packet_length -= (rx_status & RS_ODDFRAME ? 5 : 6);
 
-#define BLOCK_INPUT(buf, len) insw(ioaddr+DATA_1, buf, (len+1)>>1)
+#define BLOCK_INPUT(buf, len) insw_ns(ioaddr+DATA_1, buf, (len+1)>>1)
 	GET_PACKET(dev, skb, packet_length);
 	
 	skb->dev = dev;

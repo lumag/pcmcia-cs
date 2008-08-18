@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2+ Flash devices
 
-    iflash2+_mtd.c 1.44 1998/06/05 00:16:40
+    iflash2+_mtd.c 1.46 1998/07/30 23:15:24
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -28,8 +28,7 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
-/* #define PCMCIA_DEBUG 1 */
-
+#ifdef __LINUX__
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -42,6 +41,8 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/segment.h>
+#endif
+
 #include <stdarg.h>
 
 #include <pcmcia/version.h>
@@ -56,17 +57,24 @@
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"iflash2+_mtd.c 1.44 1998/06/05 00:16:40 (David Hinds)";
+#ifdef __LINUX__
+#define _printk(args...) printk(KERN_DEBUG args)
 #else
-#define DEBUG(n, args...)
+#define _printk printk
+#endif
+#define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
+static char *version =
+"iflash2+_mtd.c 1.46 1998/07/30 23:15:24 (David Hinds)";
+#else
+#define DEBUG(n, args) do { } while (0)
 #endif
 
 /*====================================================================*/
 
 /* Parameters that can be set with 'insmod' */
 
+static int word_width = 1;			/* 1 = 16-bit */
+static int mem_speed = 0;			/* in ns */
 static int vpp_timeout_period	= 1000;		/* in ms */
 static int vpp_settle		= 100;		/* in ms */
 static int write_timeout	= 100;		/* in ms */
@@ -75,6 +83,8 @@ static int erase_limit		= 10000;	/* in ms */
 static int retry_limit		= 4;		/* write retries */
 static u_int max_tries       	= 4096;		/* status polling */
 
+MODULE_PARM(word_width, "i");
+MODULE_PARM(mem_speed, "i");
 MODULE_PARM(vpp_timeout_period, "i");
 MODULE_PARM(vpp_settle, "i");
 MODULE_PARM(write_timeout, "i");
@@ -102,7 +112,7 @@ typedef struct flash_region_t {
     u_int		cell_size;
     struct flash_cell_t {
 	u_int		state;
-	u_int		erase_time;
+	k_time_t	erase_time;
 	u_int		erase_addr;
 	u_int		erase_retries;
     } cell[MAX_CELLS];
@@ -114,7 +124,7 @@ typedef struct flash_dev_t {
     window_handle_t	ESRwin;
     caddr_t		ESRbase;
     int			vpp_usage;
-    u_int		vpp_start;
+    k_time_t		vpp_start;
     struct timer_list	vpp_timeout;
     flash_region_t	*flash[2*CISTPL_MAX_DEVICES];
 } flash_dev_t;
@@ -135,10 +145,10 @@ static void cs_error(client_handle_t handle, int func, int ret)
     CardServices(ReportError, handle, &err);
 }
 
-#ifdef PCMCIA_DEBUG
-static inline u_long uticks(void)
+#ifdef BENCHMARK
+static inline k_time_t uticks(void)
 {
-    u_long count;
+    k_time_t count;
     outb_p(0x00, 0x43);
     count = inb_p(0x40);
     count |= inb(0x40) << 8;
@@ -206,8 +216,10 @@ static int set_rdy_mode(volatile u_short *esr, u_short mode)
 	log_esr(NULL, esr);
 	return CS_GENERAL_FAILURE;
     }
-    if (readw(esr+4) & GSR_OP_ERR)
+    if (readw(esr+4) & GSR_OP_ERR) {
+	printk(KERN_NOTICE "iflash2+_mtd: set_rdy_mode failed!\n");
 	return CS_GENERAL_FAILURE;
+    }
     return CS_SUCCESS;
 }
 
@@ -228,8 +240,7 @@ static int check_write(struct wait_queue **queue, volatile u_short *esr)
     if (readw(esr+2) & BSR_FAILED) {
 	log_esr("write error", esr);
 	return CS_WRITE_FAILURE;
-    }
-    else
+    } else
 	return CS_SUCCESS;
 }
 
@@ -314,13 +325,12 @@ static int check_erase(volatile u_short *address)
     u_short CSR;
     writew(IF_READ_CSR, address);
     CSR = readw(address);
-    if ((CSR & CSR_WR_READY) != CSR_WR_READY)
+    if ((CSR & CSR_WR_READY) != CSR_WR_READY) {
 	return CS_BUSY;
-    else if (CSR & (CSR_ERA_ERR | CSR_VPP_LOW | CSR_WR_ERR)) {
+    } else if (CSR & (CSR_ERA_ERR | CSR_VPP_LOW | CSR_WR_ERR)) {
 	log_esr("erase error", address);
 	return CS_WRITE_FAILURE;
-    }
-    else
+    } else
 	return CS_SUCCESS;
 }
 
@@ -328,7 +338,7 @@ static int suspend_erase(volatile u_short *esr)
 {
     u_short i;
 
-    DEBUG(1, "iflash2+_mtd: suspending erase...\n");
+    DEBUG(1, ("iflash2+_mtd: suspending erase...\n"));
     writew(IF_ERASE_SUSPEND, esr);
     writew(IF_READ_ESR, esr);
     for (i = 0; i < max_tries; i++)
@@ -344,7 +354,7 @@ static int suspend_erase(volatile u_short *esr)
 
 static void resume_erase(volatile u_short *esr)
 {
-    DEBUG(1, "iflash2+_mtd: resuming erase...\n");
+    DEBUG(1, ("iflash2+_mtd: resuming erase...\n"));
     writew(IF_READ_ESR, esr);
     /* Only give resume signal if the erase is really suspended */
     if (readw(esr+4) & GSR_OP_SUSPEND)
@@ -400,7 +410,7 @@ static int vpp_setup(dev_link_t *link, mtd_request_t *req)
 	    if (dev->vpp_timeout.expires)
 		del_timer(&dev->vpp_timeout);
 	    else {
-		DEBUG(1, "iflash2+_mtd: raising Vpp...\n");
+		DEBUG(1, ("iflash2+_mtd: raising Vpp...\n"));
 		dev->vpp_start = jiffies;
 		vpp_req.Vpp1 = vpp_req.Vpp2 = 120;
 		MTDHelperEntry(MTDSetVpp, link->handle, &vpp_req);
@@ -410,7 +420,7 @@ static int vpp_setup(dev_link_t *link, mtd_request_t *req)
     /* Wait for Vpp to settle if it was just applied */
     if (jiffies < dev->vpp_start + vpp_settle) {
 	req->Status = MTD_WAITTIMER;
-	req->Timeout = vpp_settle;
+	req->Timeout = vpp_settle * 1000 / HZ;
 	return 1;
     }
     return 0;
@@ -422,7 +432,7 @@ static void vpp_off(u_long arg)
     flash_dev_t *dev;
     mtd_vpp_req_t req;
 
-    DEBUG(1, "iflash2+_mtd: lowering Vpp...\n");
+    DEBUG(1, ("iflash2+_mtd: lowering Vpp...\n"));
     dev = (flash_dev_t *)link->priv;
     dev->vpp_timeout.expires = 0;
     req.Vpp1 = req.Vpp2 = 0;
@@ -455,7 +465,7 @@ static dev_link_t *flash_attach(void)
     flash_dev_t *dev;
     int ret;
     
-    DEBUG(0, "iflash2+_mtd: flash_attach()\n");
+    DEBUG(0, ("iflash2+_mtd: flash_attach()\n"));
 
     /* Create new memory card device */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
@@ -507,7 +517,7 @@ static void flash_detach(dev_link_t *link)
     int ret;
     long flags;
 
-    DEBUG(0, "iflash2+_mtd: flash_detach(0x%p)\n", link);
+    DEBUG(0, ("iflash2+_mtd: flash_detach(0x%p)\n", link));
     
     /* Locate device structure */
     for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
@@ -564,12 +574,15 @@ static void flash_config(dev_link_t *link)
     region_info_t region;
     int i, attr, ret;
 
-    DEBUG(0, "iflash2+_mtd: flash_config(0x%p)\n", link);
+    DEBUG(0, ("iflash2+_mtd: flash_config(0x%p)\n", link));
 
     /* Allocate a small memory window */
-    req.Attributes = WIN_DATA_WIDTH_16;
+    if (word_width)
+	req.Attributes = WIN_DATA_WIDTH_16;
+    else
+	req.Attributes = WIN_DATA_WIDTH_8;
     req.Base = req.Size = 0;
-    req.AccessSpeed = 0;
+    req.AccessSpeed = mem_speed;
     link->win = (window_handle_t)link->handle;
     ret = MTDHelperEntry(MTDRequestWindow, &link->win, &req);
     if (ret != 0) {
@@ -644,7 +657,7 @@ static void flash_release(u_long arg)
     flash_dev_t *dev;
     int i;
 
-    DEBUG(0, "iflash2+_mtd: flash_release(0x%p)\n", link);
+    DEBUG(0, ("iflash2+_mtd: flash_release(0x%p)\n", link));
 
     link->state &= ~DEV_CONFIG;
     dev = link->priv;
@@ -689,13 +702,13 @@ static int flash_read(dev_link_t *link, char *buf, mtd_request_t *req)
     mtd_mod_win_t mod;
     u_int from, length, nb, cell;
     int ret;
-#ifdef PCMCIA_DEBUG
-    u_long time;
+#ifdef BENCHMARK
+    k_time_t time;
 #endif
     
-    DEBUG(2, "iflash2+_mtd: flash_read(0x%p, 0x%lx, 0x%p, 0x%x, "
-	  "0x%x)\n", link, req->MediaID, buf, req->SrcCardOffset,
-	  req->TransferLength);
+    DEBUG(2, ("iflash2+_mtd: flash_read(0x%p, 0x%lx, 0x%p, 0x%x, "
+	      "0x%x)\n", link, req->MediaID, buf, req->SrcCardOffset,
+	      req->TransferLength));
 
     flash = (flash_region_t *)(req->MediaID);
     region = &flash->region;
@@ -713,7 +726,7 @@ static int flash_read(dev_link_t *link, char *buf, mtd_request_t *req)
     if (flash->cell[cell].state & FLASH_ERASING) {
 	if ((flash->cell[cell].erase_addr / region->BlockSize) ==
 	    (req->SrcCardOffset / region->BlockSize)) {
-	    DEBUG(1, "iflash2+_mtd: delaying read...\n");
+	    DEBUG(1, ("iflash2+_mtd: delaying read...\n"));
 	    req->Status = MTD_WAITREQ;
 	    return CS_BUSY;
 	}
@@ -724,15 +737,14 @@ static int flash_read(dev_link_t *link, char *buf, mtd_request_t *req)
 	ret = suspend_erase((u_short *)dev->ESRbase);
 	if (ret != CS_SUCCESS) goto done;
 	flash->cell[cell].state |= FLASH_ERASE_SUSPEND;
-    }
-    else
+    } else
 	link->state |= DEV_BUSY;
 
     mod.CardOffset = req->SrcCardOffset & ~(dev->Size-1);
     from = req->SrcCardOffset & (dev->Size-1);
     
     ret = CS_SUCCESS;
-#ifdef PCMCIA_DEBUG
+#ifdef BENCHMARK
     time = uticks();
 #endif
     for (length = req->TransferLength; length > 0; length -= nb) {
@@ -751,13 +763,13 @@ static int flash_read(dev_link_t *link, char *buf, mtd_request_t *req)
 	mod.CardOffset += dev->Size;
     }
     
-#ifdef PCMCIA_DEBUG
+#ifdef BENCHMARK
     time = uticks() - time;
     if (time < 10000000)
-	DEBUG(3, "iflash2+_mtd: read complete, time = %ld,"
-	      " avg = %ld ns/word, rate = %ld kb/sec\n", time,
-	      time*2000/req->TransferLength,
-	      req->TransferLength*977/time);
+	DEBUG(3, ("iflash2+_mtd: read complete, time = %ld,"
+		  " avg = %ld ns/word, rate = %ld kb/sec\n", time,
+		  time*2000/req->TransferLength,
+		  req->TransferLength*977/time));
 #endif
     
 done:
@@ -789,7 +801,7 @@ static int basic_write(struct wait_queue **queue, char *esr, char *dest,
     
     /* Fix for mis-aligned writes */
     if ((u_long)dest & 1) {
-	DEBUG(2, "iflash2+_mtd: odd address fixup at 0x%p\n", dest);
+	DEBUG(2, ("iflash2+_mtd: odd address fixup at 0x%p\n", dest));
 	ret = page_setup(queue, (u_short *)esr, (u_short *)dest, 1);
 	if (ret != CS_SUCCESS) return ret;
 	if (is_krnl)
@@ -845,13 +857,13 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
     u_int from, length, nb, retry, cell;
     cs_status_t status;
     int ret;
-#ifdef PCMCIA_DEBUG
-    u_long time;
+#ifdef BENCHMARK
+    k_time_t time;
 #endif
 
-    DEBUG(2, "iflash2+_mtd: flash_write(0x%p, 0x%lx, "
-	  "0x%p, 0x%x, 0x%x)\n", link, req->MediaID, buf,
-	  req->DestCardOffset, req->TransferLength);
+    DEBUG(2, ("iflash2+_mtd: flash_write(0x%p, 0x%lx, "
+	      "0x%p, 0x%x, 0x%x)\n", link, req->MediaID, buf,
+	      req->DestCardOffset, req->TransferLength));
 
     /* Check card write protect status */
     ret = CardServices(GetStatus, link->handle, &status);
@@ -874,7 +886,7 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
     /* Is this cell being erased or written? */
     cell = (req->DestCardOffset - region->CardOffset) / flash->cell_size;
     if (flash->cell[cell].state & FLASH_ERASING) {
-	DEBUG(1, "iflash2+_mtd: delaying write...\n");
+	DEBUG(1, ("iflash2+_mtd: delaying write...\n"));
 	req->Status = MTD_WAITREQ;
 	return CS_BUSY;
     }
@@ -894,7 +906,7 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
     rdy.Mask = CS_EVENT_READY_CHANGE;
     MTDHelperEntry(MTDRDYMask, link->handle, &rdy);
 
-#ifdef PCMCIA_DEBUG
+#ifdef BENCHMARK
     time = uticks();
 #endif
     mod.CardOffset = req->DestCardOffset & ~(dev->Size-1);
@@ -925,13 +937,13 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
 	mod.CardOffset += dev->Size;
     }
 
-#ifdef PCMCIA_DEBUG
+#ifdef BENCHMARK
     time = uticks() - time;
     if (time < 10000000)
-	DEBUG(3, "iflash2+_mtd: write complete, time = %ld,"
-	      " avg = %ld us/word, rate = %ld kb/sec\n", time,
-	      time*2/req->TransferLength,
-	      req->TransferLength*977/time);
+	DEBUG(3, ("iflash2+_mtd: write complete, time = %ld,"
+		  " avg = %ld us/word, rate = %ld kb/sec\n", time,
+		  time*2/req->TransferLength,
+		  req->TransferLength*977/time));
 #endif
     
 done:
@@ -960,9 +972,9 @@ static int flash_erase(dev_link_t *link, char *buf, mtd_request_t *req)
     mtd_mod_win_t mod;
     int i, ret;
 
-    DEBUG(2, "iflash2+_mtd: flash_erase(0x%p, 0x%lx, 0x%x, 0x%x)\n",
-	  link, req->MediaID, req->DestCardOffset,
-	  req->TransferLength);
+    DEBUG(2, ("iflash2+_mtd: flash_erase(0x%p, 0x%lx, 0x%x, 0x%x)\n",
+	      link, req->MediaID, req->DestCardOffset,
+	      req->TransferLength));
 
     flash = (flash_region_t *)(req->MediaID);
     region = &flash->region;
@@ -973,7 +985,7 @@ static int flash_erase(dev_link_t *link, char *buf, mtd_request_t *req)
     
     if (!(req->Function & MTD_REQ_TIMEOUT)) {
 	if (flash->cell[i].state & (FLASH_ERASING|FLASH_PENDING)) {
-	    DEBUG(1, "iflash2+_mtd: delaying erase...\n");
+	    DEBUG(1, ("iflash2+_mtd: delaying erase...\n"));
 	    req->Status = MTD_WAITREQ;
 	    return CS_BUSY;
 	}
@@ -1043,8 +1055,8 @@ static int flash_erase(dev_link_t *link, char *buf, mtd_request_t *req)
     return CS_BUSY;
     
 done:
-    DEBUG(2, "iflash2+_mtd: erase complete, time = %ld\n",
-	  jiffies - flash->cell[i].erase_time);
+    DEBUG(2, ("iflash2+_mtd: erase complete, time = %ld\n",
+	      jiffies - flash->cell[i].erase_time));
     flash->cell[i].state &= ~(FLASH_ERASING|FLASH_PENDING);
     reset_block((u_short *)dev->ESRbase);
     set_global_lock(dev->ESRwin, dev->ESRbase, 1);
@@ -1068,8 +1080,7 @@ static int flash_request(dev_link_t *link, void *buf, mtd_request_t *req)
 	if (req->Function & MTD_REQ_TIMEOUT) {
 	    req->Timeout = erase_timeout;
 	    req->Status = MTD_WAITTIMER;
-	}
-	else
+	} else
 	    req->Status = MTD_WAITREQ;
 	return CS_BUSY;
     }
@@ -1107,7 +1118,7 @@ static int flash_event(event_t event, int priority,
 {
     dev_link_t *link = args->client_data;
 
-    DEBUG(1, "iflash2+_mtd: flash_event(0x%06x)\n", event);
+    DEBUG(2, ("iflash2+_mtd: flash_event(0x%06x)\n", event));
     
     switch (event) {
 	
@@ -1150,11 +1161,13 @@ static int flash_event(event_t event, int priority,
 
 /*====================================================================*/
 
+#ifdef __LINUX__
+
 int init_module(void)
 {
     servinfo_t serv;
     
-    DEBUG(0, "%s\n", version);
+    DEBUG(0, ("%s\n", version));
     
     /* Rescale parameters */
     vpp_timeout_period = (vpp_timeout_period * HZ) / 1000;
@@ -1176,8 +1189,51 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-    DEBUG(0, "iflash2+_mtd: unloading\n");
+    DEBUG(0, ("iflash2+_mtd: unloading\n"));
     unregister_pcmcia_driver(&dev_info);
     while (dev_list != NULL)
 	flash_detach(dev_list);
 }
+
+#endif /* __LINUX__ */
+
+/*====================================================================*/
+
+#ifdef __BEOS__
+
+static status_t std_ops(int32 op)
+{
+    int ret;
+    DEBUG(0, ("iflash2+_mtd: std_ops(%d)\n", op));
+    switch (op) {
+    case B_MODULE_INIT:
+	vpp_timeout_period = (vpp_timeout_period * HZ) / 1000;
+	vpp_settle = (vpp_settle * HZ) / 1000;
+	write_timeout = (write_timeout * HZ) / 1000;
+	erase_limit = (erase_limit * HZ) / 1000;
+	ret = get_module(CS_SOCKET_MODULE_NAME, (struct module_info **)&cs);
+	if (ret != B_OK) return ret;
+	ret = get_module(B_ISA_MODULE_NAME, (struct module_info **)&isa);
+	if (ret != B_OK) return ret;
+	register_pcmcia_driver(&dev_info, &flash_attach, &flash_detach);
+	break;
+    case B_MODULE_UNINIT:
+	unregister_pcmcia_driver(&dev_info);
+	while (dev_list != NULL)
+	    flash_detach(dev_list);
+	if (isa) put_module(B_ISA_MODULE_NAME);
+	if (cs) put_module(CS_SOCKET_MODULE_NAME);
+	break;
+    }
+    return B_OK;
+}
+
+static module_info flash_mtd_mod_info =
+{ "bus_managers/iflash2+_mtd/v1", 0, &std_ops };
+
+_EXPORT module_info *modules[] = {
+    &flash_mtd_mod_info,
+    NULL
+};
+
+#endif /* __BEOS__ */

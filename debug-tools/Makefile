@@ -1,5 +1,5 @@
 #
-# debug-tools/Makefile 1.25 1998/07/16 20:02:26 (David Hinds)
+# debug-tools/Makefile 1.26 1998/08/03 17:15:22 (David Hinds)
 #
 
 # Include site dependent options
@@ -56,7 +56,9 @@ clean:
 	rm -f core core.* *.o *.s *.a *~ .depend .depfiles/*.d
 	rm -f dump_tuples dump_i365 dump_tcic dump_cisreg
 
-install:
+install: dump_cis pack_cis
+	mkdir -p $(PREFIX)/sbin
+	cp -f dump_cis pack_cis $(PREFIX)/sbin
 
 # Stuff to automatically maintain dependency files
 

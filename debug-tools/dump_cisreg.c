@@ -2,7 +2,7 @@
 
     PCMCIA card configuration register dump
 
-    dump_cisreg.c 1.17 1998/07/18 17:33:34
+    dump_cisreg.c 1.18 1998/08/01 13:25:40
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -247,7 +247,12 @@ int main(int argc, char *argv[])
 	    nfn = 1;
 	    arg.tuple.DesiredTuple = CISTPL_DEVICE;
 	    ret = ioctl(fd, DS_GET_FIRST_TUPLE, &arg);
+	    if (ret != 0) {
+		if (errno != ENODEV) perror("ioctl()");
+		continue;
+	    }
 	}
+
 	arg.tuple.DesiredTuple = CISTPL_CONFIG;
 	
 	for (j = 0; j < nfn; j++) {

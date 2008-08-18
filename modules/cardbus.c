@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.30 1998/07/18 09:55:19
+    cardbus.c 1.33 1998/08/20 23:39:38
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -41,7 +41,7 @@
 #endif
 
 #ifndef PCMCIA_DEBUG
-#define PCMCIA_DEBUG 2
+#define PCMCIA_DEBUG 1
 #endif
 static int pc_debug = PCMCIA_DEBUG;
 
@@ -106,18 +106,18 @@ static void dump_rom(u_char *b)
 {
     u_int img = 0, ofs = 0, sz;
     u_short data;
-    printk(KERN_INFO "ROM image dump:\n");
+    DEBUG(0, ("ROM image dump:\n"));
     while ((readb(b) == 0x55) && (readb(b+1) == 0xaa)) {
 	data = readb(b+ROM_DATA_PTR) +
 	    (readb(b+ROM_DATA_PTR+1) << 8);
 	sz = 512 * (readb(b+data+PCDATA_IMAGE_SZ) +
 		    (readb(b+data+PCDATA_IMAGE_SZ+1) << 8));
-	printk(KERN_INFO "  image %d: signature %c%c%c%c, ofs: "
-	       "0x%06x, size: 0x%06x\n", img,
-	       readb(b+data+PCDATA_SIGNATURE),
-	       readb(b+data+PCDATA_SIGNATURE+1),
-	       readb(b+data+PCDATA_SIGNATURE+2),
-	       readb(b+data+PCDATA_SIGNATURE+3), ofs, sz);
+	DEBUG(0, ("  image %d: 0x%06x-0x%06x, signature %c%c%c%c\n",
+		  img, ofs, ofs+sz-1,
+		  readb(b+data+PCDATA_SIGNATURE),
+		  readb(b+data+PCDATA_SIGNATURE+1),
+		  readb(b+data+PCDATA_SIGNATURE+2),
+		  readb(b+data+PCDATA_SIGNATURE+3)));
 	b += sz; ofs += sz; img++;
 	if (readb(b+data+PCDATA_INDICATOR) & 0x80) break;
     }
@@ -148,7 +148,7 @@ void read_cb_mem(socket_info_t *s, u_char fn, int space,
     DEBUG(3, ("cs: read_cb_mem(%d, %#x, %u)\n", space, addr, len));
     if (space == 0) {
 	for (; len; addr++, ptr++, len--)
-	    pcibios_read_config_byte(s->cap.cardbus, fn, addr, ptr);
+	    pci_readb(s->cap.cardbus, fn, addr, ptr);
     } else {
 	cb_setup_cis_mem(s, space);
 	if (space == 7)
@@ -192,15 +192,15 @@ int cb_setup_cis_mem(socket_info_t *s, int space)
     pci_writel(s->cap.cardbus, 0, br, 0xffffffff);
     pci_readl(s->cap.cardbus, 0, br, &sz);
     sz &= PCI_BASE_ADDRESS_MEM_MASK;
-    sz = FIND_FIRST_BIT(sz);
+    sz = (FIND_FIRST_BIT(sz) + 0x0fff) & ~0x0fff;
     if (find_mem_region(&base, sz, "cb_enabler", 0) != 0) {
 	printk(KERN_NOTICE "cs: could not allocate %dK memory for"
 	       " CardBus socket %d\n", sz/1024, s->sock);
 	return CS_OUT_OF_RESOURCE;
     }
     s->cb_cis_virt = ioremap(base, sz);
-    DEBUG(1, ("  base 0x%08lx, sz 0x%06x, virt 0x%08lx\n",
-	      base, sz, (u_long)s->cb_cis_virt));
+    DEBUG(1, ("  phys 0x%08lx-0x%08lx, virt 0x%08lx\n",
+	      base, base+sz-1, (u_long)s->cb_cis_virt));
     pci_writel(s->cap.cardbus, 0, br, base | 1);
     pci_writeb(s->cap.cardbus, 0, PCI_COMMAND, PCI_COMMAND_MEMORY);
     m->map = 0; m->flags = MAP_ACTIVE;
@@ -254,7 +254,7 @@ void cb_enable(socket_info_t *s)
     u_char i, j, bus = s->cap.cardbus;
     cb_config_t *c = s->cb_config;
     
-    DEBUG(1, ("cs: cb_enable(bus %d)\n", bus));
+    DEBUG(0, ("cs: cb_enable(bus %d)\n", bus));
     
     /* Configure bridge */
     if (s->cb_cis_map.start)
@@ -279,7 +279,8 @@ void cb_enable(socket_info_t *s)
 	    break;
 	}
 	if (m.start == 0) continue;
-	DEBUG(1, ("cs: bridge map %d (flags 0x%x): 0x%x-0x%x\n",
+	DEBUG(0, ("  bridge %s map %d (flags 0x%x): 0x%x-0x%x\n",
+		  (m.flags & MAP_IOSPACE) ? "io" : "mem",
 		  m.map, m.flags, m.start, m.stop));
 	s->ss_entry(s->sock, SS_SetBridge, &m);
     }
@@ -340,13 +341,13 @@ void cb_disable(socket_info_t *s)
     for (p = &pci_devices; *p; p = &((*p)->next))
 	if (*p == &c[0].dev) break;
     for (q = *p; q; q = q->next)
-	if (q != &c[s->functions-1].dev) break;
+	if (q == &c[s->functions-1].dev) break;
     if (p && q) {
 	*p = q->next;
     }
 #endif
     
-    DEBUG(1, ("cs: cb_disable(bus %d)\n", s->cap.cardbus));
+    DEBUG(0, ("cs: cb_disable(bus %d)\n", s->cap.cardbus));
     
     /* Turn off bridge windows */
     if (s->cb_cis_map.start)
@@ -383,8 +384,8 @@ int cb_config(socket_info_t *s)
     
     pci_readw(bus, 0, PCI_VENDOR_ID, &vend);
     pci_readw(bus, 0, PCI_DEVICE_ID, &dev);
-    DEBUG(1, ("cs: cb_config(bus %d): vendor 0x%04x, device 0x%04x\n",
-	      bus, vend, dev));
+    printk(KERN_INFO "cs: cb_config(bus %d): vendor 0x%04x, "
+	   "device 0x%04x\n", bus, vend, dev);
 
     pci_readb(bus, 0, PCI_HEADER_TYPE, &fn);
     if (fn != 0) {
@@ -458,7 +459,7 @@ int cb_config(socket_info_t *s)
 	}
 	base[B_IO] = s->io[0].BasePort + num[B_IO];
     }
-    s->win[0].size = num[B_M1];
+    s->win[0].size = (num[B_M1] + 0x0fff) & ~0x0fff;
     s->win[0].base = 0;
     if (num[B_M1]) {
 	if (find_mem_region(&s->win[0].base, num[B_M1], name, 0) != 0) {
@@ -468,7 +469,7 @@ int cb_config(socket_info_t *s)
 	}
 	base[B_M1] = s->win[0].base + num[B_M1];
     }
-    s->win[1].size = num[B_M2];
+    s->win[1].size = (num[B_M2] + 0x0fff) & ~0x0fff;
     s->win[1].base = 0;
     if (num[B_M2]) {
 	if (find_mem_region(&s->win[1].base, num[B_M2], name, 0) != 0) {
@@ -490,13 +491,12 @@ int cb_config(socket_info_t *s)
 		m = sz & 3; sz &= ~3;
 		if (sz && (sz == num[m])) {
 		    base[m] -= sz;
-		    if (j < 6) {
-			DEBUG(1, (" fn %d bar %d: %s base 0x%x, sz 0x%x\n",
-				  i, j, (m) ? "mem" : "io", base[m], sz));
-		    } else {
-			DEBUG(1, (" fn %d rom: %s base 0x%x, sz 0x%x\n",
-				  i, (m) ? "mem" : "io", base[m], sz));
-		    }
+		    if (j < 6)
+			printk(KERN_INFO "  fn %d bar %d: ", i, j+1);
+		    else
+			printk(KERN_INFO "  fn %d rom: ", i);
+		    printk("%s 0x%x-0x%x\n", (m) ? "mem" : "io",
+			   base[m], base[m]+sz-1);
 		    c[i].dev.base_address[j] = base[m];
 		}
 	    }
@@ -547,7 +547,9 @@ failed:
 
 void cb_release(socket_info_t *s)
 {
-    DEBUG(1, ("cs: cb_release(bus %d)\n", s->cap.cardbus));
+    cb_config_t *c = s->cb_config;
+    
+    DEBUG(0, ("cs: cb_release(bus %d)\n", s->cap.cardbus));
     
     if (s->win[0].size > 0)
 	release_mem_region(s->win[0].base, s->win[0].size);
@@ -557,9 +559,8 @@ void cb_release(socket_info_t *s)
 	release_region(s->io[0].BasePort, s->io[0].NumPorts);
     s->io[0].NumPorts = 0;
 #ifdef CONFIG_ISA
-    if ((s->irq.AssignedIRQ != 0) &&
-	(s->irq.AssignedIRQ != s->cap.pci_irq))
-	undo_irq(IRQ_TYPE_EXCLUSIVE, s->irq.AssignedIRQ);
+    if ((c[0].dev.irq != 0) && (c[0].dev.irq != s->cap.pci_irq))
+	undo_irq(IRQ_TYPE_EXCLUSIVE, c[0].dev.irq);
 #endif
     kfree(s->cb_config);
     s->cb_config = NULL;

@@ -1560,7 +1560,7 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 		    }
 		    else {
 		       #define BLOCK_INPUT(buf, len) \
-				insw(ioaddr+XIRCREG_EDP, buf, (len+1)>>1 )
+				insw_ns(ioaddr+XIRCREG_EDP, buf, (len+1)>>1 )
 			 GET_PACKET(dev, skb, pktlen );
 		       #undef BLOCK_INPUT
 		    }
@@ -1593,7 +1593,7 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 	      #endif
 		else {
 		   #define BLOCK_INPUT(buf, len) \
-			    insw(ioaddr+XIRCREG_EDP, buf, (len+1)>>1 )
+			    insw_ns(ioaddr+XIRCREG_EDP, buf, (len+1)>>1 )
 		     GET_PACKET(dev, skb, pktlen );
 		   #undef BLOCK_INPUT
 		}
@@ -1784,7 +1784,7 @@ do_start_xmit(struct sk_buff *skb, struct device *dev)
     }
     /* send the packet */
     PutWord(XIRCREG_EDP, (ushort)pktlen );
-    outsw(ioaddr+XIRCREG_EDP, skb->data, pktlen>>1 );
+    outsw_ns(ioaddr+XIRCREG_EDP, skb->data, pktlen>>1 );
     if( pktlen & 1 )
 	PutByte(XIRCREG_EDP, skb->data[pktlen-1] );
 

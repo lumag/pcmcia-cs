@@ -11,7 +11,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.69 1998/04/21 21:28:07
+    pcnet_cs.c 1.71 1998/08/14 10:13:30
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.69 1998/04/21 21:28:07 (David Hinds)";
+"pcnet_cs.c 1.71 1998/08/14 10:13:30 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -920,18 +920,17 @@ static void pcnet_reset_8390(struct device *dev)
 static int set_config(struct device *dev, struct ifmap *map)
 {
     pcnet_dev_t *info = (pcnet_dev_t *)dev;
-    if (!(info->flags & HAS_MISC_REG)) {
-	printk(KERN_NOTICE "%s: transceiver selection not "
-	       "implemented\n", dev->name);
-	return -EINVAL;
-    }
     if ((map->port != (u_char)(-1)) && (map->port != dev->if_port)) {
+	if ((map->port != 0) && !(info->flags & HAS_MISC_REG)) {
+	    printk(KERN_NOTICE "%s: transceiver selection not "
+		   "implemented\n", dev->name);
+	    return -EINVAL;
+	}
 	if ((map->port == 1) || (map->port == 2)) {
 	    dev->if_port = map->port;
 	    printk(KERN_INFO "%s: switched to %s port\n",
 		   dev->name, if_names[dev->if_port]);
-	}
-	else
+	} else
 	    return -EINVAL;
     }
     return 0;
@@ -948,9 +947,9 @@ static void dma_get_8390_hdr(struct device *dev,
 
     if (ei_status.dmaing) {
 	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_input."
-	       "[DMAstat:%1x][irqlock:%1x][intr:%d]\n",
+	       "[DMAstat:%1x][irqlock:%1x][intr:%ld]\n",
 	       dev->name, ei_status.dmaing, ei_status.irqlock,
-	       dev->interrupt);
+	       (long)dev->interrupt);
 	return;
     }
     
@@ -962,8 +961,8 @@ static void dma_get_8390_hdr(struct device *dev,
     outb_p(ring_page, nic_base + EN0_RSARHI);
     outb_p(E8390_RREAD+E8390_START, nic_base + PCNET_CMD);
 
-    insw(nic_base + PCNET_DATAPORT, hdr,
-	 sizeof(struct e8390_pkt_hdr)>>1);
+    insw_ns(nic_base + PCNET_DATAPORT, hdr,
+	    sizeof(struct e8390_pkt_hdr)>>1);
 
     outb_p(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
     ei_status.dmaing &= ~0x01;
@@ -992,9 +991,9 @@ static int dma_block_input(struct device *dev, int count,
 #endif
     if (ei_status.dmaing) {
 	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_input."
-	       "[DMAstat:%1x][irqlock:%1x][intr:%d]\n",
+	       "[DMAstat:%1x][irqlock:%1x][intr:%ld]\n",
 	       dev->name, ei_status.dmaing, ei_status.irqlock,
-	       dev->interrupt);
+	       (long)dev->interrupt);
 #ifdef GET_8390_HDR
 	return;
 #else
@@ -1009,7 +1008,7 @@ static int dma_block_input(struct device *dev, int count,
     outb_p(ring_offset >> 8, nic_base + EN0_RSARHI);
     outb_p(E8390_RREAD+E8390_START, nic_base + PCNET_CMD);
 
-    insw(nic_base + PCNET_DATAPORT,buf,count>>1);
+    insw_ns(nic_base + PCNET_DATAPORT,buf,count>>1);
     if (count & 0x01)
 	buf[count-1] = inb(nic_base + PCNET_DATAPORT), xfer_count++;
 
@@ -1065,9 +1064,9 @@ static void dma_block_output(struct device *dev, int count,
 	count++;
     if (ei_status.dmaing) {
 	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_output."
-	       "[DMAstat:%1x][irqlock:%1x][intr:%d]\n",
+	       "[DMAstat:%1x][irqlock:%1x][intr:%ld]\n",
 	       dev->name, ei_status.dmaing, ei_status.irqlock,
-	       dev->interrupt);
+	       (long)dev->interrupt);
 	return;
     }
     ei_status.dmaing |= 0x01;
@@ -1087,7 +1086,7 @@ static void dma_block_output(struct device *dev, int count,
     outb_p(start_page, nic_base + EN0_RSARHI);
 
     outb_p(E8390_RWRITE+E8390_START, nic_base + PCNET_CMD);
-    outsw(nic_base + PCNET_DATAPORT, buf, count>>1);
+    outsw_ns(nic_base + PCNET_DATAPORT, buf, count>>1);
 
     dma_start = jiffies;
 
@@ -1162,7 +1161,7 @@ static void copyin(unsigned char *dest, unsigned char *src, int c)
     odd = (c & 01); c >>= 1;
 
     if (c) {
-	do { *d++ = readw(s++); } while (--c);
+	do { *d++ = readw_ns(s++); } while (--c);
     }
     /* get last byte by fetching a word and masking */
     if (odd)
@@ -1180,7 +1179,7 @@ static void copyout(unsigned char *dest, const unsigned char *src, int c)
     odd = (c & 01); c >>= 1;
 
     if (c) {
-	do { writew(*s++, d++); } while (--c);
+	do { writew_ns(*s++, d++); } while (--c);
     }
     /* copy last byte doing a read-modify-write */
     if (odd)

@@ -2,7 +2,7 @@
 
     PCMCIA Bulk Memory Services
 
-    bulkmem.c 1.25 1998/07/09 23:44:40
+    bulkmem.c 1.26 1998/08/03 17:11:30
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ static int do_mtd_request(memory_handle_t handle, mtd_request_t *req,
 	return CS_GENERAL_FAILURE;
     s = SOCKET(mtd);
     wacquire(&mtd->mtd_req);
-    for (tries = 0; tries < 20; tries++) {
+    for (tries = 0; tries < 100; tries++) {
 	mtd->event_callback_args.mtdrequest = req;
 	mtd->event_callback_args.buffer = buf;
 	ret = EVENT(mtd, CS_EVENT_MTD_REQUEST, CS_EVENT_PRI_LOW);
@@ -87,8 +87,10 @@ static int do_mtd_request(memory_handle_t handle, mtd_request_t *req,
 	    printk(KERN_NOTICE "cs: do_mtd_request interrupted!\n");
     }
     wrelease(&mtd->mtd_req);
-    if (tries == 20)
+    if (tries == 20) {
+	printk(KERN_NOTICE "cs: MTD request timed out!\n");
 	ret = CS_GENERAL_FAILURE;
+    }
     wakeup(&mtd->mtd_req);
     retry_erase_list(&mtd->erase_busy, 0);
     return ret;

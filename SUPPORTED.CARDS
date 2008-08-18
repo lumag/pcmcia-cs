@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1998/07/18 09:38:44
+		Last updated: 1998/08/20 23:01:39
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -13,7 +13,7 @@ Ethernet cards:
 
 	[3c589_cs driver]
 	3Com 3c589, 3c589B, 3c589C, 3c589D
-	Farallon Etherwave
+	Farallon EtherWave, EtherMac
 
 	[fmvj18x_cs driver]
 	CONTEC C-NET(PC)C
@@ -34,9 +34,11 @@ Ethernet cards:
 	Addtron Ethernet
 	Allied Telesis CentreCOM CE6001, LA-PCM
 	AmbiCom AMB8002
+	Apollo RE450CT
 	Asante FriendlyNet
 	AST 1082 Ethernet
 	Billionton LNT-10TB
+	California Access LAN Adapter
 	CeLAN EPCMCIA
 	CNet CN30BC, CN40BC Ethernet
 	Compex/ReadyLINK Ethernet Combo
@@ -88,12 +90,14 @@ Ethernet cards:
 	OvisLink Ethernet
 	Panasonic CF-VEL211P-B
 	Planet SmartCOM 2000, 3500
+	Pretec Ethernet
 	PreMax PE-200 Ethernet
 	Proteon Ethernet
 	Relia RE2408T Ethernet
 	Reliasys 2400A Ethernet
 	RPTI EP400, EP401 Ethernet
 	SCM Ethernet		[ Yes, SCM != SMC ]
+	Sky Link Express
 	Socket Communications Socket EA LAN Adapter
 	SuperSocket RE450T
 	Surecom Ethernet
@@ -114,16 +118,19 @@ Ethernet cards:
 
 Fast Ethernet (10/100baseT) adapters:
 
-	[3c574_cs driver]
+	[3c574_cs driver: driver is buggy]
 	3Com 3c574TX
 
-	[3c575_cb driver]
+	[3c575_cb driver: driver has performance problem]
 	3Com 3c575TX CardBus
 
 	[pcnet_cs driver]
+	D-Link DFE-650
 	Linksys EtherFast 10/100
+	NetGear FA410TXC
 
 	[xirc2ps_cs driver]
+	Compaq Netelligent 10/100
 	Intel EtherExpress PRO/100
 	Xircom CreditCard CE3
 
@@ -132,6 +139,7 @@ Token-ring adapters:
 	[ Requires a 1.3.72 or later kernel ]
 
 	[ibmtr_cs driver]
+	3Com 3c389 TokenLink Velocity
 	3Com 3c689 TokenLink III
 	IBM Token Ring Adapter
 
@@ -185,6 +193,7 @@ SCSI adapters:
 	New Media Bus Toaster SCSI	[ older cards ]
 	New Media Toast 'n Jam		[ SCSI only ]
 	Noteworthy Bus Toaster SCSI
+	Sony CD-ROM Discman PRD-250
 
 	[fdomain_cs driver]
 	Future Domain SCSI2GO
@@ -196,12 +205,13 @@ SCSI adapters:
 	MACNICA mPS110, mPS110-LP SCSI
 	NEC PC-9801N-J03R
 	Qlogic FastSCSI
+	Panasonic KXL-D740, KXL-DN740A, KXL-DN740A-NB 4X CD-ROM
 	Raven CD-Note 4X
 	RATOC REX-9530 SCSI-2
 	Toshiba NWB0107ABK, SCSC200B
 
 	[apa1480_cb driver -- requires a 2.1.90 or later kernel,
-	 also experimental!!!]
+	 and is also experimental!!!]
 	Adaptec SlimSCSI 1480 CardBus
 
 	[not sure which driver]
@@ -211,9 +221,7 @@ SCSI adapters:
 	Logitec LPM-SCSI2
 	Logitec LCD-601 CD-ROM
 	Melco IFC-SC2, IFC-DC
-	Panasonic KXL-D740, KXL-DN740A, KXL-DN740A-NB 4X CD-ROM
 	Pioneer PCP-PR1W CD-ROM
-	Sony CD-ROM Discman PRD-250
 	Taxan ICD-400PN
 
 ATA/IDE CD-ROM adapters:
@@ -238,7 +246,7 @@ Multifunction cards:
 
 	[3c589_cs driver]
 	3Com 3c562, 3c562B/C/D, 3c563B/C/D
-	3Com 3CXEM556
+	3Com 3CCEM556, 3CXEM556		[ NOT the 3CFEM556 ]
 	Motorola Marquis
 
 	[pcnet_cs driver]

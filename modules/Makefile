@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.92 1998/07/18 18:00:32
+# Makefile 1.93 1998/07/27 23:08:01
 #
 
 # Include site dependent options and kernel configuration
@@ -49,7 +49,7 @@ clean:
 
 MODDIR = $(PREFIX)/lib/modules/$(UTS_RELEASE)
 
-install: $(MODULES)
+install install-modules: $(MODULES)
 	mkdir -p $(MODDIR)/pcmcia
 	cp -p $(MODULES) $(MODDIR)/pcmcia
 

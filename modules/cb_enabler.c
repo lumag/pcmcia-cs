@@ -2,7 +2,7 @@
 
     Cardbus device enabler
 
-    cb_enabler.c 1.10 1998/05/21 11:34:28
+    cb_enabler.c 1.11 1998/08/17 22:33:49
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -48,7 +48,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.10 1998/05/21 11:34:28 (David Hinds)";
+"cb_enabler.c 1.11 1998/08/17 22:33:49 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -83,9 +83,11 @@ static driver_info_t driver[4] = {
 
 typedef struct bus_info_t {
     u_char		bus;
-    int			ncfg, nuse;
-    struct bus_info_t	*next;
+    int			flags, ncfg, nuse;
 } bus_info_t;
+
+#define DID_REQUEST	1
+#define DID_CONFIG	2
 
 static void cb_release(u_long arg);
 static int cb_event(event_t event, int priority,
@@ -93,7 +95,7 @@ static int cb_event(event_t event, int priority,
 
 static void cb_detach(dev_link_t *);
 
-static bus_info_t *bus_list = NULL;
+static bus_info_t bus_table[MAX_DRIVER];
 
 /*====================================================================*/
 
@@ -183,20 +185,22 @@ static void cb_config(dev_link_t *link)
     int i;
     
     DEBUG(0, "cb_config(0x%p)\n", link);
+    link->state |= DEV_CONFIG;
 
     /* Get PCI bus info */
     CardServices(GetConfigurationInfo, handle, &config);
     bus = config.Option; devfn = config.Function;
 
     /* Is this a new bus? */
-    for (b = bus_list; b != NULL; b = b->next)
-	if (bus == b->bus) break;
-    if (!b) {
-	b = kmalloc(sizeof(bus_info_t), GFP_KERNEL);
+    for (i = 0; i < MAX_DRIVER; i++)
+	if (bus == bus_table[i].bus) break;
+    if (i == MAX_DRIVER) {
+	for (i = 0; i < MAX_DRIVER; i++)
+	    if (bus_table[i].bus == 0) break;
+	b = &bus_table[i]; link->win = (void *)b;
 	b->bus = bus;
-	b->next = bus_list;
-	b->ncfg = b->nuse = 0;
-	bus_list = b;
+	b->flags = 0;
+	b->ncfg = b->nuse = 1;
 
 	/* Special hook: CS know what to do... */
 	i = CardServices(RequestIO, handle, NULL);
@@ -204,24 +208,25 @@ static void cb_config(dev_link_t *link)
 	    cs_error(handle, RequestIO, i);
 	    return;
 	}
-	b->nuse++;
+	b->flags |= DID_REQUEST;
 	i = CardServices(RequestConfiguration, handle, NULL);
 	if (i != CS_SUCCESS) {
 	    cs_error(handle, RequestConfiguration, i);
 	    return;
 	}
-	b->ncfg++;
+	b->flags |= DID_CONFIG;
     } else {
-	b->ncfg++; b->nuse++;
+	b = &bus_table[i]; link->win = (void *)b;
+	if (b->flags & DID_CONFIG) {
+	    b->ncfg++; b->nuse++;
+	}
     }
-    link->win = (void *)b;
     loc.bus = LOC_PCI;
     loc.b.pci.bus = bus;
     loc.b.pci.devfn = devfn;
     link->dev = drv->ops->attach(&loc);
     
     link->state &= ~DEV_CONFIG_PENDING;
-    link->state |= DEV_CONFIG;
 }
 
 /*====================================================================*/
@@ -239,12 +244,15 @@ static void cb_release(u_long arg)
 	link->dev = NULL;
     }
     if (link->state & DEV_CONFIG) {
-	b->ncfg--;
-	if (b->ncfg == 0)
+	if ((b->flags & DID_CONFIG) && (--b->ncfg == 0)) {
 	    CardServices(ReleaseConfiguration, link->handle);
-	b->nuse--;
-	if (b->nuse == 0)
+	    b->flags &= ~DID_CONFIG;
+	}
+	if ((b->flags & DID_REQUEST) && (--b->nuse == 0)) {
 	    CardServices(ReleaseIO, link->handle, NULL);
+	    b->flags &= ~DID_REQUEST;
+	}
+	if (b->flags == 0) b->bus = 0;
     }
     link->state &= ~DEV_CONFIG;
 }

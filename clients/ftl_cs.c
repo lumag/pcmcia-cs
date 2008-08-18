@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.37 1998/05/21 11:33:59
+    ftl_cs.c 1.38 1998/07/30 23:13:19
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -88,7 +88,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.37 1998/05/21 11:33:59 (David Hinds)";
+"ftl_cs.c 1.38 1998/07/30 23:13:19 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -1238,14 +1238,12 @@ static int set_bam_entry(partition_t *part, u_int log_addr,
     }
 
     ret = CardServices(WriteMemory, part->handle, &req, &virt_addr);
-#ifdef PSYCHO_DEBUG
     if (ret != CS_SUCCESS) {
 	printk(KERN_NOTICE "ftl_cs: set_bam_entry() failed!\n");
-	printk(KERN_NOTICE "ftl_cs:   log_addr = 0x%x, old = 0x%x,"
-	       " new = 0x%x\n", log_addr, old_addr, virt_addr);
+	printk(KERN_NOTICE "ftl_cs:   log_addr = 0x%x, new = 0x%x\n",
+	       log_addr, virt_addr);
 	cs_error(WriteMemory, ret);
     }
-#endif
     return ret;
 } /* set_bam_entry */
 

@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.33 1998/06/21 12:55:17
+    probe.c 1.34 1998/08/01 19:01:14
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -36,7 +36,7 @@
 
 #include <pcmcia/config.h>
 #include "i82365.h"
-#include "pd67xx.h"
+#include "cirrus.h"
 #include "vg468.h"
 #include "tcic.h"
 

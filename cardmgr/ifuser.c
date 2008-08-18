@@ -9,7 +9,7 @@
     The exit code is 0 if any host is using the specified interface,
     and 1 if the interface is not in use (just like fuser).
     
-    ifuser.c 1.2 1998/05/10 12:12:59
+    ifuser.c 1.4 1998/08/12 23:14:57
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -52,6 +52,12 @@ static u_int pack_addr(char *s)
 	return 0;
 }
 
+static void usage(char *s)
+{
+    fprintf(stderr, "usage: %s [-v] interface [host ...]\n", s);
+    exit(1);
+}
+
 int main(int argc, char *argv[])
 {
     char *dev, s[129], d[16], m[16];
@@ -60,11 +66,11 @@ int main(int argc, char *argv[])
     FILE *f;
 
     i = 1;
-    if (argc < 2) return -1;
+    if (argc < 2) usage(argv[0]);
     if (strcmp(argv[1], "-v") == 0) {
 	verbose = 1; i++;
     }
-    if (argc < i+1) return -1;
+    if ((*argv[i] == '-') || (argc < i+1)) usage(argv[0]);
     dev = argv[i]; i++;
     
     /* Get routing table */
@@ -112,6 +118,7 @@ int main(int argc, char *argv[])
 		    printf(" %s", argv[i]);
 		}
 		busy = 1;
+		break;
 	    }
 	}
     }

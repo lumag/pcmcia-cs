@@ -1,0 +1,59 @@
+.\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+.\" pack_cis.8 1.1 1998/08/02 11:56:50
+.\"
+.TH PACK_CIS 8 "1998/08/02 11:56:50" "pcmcia-cs"
+.SH NAME
+pack_cis \- Utility to parse PCMCIA Card Information Structures
+.SH SYNOPSIS
+.B pack_cis
+.RB [ "\-o\ "\c
+.I outfile\c
+]
+.I infile
+.SH DESCRIPTION
+.B Pack_cis
+is used to convert a text description of a PCMCIA Card
+Information Structure (CIS) to its packed binary representation.  It
+can parse a subset of possible output of the
+.B dump_cis
+utility.  The primary use of
+.B pack_cis
+is to construct replacement CIS files
+for cards that have incomplete, inaccurate, or damaged CIS
+structures.  Thus, the supported tuple types are mostly limited to
+things that are important for correctly configuring typical IO cards.
+.PP
+By default, the packed data is written to standard output.
+.SH FORMAT
+The best way to get started writing CIS descriptions will be to use
+.B dump_cis
+to extract the CIS data from a card, and to examine the CIS files
+distributed with the PCMCIA source tree in
+.IR etc/cis/ .
+.PP
+A multifunction CIS can be described with the format:
+.sp
+.RS
+.nf
+[common tuple list]
+mfc {
+  [tuple list for function 0]
+}, {
+  [tuple list for function 1]
+}
+.RE
+.fi
+.sp
+.SH OPTIONS
+.TP
+.BI "\-o " outfile
+Write the packed tuple data to the specified file.
+.SH FILES
+.PD 0
+.TP \w'/etc/pcmcia/cis\ \ \ \|\|'u
+/etc/pcmcia/cis
+Standard location for packed CIS files
+.SH AUTHOR
+David Hinds \- dhinds@hyper.stanford.edu
+.SH "SEE ALSO"
+dump_cis(8), cardmgr(8), pcmcia(5).

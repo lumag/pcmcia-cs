@@ -2,7 +2,7 @@
 
     Register dump for the Databook TCIC-2 controller family
 
-    dump_tcic.c 1.15 1998/05/10 12:21:47
+    dump_tcic.c 1.16 1998/08/13 09:27:53
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -449,7 +449,7 @@ void dump_windows(void)
 
 /*====================================================================*/
 
-void main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     int sock, i;
     
@@ -467,4 +467,5 @@ void main(int argc, char *argv[])
 	dump_sock(i);
     }
     dump_windows();
+    return 0;
 }

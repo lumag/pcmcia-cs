@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.43 1998/06/20 09:15:04 (David Hinds)
+# network 1.45 1998/08/20 23:01:07 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -47,41 +47,43 @@ case "$ACTION" in
 	fi
     fi
 
-    if [ "$IPADDR" != "" ] ; then
+    if [ "$IPADDR" ] ; then
 
 	# Basic network setup
 	BC=${BROADCAST:+broadcast $BROADCAST}
 	/sbin/ifconfig $DEVICE up $IPADDR netmask $NETMASK $BC
 
-	if [ "$NETWORK" != "" ] ; then
-	    /sbin/route add -net $NETWORK netmask $NETMASK dev $DEVICE
-	elif [ "$GATEWAY" != "" ] ; then
-	    /sbin/route add $GATEWAY $DEVICE
+	if [ "$NETWORK" ] ; then
+	    /sbin/ifuser $DEVICE $NETWORK || \
+		/sbin/route add -net $NETWORK netmask $NETMASK dev $DEVICE
+	elif [ "$GATEWAY" ] ; then
+	    /sbin/ifuser $DEVICE $GATEWAY || \
+		/sbin/route add $GATEWAY $DEVICE
 	fi
 
 	test "$GATEWAY" && /sbin/route add default gw $GATEWAY metric 1
 
 	# Update DNS stuff
-	if [ "$DOMAIN$SEARCH$DNSSRVS$DNS_1$DNS_2$DNS_3" != "" ] ; then
-	    cp $RESOLV $RESOLV.N
-	    echo "# $DEVICE begin" >> $RESOLV.N
+	if [ "$DOMAIN$SEARCH$DNSSRVS$DNS_1$DNS_2$DNS_3" ] ; then
+	    echo "# $DEVICE begin" > $RESOLV.N
 	    test "$DOMAIN" && echo "domain $DOMAIN" >> $RESOLV.N
 	    test "$SEARCH" && echo "search $SEARCH" >> $RESOLV.N
 	    for DNS in $DNSSRVS $DNS_1 $DNS_2 $DNS_3 ; do
 		echo "nameserver $DNS" >> $RESOLV.N
 	    done
 	    echo "# $DEVICE end" >> $RESOLV.N
+	    cat $RESOLV >> $RESOLV.N
 	    mv $RESOLV.N $RESOLV
 	fi
 
 	# Handle NFS mounts
-	if [ "$MOUNTS" != "" ] ; then
+	if [ "$MOUNTS" ] ; then
 	    for MT in $MOUNTS ; do mount -v $MT ; done
 	fi
 
     fi
 
-    if [ "$IPX_NETNUM" != "" ] ; then
+    if [ "$IPX_NETNUM" ] ; then
 	ipx_interface add $DEVICE $IPX_FRAME $IPX_NETNUM
     fi
 
@@ -92,7 +94,7 @@ case "$ACTION" in
 
     stop_fn $DEVICE
     
-    if is_true $BOOTP || [ "$IPADDR" != "" ] ; then
+    if is_true $BOOTP || [ "$IPADDR" ] ; then
 
 	# Shut down all NFS mounts on this interface
 	nfsstop ()

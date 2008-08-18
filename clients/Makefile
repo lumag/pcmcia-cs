@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.91 1998/07/18 17:58:19
+# Makefile 1.92 1998/08/15 10:31:51
 #
 
 # Include site dependent options and kernel configuration
@@ -37,8 +37,8 @@ MODULES = \
 EXTRA =
 
 ifdef CONFIG_CARDBUS
-SRCS := $(SRCS) 3c575_cb.c
-MODULES := $(MODULES) 3c575_cb.o
+SRCS := $(SRCS) 3c575_cb.c memory_cb.c
+MODULES := $(MODULES) 3c575_cb.o memory_cb.o
 ifdef CONFIG_SCSI
 ifdef DO_APA1480
 MODULES := ${MODULES} apa1480_cb.o

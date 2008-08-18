@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.55 1998/07/09 23:43:56
+    cistpl.c 1.57 1998/08/09 00:16:16
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -131,11 +131,9 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
 /*======================================================================
 
     This is tricky... when we set up CIS memory, we try to validate
-    the memory window space below 1 MB.
+    the memory window space allocations.
     
 ======================================================================*/
-
-#ifdef CONFIG_ISA
 
 /* Scratch pointer to the socket we use for validation */
 static socket_info_t *vs = NULL;
@@ -183,21 +181,16 @@ static int checksum_match(u_long base)
     return (checksum(base) == checksum(base+vs->cap.map_size));
 }
 
-#endif
-
 int setup_cis_mem(socket_info_t *s)
 {
     if (s->cis_mem.sys_start == 0) {
-#ifdef CONFIG_ISA
-	if (vs == NULL) {
-	    vs = s;
-	    validate_mem(cis_readable, checksum_match);
-	    s->cis_mem.sys_start = 0;
-	}
-#endif
-	if (find_mem_region(&s->cis_mem.sys_start,
-			    s->cap.map_size, "card services",
-			    (s->cap.cardbus == 0)) != 0)
+	int low = (s->cap.cardbus == 0);
+	vs = s;
+	validate_mem(cis_readable, checksum_match, low);
+	s->cis_mem.sys_start = 0;
+	vs = NULL;
+	if (find_mem_region(&s->cis_mem.sys_start, s->cap.map_size,
+			    "card services", low) != 0)
 	    return CS_OUT_OF_RESOURCE;
 	s->cis_mem.sys_stop = s->cis_mem.sys_start+s->cap.map_size-1;
 	s->cis_virt = ioremap(s->cis_mem.sys_start, s->cap.map_size);
@@ -591,7 +584,7 @@ static int parse_checksum(tuple_t *tuple, cistpl_checksum_t *csum)
     if (tuple->TupleDataLen < 5)
 	return CS_BAD_TUPLE;
     p = (u_char *)tuple->TupleData;
-    csum->addr = le16_to_cpu(*(u_short *)p);
+    csum->addr = tuple->CISOffset+(short)le16_to_cpu(*(u_short *)p)-2;
     csum->len = le16_to_cpu(*(u_short *)(p + 2));
     csum->sum = *(p+4);
     return CS_SUCCESS;
@@ -1285,6 +1278,10 @@ int parse_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
 	break;
     case CISTPL_ORG:
 	ret = parse_org(tuple, &parse->org);
+	break;
+    case CISTPL_NO_LINK:
+    case CISTPL_LINKTARGET:
+	ret = CS_SUCCESS;
 	break;
     default:
 	ret = CS_UNSUPPORTED_FUNCTION;

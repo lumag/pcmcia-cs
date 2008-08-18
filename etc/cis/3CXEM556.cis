@@ -7,16 +7,16 @@ funcid 0
 
 mfc {
   funcid network_adapter
-  config 0x07, 0x0800, 0x0063
+  config base 0x0800 mask 0x63 last_index 0x07
   cftable_entry 0x07
-    Vcc Vnom 5.0
+    Vcc Vnom 5V
     irq mask 0xffff [level]
     io  0x0000-0x000f [8bit] [16bit]
 }, {
   funcid serial_port
-  config 0x27, 0x900, 0x0063
+  config base 0x900 mask 0x63 last_index 0x27
   cftable_entry 0x27
-    Vcc Vnom 5.0
+    Vcc Vnom 5V
     irq mask 0xffff [level]
     io  0x0000-0x0007 [8bit]
 }

@@ -40,7 +40,6 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ibmtr_cs.c 1.23 1998/05/21 11:33:59 (David Hinds)";
 "ibmtr_cs.c 1.10 1996/01/06 05:19:00 (Steve Kipisz)";
 #else
 #define DEBUG(n, args...)
@@ -92,8 +91,9 @@ static void ibmtr_detach(dev_link_t *);
 
 static dev_link_t *dev_list;
 
-extern int  trdev_init(struct device *dev);
+extern int trdev_init(struct device *dev);
 extern void tok_interrupt(int irq, struct pt_regs *regs);
+extern struct timer_list tr_timer;
 
 /*====================================================================*/
 
@@ -216,6 +216,7 @@ static void ibmtr_detach(dev_link_t *link)
 
     save_flags(flags);
     cli();
+    if (tr_timer.next) del_timer(&tr_timer);
     if (link->state & DEV_RELEASE_PENDING) {
         del_timer(&link->release);
         link->state &= ~DEV_RELEASE_PENDING;

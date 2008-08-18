@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.19, 1998/07/18 09:29:03
+  v2.21, 1998/08/13 09:35:38
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -966,8 +966,8 @@
   +o  The system log reports that various memory ranges have been
      excluded.
 
-  The core modules perform a memory scan at the time of first card
-  insertion.  This scan can potentially interfere with other memory
+  The core modules perform a memory scan at the time of first 16-bit
+  card insertion.  This scan can potentially interfere with other memory
   mapped devices.  Also, pre-3.0.0 driver packages perform a more
   aggressive scan than more recent drivers.  The memory window is
   defined in /etc/pcmcia/config.opts.  The default window is large, so
@@ -980,12 +980,25 @@
   are often specified in ``segment'' form, which leaves off the final
   hex digit (so an absolute address of 0xd0000 might be given as
   0xd000).  Be sure to add the extra digit back when making changes to
-  /etc/pcmcia/config.opts.
+  config.opts.
 
   In unusual cases, a memory probe failure can indicate a timing
   register setup problem with the host controller.  See the ``Startup
   options'' section for information about dealing with common timing
   problems.
+
+  CardBus bridges can allocate memory windows outside of the 640KB-1MB
+  ``memory hole'' in the ISA bus architecture.  It is generally a good
+  idea to configure CardBus bridges to use high memory windows, because
+  these are unlikely to conflict with other devices.  Also, CardBus
+  cards may require large memory windows, which may be difficult or
+  impossible to fit into low memory.  Card Services will preferentially
+  allocate windows in high memory for CardBus bridges, if both low and
+  high memory windows are defined in config.opts.  The default
+  config.opts now includes a high memory window of
+  0xa0000000-0xa0ffffff.  If you have a CardBus bridge and have upgraded
+  from an older PCMCIA driver release, add this memory window if it is
+  not already defined.
 
   33..66..  FFaaiilluurree ttoo ddeetteecctt ccaarrdd iinnsseerrttiioonnss aanndd rreemmoovvaallss
 
@@ -1050,6 +1063,7 @@
   ``poll_interval=100'.  Or, if you have a CardBus controller, try
   ``pci_csc=1'', which selects a PCI interrupt (if available) for card
   status changes.
+
   IO port starvation is fairly uncommon, but sometimes happens with
   cards that require large, contiguous, aligned regions of IO port
   space, or that only recognize a few specific IO port positions.  The
@@ -1108,8 +1122,8 @@
   eth0'' was the last command executed by cardmgr, the following
   commands would trace the script:
 
-  cd /etc/pcmcia
-  sh -x ./network start eth0
+       cd /etc/pcmcia
+       sh -x ./network start eth0
 
   44..  UUssaaggee aanndd ffeeaattuurreess
 
@@ -1187,7 +1201,8 @@
          no product info available
        Socket 1:
          product info: "LINKSYS", "PCMLM336", "A", "0040052D6400"
-         manfid: 0x0143, 0xc0ab  function: 0 (multi)
+         manfid: 0x0143, 0xc0ab
+         function: 0 (multifunction)
 
   The ``cardctl suspend'' and ``cardctl resume'' commands can be used to
   shut down a card without unloading its associated drivers.  The
@@ -1259,7 +1274,6 @@
   to configure that device when a card is inserted, and to shut down the
   device when the card is removed.  For cards with several associated
   devices, the script will be invoked for each device.
-
   The config scripts start by extracting some information about a device
   from /var/run/stab.  Each script constructs a ``device address'', that
   uniquely describes the device it has been asked to configure, in the
@@ -1300,18 +1314,15 @@
 
   When an ethernet card is detected, it will be assigned the first free
   interface name, which will normally be eth0.  Cardmgr will run the
-  /etc/pcmcia/network script to configure the interface.
-
-  Do not configure your PCMCIA ethernet card in /etc/rc.d/rc.inet1,
-  since the card may not be present when this script is executed.
-  Comment out everything except the loopback stuff in rc.inet1.
-  Instead, edit the /etc/pcmcia/network.opts file to match your local
-  network setup.  The network and network.opts scripts will be executed
-  only when your ethernet card is actually present.  If your system has
-  an automatic network configuration procedure, it may or may not be
-  PCMCIA-aware.  Consult the documentation of your Linux distribution to
-  determine if PCMCIA network devices should be configured with the
-  automatic tools, or by editing network.opts.
+  /etc/pcmcia/network script to configure the interface, which normally
+  reads network settings from /etc/pcmcia/network.opts.  The network and
+  network.opts scripts will be executed only when your ethernet card is
+  actually present.  If your system has an automatic network
+  configuration facility, it may or may not be PCMCIA-aware.  Consult
+  the documentation of your Linux distribution and the ``Notes about
+  specific Linux distributions''  to determine if PCMCIA network devices
+  should be configured with the automatic tools, or by editing
+  network.opts.
 
   The device address passed to network.opts consists of four comma-
   separated fields: the scheme, the socket number, the device instance,
@@ -1321,14 +1332,14 @@
   different purposes, one option would be to configure the cards based
   on socket position, as in:
 
-       case "$ADDRESS" in
-       *,0,*,*)
-           # definitions for network card in socket 0
-           ;;
-       *,1,*,*)
-           # definitions for network card in socket 1
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,0,*,*)
+      # definitions for network card in socket 0
+      ;;
+  *,1,*,*)
+      # definitions for network card in socket 1
+      ;;
+  esac
 
   Alternatively, they could be configured using their hardware
   addresses, as in:
@@ -1377,7 +1388,6 @@
      DNS_1, DNS_2, DNS_3
         Host names or IP addresses for nameservers for this interface,
         to be added to /etc/resolv.conf
-
      MOUNTS
         A list of NFS mount points to be mounted for this interface.
 
@@ -1387,19 +1397,19 @@
 
   For example:
 
-  case "$ADDRESS" in
-  *,*,*,*)
-      IF_PORT="10base2"
-      BOOTP="n"
-      IPADDR="10.0.0.1"
-      NETMASK="255.255.255.0"
-      NETWORK="10.0.0.0"
-      BROADCAST="10.0.0.255"
-      GATEWAY="10.0.0.1"
-      DOMAIN="domain.org"
-      DNS_1="dns1.domain.org"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,*,*,*)
+           IF_PORT="10base2"
+           BOOTP="n"
+           IPADDR="10.0.0.1"
+           NETMASK="255.255.255.0"
+           NETWORK="10.0.0.0"
+           BROADCAST="10.0.0.255"
+           GATEWAY="10.0.0.1"
+           DOMAIN="domain.org"
+           DNS_1="dns1.domain.org"
+           ;;
+       esac
 
   To automatically mount and unmount NFS filesystems, first add all
   these filesystems to /etc/fstab, but include noauto in the mount
@@ -1606,11 +1616,11 @@
 
   For example:
 
-       case "$ADDRESS" in
-       *,*,*,*)
-           LINK="/dev/modem"
-           SERIAL_OPTS=""
-           INITTAB="/sbin/getty"
+  case "$ADDRESS" in
+  *,*,*,*)
+      LINK="/dev/modem"
+      SERIAL_OPTS=""
+      INITTAB="/sbin/getty"
 
   44..44..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh sseerriiaall ddeevviicceess
 
@@ -2508,6 +2518,11 @@
   the module is loaded, so output can be controlled on a per-module
   basis without recompiling.
 
+  Your default configuration for syslogd may discard kernel debugging
+  messages.  To ensure that they are recorded, edit /etc/syslog.conf to
+  ensure that ``kern.debug'' messages are recorded somewhere.  See ``man
+  syslog.conf'' for details.
+
   There are a few debugging tools in the debug_tools/ subdirectory of
   the PCMCIA distribution.  The dump_tcic and dump_i365 utilities
   generate complete register dumps of the PCMCIA controllers, and decode
@@ -2519,9 +2534,12 @@
   card's local configuration registers.
 
   The memory_cs memory card driver is also sometimes useful for
-  debugging.  It can be bound to any card, and does not interfere with
-  other drivers.  It can be used to directly access any card's attribute
-  memory or common memory.
+  debugging problems with 16-bit PC Cards.  It can be bound to any card,
+  and does not interfere with other drivers.  It can be used to directly
+  access any card's attribute memory or common memory.  Similarly for
+  CardBus cards, the memory_cb driver can be bound to any 32-bit card,
+  to give direct access to that card's address spaces.  See the man
+  pages for more information.
 
   77..33..  //pprroocc//bbuuss//ppccccaarrdd
 
@@ -2608,13 +2626,13 @@
   (for example, sample_cs-1.5.tar.gz).  A complete distribution could
   look like:
 
-       sample_cs.mk
-       README.sample_cs
-       modules/sample_cs.c
-       modules/sample_cs.h
-       etc/sample
-       etc/sample.opts
-       man/sample_cs.4
+  sample_cs.mk
+  README.sample_cs
+  modules/sample_cs.c
+  modules/sample_cs.h
+  etc/sample
+  etc/sample.opts
+  man/sample_cs.4
 
   With this arrangement, when the contributed driver is unpacked, it
   becomes essentially part of the PCMCIA source tree.  It can make use

@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_config.l 1.31 1998/07/16 19:57:10
+ * lex_config.l 1.32 1998/07/23 20:19:37
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -21,6 +21,7 @@
  */
 
 #undef src
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>

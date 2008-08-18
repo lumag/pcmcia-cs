@@ -2,7 +2,7 @@
 
     A simple MTD for accessing static RAM
 
-    sram_mtd.c 1.33 1998/07/18 09:39:17
+    sram_mtd.c 1.35 1998/07/30 23:51:51
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -57,10 +57,20 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static char *version =
-"sram_mtd.c 1.33 1998/07/18 09:39:17 (David Hinds)";
+"sram_mtd.c 1.35 1998/07/30 23:51:51 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
+
+/*====================================================================*/
+
+/* Parameters that can be set with 'insmod' */
+
+static int word_width = 1;			/* 1 = 16-bit */
+static int mem_speed = 0;			/* in ns */
+
+MODULE_PARM(word_width, "i");
+MODULE_PARM(mem_speed, "i");
 
 /*====================================================================*/
 
@@ -220,9 +230,12 @@ static void sram_config(dev_link_t *link)
     DEBUG(0, ("sram_config(0x%p)\n", link));
 
     /* Allocate a small memory window */
-    req.Attributes = WIN_DATA_WIDTH_16;
+    if (word_width)
+	req.Attributes = WIN_DATA_WIDTH_16;
+    else
+	req.Attributes = WIN_DATA_WIDTH_8;
     req.Base = req.Size = 0;
-    req.AccessSpeed = 0;
+    req.AccessSpeed = mem_speed;
     link->win = (window_handle_t)link->handle;
     ret = MTDHelperEntry(MTDRequestWindow, &link->win, &req);
     if (ret != 0) {
@@ -540,7 +553,7 @@ static status_t std_ops(int32 op)
 }
 
 static module_info sram_mtd_mod_info =
-{ "bus_managers/sram_mtd", 0, &std_ops };
+{ "bus_managers/sram_mtd/v1", 0, &std_ops };
 
 _EXPORT module_info *modules[] = {
     &sram_mtd_mod_info,

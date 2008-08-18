@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# memory 1.21 1997/09/05 04:50:17 (David Hinds)
+# memory 1.22 1998/08/12 22:58:53 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA memory device
 #
@@ -40,24 +40,34 @@ ADDRESS="$SCHEME,$SOCKET"
 case "$ACTION" in
 
 'start')
-    rm -f /dev/${DEVICE}[ca] /dev/${DEVICE}[ca]0[bc]
-    mknod /dev/${DEVICE}c0c c $MAJOR `expr $MINOR`
-    mknod /dev/${DEVICE}c0b b $MAJOR `expr $MINOR`
-    mknod /dev/${DEVICE}a0c c $MAJOR `expr $MINOR + 4`
-    mknod /dev/${DEVICE}c c $MAJOR `expr $MINOR + 8`
-    mknod /dev/${DEVICE}a c $MAJOR `expr $MINOR + 8 + 4`
-    add_blkdev /dev/${DEVICE}c0b || exit 1
+    rm -f /dev/${DEVICE}*
+    if [ "$DRIVER" = "memory_cb" ] ; then
+	for N in 0 1 2 3 4 5 6 7 ; do
+	    mknod /dev/${DEVICE}s${N} c $MAJOR `expr $MINOR + $N`
+	done
+    else
+	mknod /dev/${DEVICE}c0c c $MAJOR `expr $MINOR`
+	mknod /dev/${DEVICE}c0b b $MAJOR `expr $MINOR`
+	mknod /dev/${DEVICE}a0c c $MAJOR `expr $MINOR + 4`
+	mknod /dev/${DEVICE}c c $MAJOR `expr $MINOR + 8`
+	mknod /dev/${DEVICE}a c $MAJOR `expr $MINOR + 8 + 4`
+	add_blkdev /dev/${DEVICE}c0b || exit 1
+    fi
     ;;
 
 'check')
-    fuser -s /dev/${DEVICE}[ca] /dev/${DEVICE}[ca]0c && exit 1
-    fuser -s -m /dev/${DEVICE}c0b && exit 1
+    fuser -s /dev/${DEVICE}* && exit 1
+    if [ "$DRIVER" != "memory_cb" ] ; then
+	fuser -s -m /dev/${DEVICE}c0b && exit 1
+    fi
     ;;
 
 'stop')
-    fuser -s -k /dev/${DEVICE}[ca] /dev/${DEVICE}[ca]0[bc]
-    rm_blkdev /dev/${DEVICE}c0b || exit 1
-    rm -f /dev/${DEVICE}[ca] /dev/${DEVICE}[ca]0[bc]
+    fuser -s -k /dev/${DEVICE}*
+    if [ "$DRIVER" != "memory_cb" ] ; then
+	rm_blkdev /dev/${DEVICE}c0b || exit 1
+    fi
+    rm -f /dev/${DEVICE}*
     ;;
 
 'cksum')

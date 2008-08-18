@@ -4,10 +4,10 @@
 vers_1 4.1, "LINKSYS", "PCMLM28"
 manfid 0x0143, 0xc0ab
 funcid 0
-config 0x2f, 0x03f8, 0x0003
+config base 0x03f8 mask 0x03 last_index 0x2f
 
 cftable_entry 0x24 [default]
-  Vcc Vnom 5.0
+  Vcc Vnom 5V
   irq mask 0xffff [level]
   io 0x0300-0x031f, 0x02f8-0x02ff [8bit] [16bit]
 

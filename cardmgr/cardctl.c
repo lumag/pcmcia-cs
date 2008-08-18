@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c $Revision: 1.37 $ $Date: 1998/07/18 17:34:37 $
+    cardctl.c 1.42 1998/08/09 00:15:41
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -138,11 +138,11 @@ static void print_status(cs_status_t *status)
     if (status->CardState & CS_EVENT_WRITE_PROTECT)
 	printf(", write protect");
     if (status->CardState & CS_EVENT_BATTERY_DEAD)
-	printf(", battery dead ");
+	printf(", battery dead");
     if (status->CardState & CS_EVENT_BATTERY_LOW)
-	printf(", battery low ");
+	printf(", battery low");
     if (status->CardState & CS_EVENT_REQUEST_ATTENTION)
-	printf(", request attention ");
+	printf(", request attention");
     printf("\n");
 } /* print_status */
 
@@ -213,17 +213,21 @@ static void print_config(config_info_t *config)
     if (config->NumPorts1 > 0) {
 	printf("    I/O window 1: %#06x to %#06x", config->BasePort1,
 	       config->BasePort1 + config->NumPorts1 - 1);
-	if (config->Attributes1 & IO_SHARED)
-	    printf(", shared");
-	if (config->Attributes1 & IO_FORCE_ALIAS_ACCESS)
-	    printf(", force alias");
-	switch (config->Attributes1 & IO_DATA_PATH_WIDTH) {
-	case IO_DATA_PATH_WIDTH_8:
-	    printf(", 8 bit\n"); break;
-	case IO_DATA_PATH_WIDTH_16:
-	    printf(", 16 bit\n"); break;
-	case IO_DATA_PATH_WIDTH_AUTO:
-	    printf(", auto sized\n"); break;
+	if (config->IntType == INT_CARDBUS) {
+	    printf(", 32 bit\n");
+	} else {
+	    if (config->Attributes1 & IO_SHARED)
+		printf(", shared");
+	    if (config->Attributes1 & IO_FORCE_ALIAS_ACCESS)
+		printf(", force alias");
+	    switch (config->Attributes1 & IO_DATA_PATH_WIDTH) {
+	    case IO_DATA_PATH_WIDTH_8:
+		printf(", 8 bit\n"); break;
+	    case IO_DATA_PATH_WIDTH_16:
+		printf(", 16 bit\n"); break;
+	    case IO_DATA_PATH_WIDTH_AUTO:
+		printf(", auto sized\n"); break;
+	    }
 	}
     }
     if (config->NumPorts2 > 0) {
@@ -249,7 +253,7 @@ static void print_config(config_info_t *config)
 static int get_tuple(int fd, cisdata_t code, ds_ioctl_arg_t *arg)
 {
     arg->tuple.DesiredTuple = code;
-    arg->tuple.Attributes = 0;
+    arg->tuple.Attributes = TUPLE_RETURN_COMMON;
     arg->tuple.TupleOffset = 0;
     if ((ioctl(fd, DS_GET_FIRST_TUPLE, arg) == 0) &&
 	(ioctl(fd, DS_GET_TUPLE_DATA, arg) == 0) &&
@@ -265,11 +269,10 @@ static void print_ident(int fd)
     cistpl_vers_1_t *vers = &arg.tuple_parse.parse.version_1;
     cistpl_manfid_t *manfid = &arg.tuple_parse.parse.manfid;
     cistpl_funcid_t *funcid = &arg.tuple_parse.parse.funcid;
-    char v[256];
     int i;
     static char *fn[] = {
-	"multi", "memory", "serial", "parallel", "fixed disk",
-	"video", "network", "AIMS", "SCSI"
+	"multifunction", "memory", "serial", "parallel",
+	"fixed disk", "video", "network", "AIMS", "SCSI"
     };
     
     if (get_tuple(fd, CISTPL_VERS_1, &arg) == 0) {
@@ -281,14 +284,12 @@ static void print_ident(int fd)
     } else {
 	printf("  no product info available\n");
     }
-    *v = '\0';
     if (get_tuple(fd, CISTPL_MANFID, &arg) == 0)
-	sprintf(v, "  manfid: 0x%04x, 0x%04x",
-		manfid->manf, manfid->card);
+	printf("  manfid: 0x%04x, 0x%04x\n",
+	       manfid->manf, manfid->card);
     if (get_tuple(fd, CISTPL_FUNCID, &arg) == 0)
-	sprintf(v+strlen(v), "  function: %d (%s)", funcid->func,
-		fn[funcid->func]);
-    if (strlen(v) > 0) printf("%s\n", v);
+	printf("  function: %d (%s)\n", funcid->func,
+	       fn[funcid->func]);
 }
 
 /*====================================================================*/
@@ -572,7 +573,7 @@ int main(int argc, char *argv[])
 	}
     }
     
-    if (errflg || (argc < 2) || (argc > 3))
+    if (errflg || (argc == optind) || (argc > optind+2))
 	usage(argv[0]);
 
     if (geteuid() != 0) {
@@ -591,24 +592,24 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    if (strcmp(argv[1], "scheme") == 0) {
+    if (strcmp(argv[optind], "scheme") == 0) {
 #ifndef UNSAFE_TOOLS
 	setuid(getuid());
 #endif
-	if (do_scheme((argc == 2) ? NULL : argv[2]) == 0)
+	if (do_scheme((argc == optind+1) ? NULL : argv[optind+1]) == 0)
 	    exit(EXIT_SUCCESS);
 	else
 	    exit(EXIT_FAILURE);
     }
     
     for (cmd = 0; cmd < NCMD; cmd++)
-	if (strcmp(argv[1], cmdname[cmd]) == 0) break;
+	if (strcmp(argv[optind], cmdname[cmd]) == 0) break;
     if (cmd == NCMD)
 	usage(argv[0]);
 
     ret = 0;
-    if (argc == 3) {
-	ns = atoi(argv[2]);
+    if (argc == optind+2) {
+	ns = atoi(argv[optind+1]);
 	fd[0] = open_sock(ns);
 	if (fd[0] < 0) {
 	    perror("open_sock()");

@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.47 1998/07/18 09:55:19
+    rsrc_mgr.c 1.49 1998/08/20 10:46:40
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -376,27 +376,24 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     
 ======================================================================*/
 
-#ifdef CONFIG_ISA
-
-#define STEP 8192
-
 static int do_mem_probe(u_long base, u_long num, int pass,
 			int (*is_valid)(u_long))
 {
-    u_long i, j, bad;
+    u_long i, j, bad, step;
 
     printk(KERN_INFO "cs: memory probe 0x%06lx-0x%06lx:",
 	   base, base+num-1);
     if (pass != 0) release_mem_region(base, num);
     bad = 0;
-    for (i = base; i < base+num; i = j + STEP) {
-	for (j = i; j < base+num; j += STEP)
-	    if ((check_mem_region(j, STEP) == 0) && is_valid(j))
+    step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
+    for (i = base; i < base+num; i = j + step) {
+	for (j = i; j < base+num; j += step)
+	    if ((check_mem_region(j, step) == 0) && is_valid(j))
 		break;
 	if (i != j) {
 	    if (!bad) printk(" excluding");
 	    printk(" %#05lx-%#05lx", i, j-1);
-	    register_mem_region(i, j-1, "reserved");
+	    register_mem_region(i, j-i, "reserved");
 	    bad += j-i;
 	}
     }
@@ -404,22 +401,41 @@ static int do_mem_probe(u_long base, u_long num, int pass,
     return (num - bad);
 }
 
-void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long))
+#ifdef CONFIG_ISA
+
+void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
+		  int force_low)
 {
     resource_map_t *m;
     static u_char order[] = { 0xd0, 0xe0, 0xc0, 0xf0 };
+    static int hi = 0, lo = 0;
     u_long b, ok = 0;
     int i, pass;
     
-    if (!probe_mem)
-	return;
-    /* We do up to two passes through the list */
+    if (!probe_mem) return;
+    /* We do up to four passes through the list */
+    if (!force_low) {
+	if (hi++) return;
+	for (pass = 0; pass < 2; pass++) {
+	    for (m = mem_db.next; m != &mem_db; m = m->next) {
+		/* Only probe > 1 MB */
+		if (m->base < 0x100000) continue;
+		ok += do_mem_probe(m->base, m->num, pass,
+				   pass?do_cksum:is_valid);
+	    }
+	    if (ok) return;
+	}
+	printk(KERN_NOTICE "cs: warning: no high memory space "
+	       "available!\n");
+    }
+    if (lo++) return;
     for (pass = 0; pass < 2; pass++) {
 	for (m = mem_db.next; m != &mem_db; m = m->next) {
 	    /* Only probe < 1 MB */
 	    if (m->base >= 0x100000) continue;
 	    if ((m->base | m->num) & 0xffff) {
-		ok += do_mem_probe(m->base, m->num, pass, is_valid);
+		ok += do_mem_probe(m->base, m->num, pass,
+				   pass?do_cksum:is_valid);
 		continue;
 	    }
 	    /* Special probe for 64K-aligned block */
@@ -429,15 +445,35 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long))
 		    if (ok >= mem_limit)
 			register_mem_region(b, 0x10000, "skipped");
 		    else
-			ok += do_mem_probe(b, 0x10000, pass, is_valid);
+			ok += do_mem_probe(b, 0x10000, pass,
+					   pass?do_cksum:is_valid);
+		    
 		}
 	    }
 	}
 	if (ok) return;
-	is_valid = do_cksum;
     }
 }
-#endif
+
+#else /* CONFIG_ISA */
+
+void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
+		  int force_low)
+{
+    resource_map_t *m;
+    static int done = 0;
+    int pass;
+    
+    if (!probe_mem || done++)
+	return;
+    for (pass = 0; pass < 2; pass++) {
+	for (m = mem_db.next; m != &mem_db; m = m->next)
+	    if (do_mem_probe(m->base, m->num, pass,
+			     pass?do_cksum:is_valid)) return;
+    }
+}
+
+#endif /* CONFIG_ISA */
 
 /*======================================================================
 
@@ -478,11 +514,12 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, char *name)
     return -1;
 } /* find_io_region */
 
-int find_mem_region(u_long *base, u_long num, char *name, int low)
+int find_mem_region(u_long *base, u_long num, char *name,
+		    int force_low)
 {
     u_long align;
     resource_map_t *m;
-    
+
     if (*base != 0) {
 	for (m = mem_db.next; m != &mem_db; m = m->next) {
 	    if ((*base >= m->base) && (*base+num <= m->base+m->num))
@@ -496,14 +533,14 @@ int find_mem_region(u_long *base, u_long num, char *name, int low)
     while (1) {
 	for (m = mem_db.next; m != &mem_db; m = m->next) {
 	    /* first pass >1MB, second pass <1MB */
-	    if ((low != 0) ^ (m->base < 0x100000)) continue;
+	    if ((force_low != 0) ^ (m->base < 0x100000)) continue;
 	    for (*base = (m->base + align - 1) & (~(align-1));
 		 *base+align <= m->base+m->num; *base += align)
 		if (register_mem_region(*base, num, name) == 0)
 		    return 0;
 	}
-	if (low) break;
-	low++;
+	if (force_low) break;
+	force_low++;
     }
     return -1;
 } /* find_mem_region */

@@ -106,7 +106,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.107 1998/06/05 00:19:29 (David Hinds)";
+"3c589_cs.c 1.108 1998/08/14 10:13:30 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -711,7 +711,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
 	outw(skb->len, ioaddr + TX_FIFO);
 	outw(0x00, ioaddr + TX_FIFO);
 	/* ... and the packet rounded to a doubleword. */
-	outsl(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
+	outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
 	
 	dev->trans_start = jiffies;
 	if (inw(ioaddr + TX_FREE) > 1536) {
@@ -957,7 +957,7 @@ static int el3_rx(struct device *dev)
 	    if (skb != NULL) {
 		skb->dev = dev;
 		
-#define BLOCK_INPUT(buf, len) insl(ioaddr+RX_FIFO, buf, (len+3)>>2)
+#define BLOCK_INPUT(buf, len) insl_ns(ioaddr+RX_FIFO, buf, (len+3)>>2)
 		GET_PACKET(dev, skb, pkt_len);
 		
 		netif_rx(skb);

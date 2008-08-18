@@ -3,7 +3,7 @@
 #
 # System resources available for PCMCIA devices
 #
-include port 0x100-0x4ff, port 0x800-0x8ff, port 0xc00-0xcff
+include port 0x100-0x4ff, port 0x1000-0x17ff
 include memory 0xc0000-0xfffff, memory 0xa0000000-0xa0ffffff
 #
 # Extra port range for IBM Token Ring

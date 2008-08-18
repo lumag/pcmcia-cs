@@ -1,5 +1,5 @@
 /*
- * cs.h 1.59 1998/07/09 08:41:19
+ * cs.h 1.60 1998/08/03 19:12:23
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -426,7 +426,7 @@ extern int CardServices(int func, ...);
 #endif
 
 #ifdef __BEOS__
-#define CS_CLIENT_MODULE_NAME "bus_managers/cs/client/v1"
+#define CS_CLIENT_MODULE_NAME "bus_managers/pcmcia_cs/client/v1"
 typedef struct cs_client_module_info {
     bus_manager_info	binfo;
     int (*_CardServices)(int, ...);
@@ -434,7 +434,7 @@ typedef struct cs_client_module_info {
     void (*_add_timer)(struct timer_list *);
     void (*_del_timer)(struct timer_list *);
 } cs_client_module_info;
-#define CS_SOCKET_MODULE_NAME "bus_managers/cs/socket/v1"
+#define CS_SOCKET_MODULE_NAME "bus_managers/pcmcia_cs/socket/v1"
 typedef struct cs_socket_module_info {
     bus_manager_info	binfo;
     int (*_register_ss_entry)(int, ss_entry_t);

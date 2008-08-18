@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.111 1998/07/18 17:34:37
+    cardmgr.c 1.114 1998/08/09 00:15:41
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -271,6 +271,7 @@ static void beep(unsigned int ms, unsigned int freq)
 #ifdef __BEOS__
 static void beep(unsigned int ms, unsigned int freq)
 {
+    system("/bin/beep");
 }
 #endif
 
@@ -703,10 +704,21 @@ static void remove_module(char *mod)
 
 #endif /* __linux__ */
 
+/*====================================================================*/
+
 #ifdef __BEOS__
+
 #define install_module(a,b)
 #define remove_module(a)
-#endif
+
+static void republish_driver(char *mod)
+{
+    int fd = open("/dev", O_RDWR);
+    write(fd, mod, strlen(mod));
+    close(fd);
+}
+
+#endif /* __BEOS__ */
 
 /*====================================================================*/
 
@@ -758,7 +770,7 @@ static void bind_mtd(int sn)
 		for (i = 0; i < nr; i++)
 		    if (strcmp(s->mtd[i], mtd->module) == 0) break;
 		if (i == nr) {
-		    install_module(mtd->module, NULL);
+		    install_module(mtd->module, mtd->opts);
 		    s->mtd[nr] = mtd->module;
 		    nr++;
 		}
@@ -835,13 +847,15 @@ static void do_insert(int sn)
 	    break;
     if (i < card->functions)
 	bind_mtd(sn);
-    
+
+#ifdef __linux__
     /* Install kernel modules */
     for (i = 0; i < card->functions; i++) {
 	for (j = 0; j < dev[i]->modules; j++)
 	    install_module(dev[i]->module[j], dev[i]->opts[j]);
     }
-
+#endif
+    
     /* Bind drivers by their dev_info identifiers */
     for (i = 0; i < card->functions; i++) {
 	bind = calloc(1, sizeof(bind_info_t));
@@ -862,6 +876,11 @@ static void do_insert(int sn)
 		return;
 	    }
 	}
+
+#ifdef __BEOS__
+	republish_driver(dev[i]->module[0]);
+#endif
+
 	for (j = 0; j < 10; j++) {
 	    ret = ioctl(s->fd, DS_GET_DEVICE_INFO, bind);
 	    if ((ret == 0) || (errno != EAGAIN))
@@ -965,6 +984,13 @@ static void do_remove(int sn)
 		free(bind);
 	    }
 	}
+    }
+    for (i = 0; (s->mtd[i] != NULL); i++) {
+	bind_info_t b;
+	strcpy(b.dev_info, s->mtd[i]);
+	if (ioctl(s->fd, DS_UNBIND_REQUEST, &b) != 0)
+	    syslog(LOG_INFO, "unbind MTD '%s' from socket %d failed: %m",
+		   (char *)s->mtd[i], sn);
     }
 
     /* remove kernel modules in inverse order */
@@ -1322,9 +1348,9 @@ int main(int argc, char *argv[])
 
 	while ((ret = select(max_fd+1, &fds, NULL, NULL,
 			     ((pass == 0) ? &tv : NULL))) < 0) {
-	    if (errno == EINTR)
+	    if (errno == EINTR) {
 		handle_signal();
-	    else {
+	    } else {
 		syslog(LOG_INFO, "select(): %m");
 		exit(EXIT_FAILURE);
 	    }

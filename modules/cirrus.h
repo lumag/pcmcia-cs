@@ -1,5 +1,5 @@
 /*
- * pd67xx.h 1.6 1998/06/10 10:19:49
+ * cirrus.h 1.1 1998/07/26 09:53:41
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -16,14 +16,17 @@
  * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
-#ifndef _LINUX_PD67XX_H
-#define _LINUX_PD67XX_H
+#ifndef _LINUX_CIRRUS_H
+#define _LINUX_CIRRUS_H
 
 #ifndef PCI_VENDOR_ID_CIRRUS
 #define PCI_VENDOR_ID_CIRRUS		0x1013
 #endif
 #ifndef PCI_DEVICE_ID_CIRRUS_6729
 #define PCI_DEVICE_ID_CIRRUS_6729	0x1100
+#endif
+#ifndef PCI_DEVICE_ID_CIRRUS_6832
+#define PCI_DEVICE_ID_CIRRUS_6832	0x1110
 #endif
 
 #define PD67_MISC_CTL_1		0x16	/* Misc control 1 */
@@ -117,4 +120,27 @@
 #define PD67_MC3_PWR_TI2202	0x08
 #define PD67_MC3_PWR_SMB	0x0c
 
-#endif /* _LINUX_PD67XX_H */
+/* Register definitions for Cirrus PD6832 PCI-to-CardBus bridge */
+
+/* PD6832 extension registers -- indexed in PD67_EXT_INDEX */
+#define PD68_EXT_CTL_2			0x0b
+#define PD68_PCI_SPACE			0x22
+#define PD68_PCCARD_SPACE		0x23
+#define PD68_WINDOW_TYPE		0x24
+#define PD68_EXT_CSC			0x2e
+#define PD68_MISC_CTL_4			0x2f
+#define PD68_MISC_CTL_5			0x30
+#define PD68_MISC_CTL_6			0x31
+
+/* Extra flags in PD67_MISC_CTL_3 */
+#define PD68_MC3_HW_SUSP		0x10
+#define PD68_MC3_MM_EXPAND		0x40
+#define PD68_MC3_MM_ARM			0x80
+
+/* Bridge Control Register */
+#define  PD6832_BCR_MGMT_IRQ_ENA	0x0800
+
+/* Socket Number Register */
+#define PD6832_SOCKET_NUMBER		0x004c	/* 8 bit */
+
+#endif /* _LINUX_CIRRUS_H */

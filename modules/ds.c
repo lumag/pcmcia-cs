@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c $Revision: 1.85 $ $Date: 1998/07/14 09:23:49 $
+    ds.c 1.86 1998/07/28 09:22:30
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -49,7 +49,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c $Revision: 1.85 $ $Date: 1998/07/14 09:23:49 $ (David Hinds)";
+"ds.c 1.86 1998/07/28 09:22:30 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -302,18 +302,10 @@ static int ds_event(event_t event, int priority,
 
 static int bind_mtd(int i, mtd_info_t *mtd_info)
 {
-    struct driver_info_t *driver;
     mtd_bind_t bind_req;
     int ret;
 
-    for (driver = root_driver; driver; driver = driver->next)
-	if (strcmp((char *)driver->dev_info,
-		   (char *)mtd_info->dev_info) == 0)
-	    break;
-    if (driver == NULL)
-	return -ENODEV;
-
-    bind_req.dev_info = &driver->dev_info;
+    bind_req.dev_info = &mtd_info->dev_info;
     bind_req.Attributes = mtd_info->Attributes;
     bind_req.Socket = i;
     bind_req.CardOffset = mtd_info->CardOffset;
@@ -401,50 +393,35 @@ static int bind_request(int i, bind_info_t *bind_info)
 
 /*====================================================================*/
 
-static int get_device_info(int i, bind_info_t *bind_info)
+static int get_device_info(int i, bind_info_t *bind_info, int first)
 {
     socket_info_t *s = &socket_table[i];
     socket_bind_t *b;
+    dev_node_t *node;
     
     for (b = s->bind; b; b = b->next)
 	if (strcmp((char *)b->driver->dev_info,
 		   (char *)bind_info->dev_info) == 0)
 	    break;
-    if (b == NULL)
-	return -ENODEV;
+    if (b == NULL) return -ENODEV;
     if ((b->instance == NULL) ||
 	(b->instance->state & DEV_CONFIG_PENDING))
 	return -EAGAIN;
-    if (b->instance->dev == NULL)
-	return -ENODEV;
+    if (first)
+	node = b->instance->dev;
+    else
+	for (node = b->instance->dev; node; node = node->next)
+	    if (node == bind_info->next) break;
+    if (node == NULL) return -ENODEV;
 
-    strncpy(bind_info->name, b->instance->dev->dev_name,
-	    DEV_NAME_LEN);
+    strncpy(bind_info->name, node->dev_name, DEV_NAME_LEN);
     bind_info->name[DEV_NAME_LEN-1] = '\0';
-    bind_info->major = b->instance->dev->major;
-    bind_info->minor = b->instance->dev->minor;
-    bind_info->next = b->instance->dev->next;
+    bind_info->major = node->major;
+    bind_info->minor = node->minor;
+    bind_info->next = node->next;
     
     return 0;
 } /* get_device_info */
-
-/*====================================================================*/
-
-static int get_next_device(int i, bind_info_t *bind_info)
-{
-    dev_node_t *dev = bind_info->next;
-    
-    if (dev == NULL)
-	return -ENODEV;
-    
-    strncpy(bind_info->name, dev->dev_name, DEV_NAME_LEN);
-    bind_info->name[DEV_NAME_LEN-1] = '\0';
-    bind_info->major = dev->major;
-    bind_info->minor = dev->minor;
-    bind_info->next = dev->next;
-    
-    return 0;
-} /* get_next_device */
 
 /*====================================================================*/
 
@@ -774,10 +751,10 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	err = bind_request(i, &buf.bind_info);
 	break;
     case DS_GET_DEVICE_INFO:
-	err = get_device_info(i, &buf.bind_info);
+	err = get_device_info(i, &buf.bind_info, 1);
 	break;
     case DS_GET_NEXT_DEVICE:
-	err = get_next_device(i, &buf.bind_info);
+	err = get_device_info(i, &buf.bind_info, 0);
 	break;
     case DS_UNBIND_REQUEST:
 	err = unbind_request(i, &buf.bind_info);

@@ -1,5 +1,5 @@
 #
-# config.sample 1.80 1998/07/18 09:37:52 (David Hinds)
+# config.sample 1.82 1998/08/20 22:47:59 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -76,6 +76,9 @@ device "apa1480_cb"
 device "tulip_cb"
   class "network" module "cb_enabler", "tulip_cb"
 
+device "memory_cb"
+  class "memory" module "cb_enabler", "memory_cb"
+
 #
 # Ethernet adapter definitions
 #
@@ -119,6 +122,10 @@ card "Billionton LNT-10TB"
   version "Billionton", "LNT-10TB"
   bind "pcnet_cs"
 
+card "California Access Ethernet"
+  version "PCMCIAs", "ComboCard"
+  bind "pcnet_cs"
+
 card "CeLAN Ethernet"
   version "PCMCIA", "ETHERNET V1.0"
   bind "pcnet_cs"
@@ -133,6 +140,10 @@ card "CNet CN40BC Ethernet"
 
 card "Compaq Ethernet"
   version "Compaq", "Ethernet LAN Card"
+  bind "xirc2ps_cs"
+
+card "Compaq Netelligent 10/100 Ethernet"
+  version "Compaq", "Netelligent 10/100 PC Card"
   bind "xirc2ps_cs"
 
 card "Connectware LANdingGear Ethernet"
@@ -165,6 +176,10 @@ card "Digital PCP78-AC Ethernet"
 
 card "D-Link DE-650 Ethernet"
   version "D-Link", "DE-650"
+  bind "pcnet_cs"
+
+card "D-Link DFE-650 Ethernet"
+  version "D-Link", "DFE-650"
   bind "pcnet_cs"
 
 card "D-Link DE-660 Ethernet"
@@ -283,6 +298,10 @@ card "KingMax Technology Ethernet"
   version "KingMax Technology Inc.", "*", "Ethernet Card"
   bind "pcnet_cs"
 
+card "KingMax Technology Ethernet"
+  version "KINGMAX", "EN10T2T"
+  bind "pcnet_cs"
+
 card "Kingston KNE-PCM/x Ethernet"
   version "Kingston Technology Corp.", "EtheRx PC Card Ethernet Adapter"
   bind "pcnet_cs"
@@ -360,6 +379,10 @@ card "NE2000 Compatible Ethernet"
   bind "pcnet_cs"
 
 card "NE2000 Compatible Ethernet"
+  version "PCMCIA", "Ethernet 10BaseT Card"
+  bind "pcnet_cs"
+
+card "NE2000 Compatible Ethernet"
   version "NE2000 Compatible", "PCMCIA", "Ethernet Card"
   bind "pcnet_cs"
 
@@ -423,6 +446,10 @@ card "SCM Ethernet Combo"
   version "SCM", "Ethernet Combo card"
   bind "pcnet_cs"
 
+card "Sky Link Express"
+  version "2408LAN", "Ethernet"
+  bind "pcnet_cs"
+
 card "SMC EtherEZ Ethernet"
   version "SMC", "EtherEZ Ethernet 8020"
   bind "smc91c92_cs"
@@ -462,6 +489,10 @@ card "3Com 3c574TX Fast Ethernet"
 
 card "Linksys EtherFast 10/100 Fast Ethernet"
   version "Linksys", "EtherFast 10/100 PC Card (PCMPC100)"
+  bind "pcnet_cs"
+
+card "NetGear FA410TXC Fast Ethernet"
+  version "NETGEAR", "FA410TX"
   bind "pcnet_cs"
 
 card "Xircom CE3-10/100 Fast Ethernet"
@@ -590,7 +621,7 @@ card "Anonymous Memory"
 
 card "Memory Card"
   function memory_card
-  bind "memory_cs", "ftl_cs"
+  bind "memory_cs"
 
 card "IBM 2MB SRAM"
   version "IBM", "2MB SRAM"
@@ -662,6 +693,10 @@ region "Intel Series 2+ Flash"
 #
 # Token Ring adapters
 #
+card "3Com TokenLink Velocity Adapter"
+  version "3Com", "TokenLink Velocity PC Card"
+  bind "ibmtr_cs"
+
 card "IBM Token Ring Adapter"
   version "IBM", "TOKEN RING"
   bind "ibmtr_cs"
@@ -781,6 +816,10 @@ card "IBM Home and Away 28.8 Ethernet/Modem"
 card "IBM w95 Home and Away Ethernet/Modem"
   version "IBM", "w95 Home and Away Credit Card "
   bind "pcnet_cs" to 0, "serial_cs" to 1
+
+card "Intel EtherExpress PRO/100 LAN/Modem"
+  version "Intel", "EtherExpress (TM) PRO/100 LAN/Modem PC Card Adapter"
+  bind "xirc2ps_cs", "serial_cs"
 
 card "No-Name Ethernet/Modem"
   version "*", "FAX/Modem/Ethernet Combo Card "

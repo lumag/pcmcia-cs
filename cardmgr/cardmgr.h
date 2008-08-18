@@ -1,5 +1,5 @@
 /*
- * cardmgr.h 1.27 1998/05/10 12:12:59
+ * cardmgr.h 1.28 1998/08/03 17:14:06
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -80,7 +80,7 @@ typedef struct mtd_ident_t {
 	JEDEC_MTD=1, DTYPE_MTD, DEFAULT_MTD
     } mtd_type;
     int			dtype, jedec_mfr, jedec_info;
-    char		*module;
+    char		*module, *opts;
     struct mtd_ident_t	*next;
 } mtd_ident_t;
     

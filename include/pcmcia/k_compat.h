@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.57 1998/06/10 08:24:09
+ * k_compat.h 1.59 1998/08/14 10:00:45
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -259,10 +259,31 @@ char kernel_version[] = UTS_RELEASE;
 
 #include <asm/io.h>
 #ifndef readw_ns
+#ifdef __powerpc__
+#define readw_ns(p)		ld_be16((volatile unsigned short *)(p))
+#define readl_ns(p)		ld_be32((volatile unsigned *)(p))
+#define writew_ns(v,p)		st_le16((volatile unsigned short *)(p),(v))
+#define writel_ns(v,p)		st_le32((volatile unsigned *)(p),(v))
+#define inw_ns(p)		in_be16((unsigned short *)((p)+_IO_BASE))
+#define inl_ns(p)		in_be32((unsigned *)((p)+_IO_BASE))
+#define outw_ns(v,p)		out_be16((unsigned short *)((p)+_IO_BASE),(v))
+#define outl_ns(v,p)		out_be32((unsigned *)((p)+_IO_BASE),(v))
+#else
 #define readw_ns(p)		readw(p)
 #define readl_ns(p)		readl(p)
-#define writew_ns(w,p)		writew(w,p)
-#define writel_ns(l,p)		writel(l,p)
+#define writew_ns(v,p)		writew(v,p)
+#define writel_ns(v,p)		writel(v,p)
+#define inw_ns(p)		inw(p)
+#define inl_ns(p)		inl(p)
+#define outw_ns(v,p)		outw(v,p)
+#define outl_ns(v,p)		outl(v,p)
+#endif
+#endif
+#ifndef insw_ns
+#define insw_ns(p,b,l)		insw(p,b,l)
+#define insl_ns(p,b,l)		insl(p,b,l)
+#define outsw_ns(p,b,l)		outsw(p,b,l)
+#define outsl_ns(p,b,l)		outsl(p,b,l)
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,93))
@@ -274,5 +295,7 @@ char kernel_version[] = UTS_RELEASE;
 #define PCI_SLOT(devfn)		((devfn)>>3)
 #define PCI_DEVFN(dev,fn)	(((dev)<<3)|((fn)&7))
 #endif
+
+typedef unsigned long k_time_t;
 
 #endif /* _LINUX_K_COMPAT_H */

@@ -1,3 +1,18 @@
+Version 3.0.5
+-- Various minor code cleanups.
+-- Reorganized i82365 header files.
+-- Major redo of dump_cis and pack_cis tools: now they are installed
+   in /sbin, have man pages, and have mostly compatible file formats.
+-- Better O2Micro controller support.
+-- Added memory_cb driver for Cardbus memory access.
+-- Attempt to fix flash driver instabilities.
+-- Workaround for SMP kernel header glitch in late 2.1.* kernels.
+-- Fixed hopefully the last memory probe bug.
+-- Fixed some endian-ness problems in client drivers.
+-- Fixed MTD unloading bug.
+-- Fixed 'cardctl ident' bug with some multifunction cards.
+-- Fixed Cardbus CIS handling and resource management bugs.
+
 Version 3.0.4
 -- Split "modules" subdirectory: moved client drivers to "clients".
 -- Added "cardctl ident" to display card identification information.

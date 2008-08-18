@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.193 1998/07/18 09:55:19
+    cs.c 1.197 1998/08/20 23:06:31
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -59,7 +59,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.193 1998/07/18 09:55:19 (David Hinds)";
+"cs.c 1.197 1998/08/20 23:06:31 (David Hinds)";
 #endif
 
 static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
@@ -242,6 +242,23 @@ static void init_socket(socket_info_t *s)
     }
 }
 
+/*====================================================================*/
+
+#if defined(HAS_PROC_BUS) && defined(PCMCIA_DEBUG)
+int proc_read_clients(char *buf, char **start, off_t pos,
+		      int count, int *eof, void *data)
+{
+    socket_info_t *s = data;
+    client_handle_t c;
+    char *p = buf;
+
+    for (c = s->clients; c; c = c->next)
+	p += sprintf(p, "fn %x: '%s' [attr 0x%04x] [state 0x%04x]\n",
+		     c->Function, c->dev_info, c->Attributes, c->state);
+    return (p - buf);
+}
+#endif
+
 /*======================================================================
 
     Low-level PC Card interface drivers need to register with Card
@@ -287,8 +304,16 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 #ifdef HAS_PROC_BUS
 	{
 	    char name[3];
+#ifdef PCMCIA_DEBUG
+	    struct proc_dir_entry *ent;
+#endif
 	    sprintf(name, "%02d", i);
 	    s->proc = create_proc_entry(name, S_IFDIR, proc_pccard);
+#ifdef PCMCIA_DEBUG
+	    ent = create_proc_entry("clients", 0, s->proc);
+	    ent->read_proc = proc_read_clients;
+	    ent->data = s;
+#endif
 	    ss_entry(ns, SS_ProcSetup, s->proc);
 	}
 #endif
@@ -316,6 +341,9 @@ void unregister_ss_entry(ss_entry_t ss_entry)
 #ifdef HAS_PROC_BUS
 	    char name[3];
 	    sprintf(name, "%02d", i);
+#ifdef PCMCIA_DEBUG
+	    remove_proc_entry("clients", s->proc);
+#endif
 	    remove_proc_entry(name, proc_pccard);
 #endif
 	    while (s->clients) {
@@ -380,6 +408,9 @@ static void shutdown_socket(u_long i)
 	kfree(s->fake_cis);
 	s->fake_cis = NULL;
     }
+#ifdef CONFIG_CARDBUS
+    cb_release_cis_mem(s);
+#endif
     if (s->config) {
 	kfree(s->config);
 	s->config = NULL;
@@ -902,6 +933,8 @@ static int get_configuration_info(client_handle_t handle,
 	    config->Attributes = CONF_VALID_CLIENT;
 	    config->IntType = INT_CARDBUS;
 	    config->AssignedIRQ = s->irq.AssignedIRQ;
+	    config->BasePort1 = s->io[0].BasePort;
+	    config->NumPorts1 = s->io[0].NumPorts;
 	}
 	return CS_SUCCESS;
     }
@@ -1205,7 +1238,8 @@ static int register_client(client_handle_t *handle, client_reg_t *req)
 	call.info = s;
 	s->ss_entry(ns, SS_RegisterCallback, &call);
 	s->ss_entry(ns, SS_GetStatus, &status);
-	if (status & SS_DETECT) {
+	if ((status & SS_DETECT) &&
+	    !(s->state & SOCKET_SETUP_PENDING)) {
 	    s->state |= SOCKET_SETUP_PENDING;
 	    setup_socket(ns);
 	}
@@ -1364,8 +1398,10 @@ static int release_irq(client_handle_t handle, irq_req_t *req)
 	    return CS_BAD_ATTRIBUTE;
 	if (s->irq.AssignedIRQ != req->AssignedIRQ)
 	    return CS_BAD_IRQ;
-	c->state &= ~CONFIG_IRQ_REQ;
-	s->irq.Config--;
+	if (--s->irq.Config == 0) {
+	    c->state &= ~CONFIG_IRQ_REQ;
+	    s->irq.AssignedIRQ = 0;
+	}
     }
     
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
@@ -1564,8 +1600,10 @@ static int request_io(client_handle_t handle, io_req_t *req)
 
 #ifdef CONFIG_CARDBUS
     if (handle->state & CLIENT_CARDBUS) {
-	handle->state |= CLIENT_IO_REQ;
-	return cb_config(s);
+	int ret = cb_config(s);
+	if (ret == CS_SUCCESS)
+	    handle->state |= CLIENT_IO_REQ;
+	return ret;
     }
 #endif
     
@@ -2167,11 +2205,11 @@ static status_t std_ops(int32 op)
 	if (get_module(B_PCI_MODULE_NAME, (struct module_info **)&pci)
 	    != B_OK)
 	    return B_ERROR;
-	get_module("bus_managers/i82365", &i82365);
+	get_module("busses/pcmcia/i82365", &i82365);
 	break;
     case B_MODULE_UNINIT:
 	printk(KERN_INFO "unloading PCMCIA Card Services\n");
-	if (i82365 != NULL) put_module("bus_managers/i82365");
+	if (i82365 != NULL) put_module("busses/pcmcia/i82365");
 	release_resource_db();
 	if (pci != NULL) put_module(B_PCI_MODULE_NAME);
 	if (isa != NULL) put_module(B_ISA_MODULE_NAME);

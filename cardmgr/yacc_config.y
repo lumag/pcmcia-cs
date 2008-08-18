@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_config.y 1.42 1998/07/08 11:13:39
+ * yacc_config.y 1.43 1998/08/03 17:14:06
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -112,6 +112,7 @@ list:	  /* nothing */
 		    }
 		}
 	| list opts
+	| list mtd_opts
 	| list error
 	;
 
@@ -327,9 +328,9 @@ module:	  device MODULE STRING
 		}
 	| module OPTS STRING
 		{
-		    if ($1->opts[$1->modules-1] == NULL)
+		    if ($1->opts[$1->modules-1] == NULL) {
 			$1->opts[$1->modules-1] = $3;
-		    else {
+		    } else {
 			yyerror("too many options");
 			YYERROR;
 		    }
@@ -359,7 +360,6 @@ region:	  REGION STRING
 	| dtype
 	| jedec
 	| default
-	| mtd
 	;
 
 dtype:	  region DTYPE NUMBER
@@ -407,6 +407,34 @@ mtd:	  region MTD STRING
 			YYERROR;
 		    }
 		    $1->module = $3;
+		}
+	| mtd OPTS STRING
+		{
+		    if ($1->opts == NULL) {
+			$1->opts = $3;
+		    } else {
+			yyerror("too many options");
+			YYERROR;
+		    }
+		}
+	;
+
+mtd_opts:  MTD STRING OPTS STRING
+		{
+		    mtd_ident_t *m;
+		    int found = 0;
+		    for (m = root_mtd; m; m = m->next)
+			if (strcmp($2, m->module) == 0) break;
+		    if (m) {
+			if (m->opts) free(m->opts);
+			m->opts = strdup($4);
+			found = 1;
+		    }
+		    free($2); free($4);
+		    if (!found) {
+			yyerror("MTD name not found!");
+			YYERROR;
+		    }
 		}
 	;
 

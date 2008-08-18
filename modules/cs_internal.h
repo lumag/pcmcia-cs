@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.31 1998/07/09 23:44:07
+ * cs_internal.h 1.32 1998/08/09 00:16:27
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -249,9 +249,11 @@ int write_memory(memory_handle_t handle, mem_op_t *req, caddr_t buf);
 int copy_memory(memory_handle_t handle, copy_op_t *req);
 
 /* In rsrc_mgr */
-void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long));
+void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
+		  int force_low);
 int find_io_region(ioaddr_t *base, ioaddr_t num, char *name);
-int find_mem_region(u_long *base, u_long num, char *name, int low);
+int find_mem_region(u_long *base, u_long num, char *name,
+		    int force_low);
 int try_irq(u_int Attributes, int irq, int specific);
 void undo_irq(u_int Attributes, int irq);
 int adjust_resource_info(client_handle_t handle, adjust_t *adj);

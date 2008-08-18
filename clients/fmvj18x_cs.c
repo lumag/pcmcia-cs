@@ -75,9 +75,9 @@ MODULE_PARM(pc_debug, "i");
    To enable printing registers or status, set 'fmvj18x_debug=#' option .
  */
 #ifdef FMVJ18X_DEBUG
-static fmvj18x_debug = FMVJ18X_DEBUG;
+static int fmvj18x_debug = FMVJ18X_DEBUG;
 #else
-static fmvj18x_debug = 2;
+static int fmvj18x_debug = 2;
 #endif /* FMVJ18X_DEBUG */
 
 /* Bit map of interrupts to choose from */
@@ -823,7 +823,7 @@ static int fjn_start_xmit(struct sk_buff *skb, struct device *dev)
 	udelay(1);
 
 	outw(length, ioaddr + DATAPORT);
-	outsw(ioaddr + DATAPORT, buf, (length + 1) >> 1);
+	outsw_ns(ioaddr + DATAPORT, buf, (length + 1) >> 1);
 
 	lp->tx_queue++;
 	lp->tx_queue_len += ((length+3) & ~1);
@@ -996,7 +996,7 @@ static void fjn_rx(struct device *dev)
 	    skb->dev = dev;
 
 #define BLOCK_INPUT(buf, len) \
-	    insw(ioaddr + DATAPORT, buf, (len + 1) >> 1)
+	    insw_ns(ioaddr + DATAPORT, buf, (len + 1) >> 1)
 
 	    GET_PACKET(dev, skb, pkt_len);
 

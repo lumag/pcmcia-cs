@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_cis.y 1.4 1998/07/17 17:11:47
+ * yacc_cis.y 1.5 1998/08/02 11:56:35
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -40,13 +40,15 @@ static tuple_info_t *new_tuple(u_char type, cisparse_t *parse);
 
 %}
 
-%token STRING NUMBER FLOAT
-%token VERS_1 MANFID FUNCID CONFIG CFTABLE MFC
-%token POST ROM
-%token VNOM VMIN VMAX ISTATIC IAVG IMAX IDOWN
+%token STRING NUMBER FLOAT VOLTAGE CURRENT SIZE
+%token VERS_1 MANFID FUNCID CONFIG CFTABLE MFC CHECKSUM
+%token POST ROM BASE LAST_INDEX
+%token DEV_INFO ATTR_DEV_INFO NO_INFO
+%token TIME TIMING WAIT READY RESERVED
+%token VNOM VMIN VMAX ISTATIC IAVG IPEAK IDOWN
 %token VCC VPP1 VPP2 IO MEM
 %token DEFAULT BVD WP RDYBSY MWAIT AUDIO READONLY PWRDOWN
-%token BIT8 BIT16
+%token BIT8 BIT16 LINES RANGE
 %token IRQ_NO MASK LEVEL PULSE SHARED
 
 %union {
@@ -59,10 +61,11 @@ static tuple_info_t *new_tuple(u_char type, cisparse_t *parse);
 }
 
 %type <str> STRING
-%type <num> NUMBER
+%type <num> NUMBER SIZE VOLTAGE CURRENT TIME
 %type <flt> FLOAT
 %type <pwr> pwr pwrlist
-%type <parse> vers_1 manfid funcid config cftab io irq
+%type <parse> vers_1 manfid funcid config cftab io irq timing
+%type <parse> dev_info attr_dev_info checksum
 %type <tuple> tuple chain cis;
 %%
 
@@ -76,9 +79,11 @@ chain:	  /* nothing */
 		{ $$ = NULL; }
 	| chain tuple
 		{
-		    if ($1 == NULL)
+		    if ($1 == NULL) {
 			$$ = $2;
-		    else {
+		    } else if ($2 == NULL) {
+			$$ = $1;
+		    } else {
 			tuple_info_t *tail = $1;
 			while (tail->next != NULL) tail = tail->next;
 			tail->next = $2;
@@ -93,7 +98,11 @@ mfc:	  MFC '{' chain '}'
 		{ mfc[nf++] = $4; }
 	;
 	
-tuple:	  vers_1
+tuple:	  dev_info
+		{ $$ = new_tuple(CISTPL_DEVICE, $1); }
+	| attr_dev_info
+		{ $$ = new_tuple(CISTPL_DEVICE_A, $1); }
+	| vers_1
 		{ $$ = new_tuple(CISTPL_VERS_1, $1); }
 	| manfid
 		{ $$ = new_tuple(CISTPL_MANFID, $1); }
@@ -103,6 +112,34 @@ tuple:	  vers_1
 		{ $$ = new_tuple(CISTPL_CONFIG, $1); }
 	| cftab
 		{ $$ = new_tuple(CISTPL_CFTABLE_ENTRY, $1); }
+	| checksum
+		{ $$ = NULL; }
+	| error
+		{ $$ = NULL; }
+	;
+
+dev_info: DEV_INFO
+		{ $$ = calloc(1, sizeof(cisparse_t)); }
+	| dev_info NUMBER TIME ',' SIZE
+		{
+		    $$->device.dev[$$->device.ndev].type = $2;
+		    $$->device.dev[$$->device.ndev].speed = $3;
+		    $$->device.dev[$$->device.ndev].size = $5;
+		    $$->device.ndev++;
+		}
+	| dev_info NO_INFO
+	;
+
+attr_dev_info: ATTR_DEV_INFO
+		{ $$ = calloc(1, sizeof(cisparse_t)); }
+	| attr_dev_info NUMBER TIME ',' SIZE
+		{
+		    $$->device.dev[$$->device.ndev].type = $2;
+		    $$->device.dev[$$->device.ndev].speed = $3;
+		    $$->device.dev[$$->device.ndev].size = $5;
+		    $$->device.ndev++;
+		}
+	| attr_dev_info NO_INFO
 	;
 
 vers_1:	  VERS_1 FLOAT
@@ -148,49 +185,49 @@ funcid:	  FUNCID NUMBER
 		{ $$->funcid.sysinit |= CISTPL_SYSINIT_ROM; }
 	;
 
-config:	  CONFIG NUMBER ',' NUMBER ',' NUMBER
+config:	  CONFIG BASE NUMBER MASK NUMBER  LAST_INDEX NUMBER
 		{
 		    $$ = calloc(1, sizeof(cisparse_t));
-		    $$->config.last_idx = $2;
-		    $$->config.base = $4;
-		    $$->config.rmask[0] = $6;
+		    $$->config.base = $3;
+		    $$->config.rmask[0] = $5;
+		    $$->config.last_idx = $7;
 		}
 	;
 
-pwr:	  VNOM FLOAT
+pwr:	  VNOM VOLTAGE
 		{
 		    $$.present |= 1<<CISTPL_POWER_VNOM;
-		    $$.param[CISTPL_POWER_VNOM] = $2 * 100000;
+		    $$.param[CISTPL_POWER_VNOM] = $2;
 		}
-	| VMIN FLOAT
+	| VMIN VOLTAGE
 		{
 		    $$.present |= 1<<CISTPL_POWER_VMIN;
-		    $$.param[CISTPL_POWER_VMIN] = $2 * 100000;
+		    $$.param[CISTPL_POWER_VMIN] = $2;
 		}
-	| VMAX FLOAT
+	| VMAX VOLTAGE
 		{
 		    $$.present |= 1<<CISTPL_POWER_VMAX;
-		    $$.param[CISTPL_POWER_VMAX] = $2 * 100000;
+		    $$.param[CISTPL_POWER_VMAX] = $2;
 		}
-	| ISTATIC FLOAT
+	| ISTATIC CURRENT
 		{
 		    $$.present |= 1<<CISTPL_POWER_ISTATIC;
-		    $$.param[CISTPL_POWER_ISTATIC] = $2 * 1000;
+		    $$.param[CISTPL_POWER_ISTATIC] = $2;
 		}
-	| IAVG FLOAT
+	| IAVG CURRENT
 		{
 		    $$.present |= 1<<CISTPL_POWER_IAVG;
 		    $$.param[CISTPL_POWER_IAVG] = $2 * 1000;
 		}
-	| IMAX FLOAT
+	| IPEAK CURRENT
 		{
 		    $$.present |= 1<<CISTPL_POWER_IPEAK;
-		    $$.param[CISTPL_POWER_IPEAK] = $2 * 1000;
+		    $$.param[CISTPL_POWER_IPEAK] = $2;
 		}
-	| IDOWN FLOAT
+	| IDOWN CURRENT
 		{
 		    $$.present |= 1<<CISTPL_POWER_IDOWN;
-		    $$.param[CISTPL_POWER_IDOWN] = $2 * 1000;
+		    $$.param[CISTPL_POWER_IDOWN] = $2;
 		}
 	;
 
@@ -199,6 +236,12 @@ pwrlist:  /* nothing */
 		    $$.present = 0;
 		}
 	| pwrlist pwr
+	;
+
+timing:	  cftab TIMING
+	| timing WAIT TIME
+	| timing READY TIME
+	| timing RESERVED TIME
 	;
 
 io:	  cftab IO NUMBER '-' NUMBER
@@ -219,6 +262,9 @@ io:	  cftab IO NUMBER '-' NUMBER
 		{ $$->cftable_entry.io.flags |= CISTPL_IO_8BIT; }
 	| io BIT16
 		{ $$->cftable_entry.io.flags |= CISTPL_IO_16BIT; }
+	| io LINES '=' NUMBER ']'
+		{ $$->cftable_entry.io.flags |= $4; }
+	| io RANGE
 	;	
 
 irq:	  cftab IRQ_NO NUMBER
@@ -265,7 +311,11 @@ cftab:	  CFTABLE NUMBER
 		{ $$->cftable_entry.vpp2 = $3; }
 	| io
 	| irq
+	| timing
 	;
+
+checksum: CHECKSUM NUMBER '-' NUMBER '=' NUMBER
+	{ $$ = NULL; }
 
 %%
 
