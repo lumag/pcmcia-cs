@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.84 2000/07/11 01:33:00
+    cistpl.c 1.86 2000/07/20 23:07:23
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -1457,10 +1457,11 @@ int validate_cis(client_handle_t handle, cisinfo_t *info)
 	return CS_SUCCESS;
 
     /* All cards should have a MANFID tuple, and/or a VERS_1 or VERS_2
-       tuple, for card identification */
+       tuple, for card identification.  Certain old D-Link and Linksys
+       cards have only a broken VERS_2 tuple; hence the bogus test. */
     if ((read_tuple(handle, CISTPL_MANFID, &p) != CS_SUCCESS) &&
 	(read_tuple(handle, CISTPL_VERS_1, &p) != CS_SUCCESS) &&
-	(read_tuple(handle, CISTPL_VERS_2, &p) != CS_SUCCESS))
+	(read_tuple(handle, CISTPL_VERS_2, &p) == CS_NO_MORE_ITEMS))
 	return CS_SUCCESS;
 
     for (info->Chains = 1; info->Chains < MAX_TUPLES; info->Chains++) {

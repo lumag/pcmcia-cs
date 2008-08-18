@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.139 2000/06/12 21:33:02
+    cardmgr.c 1.140 2000/07/12 01:28:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -962,8 +962,7 @@ static void do_insert(int sn)
 	while (ret == 0) {
 	    bind_info_t *old;
 #ifdef __linux__
-	    if ((strlen(bind->name) > 3) &&
-		(bind->name[2] == '#'))
+	    if ((strlen(bind->name) > 3) && (bind->name[2] == '#'))
 		xlate_scsi_name(bind);
 #endif
 	    old = *tail = bind; tail = (bind_info_t **)&bind->next;

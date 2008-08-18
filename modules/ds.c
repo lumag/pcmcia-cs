@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.106 2000/06/12 21:29:36
+    ds.c 1.107 2000/07/12 21:33:33
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.106 2000/06/12 21:29:36 (David Hinds)";
+"ds.c 1.107 2000/07/12 21:33:33 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -83,6 +83,7 @@ typedef struct driver_info_t {
 
 typedef struct socket_bind_t {
     driver_info_t	*driver;
+    u_char		function;
     dev_link_t		*instance;
     struct socket_bind_t *next;
 } socket_bind_t;
@@ -393,7 +394,8 @@ static int bind_request(int i, bind_info_t *bind_info)
     }
 
     for (b = s->bind; b; b = b->next)
-	if (driver == b->driver)
+	if ((driver == b->driver) &&
+	    (bind_info->function == b->function))
 	    break;
     if (b != NULL) {
 	bind_info->instance = b->instance;
@@ -415,6 +417,7 @@ static int bind_request(int i, bind_info_t *bind_info)
     driver->use_count++;
     b = kmalloc(sizeof(socket_bind_t), GFP_KERNEL);
     b->driver = driver;
+    b->function = bind_info->function;
     b->instance = NULL;
     b->next = s->bind;
     s->bind = b;
@@ -440,8 +443,9 @@ static int get_device_info(int i, bind_info_t *bind_info, int first)
     dev_node_t *node;
     
     for (b = s->bind; b; b = b->next)
-	if (strcmp((char *)b->driver->dev_info,
-		   (char *)bind_info->dev_info) == 0)
+	if ((strcmp((char *)b->driver->dev_info,
+		    (char *)bind_info->dev_info) == 0) &&
+	    (b->function == bind_info->function))
 	    break;
     if (b == NULL) return -ENODEV;
     if ((b->instance == NULL) ||
@@ -473,8 +477,9 @@ static int unbind_request(int i, bind_info_t *bind_info)
     DEBUG(2, "unbind_request(%d, '%s')\n", i,
 	  (char *)bind_info->dev_info);
     for (b = &s->bind; *b; b = &(*b)->next)
-	if (strcmp((char *)(*b)->driver->dev_info,
-		   (char *)bind_info->dev_info) == 0)
+	if ((strcmp((char *)(*b)->driver->dev_info,
+		    (char *)bind_info->dev_info) == 0) &&
+	    ((*b)->function == bind_info->function))
 	    break;
     if (*b == NULL)
 	return -ENODEV;

@@ -38,7 +38,7 @@
 *
 * FILE	 : mdd.h
 *
-* DATE   : 2000/02/28 23:09:38   1.3
+* DATE   : 2000/07/14 23:27:51   1.4
 *
 * AUTHOR : Nico Valster
 *
@@ -65,6 +65,9 @@ needed to build the C-part, e.g. for the DOS ODI driver
 
 /****************************************************************************
 wvlan_mdd.h,v
+Revision 1.4  2000/07/14 23:27:51  root
+*** empty log message ***
+
 Revision 1.3  2000/02/28 23:09:38  root
 *** empty log message ***
 
@@ -259,6 +262,7 @@ typedef enum  { /*hcf_action_cmd*/
 #define CFG_CNF_OWN_NAME				0xFC0E		//Identification text for diagnostic purposes
 
 #define CFG_CNF_ENCRYPTION				0xFC20		//select en/de-cryption of Tx/Rx messages
+#define CFG_CNF_MICRO_WAVE              0xFC25      //MicroWave (Robustness)
 	
 	
 //	NETWORK PARAMETERS, DYNAMIC CONFIGURATION ENTITIES

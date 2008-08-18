@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.19 2000/05/31 18:31:21
+    pci_fixup.c 1.21 2000/07/18 22:17:14
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -272,6 +272,15 @@ static void ali_init(struct pci_dev *router, u8 link, u8 irq)
 #ifndef PCI_DEVICE_ID_VIA_82C686
 #define PCI_DEVICE_ID_VIA_82C686 0x0686
 #endif
+#ifndef PCI_DEVICE_ID_SI
+#define PCI_DEVICE_ID_SI 0x1039
+#endif
+#ifndef PCI_DEVICE_ID_SI_503
+#define PCI_DEVICE_ID_SI_503 0x0008
+#endif
+#ifndef PCI_DEVICE_ID_SI_496
+#define PCI_DEVICE_ID_SI_496 0x0496
+#endif
 
 #define ID(a,b) PCI_VENDOR_ID_##a,PCI_DEVICE_ID_##a##_##b
 
@@ -288,7 +297,9 @@ struct router {
     { ID(VIA, 82C596),		&via_link,	&via_init },
     { ID(VIA, 82C686),		&via_link,	&via_init },
     { ID(OPTI, 82C700),		&opti_link,	&opti_init },
-    { ID(AL, M1533),		&ali_link,	&ali_init }
+    { ID(AL, M1533),		&ali_link,	&ali_init },
+    { ID(SI, 503),		&pIIx_link,	&pIIx_init },
+    { ID(SI, 496),		&pIIx_link,	&pIIx_init }
 };
 #define ROUTER_COUNT (sizeof(router_table)/sizeof(router_table[0]))
 
@@ -384,8 +395,9 @@ static int check_cb_mapping(u_int phys)
 	       (readb(virt+0x800+I365_CSC) &&
 		readb(virt+0x800+I365_CSC) &&
 		readb(virt+0x800+I365_CSC)));
+    int state = readl(virt+CB_SOCKET_STATE) >> 16;
+    ret |= (state & ~0x3000) || !(state & 0x3000);
     ret |= readl(virt+CB_SOCKET_FORCE);
-    ret |= (readl(virt+CB_SOCKET_STATE) >> 16) != 0x3000;
     iounmap(virt);
     return ret;
 }
@@ -455,7 +467,7 @@ static void setup_cb_bridge(struct pci_dev *dev)
 	    phys = cb_mem_base[i];
 	    if (phys == 0) continue;
 	    pci_write_config_dword(dev, PCI_BASE_ADDRESS_0, phys);
-	    if (check_cb_mapping(phys) == 0) break;
+	    if ((i == 0) || (check_cb_mapping(phys) == 0)) break;
 	}
 	if (i == sizeof(cb_mem_base)/sizeof(u_int)) {
 	    pci_write_config_dword(dev, PCI_BASE_ADDRESS_0, 0);
@@ -537,6 +549,8 @@ int pci_enable_device(struct pci_dev *dev)
 
 int pci_set_power_state(struct pci_dev *dev, int state)
 {
+    u16 tmp, cmd;
+    u32 base, bus;
     u8 a, b, pmcs;
     pci_read_config_byte(dev, PCI_STATUS, &a);
     if (a & PCI_STATUS_CAPLIST) {
@@ -546,7 +560,15 @@ int pci_set_power_state(struct pci_dev *dev, int state)
 	    if (a == PCI_CAPABILITY_PM) {
 		pmcs = b + PCI_PM_CONTROL_STATUS;
 		/* Make sure we're in D0 state */
+		pci_read_config_word(dev, pmcs, &tmp);
+		if (!(tmp & PCI_PMCS_PWR_STATE_MASK)) break;
+		pci_read_config_dword(dev, PCI_BASE_ADDRESS_0, &base);
+		pci_read_config_dword(dev, CB_PRIMARY_BUS, &bus);
+		pci_read_config_word(dev, PCI_COMMAND, &cmd);
 		pci_write_config_word(dev, pmcs, PCI_PMCS_PWR_STATE_D0);
+		pci_write_config_dword(dev, PCI_BASE_ADDRESS_0, base);
+		pci_write_config_dword(dev, CB_PRIMARY_BUS, bus);
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
 		break;
 	    }
 	    pci_read_config_byte(dev, b+PCI_NEXT_CAPABILITY, &b);

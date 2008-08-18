@@ -1,5 +1,5 @@
 /*
- * i82365.h 1.19 2000/06/12 21:29:37
+ * i82365.h 1.20 2000/07/20 23:00:27
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -97,6 +97,7 @@
 #define I365_CSC_GPI	0x10
 
 /* Flags for I365_ADDRWIN */
+#define I365_ADDR_MEMCS16	0x20
 #define I365_ENA_IO(map)	(0x40 << (map))
 #define I365_ENA_MEM(map)	(0x01 << (map))
 

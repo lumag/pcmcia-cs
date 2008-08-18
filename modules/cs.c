@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.261 2000/07/10 23:31:08
+    cs.c 1.263 2000/07/14 23:25:19
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -70,7 +70,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.261 2000/07/10 23:31:08 (David Hinds)";
+"cs.c 1.263 2000/07/14 23:25:19 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -756,6 +756,13 @@ static int alloc_io_space(socket_info_t *s, u_int attr, ioaddr_t *base,
 	      *base, align);
 	align = 0;
     }
+    /* Check for an already-allocated window that must conflict with
+       what was asked for.  It is a hack because it does not catch all
+       potential conflicts, just the most obvious ones. */
+    for (i = 0; i < MAX_IO_WIN; i++)
+	if ((s->io[i].NumPorts != 0) &&
+	    ((s->io[i].BasePort & (align-1)) == *base))
+	    return 1;
     for (i = 0; i < MAX_IO_WIN; i++) {
 	if (s->io[i].NumPorts == 0) {
 	    if (find_io_region(base, num, align, name) == 0) {
@@ -1642,11 +1649,13 @@ static int request_configuration(client_handle_t handle,
 	write_cis_mem(s, 1, (base + CISREG_SCR)>>1, 1, &c->Copy);
     }
     if (req->Present & PRESENT_OPTION) {
-	if (s->functions == 1)
+	if (s->functions == 1) {
 	    c->Option = req->ConfigIndex & COR_CONFIG_MASK;
-	else {
+	} else {
 	    c->Option = req->ConfigIndex & COR_MFC_CONFIG_MASK;
-	    c->Option |= COR_FUNC_ENA|COR_ADDR_DECODE|COR_IREQ_ENA;
+	    c->Option |= COR_FUNC_ENA|COR_IREQ_ENA;
+	    if (req->Present & PRESENT_IOBASE_0)
+		c->Option |= COR_ADDR_DECODE;
 	}
 	if (c->state & CONFIG_IRQ_REQ)
 	    if (!(c->irq.Attributes & IRQ_FORCED_PULSE))

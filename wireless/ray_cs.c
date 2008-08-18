@@ -96,7 +96,7 @@ static void ray_detach(dev_link_t *);
 /***** Prototypes indicated by device structure ******************************/
 static int ray_dev_close(struct net_device *dev);
 static int ray_dev_config(struct net_device *dev, struct ifmap *map);
-static struct enet_statistics *ray_get_stats(struct net_device *dev);
+static struct net_device_stats *ray_get_stats(struct net_device *dev);
 static int ray_dev_init(struct net_device *dev);
 static int ray_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 static int ray_open(struct net_device *dev);
@@ -317,7 +317,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.19 2000/06/05 23:00:51 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.20 2000/07/20 00:15:42 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -1923,14 +1923,14 @@ static int parse_addr(char *in_str, UCHAR *out)
     return status;
 }
 /*===========================================================================*/
-static struct enet_statistics *ray_get_stats(struct net_device *dev)
+static struct net_device_stats *ray_get_stats(struct net_device *dev)
 {
     ray_dev_t *local = (ray_dev_t *)dev->priv;
     dev_link_t *link = local->finder;
     struct status *p = (struct status *)(local->sram + STATUS_BASE);
 
     if (!DEV_OK(link)) {
-        DEBUG(2,"ray_cs enet_statistics - device not present\n");
+        DEBUG(2,"ray_cs ray_get_stats - device not present\n");
         return &local->stats;
     }
 

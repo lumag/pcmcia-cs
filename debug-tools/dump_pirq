@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# dump_pirq 1.14 2000/06/12 21:34:34
+# dump_pirq 1.15 2000/07/20 00:15:47
 #
 # A utility to parse the BIOS PCI IRQ Routing Table
 #
@@ -194,7 +194,7 @@ sub dump_router
 	@tag = ("A", "B", "C", "D");
 	for ($i = 0; $i < 4; $i++) {
 	    $irq = ($p[$i] & 0x80) ? 0 : ($p[$i] & 0x0f);
-	    print "  INT$tag[$i] (link ???): ";
+	    printf "  INT$tag[$i] (link 0x%02x): ", $i+$base;
 	    print ($irq ? "irq $irq\n" : "unrouted\n");
 	}
 

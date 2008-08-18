@@ -181,7 +181,7 @@
 #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0))
+#ifdef __IN_PCMCIA_PACKAGE__
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 #endif
@@ -937,9 +937,13 @@ int wvlan_hw_config (struct net_device *dev)
 		rc = wvlan_hw_setthreshold(&local->ifb, ap_density, CFG_CNF_SYSTEM_SCALE);
 	if (!rc)
 		rc = wvlan_hw_setthreshold(&local->ifb, medium_reservation, CFG_RTS_THRH);
-	/* Discard return value: this call fails on 6.* firmware */
-	if (!rc)
-		wvlan_hw_setthreshold(&local->ifb, frag_threshold, CFG_FRAGMENTATION_THRH);
+	/* Note : at this point we used to set the fragmentation threshold.
+	 * This fails on version 6.X of the Wavelan firmware.
+	 * On the other hand, earlier version of the firmware always
+	 * initialiase with a sane value, so we don't really need to do it.
+	 * Use iwconfig/wireless.opts if you really need it.
+	 * Jean II
+	 */
 	if (!rc)
 		rc = wvlan_hw_setthreshold(&local->ifb, transmit_rate, CFG_TX_RATE_CONTROL);
 
@@ -1343,7 +1347,7 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 		case SIOCGIWFRAG:
 			wrq->u.frag.value = wvlan_hw_getthreshold(&local->ifb, CFG_FRAGMENTATION_THRH);
 #if WIRELESS_EXT > 8
-			wrq->u.frag.disabled = (wrq->u.frag.value == 2346);
+			wrq->u.frag.disabled = (wrq->u.frag.value >= 2346);
 #endif /* WIRELESS_EXT > 8 */
 			wrq->u.frag.fixed = 1;
 			break;
@@ -1667,6 +1671,25 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			break;
 #endif /* WIRELESS_SPY */
 
+			/* Microwave Oven robustness. Those two are likely
+			 * to give funky results with firmware earlier than
+			 * version 6.X - Jean II */
+		case SIOCDEVPRIVATE + 0x2:
+			// Only super-user can set MWO robustness
+			if (!capable(CAP_NET_ADMIN))
+			{
+				rc = -EPERM;
+				break;
+			}
+			wvlan_hw_setthreshold(&local->ifb, *(wrq->u.name) > 0,
+					      CFG_CNF_MICRO_WAVE);
+			wvlan_hw_reset(dev);
+			break;
+
+		case SIOCDEVPRIVATE + 0x3:
+			*(wrq->u.name) = wvlan_hw_getthreshold(&local->ifb, CFG_CNF_MICRO_WAVE);
+			break;
+
 #ifdef HISTOGRAM
 		// Set the histogram range
 		case SIOCDEVPRIVATE + 0xd:
@@ -1718,6 +1741,8 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					{ SIOCDEVPRIVATE + 0x0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "force_reset" },
 					{ SIOCDEVPRIVATE + 0x1, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "debug_getinfo" },
 #endif
+					{ SIOCDEVPRIVATE + 0x2, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1 , 0, "setmwo" },
+					{ SIOCDEVPRIVATE + 0x3, 0, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, "getmwo" },
 				};
 				rc = verify_area(VERIFY_WRITE, wrq->u.data.pointer, sizeof(priv));
 				if (rc)

@@ -1,6 +1,6 @@
 		Linux PCMCIA Maintainers List
 
-		Last updated: 2000/06/12 21:33:31
+		Last updated: 2000/07/14 23:33:50
 
 The following PCMCIA driver components have active maintainers.  Bug
 reports and questions are often best addressed to the maintainer of
@@ -38,6 +38,7 @@ http://www.media.mit.edu/~jseger
 [wvlan_cs]
 Andreas Neuhaus <andy@fasta.fh-dortmund.de>
 http://www.fasta.fh-dortmund.de/users/andy/wvlan
+http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Wavelan-IEEE.html
 
 The following PCMCIA sub-projects need maintainers.  If you would be
 interested in helping out, let me know.

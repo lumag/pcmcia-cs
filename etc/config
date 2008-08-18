@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.125 2000/07/11 01:27:26 (David Hinds)
+# config 1.126 2000/07/13 04:53:45 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -925,6 +925,10 @@ card "Argosy Dual Serial I/O"
   cis "cis/RS-COM-2P.dat"
   bind "serial_cs"
 
+card "Brain Boxes 2-Port RS-232"
+  manfid 0x0160, 0x0002
+  bind "serial_cs" to 0, "serial_cs" to 1
+
 card "Computerboards PCM-COM422"
   version "Computerboards, Inc.", "PCM-COM422"
   bind "serial_cs"
@@ -976,6 +980,10 @@ card "Silicom 2S100 Dual Serial"
 card "Socket Communications Dual RS-232"
   manfid 0x0104, 0x0006
   bind "serial_cs"
+
+card "Socket Communications Dual I/O Card"
+  manfid 0x0104, 0x0070
+  bind "serial_cs" to 0, "serial_cs" to 1
 
 #
 # Memory cards

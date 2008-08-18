@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.319 2000/06/14 18:32:42
+    i82365.c 1.321 2000/07/20 23:00:26
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.319 2000/06/14 18:32:42 (David Hinds)";
+"i82365.c 1.321 2000/07/20 23:00:26 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -1070,11 +1070,12 @@ static void set_bridge_state(socket_info_t *s)
     if (s->flags & IS_CARDBUS)
 	cb_set_state(s);
 #endif
-    if (s->flags & IS_CIRRUS)
+    if (s->flags & IS_CIRRUS) {
 	cirrus_set_state(s);
-    else {
+    } else {
 	i365_set(s, I365_GBLCTL, 0x00);
 	i365_set(s, I365_GENCTL, 0x00);
+	i365_set(s, I365_ADDRWIN, I365_ADDR_MEMCS16);
     }
     i365_bflip(s, I365_INTCTL, I365_INTR_ENA, s->intr);
 #ifdef CONFIG_ISA
@@ -1569,11 +1570,12 @@ static void __init add_pci_bridge(int type, u_short v, u_short d)
 
 static int check_cb_mapping(socket_info_t *s)
 {
+    u_int state = cb_readl(s, CB_SOCKET_STATE) >> 16;
     /* A few sanity checks to validate the bridge mapping */
     if ((cb_readb(s, 0x800+I365_IDENT) & 0x70) ||
 	(cb_readb(s, 0x800+I365_CSC) && cb_readb(s, 0x800+I365_CSC) &&
 	 cb_readb(s, 0x800+I365_CSC)) || cb_readl(s, CB_SOCKET_FORCE) ||
-	((cb_readl(s, CB_SOCKET_STATE) >> 16) != 0x3000))
+	((state & ~0x3000) || !(state & 0x3000)))
 	return 1;
     return 0;
 }
@@ -1768,9 +1770,9 @@ static irq_ret_t pcic_interrupt IRQ(int irq, void *dev,
 		continue;
 	    }
 	    events = (csc & I365_CSC_DETECT) ? SS_DETECT : 0;
-	    if (i365_get(s, I365_INTCTL) & I365_PC_IOCARD)
+	    if (i365_get(s, I365_INTCTL) & I365_PC_IOCARD) {
 		events |= (csc & I365_CSC_STSCHG) ? SS_STSCHG : 0;
-	    else {
+	    } else {
 		events |= (csc & I365_CSC_BVD1) ? SS_BATDEAD : 0;
 		events |= (csc & I365_CSC_BVD2) ? SS_BATWARN : 0;
 		events |= (csc & I365_CSC_READY) ? SS_READY : 0;
@@ -1834,9 +1836,9 @@ static int i365_get_status(socket_info_t *s, u_int *value)
     status = i365_get(s, I365_STATUS);
     *value = ((status & I365_CS_DETECT) == I365_CS_DETECT)
 	? SS_DETECT : 0;
-    if (i365_get(s, I365_INTCTL) & I365_PC_IOCARD)
+    if (i365_get(s, I365_INTCTL) & I365_PC_IOCARD) {
 	*value |= (status & I365_CS_STSCHG) ? 0 : SS_STSCHG;
-    else {
+    } else {
 	*value |= (status & I365_CS_BVD1) ? 0 : SS_BATDEAD;
 	*value |= (status & I365_CS_BVD2) ? 0 : SS_BATWARN;
     }
@@ -1942,9 +1944,9 @@ static int i365_get_socket(socket_info_t *s, socket_state_t *state)
     /* Card status change mask */
     reg = i365_get(s, I365_CSCINT);
     state->csc_mask = (reg & I365_CSC_DETECT) ? SS_DETECT : 0;
-    if (state->flags & SS_IOCARD)
+    if (state->flags & SS_IOCARD) {
 	state->csc_mask |= (reg & I365_CSC_STSCHG) ? SS_STSCHG : 0;
-    else {
+    } else {
 	state->csc_mask |= (reg & I365_CSC_BVD1) ? SS_BATDEAD : 0;
 	state->csc_mask |= (reg & I365_CSC_BVD2) ? SS_BATWARN : 0;
 	state->csc_mask |= (reg & I365_CSC_READY) ? SS_READY : 0;

@@ -1,3 +1,19 @@
+[20-Jul-00] Version 3.1.19
+-- Fixed an i82365 setup issue created by the 16-bit memory window
+   change in 3.1.18, affecting the ray_cs driver with ISA bridges.
+-- Added PCI interrupt routing fixups for SiS 85C503 and 85C496/497
+   PCI-to-ISA bridges.
+-- More wvlan_cs updates from Jean T for 6.* firmware: added control
+   of microwave oven robustness setting.
+-- Fixed a pci_fixup issue ("bad bridge mapping") with not correctly
+   handling powered-down CardBus bridges.
+-- Fixed wvlan_cs driver to work with 2.4 kernels with modversions.
+-- Relaxed the CardBus bridge mapping sanity checks a bit.
+-- Various fixes in configuration register handling, IO allocation,
+   and driver binding logic to handle several quirky dual-serial-port
+   multifunction cards.
+-- Re-fixed a 2.4.* build bug in dump_cis.
+
 [10-Jul-00] Version 3.1.18
 -- Changed CIS parser to use 16-bit memory windows instead of 8-bit.
 -- Bumped unreset_limit up to 50 (= 5 sec) to handle slow IDE devices.

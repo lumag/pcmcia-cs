@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/07/11 01:27:31
+		Last updated: 2000/07/20 23:03:27
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -60,6 +60,7 @@ Ethernet cards:
 	AST 1082 Ethernet
 	Atelco ethernet
 	Billionton LNT-10TB, LNT-10TN
+	CADMUS Micro LNT-10T2C
 	California Access LAN Adapter
 	CeLAN EPCMCIA
 	CNet CN30BC, CN40BC Ethernet
@@ -99,7 +100,7 @@ Ethernet cards:
 	IO DATA PCLA/T, PCLA/TE
 	Katron PE-520 Ethernet
 	KingMax Technology EN10-T2 Ethernet
-	Kingston KNE-PCM/M, KNE-PC2, KNE-PC2T
+	Kingston KNE-PCM/M, KNE-PC2, KNE-PC2T, KNE-PC2BT
 	KTI PE-520 Plus
 	LANEED LD-CDW Ethernet
 	LanPro EP4000A
@@ -283,12 +284,15 @@ Modem and serial cards:
 	[ Virtually all modem cards, simple serial port cards, and
 	digital cellular modems should work.  The only exceptions are
 	so-called "WinModems" that require special Windows drivers.
-	ISDN modems that emulate a standard UART are also supported. ]
+	ISDN modems that emulate a standard UART are also supported.
+	For more information about WinModems and current lists, see
+	http://www.o2.net/~gromitkc/winmodem.html ]
 
 	[serial_cs driver] [x86,axp]
 	Advantech COMpad-32/85 dual serial
 	Argosy dual serial
 	Black Box I114A RS-422/485
+	Brain Boxes 2-Port RS-232
 	National Instruments PCMCIA-232, PCMCIA-232/2, PCMCIA-232/4
 	National Instruments PCMCIA-485, PCMCIA-485/2
 	Omega Engineering QSP-100
@@ -299,15 +303,19 @@ Modem and serial cards:
 
 	[ The following cards are WinModems and are NOT supported ]
 	3Com/Megahertz 3CXM356/3CCM356, 3CXM656/3CCM656
-	3Com/USRobotics 3014a
+	3Com/Megahertz XJ/CC2560, 3013, 3014
+	3Com/USRobotics 3014A, 3056, 3057
 	Abocom FM560CB
+	ActionTec CM560LH
 	Billionton 56K HSP
 	Com1 Platinum MC221 Discovery 56K
 	Compaq 192
-	IBM 10L7394
-	Megahertz XJ/CC2560
+	IBM 10L7393, 10L7394
+	Lucent LT Winmodem
 	Motorola Montana
 	New Media WinSurfer
+	Paradise CW56K HSP
+	Xircom CBM56G, R2BM56W
 	
 Parallel port cards:
 

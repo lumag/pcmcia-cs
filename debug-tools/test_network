@@ -41,7 +41,7 @@ sub checkout
 
     $irq = $1 if ($conf =~ /Interrupt:(\d+)/);
     @line = split(/\n/, $conf);
-    @addr = split(/ [a-zA-Z ]+:/, $line[1]);
+    ($x,$ipaddr,$bcast,$netmask) = split(/ [a-zA-Z ]+:/, $line[1]);
     @rx = split(/ [a-zA-Z ]+:/, $1) if ($conf =~ /RX(.*)\n/);
     @tx = split(/ [a-zA-Z ]+:/, $1) if ($conf =~ /TX(.*)\n/);
     shift(@rx); shift(@tx);
@@ -89,6 +89,8 @@ sub checkout
 	    $addr = <STDIN>; chop($addr);
 	    if ($addr !~ /^\d+\.\d+\.\d+\.\d+$/) {
 		print "  That is not a valid address!\n";
+	    } elsif ($addr eq $ipaddr) {
+		print "  Sorry, pinging yourself is not informative!\n";
 	    } elsif (system("/sbin/ifuser $dev $addr")) {
 		print "  There is no route to $addr through $dev!\n";
 	    } else {
