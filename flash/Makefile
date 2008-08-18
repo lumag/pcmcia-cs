@@ -1,13 +1,11 @@
 #
-# flash/Makefile 1.12 1999/07/24 15:03:39 (David Hinds)
+# flash/Makefile 1.13 1999/10/28 01:22:05 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
-#ifndef CFLAGS
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
-#endif
 CPPFLAGS = -I../include -I$(LINUX)/include
 COFLAGS = -kv
 

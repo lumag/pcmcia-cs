@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.262 1999/10/25 20:03:33
+    i82365.c 1.265 1999/11/10 18:36:21
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.262 1999/10/25 20:03:33 (David Hinds)";
+"i82365.c 1.265 1999/11/10 18:36:21 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -205,7 +205,7 @@ MODULE_PARM(cb_write_post, "i");
 #ifdef CONFIG_ISA
 #ifdef CONFIG_PCI
 /* PCI card status change interrupts? */
-static int pci_csc = 1;
+static int pci_csc = 0;
 /* PCI IO card functional interrupts? */
 static int pci_int = 0;
 MODULE_PARM(pci_csc, "i");
@@ -932,7 +932,8 @@ static void o2micro_get_state(u_short s)
 {
     socket_info_t *t = &socket[s];
     o2micro_state_t *p = &socket[s].state.o2micro;
-    if ((t->revision == 0x34) || (t->revision == 0x62)) {
+    if ((t->revision == 0x34) || (t->revision == 0x62) ||
+	(t->type == IS_OZ6812)) {
 	p->mode_a = i365_get(s, O2_MODE_A_2);
 	p->mode_b = i365_get(s, O2_MODE_B_2);
     } else {
@@ -952,7 +953,8 @@ static void o2micro_set_state(u_short s)
 {
     socket_info_t *t = &socket[s];
     o2micro_state_t *p = &socket[s].state.o2micro;
-    if ((t->revision == 0x34) || (t->revision == 0x62)) {
+    if ((t->revision == 0x34) || (t->revision == 0x62) ||
+	(t->type == IS_OZ6812)) {
 	i365_set(s, O2_MODE_A_2, p->mode_a);
 	i365_set(s, O2_MODE_B_2, p->mode_b);
     } else {
@@ -1036,6 +1038,7 @@ static int topic_set_irq_mode(u_short s, int pcsc, int pint)
 	flip(p->ccr, TOPIC97_ICR_IRQSEL, pcsc);
 	return 0;
     } else {
+	/* no ISA card status change irq */
 	return !pcsc;
     }
 }
@@ -1585,7 +1588,8 @@ static void __init add_pcic(int ns, int type)
 #ifdef CONFIG_ISA
     /* Poll if only two interrupts available */
     if (!use_pci && !poll_interval) {
-	u_int tmp = (mask & (mask-1));
+	u_int tmp = (mask & 0xff20);
+	tmp = tmp & (tmp-1);
 	if ((tmp & (tmp-1)) == 0)
 	    poll_interval = HZ;
     }
@@ -1777,18 +1781,19 @@ static void __init add_cb_bridge(int type, u_char bus, u_char devfn,
 
     /* Re-do card voltage detection, if needed: this checks for
        card presence with no voltage detect bits set */
-    if (!(cb_readl(sockets-ns, CB_SOCKET_STATE) & 0x3c86)) {
-	cb_writel(sockets-ns, CB_SOCKET_FORCE, CB_SF_CVSTEST);
-	for (i = 0; i < 20; i++) {
-	    __set_current_state(TASK_UNINTERRUPTIBLE);
-	    schedule_timeout(HZ/20);
-	    if (cb_readl(sockets-ns, CB_SOCKET_STATE) & 0x3c86)
-		break;
-	}
-	if (i == 20)
-	    printk(KERN_NOTICE "i82365: card voltage interrogation"
-		   " timed out!\n");
+    for (a = sockets-ns; a < sockets; a++)
+	if (!(cb_readl(a, CB_SOCKET_STATE) & 0x3c86))
+	    cb_writel(a, CB_SOCKET_FORCE, CB_SF_CVSTEST);
+    for (i = 0; i < 200; i++) {
+	for (a = sockets-ns; a < sockets; a++)
+	    if (!(cb_readl(a, CB_SOCKET_STATE) & 0x3c86)) break;
+	if (a == sockets) break;
+	__set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(HZ/20);
     }
+    if (i == 200)
+	printk(KERN_NOTICE "i82365: card voltage interrogation"
+	       " timed out!\n");
 
 #ifdef __LINUX__
 #if (LINUX_VERSION_CODE >= VERSION(2,1,103))

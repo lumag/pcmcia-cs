@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.112 1999/10/25 20:03:18
+    serial_cs.c 1.114 1999/11/11 00:54:46
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -34,6 +34,7 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -60,7 +61,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.112 1999/10/25 20:03:18 (David Hinds)";
+"serial_cs.c 1.114 1999/11/11 00:54:46 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -153,7 +154,6 @@ static dev_link_t *serial_attach(void)
     link->release.data = (u_long)link;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts1 = 8;
-    link->io.IOAddrLines = 3;
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
     if (irq_list[0] == -1)
@@ -332,6 +332,7 @@ static int simple_config(dev_link_t *link)
 	if ((cf->io.nwin > 0) && ((cf->io.win[0].base & 0xf) == 8)) {
 	    link->conf.ConfigIndex = cf->index;
 	    link->io.BasePort1 = cf->io.win[0].base;
+	    link->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
 	    i = CardServices(RequestIO, link->handle, &link->io);
 	    if (i == CS_SUCCESS) goto found_port;
 	}
@@ -404,6 +405,7 @@ static int multi_config(dev_link_t *link)
 	    (cf->io.win[0].len > 8)) {
 	    link->conf.ConfigIndex = cf->index;
 	    link->io.BasePort1 = cf->io.win[0].base;
+	    link->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
 	    i = CardServices(RequestIO, link->handle, &link->io);
 	    base2 = link->io.BasePort1 + 8;
 	    if (i == CS_SUCCESS) break;
@@ -421,6 +423,7 @@ static int multi_config(dev_link_t *link)
 		link->conf.ConfigIndex = cf->index;
 		link->io.BasePort1 = cf->io.win[0].base;
 		link->io.BasePort2 = cf->io.win[1].base;
+		link->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
 		i = CardServices(RequestIO, link->handle, &link->io);
 		base2 = link->io.BasePort2;
 		if (i == CS_SUCCESS) break;

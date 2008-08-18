@@ -12,7 +12,7 @@ case "$ADDRESS" in
     IF_PORT=""
     # Use BOOTP (via /sbin/bootpc)? [y/n]
     BOOTP="n"
-    # Use DHCP (via /sbin/dhcpcd)? [y/n]
+    # Use DHCP (via /sbin/dhcpcd or /sbin/dhclient)? [y/n]
     DHCP="n"
     # Use /sbin/pump for BOOTP/DHCP? [y/n]
     PUMP="n"

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.122 1999/10/26 02:52:58
+# Configure 1.125 1999/11/03 18:21:44
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # The initial developer of the original code is David A. Hinds
-# <dhinds@pcmcia.sourceforge.edu>.  Portions created by David A. Hinds
+# <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
 # are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 #
 # Alternatively, the contents of this file may be used under the terms
@@ -65,8 +65,8 @@ arg () {
 usage () {
     echo "usage: $0 [-n|--noprompt] [--kernel=src-dir] [--target=dir]"
     echo "    [--moddir=dir] [--cc=path] [--ld=path] [--debug=debug-flags]"
-    echo "    [--uflags=user-flags] [--kflags=kernel-flags]"
-    echo "    [--{no}trust] [--{no}cardbus] [--current] [--srctree]"
+    echo "    [--uflags=user-flags] [--kflags=kernel-flags] [--{no}trust]"
+    echo "    [--{no}cardbus] [--{no}pnp] [--{no}apm] [--current] [--srctree]"
     echo ""
     echo "  -n, --noprompt     non-interactive mode: no prompting"
     echo "  --kernel=DIR       use kernel source tree at DIR"
@@ -77,9 +77,10 @@ usage () {
     echo "  --debug=FLAGS      set compiler flags for debugging"
     echo "  --uflags=FLAGS     set compiler flags for user-mode tools"
     echo "  --kflags=FLAGS     set compiler flags for kernel modules"
-    echo "  --{no}cardbus      disable or enable CardBus card support"
     echo "  --{no}trust        disable or enable trusted user tools"
+    echo "  --{no}cardbus      disable or enable CardBus card support"
     echo "  --{no}pnp          disable or enable PnP BIOS support"
+    echo "  --{no}apm          disable or enable APM support"
     echo "  --current          read configuration of current kernel"
     echo "  --srctree          read kernel configuration from source tree"
     exit 1
@@ -102,6 +103,8 @@ while [ $# -gt 0 ] ; do
     --nocardbus)	CONFIG_CARDBUS=n	;;
     --pnp)		CONFIG_PNP_BIOS=y	;;
     --nopnp)		CONFIG_PNP_BIOS=n	;;
+    --apm)		USE_APM=y		;;
+    --noapm)		USE_APM=n		;;
     --current)		CONF_SRC=1		;;
     --srctree)		CONF_SRC=2		;;
     *)			usage			;;
@@ -265,6 +268,7 @@ ask_str "  Module install directory" MODDIR
 ask_str "Compiler flags for debugging" PCDEBUG
 write_str KFLAGS
 write_str UFLAGS
+write_bool USE_APM
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
 ask_bool "Include 32-bit (CardBus) card support" CONFIG_CARDBUS
@@ -286,7 +290,7 @@ echo "    2 - Read from the Linux source tree"
 
 ans=""
 while [ "$ans" != 1 -a "$ans" != 2 ] ; do
-    prompt "Enter option (1-3)" "$CONF_SRC" ans
+    prompt "Enter option (1-2)" "$CONF_SRC" ans
 done
 CONF_SRC=$ans
 echo "CONF_SRC=$CONF_SRC" >> $CONFIG
@@ -432,14 +436,12 @@ case $CONF_SRC in
 	    symcheck ^401 CONFIG_3GB
 	fi
 	symcheck proc_root CONFIG_PROC_FS
-	echo "Extracting kernel symbol versions..."
 	echo "#ifndef __LINUX_MODVERSIONS_H" > $MODVER
 	echo "#define __LINUX_MODVERSIONS_H" >> $MODVER
 	$KSYMS | sed -ne 's/.* \(.*\)_R\([0-9a-f]*\)/\1 \2/p' | \
 	    awk '{ printf "#define %s\t%s_R%s\n", $1, $1, $2 }' \
 	    >> $MODVER
 	echo "#endif" >> $MODVER
-	printconfig
 	;;
     2)
 	AUTOCONF=$LINUX/.config
@@ -478,9 +480,11 @@ case $CONF_SRC in
 	    configcheck CONFIG_2GB
 	    configcheck CONFIG_3GB
 	fi
-	printconfig
 	;;
 esac
+
+if [ "$USE_APM" != "y" ] ; then CONFIG_APM=n ; fi
+printconfig
 
 if [ "$CONFIG_PCI" != "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
     echo "Cardbus support requires kernel PCI BIOS support!"
@@ -632,7 +636,6 @@ fi
 
 MOD_RELEASE=`/sbin/insmod -V 2>&1 | \
     sed -n -e 's/.*[Vv]ersion \([0-9][0-9.]*[0-9]\).*/\1/p'`
-echo "Your module utilities are version $MOD_RELEASE."
 X=`echo $MOD_RELEASE | sed -e 's/\./ /g'`
 MOD_CODE=`version $X`
 if [ $VERSION_CODE -ge `version 2 1 85` ] ; then
@@ -644,8 +647,8 @@ else
 fi
 
 if [ $NEED -gt $MOD_CODE ] ; then
-    echo "Your module utilities are too old for this kernel!"
-    echo "    To fix, upgrade to at least version $T."
+    echo "Your module utilities are version $MOD_RELEASE.  That is too old"
+    echo "    for this kernel!  To fix, upgrade to at least version $T."
     fail
 fi
 
@@ -671,8 +674,6 @@ fi
 #=======================================================================
 
 # How should the startup scripts be configured?
-
-echo ""
 
 if [ "$PREFIX" = "" ] ; then
     if [ -d /etc/rc.d/init.d -o -d /etc/init.d -o -d /sbin/init.d ] ; then
@@ -734,11 +735,10 @@ else
 fi
 
 if [ "$HAS_FORMS" != "y" ] ; then
-    echo "    If you want to build the 'cardinfo' PCMCIA control" \
-         "panel, you need"
-    echo "    to install the Forms Library, as well as the X Windows" \
-	 "include files."
-    echo "    See the HOWTO for details."
+    echo "    If you wish to build the 'cardinfo' control panel, you" \
+	 "need the Forms"
+    echo "    library and the X Windows include files.  See the HOWTO" \
+	 "for details."
     HAS_FORMS=n
 fi
 write_bool HAS_FORMS

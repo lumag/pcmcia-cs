@@ -1,13 +1,16 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" ifport.8 1.7 1999/10/25 19:50:46
+.\" ifport.8 1.8 1999/11/02 20:34:56
 .\"
-.TH IFPORT 8 "1999/10/25 19:50:46" "pcmcia-cs"
+.TH IFPORT 8 "1999/11/02 20:34:56" "pcmcia-cs"
+
 .SH NAME
 ifport \- select the transceiver type for a network interface
+
 .SH SYNOPSIS
 .B ifport
 .I interface
 .RB [ auto | 10baseT | 10base2 | aui | 100baseT | ## ]
+
 .SH DESCRIPTION
 .B Ifport
 sets the transceiver type for the specified network interface, for
@@ -42,6 +45,14 @@ If invoked for other drivers,
 .B ifport
 may report bogus transceiver
 settings, or report ``Operation not supported''.
+
+.SH DIAGNOSTICS
+.TP
+.B ioctl: Operation not supported
+Indicates that this network device does not support manual transceiver
+selection.  There may be only one transceiver option, or the device
+may always autodetect the appropriate transceiver.
+
 .SH AUTHOR
 David Hinds \- dhinds@pcmcia.sourceforge.org
 .SH "SEE ALSO"

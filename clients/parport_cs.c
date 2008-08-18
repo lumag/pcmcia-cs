@@ -5,7 +5,7 @@
     (specifically, for the Quatech SPP-100 EPP card: other cards will
     probably require driver tweaks)
     
-    parport_cs.c 1.12 1999/10/25 20:03:17
+    parport_cs.c 1.13 1999/11/08 20:46:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -62,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.12 1999/10/25 20:03:17 (David Hinds)";
+"ide_cs.c 1.13 1999/11/08 20:46:17 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -134,7 +134,6 @@ static dev_link_t *parport_attach(void)
     link->release.data = (u_long)link;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-    link->io.IOAddrLines = 3;
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
     if (irq_list[0] == -1)
@@ -287,6 +286,7 @@ void parport_config(dev_link_t *link)
 		link->conf.ConfigIndex |= FORCE_EPP_MODE;
 	    link->io.BasePort1 = io->win[0].base;
 	    link->io.NumPorts1 = io->win[0].len;
+	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
 	    if (io->nwin == 2) {
 		link->io.BasePort2 = io->win[1].base;
 		link->io.NumPorts2 = io->win[1].len;

@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.18, 26 October 1999
+  v2.20, 08 November 1999
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -650,13 +650,22 @@
                u_int           IOAddrLines;
        } io_req_t;
 
-  RequestIO reserves IO port windows for a card.  If BasePort1 is non-
-  zero, it specifies the IO port address of the window to be reserved;
-  if it is zero, Card Services will find an available window and set
-  BasePort1 to this address.  If NumPorts2 is non-zero, a second IO port
-  window will also be reserved.  IOAddrLines specifies the number of
-  address lines that are actually decoded by the card; this is not
-  currently used.
+  RequestIO reserves IO port windows for a card.  BasePort1 specifies
+  the base IO port address of the window to be reserved.  If NumPorts2
+  is non-zero, a second IO port window will also be reserved.
+  IOAddrLines specifies the number of address lines that are actually
+  decoded by the card.  The IO port allocation algorithm assumes that
+  any alias of the requested address(es) that preserves the lower
+  IOAddrLines bits will be acceptable, and will update BasePort1 and
+  BasePort2 to reflect the address range(s) actually assigned.
+
+  Prior to release 3.1.4, the IOAddrLines field was ignored.  The
+  allocator always tried to assign the exact address range requested,
+  unless the base address was zero; in that case, it would assign any
+  available window aligned to the nearest power of two larger than the
+  window size.  The new allocator verifies that the IOAddrLines
+  parameter agrees with the requested window parameters, and defaults to
+  the pre-3.1.4 behavior if an inconsistency is found.
 
   With multifunction cards, this call will allocate IO ports for each
   card function in such a way that all a card's ports can be mapped by
@@ -783,7 +792,6 @@
      IRQ_FIRST_SHARED
         In conjunction with IRQ_TYPE_TIME, this should be set by the
         first driver requesting a shared interrupt.
-
      IRQ_HANDLER_PRESENT
         Indicates that the Handler field points to an interrupt service
         routine that should be installed.
@@ -1239,6 +1247,8 @@
   basic identification tuples (CISTPL_MANFID, CISTPL_VERS_1) as the
   original card.
 
+  This service was added in release 3.0.1.
+
   Return codes:
 
      CS_BAD_HANDLE
@@ -1257,6 +1267,7 @@
   socket capabilities, they may need to be aligned on a boundary that is
   a multiple of the window size in both the host and card address
   spaces.
+
   A memory window is initialized by a call to RequestWindow.  Some
   window attributes can be modified using ModifyWindow.  The segment of
   card memory mapped to the window can be modified using MapMemPage.
@@ -1306,7 +1317,7 @@
 
      WIN_STRICT_ALIGN
         Requests that the window base be aligned to a multiple of the
-        window size.
+        window size.  Added in release 3.1.2.
 
   Base specifies the base physical address of the window in system
   memory.  If zero, Card Services will set Base to the first available
@@ -1405,10 +1416,10 @@
 
   The memreq_t structure is given by:
 
-       typedef struct memreq_t {
-               u_int           CardOffset;
-               page_t          Page;
-       } memreq_t;
+  typedef struct memreq_t {
+          u_int           CardOffset;
+          page_t          Page;
+  } memreq_t;
 
   MapMemPage sets the address of card memory that is mapped to the base
   of a memory window to CardOffset.  The window should have been created
@@ -1462,6 +1473,7 @@
 
   The MediaID field is recorded by Card Services, and will be passed to
   the MTD as part of any request that references this memory region.
+
   Once an MTD is bound to a memory region by a call to RegisterMTD, it
   will remain bound until the MTD calls DeregisterClient.
 
@@ -1757,12 +1769,12 @@
 
   The conf_reg_t structure is given by:
 
-       typedef struct conf_reg_t {
-               u_char          Function;
-               u_int           Action;
-               off_t           Offset;
-               u_int           Value;
-       } conf_reg_t;
+  typedef struct conf_reg_t {
+          u_char          Function;
+          u_int           Action;
+          off_t           Offset;
+          u_int           Value;
+  } conf_reg_t;
 
   For normal clients bound to a specific card function, the Function
   field is ignored.  For clients bound to BIND_FN_ALL, this field
@@ -2013,7 +2025,6 @@
 
      CISTPL_DTYPE_ROM
         Masked ROM
-
      CISTPL_DTYPE_OTPROM
         One-type programmable ROM.
 
@@ -2115,10 +2126,10 @@
 
   The cistpl_bar_t structure is given by:
 
-       typedef struct cistpl_bar_t {
-               u_char          attr;
-               u_int           size;
-       } cistpl_long_t;
+  typedef struct cistpl_bar_t {
+          u_char          attr;
+          u_int           size;
+  } cistpl_long_t;
 
   A CISTPL_BAR tuple describes the characteristics of an address space
   region pointed to by a PCI base address register, for CardBus cards.
@@ -2233,11 +2244,11 @@
 
   The cistpl_timing_t structure is given by:
 
-  typedef cistpl_timing_t {
-          u_int           wait, waitscale;
-          u_int           ready, rdyscale;
-          u_int           reserved, rsvscale;
-  } cistpl_timing_t;
+       typedef cistpl_timing_t {
+               u_int           wait, waitscale;
+               u_int           ready, rdyscale;
+               u_int           reserved, rsvscale;
+       } cistpl_timing_t;
 
   Each time consists of a base time in nanoseconds, and a scale
   multiplier.  Unspecified times have values of 0.
@@ -2488,7 +2499,6 @@
      COR_CONFIG_MASK
         Specifies the configuration table index describing the card's
         current operating mode.
-
      COR_LEVEL_REQ
         Specifies that the card should generate level mode (edge-
         triggered) interrupts, the default.
@@ -2549,7 +2559,6 @@
 
      PRR_BVD2_STATUS
         The current state of the battery warn signal.
-
      PRR_BVD1_STATUS
         The current state of the battery dead signal.
 
@@ -2664,6 +2673,7 @@
   return an exit status from a call to ResetCard.  The client_data field
   may be used by a driver to point to a local data structure associated
   with this device.  The remaining fields are currently unused.
+
   For sockets that do not directly map cards into the host IO and memory
   space, the bus field is a pointer to a table of entry points for IO
   primitives for this socket.
@@ -2720,7 +2730,6 @@
         This event signals that Card Services has received either a user
         initiated or APM suspend request.  An event handler can veto the
         suspend by returning failure.
-
      CS_EVENT_PM_RESUME
         This signals that the system is back on line after a
         suspend/resume cycle.
@@ -3316,7 +3325,7 @@
 
   Each release of the Linux Card Services package comes with a well-
   commented ``dummy'' client driver that should be used as a starting
-  point for writing a new driver.  Look for it in modules/dummy_cs.c.
+  point for writing a new driver.  Look for it in clients/dummy_cs.c.
   This is not just a piece of sample code: it is written to function as
   a sort of generic card enabler.  If bound to an IO card, it will read
   the card's CIS and configure the card appropriately, assuming that the

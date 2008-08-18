@@ -2,7 +2,7 @@
 
     A driver for the Qlogic SCSI card
 
-    qlogic_cs.c 1.73 1999/10/25 20:03:17
+    qlogic_cs.c 1.74 1999/11/08 20:46:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -84,7 +84,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"qlogic_cs.c 1.73 1999/10/25 20:03:17 (David Hinds)";
+"qlogic_cs.c 1.74 1999/11/08 20:46:17 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -274,6 +274,7 @@ static void qlogic_config(dev_link_t *link)
 	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
 	link->conf.ConfigIndex = parse.cftable_entry.index;
 	link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
+	link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
 	if (link->io.BasePort1 != 0) {
 	    i = CardServices(RequestIO, handle, &link->io);
 	    if (i == CS_SUCCESS) break;
@@ -295,8 +296,12 @@ static void qlogic_config(dev_link_t *link)
 
     /* A bad hack... */
     release_region(link->io.BasePort1, link->io.NumPorts1);
-    
-    qlogic_preset(link->io.BasePort1, link->irq.AssignedIRQ);
+
+    /* The KXL-810AN has a bigger IO port window */
+    if (link->io.NumPorts1 == 32)
+	qlogic_preset(link->io.BasePort1+16, link->irq.AssignedIRQ);
+    else
+	qlogic_preset(link->io.BasePort1, link->irq.AssignedIRQ);
     
     scsi_register_module(MODULE_SCSI_HA, &driver_template);
 

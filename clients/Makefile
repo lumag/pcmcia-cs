@@ -1,21 +1,18 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 #
-# Makefile 1.107 1999/10/25 20:03:16
+# Makefile 1.110 1999/11/01 18:18:58
 #
 
 # Include site dependent options and kernel configuration
 include ../config.mk
 
-ifndef CFLAGS
 # Don't remove "-O3" or bad things will happen!
 CFLAGS = -O3 -Wall -Wstrict-prototypes -pipe
-endif
-
-CC := $(CC) $(AFLAGS) $(KFLAGS)
-
 CPPFLAGS = $(PCDEBUG) -D__KERNEL__ -DMODULE -I../include -I$(LINUX)/include
 COFLAGS = -kv
+
+CC := $(CC) $(AFLAGS) $(KFLAGS)
 
 # For files in kernel source tree, so that we can override config flags
 XFLAGS = -O2 -D__KERNEL__ -I../include -I$(LINUX)/include -DEXPORT_SYMTAB
@@ -174,7 +171,7 @@ install-modules: $(MODULES)
 install-extra: $(EXTRA)
 	if [ -f 8390.o ] ; then				\
 	    mkdir -p $(PREFIX)/$(MODDIR)/net ;		\
-	    cp -p 8390.o $(PREFIX)/$(MODDIR)/net ;	\
+	    cp 8390.o $(PREFIX)/$(MODDIR)/net ;		\
 	fi
 
 install: install-modules install-extra

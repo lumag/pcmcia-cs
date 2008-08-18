@@ -1,14 +1,12 @@
 #
-# debug-tools/Makefile 1.31 1999/08/23 06:15:40 (David Hinds)
+# debug-tools/Makefile 1.32 1999/10/28 01:22:05 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
-ifndef CFLAGS
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 XFLAGS = -O -pipe
-endif
 CPPFLAGS = -I../include -I$(LINUX)/include -I../modules
 COFLAGS = -kv
 YFLAGS = -d

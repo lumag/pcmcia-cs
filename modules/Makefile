@@ -1,21 +1,18 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 #
-# Makefile 1.102 1999/10/25 20:02:38
+# Makefile 1.104 1999/10/28 01:23:07
 #
 
 # Include site dependent options and kernel configuration
 include ../config.mk
 
-ifndef CFLAGS
 # Don't remove "-O3" or bad things will happen!
 CFLAGS = -O3 -Wall -Wstrict-prototypes -pipe
-endif
-
-CC := $(CC) $(AFLAGS) $(KFLAGS)
-
 CPPFLAGS = $(PCDEBUG) -D__KERNEL__ -DMODULE -I../include -I$(LINUX)/include
 COFLAGS = -kv
+
+CC := $(CC) $(AFLAGS) $(KFLAGS)
 
 SRCS = i82365.c tcic.c cs.c cistpl.c rsrc_mgr.c bulkmem.c ds.c
 

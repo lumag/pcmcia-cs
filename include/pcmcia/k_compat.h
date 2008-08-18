@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.94 1999/10/25 20:23:17
+ * k_compat.h 1.96 1999/10/30 01:02:19
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -167,7 +167,8 @@ typedef struct wait_queue *wait_queue_head_t;
 #else
 #include <linux/spinlock.h>
 #endif
-#if defined(CONFIG_SMP) || (LINUX_VERSION_CODE > VERSION(2,3,6))
+#if defined(CONFIG_SMP) || (LINUX_VERSION_CODE > VERSION(2,3,6)) || \
+    (defined(__ppc__) && (LINUX_VERSION_CODE > VERSION(2,2,12)))
 #define USE_SPIN_LOCKS
 #endif
 #endif
@@ -176,7 +177,10 @@ typedef struct wait_queue *wait_queue_head_t;
 #define mdelay(x) { int i; for (i=0;i<x;i++) udelay(1000); }
 #endif
 
-#if (LINUX_VERSION_CODE < VERSION(2,3,16))
+#if (LINUX_VERSION_CODE < VERSION(2,1,0))
+#define __set_current_state(n) \
+    do { current->state = TASK_INTERRUPTIBLE; } while (0)
+#elif (LINUX_VERSION_CODE < VERSION(2,3,16))
 #define __set_current_state(n)	do { current->state = (n); } while (0)
 #endif
 

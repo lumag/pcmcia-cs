@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.73 1999/10/25 20:03:33
+    cistpl.c 1.74 1999/11/08 20:47:02
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -210,7 +210,7 @@ int setup_cis_mem(socket_info_t *s)
 	s->cis_mem.sys_start = 0;
 	vs = NULL;
 	if (find_mem_region(&s->cis_mem.sys_start, s->cap.map_size,
-			    "card services", s->cap.map_size, low)) {
+			    s->cap.map_size, low, "card services")) {
 	    printk(KERN_NOTICE "cs: unable to map card memory!\n");
 	    return CS_OUT_OF_RESOURCE;
 	}

@@ -2,7 +2,7 @@
 
     Utility to look up information about IDE devices
 
-    ide_info.c 1.8 1999/10/25 20:00:53
+    ide_info.c 1.9 1999/11/07 01:39:16
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -65,9 +65,9 @@ int main(int argc, char *argv[])
 	exit(1);
     }
 
-    printf("MODEL=\"%s\"\n", id.model);
-    printf("FW_REV=\"%s\"\n", id.fw_rev);
-    printf("SERIAL_NO=\"%s\"\n", id.serial_no);
+    printf("MODEL=\"%.40s\"\n", id.model);
+    printf("FW_REV=\"%.8s\"\n", id.fw_rev);
+    printf("SERIAL_NO=\"%.20s\"\n", id.serial_no);
     exit(0);
     return 0;
 }

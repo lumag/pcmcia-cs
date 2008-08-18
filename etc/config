@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.99 1999/10/20 19:11:42 (David Hinds)
+# config 1.100 1999/11/09 00:54:10 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -1045,6 +1045,10 @@ card "New Media Bus Toaster SCSI"
   version "New Media Corporation", "SCSI Bus Toaster Sym53C500"
   bind "sym53c500_cs"
 
+card "Panasonic KXLC004"
+  version "KME ", "KXLC004"
+  bind "qlogic_cs"
+
 card "Qlogic FastSCSI"
   version "QLOGIC CORPORATION", "pc05"
   bind "qlogic_cs"
@@ -1247,8 +1251,12 @@ card "TDK Global Networker Ethernet/Modem"
   version "TDK", "GlobalNetworker 3410/3412"
   bind "serial_cs"
 
-card "TDK 3000/3400/5670 Ethernet/Modem"
+card "TDK 3000/3400/5670 Fast Ethernet/Modem"
   manfid 0x0143, 0x3341
+  bind "pcnet_cs", "serial_cs"
+
+card "TDK DFL5610WS Ethernet/Modem"
+  manfid 0x0105, 0xea15
   bind "pcnet_cs", "serial_cs"
 
 card "Telecom Device SuperSocket LM336 Ethernet/Modem"

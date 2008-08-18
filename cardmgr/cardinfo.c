@@ -2,7 +2,7 @@
 
     X Windows PCMCIA device control program
 
-    cardinfo.c 1.29 1999/10/25 20:00:53
+    cardinfo.c 1.30 1999/10/26 18:55:10
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -86,7 +86,7 @@ static socket_info_t st[MAX_SOCK];
 static FL_OBJECT *event_log;
 
 static char *pidfile = "/var/run/cardmgr.pid";
-static char *stabfile = "/var/run/stab";
+static char *stabfile;
 
 /*====================================================================*/
 
@@ -440,6 +440,14 @@ int main(int argc, char *argv[])
     if (geteuid() != 0) {
 	fprintf(stderr, "cardinfo must be setuid root\n");
 	exit(EXIT_FAILURE);
+    }
+
+    if (access("/var/state/pcmcia", R_OK) == 0) {
+	stabfile = "/var/state/pcmcia/stab";
+    } else if (access("/var/lib/pcmcia", R_OK) == 0) {
+	stabfile = "/var/lib/pcmcia/stab";
+    } else {
+	stabfile = "/var/run/stab";
     }
     
     major = lookup_dev("pcmcia");

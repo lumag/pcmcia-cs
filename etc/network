@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.57 1999/10/25 18:16:20 (David Hinds)
+# network 1.60 1999/11/04 19:09:05 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -52,32 +52,36 @@ case "$ACTION" in
     elif is_true $DHCP ; then
 	/sbin/ifconfig $DEVICE up 0.0.0.0
 	/sbin/route add default dev $DEVICE
-	if /sbin/dhcpcd -V 2>&1 | grep -q DHCP ; then
-	    /sbin/dhcpcd $DEVICE >/dev/null 2>&1 || exit 1
-	else
-	    # Jump through hoops for lame 0.70-era dhcpcd
-	    L=/var/run/dhcp-lock-$DEVICE
-	    /bin/echo "#!/bin/sh\nrm $L" > $L ; chmod +x $L
-	    /sbin/dhcpcd -c $L $DEVICE >/dev/null 2>&1
-	    for t in 0 1 2 3 4 5 6 7 8 9 ; do
-		sleep 2 ; if [ ! -e $L ] ; then break ; fi
-	    done
-	    rm -f $L
-	    if [ -e /etc/dhcpc/resolv.conf ] ; then
-		echo "# $DEVICE begin" > $RESOLV.N
-		cat /etc/dhcpc/resolv.conf >> $RESOLV.N
-		echo "# $DEVICE end" >> $RESOLV.N
-		cat $RESOLV >> $RESOLV.N ; mv $RESOLV.N $RESOLV
+	if [ -x /sbin/dhcpcd ] ; then
+	    if /sbin/dhcpcd -V 2>&1 | grep -q DHCP ; then
+		/sbin/dhcpcd $DEVICE >/dev/null 2>&1 || exit 1
+	    else
+		# Jump through hoops for lame 0.70-era dhcpcd
+		L=/var/run/dhcp-lock-$DEVICE
+		/bin/echo "#!/bin/sh\nrm $L" > $L ; chmod +x $L
+		/sbin/dhcpcd -c $L $DEVICE >/dev/null 2>&1
+		for t in 0 1 2 3 4 5 6 7 8 9 ; do
+		    sleep 2 ; if [ ! -e $L ] ; then break ; fi
+		done
+		rm -f $L
+		if [ -e /etc/dhcpc/resolv.conf ] ; then
+		    echo "# $DEVICE begin" > $RESOLV.N
+		    cat /etc/dhcpc/resolv.conf >> $RESOLV.N
+		    echo "# $DEVICE end" >> $RESOLV.N
+		    cat $RESOLV >> $RESOLV.N ; mv $RESOLV.N $RESOLV
+		fi
 	    fi
+	elif [ -x /sbin/dhclient ] ; then
+	    /sbin/dhclient $DEVICE >/dev/null 2>&1 || exit 1
+	else
+	    exit 1
 	fi
     fi
 
     if [ "$IPADDR" ] ; then
-
 	# Basic network setup
 	BC=${BROADCAST:+broadcast $BROADCAST}
 	/sbin/ifconfig $DEVICE up $IPADDR netmask $NETMASK $BC
-
 	if [ "$NETWORK" ] ; then
 	    /sbin/ifuser $DEVICE $NETWORK || \
 		/sbin/route add -net $NETWORK netmask $NETMASK dev $DEVICE
@@ -85,27 +89,25 @@ case "$ACTION" in
 	    /sbin/ifuser $DEVICE $GATEWAY || \
 		/sbin/route add $GATEWAY $DEVICE
 	fi
-
 	test "$GATEWAY" && /sbin/route add default gw $GATEWAY metric 1
+    fi
+    
+    # Update DNS stuff
+    if [ "$DOMAIN$SEARCH$DNSSRVS$DNS_1$DNS_2$DNS_3" ] ; then
+	echo "# $DEVICE begin" > $RESOLV.N
+	test "$DOMAIN" && echo "domain $DOMAIN" >> $RESOLV.N
+	test "$SEARCH" && echo "search $SEARCH" >> $RESOLV.N
+	for DNS in $DNSSRVS $DNS_1 $DNS_2 $DNS_3 ; do
+	    echo "nameserver $DNS" >> $RESOLV.N
+	done
+	echo "# $DEVICE end" >> $RESOLV.N
+	sed -e "/# $DEVICE begin/,/# $DEVICE end/d" $RESOLV >> $RESOLV.N
+	mv $RESOLV.N $RESOLV
+    fi
 
-	# Update DNS stuff
-	if [ "$DOMAIN$SEARCH$DNSSRVS$DNS_1$DNS_2$DNS_3" ] ; then
-	    echo "# $DEVICE begin" > $RESOLV.N
-	    test "$DOMAIN" && echo "domain $DOMAIN" >> $RESOLV.N
-	    test "$SEARCH" && echo "search $SEARCH" >> $RESOLV.N
-	    for DNS in $DNSSRVS $DNS_1 $DNS_2 $DNS_3 ; do
-		echo "nameserver $DNS" >> $RESOLV.N
-	    done
-	    echo "# $DEVICE end" >> $RESOLV.N
-	    sed -e "/# $DEVICE begin/,/# $DEVICE end/d" $RESOLV >> $RESOLV.N
-	    mv $RESOLV.N $RESOLV
-	fi
-
-	# Handle NFS mounts
-	if [ "$MOUNTS" ] ; then
-	    for MT in $MOUNTS ; do mount -v $MT ; done
-	fi
-
+    # Handle NFS mounts
+    if [ "$MOUNTS" ] ; then
+	for MT in $MOUNTS ; do mount -v $MT ; done
     fi
 
     if [ "$IPX_NETNUM" ] ; then
@@ -146,10 +148,14 @@ case "$ACTION" in
 	if is_true $PUMP ; then
 	    pump -r -i $DEVICE
 	elif is_true $DHCP ; then
-	    kill -TERM `cat /var/run/dhcpcd-$DEVICE.pid`
-	    sleep 2
-	    /sbin/dhcpcd -V 2>&1 | grep -q DHCP || \
-		rm -f /var/run/dhcpcd-$DEVICE.pid
+	    if [ -x /sbin/dhcpcd ] ; then
+		kill -TERM `cat /var/run/dhcpcd-$DEVICE.pid`
+		sleep 2
+		/sbin/dhcpcd -V 2>&1 | grep -q DHCP || \
+		    rm -f /var/run/dhcpcd-$DEVICE.pid
+	    elif [ -x /sbin/dhclient ] ; then
+		kill -TERM `cat /var/run/dhclient.pid`
+	    fi
 	fi
     fi
     /sbin/ifconfig $DEVICE down

@@ -1,3 +1,26 @@
+[11-Nov-99] Version 3.1.4
+-- Relaxed the IO port allocation rules to do a better job with cards
+   that don't decode all 16 address lines.
+-- Tweaked qlogic_cs driver for Panasonic KXL-810AN.
+-- Added dhclient support to network script.
+-- Added /proc/pccard/drivers to ds module, and changed cardmgr to use
+   it to avoid unnecessary module load attempts.
+-- Made status change interrupt selection more conservative.
+-- Minor config file and Makefile tweaks.
+-- Yet another change to card voltage interrogation sequence.
+-- Reverted to not using PCI card status change interrupts by default
+   because they do bad things on some systems.
+-- Work-around for 2.2.13 powerpc spinlock kernel header lameness.
+-- Small tweak for O2Micro OZ6812 bridge.
+-- A proper fix for the transceiver selection problem with Xircom
+   16-bit 100baseT cards.  Also some code cleanup.
+-- Fixed pcnet_cs, smc91c92_cs to return "operation not supported" for
+   attempts to set the transceiver type on cards that can't do that.
+-- Fixed transceiver flakiness with DL10019 based fast ethernet cards
+   such as the D-Link DFE-650, Linksys Etherfast, etc.
+-- Fixed cardinfo to look for stab in all the right places.
+-- Fixed a 2.0.* kernel compatibility glitch.
+
 [25-Oct-99] Version 3.1.3
 -- Deleted manual configuration option from Configure script: it is
    almost always a bad idea.

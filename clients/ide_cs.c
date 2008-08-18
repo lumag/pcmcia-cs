@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.24 1999/10/25 20:03:17
+    ide_cs.c 1.25 1999/11/08 20:46:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -62,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.24 1999/10/25 20:03:17 (David Hinds)";
+"ide_cs.c 1.25 1999/11/08 20:46:17 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -297,6 +297,7 @@ void ide_config(dev_link_t *link)
 	    cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
 	    link->conf.ConfigIndex = cfg->index;
 	    link->io.BasePort1 = io->win[0].base;
+	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
 	    if (!(io->flags & CISTPL_IO_16BIT))
 		link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	    if (io->nwin == 2) {

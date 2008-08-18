@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/10/25 19:48:02
+		Last updated: 1999/11/11 18:45:45
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -85,6 +85,7 @@ Ethernet cards:
 	Genius ME3000II Ethernet
 	Grey Cell Ethernet
 	GVC NIC-2000P Ethernet Combo
+	Hamlet LM560
 	Hawking PN650TX
 	Hypertec HyperNet
 	IBM CreditCard Ethernet Adapter
@@ -144,7 +145,7 @@ Ethernet cards:
 
 	[xirc2ps_cs driver] [x86,axp]
 	Compaq Ethernet Adapter
-	Xircom CreditCard CE2, RE10
+	Xircom CreditCard CE2, RE-10
 
 Fast Ethernet (10/100baseT) adapters:
 
@@ -165,7 +166,7 @@ Fast Ethernet (10/100baseT) adapters:
 	KTI KF-C16
 	Laneed LD-10/100CD
 	LevelOne FPC-0100TX
-	Linksys PCMPC100 EtherFast 10/100 
+	Linksys PCMPC100 EtherFast, PCM100H1 HomeLink 10/100
 	Logitec LPM-LN100TX
 	Melco LPC2-TX
 	Microcom TravelCard 10/100
@@ -189,7 +190,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Compaq Netelligent 10/100
 	Intel EtherExpress PRO/100 16-bit
 	Toshiba IPC5008A, Advanced Network 10/100
-	Xircom CreditCard CE3
+	Xircom CreditCard CE3-100, CE3B, RE-100
 
 	[3c575_cb driver] [x86]
 	3Com 3c575TX, 3CCFE575BT, 3CXFE575BT, 3CCFE575CT, 3CXFE575CT
@@ -214,7 +215,7 @@ Fast Ethernet (10/100baseT) adapters:
 	SVEC FD606 10/100 Ethernet
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
 	UMAX Technologies UMAX250
-	[ Not recommended: driver seems to be unreliable ]
+	[ Support for the following cards is experimental ]
 	IBM 10/100 EtherJet CardBus
 	Intel EtherExpress PRO/100 CardBus Mobile Adapter32
 	Xircom CBEII-10/100, RBE-100
@@ -310,6 +311,7 @@ SCSI adapters:
 	NEC PC-9801N-J03R
 	Qlogic FastSCSI
 	Panasonic KXL-D740, KXL-DN740A, KXL-DN740A-NB 4X CD-ROM
+	Panasonic KXL-810AN
 	Raven CD-Note 4X
 	RATOC REX-9530 SCSI-2
 	Toshiba NWB0107ABK, SCSC200A, SCSC200B
@@ -357,6 +359,7 @@ Multifunction ethernet/modem cards:
 	Psion V.34 Gold Card
 	Rover ComboCard 33.6
 	TDK 3000/3400/5670
+	TDK DFL5610WS Fast Ethernet/Modem
 	Telecom Device SuperSocket LM336
 
 	[smc91c92_cs driver] [x86]
@@ -501,8 +504,9 @@ cannot test them.  All are available on the Linux PCMCIA FTP site, in
 	  (Mark Mathews <mark@absoval.com>)
 
 	National Instruments DAQcard700
-	  ftp://ftp.rtlinux.org/pub/rtlinux/sources/DAQCard700/
-	  (Oleg Subbotin)
+	  ftp://fsmlabs.com/pub/rtlinux/v1/drivers/daqcard700-1.02.tar.gz
+	  ftp://fsmlabs.com/pub/rtlinux/v2/new_drivers/daqcard700-1.04.tar.gz
+	  (Steve Rosenbluth <stever@la.creatureshop.henson.com>)
 
 	Proxim RangeLAN2 and Symphony wireless LAN cards
 	  http://www.komacke.com/distribution.html

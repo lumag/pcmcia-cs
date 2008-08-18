@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.21 1999/10/25 20:03:16
+    dummy_cs.c 1.22 1999/11/08 20:46:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -68,7 +68,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"dummy_cs.c 1.21 1999/10/25 20:03:16 (David Hinds)";
+"dummy_cs.c 1.22 1999/11/08 20:46:17 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -419,6 +419,7 @@ static void dummy_config(dev_link_t *link)
 		link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	    if (!(io->flags & CISTPL_IO_16BIT))
 		link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
 	    link->io.BasePort1 = io->win[0].base;
 	    link->io.NumPorts1 = io->win[0].len;
 	    if (io->nwin > 1) {

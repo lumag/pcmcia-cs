@@ -1,14 +1,12 @@
 #
-# cardmgr/Makefile 1.70 1999/07/24 15:03:04 (David Hinds)
+# cardmgr/Makefile 1.71 1999/10/28 01:22:04 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
-ifndef CFLAGS
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 XFLAGS = -O -pipe
-endif
 CPPFLAGS = -I../include -I$(LINUX)/include -I../modules
 COFLAGS = -kv
 YFLAGS = -d

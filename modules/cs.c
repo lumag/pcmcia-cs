@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.234 1999/10/25 20:03:33
+    cs.c 1.235 1999/11/11 17:52:05
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -75,7 +75,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.234 1999/10/25 20:03:33 (David Hinds)";
+"cs.c 1.235 1999/11/11 17:52:05 (David Hinds)";
 #endif
 
 #ifdef __BEOS__
@@ -286,8 +286,8 @@ static void init_socket(socket_info_t *s)
 /*====================================================================*/
 
 #if defined(HAS_PROC_BUS) && defined(PCMCIA_DEBUG)
-int proc_read_clients(char *buf, char **start, off_t pos,
-		      int count, int *eof, void *data)
+static int proc_read_clients(char *buf, char **start, off_t pos,
+			     int count, int *eof, void *data)
 {
     socket_info_t *s = data;
     client_handle_t c;
@@ -726,14 +726,28 @@ static int handle_apm_event(apm_event_t event)
 ======================================================================*/
 
 static int alloc_io_space(socket_info_t *s, u_int attr, ioaddr_t *base,
-			  ioaddr_t num, char *name)
+			  ioaddr_t num, u_int lines, char *name)
 {
     int i;
-    ioaddr_t try;
-    
+    ioaddr_t try, align;
+
+    align = (*base) ? (1<<lines) : 1;
+    if (align && (align < num)) {
+	printk(KERN_INFO "odd IO request: num %04x align %04x\n",
+	       num, align);
+	if (*base)
+	    align = 0;
+	else
+	    while (align && (align < num)) align <<= 1;
+    }
+    if (*base & ~(align-1)) {
+	printk(KERN_INFO "odd IO request: base %04x align %04x\n",
+	       *base, align);
+	align = 0;
+    }
     for (i = 0; i < MAX_IO_WIN; i++) {
 	if (s->io[i].NumPorts == 0) {
-	    if (find_io_region(base, num, name) == 0) {
+	    if (find_io_region(base, num, align, name) == 0) {
 		s->io[i].Attributes = attr;
 		s->io[i].BasePort = *base;
 		s->io[i].NumPorts = s->io[i].InUse = num;
@@ -745,7 +759,7 @@ static int alloc_io_space(socket_info_t *s, u_int attr, ioaddr_t *base,
 	/* Try to extend top of window */
 	try = s->io[i].BasePort + s->io[i].NumPorts;
 	if ((*base == 0) || (*base == try))
-	    if (find_io_region(&try, num, name) == 0) {
+	    if (find_io_region(&try, num, 0, name) == 0) {
 		*base = try;
 		s->io[i].NumPorts += num;
 		s->io[i].InUse += num;
@@ -754,7 +768,7 @@ static int alloc_io_space(socket_info_t *s, u_int attr, ioaddr_t *base,
 	/* Try to extend bottom of window */
 	try = s->io[i].BasePort - num;
 	if ((*base == 0) || (*base == try))
-	    if (find_io_region(&try, num, name) == 0) {
+	    if (find_io_region(&try, num, 0, name) == 0) {
 		s->io[i].BasePort = *base = try;
 		s->io[i].NumPorts += num;
 		s->io[i].InUse += num;
@@ -1723,12 +1737,14 @@ static int request_io(client_handle_t handle, io_req_t *req)
 	return CS_BAD_ATTRIBUTE;
 
     if (alloc_io_space(s, req->Attributes1, &req->BasePort1,
-		       req->NumPorts1, handle->dev_info))
+		       req->NumPorts1, req->IOAddrLines,
+		       handle->dev_info))
 	return CS_IN_USE;
 
     if (req->NumPorts2) {
 	if (alloc_io_space(s, req->Attributes2, &req->BasePort2,
-			   req->NumPorts2, handle->dev_info)) {
+			   req->NumPorts2, req->IOAddrLines,
+			   handle->dev_info)) {
 	    release_io_space(s, req->BasePort1, req->NumPorts1);
 	    return CS_IN_USE;
 	}
@@ -1866,10 +1882,11 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->size = req->Size;
     align = ((s->cap.features & SS_CAP_MEM_ALIGN) ||
 	     (req->Attributes & WIN_STRICT_ALIGN));
-    if (find_mem_region(&win->base, win->size, (*handle)->dev_info,
+    if (find_mem_region(&win->base, win->size,
 			(align ? req->Size : s->cap.map_size),
 			(req->Attributes & WIN_MAP_BELOW_1MB) ||
-			!(s->cap.features & SS_CAP_PAGE_REGS)))
+			!(s->cap.features & SS_CAP_PAGE_REGS),
+			(*handle)->dev_info))
 	return CS_IN_USE;
     req->Base = win->base;
     (*handle)->state |= CLIENT_WIN_REQ(w);
@@ -2241,6 +2258,9 @@ static struct symbol_table cs_symtab = {
     X(unregister_ss_entry),
     X(CardServices),
     X(MTDHelperEntry),
+#ifdef HAS_PROC_BUS
+    X(proc_pccard),
+#endif
 #ifndef HAVE_MEMRESERVE
     X(request_mem_region),
     X(release_mem_region),
@@ -2254,6 +2274,9 @@ EXPORT_SYMBOL(register_ss_entry);
 EXPORT_SYMBOL(unregister_ss_entry);
 EXPORT_SYMBOL(CardServices);
 EXPORT_SYMBOL(MTDHelperEntry);
+#ifdef HAS_PROC_BUS
+EXPORT_SYMBOL(proc_pccard);
+#endif
 #ifndef HAVE_MEMRESERVE
 EXPORT_SYMBOL(request_mem_region);
 EXPORT_SYMBOL(release_mem_region);

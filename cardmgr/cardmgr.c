@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.131 1999/10/25 20:00:14
+    cardmgr.c 1.132 1999/11/08 23:37:32
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -667,7 +667,7 @@ static int install_module(char *mod, char *opts)
     char path[128], cmd[128];
     module_list_t *ml;
     int ret;
-    
+
     for (ml = module_list; ml != NULL; ml = ml->next)
 	if (strcmp(mod, ml->mod) == 0) break;
     if (ml == NULL) {
@@ -680,6 +680,25 @@ static int install_module(char *mod, char *opts)
     ml->usage++;
     if (ml->usage != 1)
 	return 0;
+
+#ifdef __linux__
+    if (access("/proc/bus/pccard/drivers", R_OK) == 0) {
+	FILE *f = fopen("/proc/bus/pccard/drivers", "r");
+	if (f) {
+	    char a[61], s[33];
+	    while (fgets(a, 60, f)) {
+		sscanf(a, "%s %d", s, &ret);
+		if (strcmp(s, mod) != 0) continue;
+		/* If it isn't a module, we won't try to rmmod */
+		ml->usage += ret;
+		fclose(f);
+		return 0;
+	    }
+	    fclose(f);
+	}
+    }
+#endif
+
     if (!do_modprobe) {
 	if (strchr(mod, '/') != NULL)
 	    sprintf(path, "%s/%s.o", modpath, mod);

@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.42, 26 October 1999
+  v2.43, 11 November 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -63,7 +63,8 @@
         4.3.3 Diagnosing problems with network adapters
      4.4 PCMCIA serial and modem devices
         4.4.1 Serial device parameters
-        4.4.2 Diagnosing problems with serial devices
+        4.4.2 Comments about specific cards
+        4.4.3 Diagnosing problems with serial devices
      4.5 PCMCIA parallel port devices
         4.5.1 Parallel device parameters
         4.5.2 Diagnosing problems with parallel port devices
@@ -73,7 +74,7 @@
         4.6.3 Diagnosing problems with SCSI adapters
      4.7 PCMCIA memory cards
         4.7.1 Memory device parameters
-        4.7.2 Using flash memory cards
+        4.7.2 Using linear flash memory cards
      4.8 PCMCIA ATA/IDE card drives
         4.8.1 ATA/IDE fixed-disk device parameters
         4.8.2 Diagnosing problems with ATA/IDE adapters
@@ -326,7 +327,6 @@
   modem enabler, it would end up incorporating much of the functionality
   of Card Services, to handle cards from different vendors and the full
   range of host controller variants.
-
   22..  CCoommppiillaattiioonn aanndd iinnssttaallllaattiioonn
 
   22..11..  PPrreerreeqquuiissiitteess aanndd kkeerrnneell sseettuupp
@@ -698,13 +698,13 @@
   will record all interesting messages in /var/log/messages.
 
   Red Hat's PCMCIA package contains a replacement for the network setup
-  script, /etc/pcmcia/network, which meshes with the Red Hat network
-  control panel.  This is convenient for the case where just one network
-  adapter is used, with one set of network parameters, but does not have
-  the full flexibility of the regular PCMCIA network script.  Compiling
-  and installing a clean PCMCIA source distribution will overwrite the
-  network script, breaking the link to the network control panel.  If
-  you prefer the Red Hat script, either use only Red Hat RPM's, or
+  script, /etc/pcmcia/network, which meshes with the Red Hat linuxconf
+  configuration system.  This is convenient for the case where just one
+  network adapter is used, with one set of network parameters, but does
+  not have the full flexibility of the regular PCMCIA network script.
+  Compiling and installing a clean PCMCIA source distribution will
+  overwrite the network script, breaking the link to the Red Hat tools.
+  If you prefer the Red Hat tools, either use only Red Hat RPM's, or
   create /etc/pcmcia/network.opts with the following contents:
 
        if [ -f /etc/sysconfig/network-scripts/ifcfg-eth0 ] ; then
@@ -715,6 +715,11 @@
                /sbin/ifdown $1
            }
        fi
+
+  If you do use linuxconf (or netconf) to configure your network
+  interface, leave the ``kernel module'', ``I/O port'', and ``irq''
+  parameters blank.  Setting these parameters may interfere with proper
+  operation of the PCMCIA subsystem.
 
   Red Hat bundles their slightly modified PCMCIA source distribution in
   their kernel SRPM, rather than as a separate package.
@@ -875,7 +880,6 @@
   Module paths are specified relative to the top-level module directory
   for the current kernel version; if no relative path is given, then the
   path defaults to the pcmcia subdirectory.
-
   33..33..  IInntteerrrruupptt ssccaann ffaaiilluurreess
 
   Symptoms:
@@ -1395,7 +1399,7 @@
      PUMP
         A boolean (y/n) value: indicates if the host's IP address and
         routing information should be obtained using either BOOTP or
-        DHCP, with the pump daemon.
+        DHCP, using Red Hat's pump daemon.
 
      BOOTP
         A boolean (y/n) value: indicates if the host's IP address and
@@ -1404,8 +1408,8 @@
 
      DHCP
         A boolean (y/n) value: indicates if the host's IP address and
-        routing information should be obtained from a DHCP server, with
-        dhcpcd.
+        routing information should be obtained from a DHCP server.  The
+        network script first looks for dhcpcd, then dhclient.
 
      IPADDR
         The IP address for this interface.
@@ -1433,7 +1437,8 @@
         to be added to /etc/resolv.conf
 
      MOUNTS
-        A list of NFS mount points to be mounted for this interface.
+        A space-separated list of NFS mount points to be mounted for
+        this interface.
 
      IPX_FRAME, IPX_NETNUM
         For IPX networks: the frame type and network number, passed to
@@ -1571,6 +1576,10 @@
      absolutely foolproof indication of a routing error.  On the other
      hand, mis-configured cards will usually fail silently.
 
+  +o  If you are trying to use DHCP to configure your network interface,
+     try testing things with a static IP address instead, to rule out a
+     DHCP configuration problem.
+
   +o  To diagnose problems in /etc/pcmcia/network.opts, start by trying
      to ping other systems on the same subnet using their IP addresses.
      Then try to ping your gateway, and then machines on other subnets.
@@ -1667,7 +1676,13 @@
            SERIAL_OPTS=""
            INITTAB="/sbin/getty"
 
-  44..44..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh sseerriiaall ddeevviicceess
+  44..44..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
+
+  +o  The Uniden Data 2000 Wireless CDPD card has some special dialing
+     strings for initiating SLIP and PPP mode.  For SLIP, use ``ATDT2'';
+     for PPP, "ATDT0".
+
+  44..44..33..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh sseerriiaall ddeevviicceess
 
   +o  Is your card recognized as a modem?  Check the system log and make
      sure that cardmgr identifies the card correctly and starts up the
@@ -1893,36 +1908,36 @@
   For example, here is a script for configuring a disk device at SCSI ID
   3, with two partitions, and a CD-ROM at SCSI ID 6:
 
-  case "$ADDRESS" in
-  *,sd,*,0,3,0)
-      # This device has two partitions...
-      PARTS="1 2"
-      ;;
-  *,sd,*,0,3,0,1)
-      # Options for partition 1:
-      #  update /etc/fstab, and mount an ext2 fs on /usr1
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="ext2"
-      OPTS=""
-      MOUNTPT="/usr1"
-      ;;
-  *,sd,*,0,3,0,2)
-      # Options for partition 2:
-      #  update /etc/fstab, and mount an MS-DOS fs on /usr2
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="msdos"
-      OPTS=""
-      MOUNTPT="/usr2"
-      ;;
-  *,sr,*,0,6,0)
-      # Options for CD-ROM at SCSI ID 6
-      PARTS=""
-      DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
-      FSTYPE="iso9660"
-      OPTS="ro"
-      MOUNTPT="/cdrom"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,sd,*,0,3,0)
+           # This device has two partitions...
+           PARTS="1 2"
+           ;;
+       *,sd,*,0,3,0,1)
+           # Options for partition 1:
+           #  update /etc/fstab, and mount an ext2 fs on /usr1
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2"
+           OPTS=""
+           MOUNTPT="/usr1"
+           ;;
+       *,sd,*,0,3,0,2)
+           # Options for partition 2:
+           #  update /etc/fstab, and mount an MS-DOS fs on /usr2
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="msdos"
+           OPTS=""
+           MOUNTPT="/usr2"
+           ;;
+       *,sr,*,0,6,0)
+           # Options for CD-ROM at SCSI ID 6
+           PARTS=""
+           DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
+           FSTYPE="iso9660"
+           OPTS="ro"
+           MOUNTPT="/cdrom"
+           ;;
+       esac
 
   44..66..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
 
@@ -2046,19 +2061,27 @@
            ;;
        esac
 
-  44..77..22..  UUssiinngg ffllaasshh mmeemmoorryy ccaarrddss
+  44..77..22..  UUssiinngg lliinneeaarr ffllaasshh mmeemmoorryy ccaarrddss
 
-  The device address passed to ftl.opts consists of three or four
-  fields: the scheme, the socket number, the region number, and
-  optionally, the partition number.  Most flash cards have just one
-  flash memory region, so the region number will generally always be
-  zero.
+  The following information applies only to so-called ``linear flash''
+  memory cards.  Many flash cards, including all SmartMedia and
+  CompactFlash cards, actually include circuitry to emulate an IDE disk
+  device.  Those cards are thus handled as IDE devices, not memory
+  cards.
+
+  There are two major formats for flash memory cards: the FTL or ``flash
+  translation layer'' style, and the Microsoft Flash File System.  The
+  FTL format is generally more flexible because it allows any ordinary
+  high-level filesystem (ext2, ms-dos, etc) to be used on a flash card
+  as if it were an ordinary disk device.  The FFS is a completely
+  different filesystem type.  Linux cannot currently handle cards
+  formated with FFS.
 
   To use a flash memory card as an ordinary disk-like block device,
-  first create an FTL, or ``flash translation layer'', partition on the
-  device with the ftl_format command.  This layer hides the device-
-  specific details of flash memory programming and make the card look
-  like a simple block device.  For example:
+  first create an FTL partition on the device with the ftl_format
+  command.  This layer hides the device-specific details of flash memory
+  programming and make the card look like a simple block device.  For
+  example:
 
        ftl_format -i /dev/mem0c0c
 
@@ -2078,12 +2101,12 @@
   region.  The ``ftl0c0p1'' through ``ftl0c0p4'' devices are primary
   partitions 1 through 4 if the region has been partitioned.
 
-  There are two major formats for flash memory cards: the FTL style, and
-  the Microsoft Flash File System.  The FTL format is generally more
-  flexible because it allows any ordinary high-level filesystem (ext2,
-  ms-dos, etc) to be used on a flash card as if it were an ordinary disk
-  device.  The FFS is a completely different filesystem type.  Linux
-  cannot currently handle cards formated with FFS.
+  Configuration options for FTL partitions can be given in ftl.opts,
+  which is similar in structure to memory.opts.  The device address
+  passed to ftl.opts consists of three or four fields: the scheme, the
+  socket number, the region number, and optionally, the partition
+  number.  Most flash cards have just one flash memory region, so the
+  region number will generally always be zero.
 
   Intel Series 100 flash cards use the first 128K flash block to store
   the cards' configuration information.  To prevent accidental erasure
@@ -2092,10 +2115,12 @@
 
   44..88..  PPCCMMCCIIAA AATTAA//IIDDEE ccaarrdd ddrriivveess
 
-  ATA/IDE drive support is based on the regular kernel IDE driver.  The
-  PCMCIA-specific part of the driver is ide_cs.  Be sure to use cardctl
-  or cardinfo to shut down an ATA/IDE card before ejecting it, as the
-  driver has not been made ``hot-swap-proof''.
+  ATA/IDE drive support is based on the regular kernel IDE driver.  This
+  includes SmartMedia and CompactFlash devices: these flash memory cards
+  are set up so that they emulate an IDE interface.  The PCMCIA-specific
+  part of the driver is ide_cs.  Be sure to use cardctl or cardinfo to
+  shut down an ATA/IDE card before ejecting it, as the driver has not
+  been made ``hot-swap-proof''.
 
   The device addresses passed to ide.opts consist of either three or
   four fields: the current scheme, the socket number, the drive's serial
@@ -2160,6 +2185,10 @@
      standard kernels, however it is something to be aware of if you
      compile a custom kernel.
 
+  +o  A common error when using IDE drives is try to mount the wrong
+     device file.  Generally, you want to mount a partition of the
+     device, not the entire device (i.e., /dev/hde1, not /dev/hde).
+
   44..99..  MMuullttiiffuunnccttiioonn ccaarrddss
 
   A single interrupt can be shared by several drivers, such as the
@@ -2221,16 +2250,16 @@
   schemes, called ``home'' and ``work''.  Here is an example of a
   network.opts script with scheme-specific settings:
 
-  case "$ADDRESS" in
-  work,*,*,*)
-      # definitions for network card in work scheme
-      ...
-      ;;
-  home,*,*,*|default,*,*,*)
-      # definitions for network card in home scheme
-      ...
-      ;;
-  esac
+       case "$ADDRESS" in
+       work,*,*,*)
+           # definitions for network card in work scheme
+           ...
+           ;;
+       home,*,*,*|default,*,*,*)
+           # definitions for network card in home scheme
+           ...
+           ;;
+       esac
 
   The first part of a device address is always the configuration scheme.
   In this example, the second ``case'' clause will select for both the
@@ -2267,14 +2296,14 @@
   To save even more keystrokes, schemes can be specified in lilo's
   configuration file.  For instance, you could have:
 
-  root = /dev/hda1
-  read-only
-  image = /boot/vmlinuz
-    label  = home
-    append = "SCHEME=home"
-  image = /boot/vmlinuz
-    label  = work
-    append = "SCHEME=work"
+       root = /dev/hda1
+       read-only
+       image = /boot/vmlinuz
+         label  = home
+         append = "SCHEME=home"
+       image = /boot/vmlinuz
+         label  = work
+         append = "SCHEME=work"
 
   Typing ``home'' or ``work'' at the boot prompt would then boot into
   the appropriate scheme.
@@ -2365,13 +2394,13 @@
   files for lilo to a clean floppy.  In the following example, we assume
   that the desired PCMCIA root device is /dev/sda1:
 
-       mke2fs /dev/fd0
-       mount /dev/fd0 /mnt
-       mkdir /mnt/etc /mnt/boot /mnt/dev
-       cp -a /dev/fd0 /dev/sda1 /mnt/dev
-       cp [kernel-image] /mnt/vmlinuz
-       cp /boot/boot.b /mnt/boot/boot.b
-       gzip < [initrd-image] > /mnt/initrd
+  mke2fs /dev/fd0
+  mount /dev/fd0 /mnt
+  mkdir /mnt/etc /mnt/boot /mnt/dev
+  cp -a /dev/fd0 /dev/sda1 /mnt/dev
+  cp [kernel-image] /mnt/vmlinuz
+  cp /boot/boot.b /mnt/boot/boot.b
+  gzip < [initrd-image] > /mnt/initrd
 
   Create /mnt/etc/lilo.conf with the contents:
 
@@ -2461,7 +2490,6 @@
   card, cardmgr will normally record some identification information in
   the system log that can be used to construct the config entry.  This
   information can also be displayed with the ``cardctl ident'' command.
-
   Here is an example of how cardmgr will report an unsupported card in
   /usr/adm/messages.
 
@@ -2633,13 +2661,13 @@
   on the module's load address.  Let's say that you have the following
   kernel fault:
 
-  Unable to handle kernel NULL pointer dereference
-  current->tss.cr3 = 014c9000, %cr3 = 014c9000
-  *pde = 00000000
-  Oops: 0002
-  CPU:    0
-  EIP:    0010:[<c2026081>]
-  EFLAGS: 00010282
+       Unable to handle kernel NULL pointer dereference
+       current->tss.cr3 = 014c9000, %cr3 = 014c9000
+       *pde = 00000000
+       Oops: 0002
+       CPU:    0
+       EIP:    0010:[<c2026081>]
+       EFLAGS: 00010282
 
   The fault address is 0xc2026081.  Looking at System.map, we see that
   this is past the end of the kernel, i.e., is in a kernel module.  To
@@ -2754,15 +2782,34 @@
   77..44..  //pprroocc//bbuuss//ppccccaarrdd
 
   Starting with 2.1.103 kernels, the PCMCIA package will create a tree
-  of status information under /proc/bus/pccard.  The memory entry shows
-  memory allocations for PC Card devices in a format similar to
-  /proc/ioports.  Each socket also has its own subdirectory of status
-  entries.  The info entry identifies the host controller and describes
-  its capabilities.  The exca entry is a dump of the ``ExCA'' Intel
-  i82365sl-compatible register set for that socket.  For CardBus
-  bridges, the pci entry is a dump of the bridge's PCI configuration
-  space, and the cardbus entry is a dump of the CardBus configuration
-  registers.
+  of status information under /proc/bus/pccard.  Much of the information
+  can only be interpreted using the data sheets for the PCMCIA host
+  controller.  Its contents may depend on how the drivers were
+  configured, but may include all or some of the following:
+
+     /proc/bus/pccard/{irq,ioport,memory}
+        If present, these files contain resource allocation information
+        to supplement the normal kernel resource tables.  Recent
+        versions of the PCMCIA system may obtain additional resource
+        information from the Plug and Play BIOS if configured to do so.
+
+     /proc/bus/pccard/drivers
+        In recent releases, this lists all currently loaded PCMCIA
+        client drivers.  Unlike /proc/modules, it also lists drivers
+        that may be statically linked into the kernel.
+
+     /proc/bus/pccard/*/info
+        For each socket, describes that socket's host controller and its
+        capabilities.
+
+     /proc/bus/pccard/*/exca
+        This contains a dump of a controller's ``ExCA'' Intel i82365sl-
+        compatible register set.
+
+     /proc/bus/pccard/*/{pci,cardbus}
+        For CardBus bridges, a dump of the bridge's PCI configuration
+        space, and a dump of the bridge's CardBus configuration
+        registers.
 
   77..55..  WWrriittiinngg CCaarrdd SSeerrvviicceess ddrriivveerrss ffoorr nneeww ccaarrddss
 

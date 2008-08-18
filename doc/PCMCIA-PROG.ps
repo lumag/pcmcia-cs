@@ -8,7 +8,7 @@
 %DVIPSWebPage: (www.radicaleye.com)
 %DVIPSCommandLine: dvips -t letter PCMCIA-PROG.dvi -o PCMCIA-PROG.ps
 %DVIPSParameters: dpi=600, compressed
-%DVIPSSource:  TeX output 1999.10.25:2015
+%DVIPSSource:  TeX output 1999.11.07:2333
 %%BeginProcSet: texc.pro
 %!
 /TeXDict 300 dict def TeXDict begin/N{def}def/B{bind def}N/S{exch}N/X{S
@@ -1643,15 +1643,15 @@ letter
 y(X)h(L)398 145 y Fl(A)435 162 y Fm(T)481 180 y(E)527
 162 y(X)0 353 y Fk(Linux)54 b(PCMCIA)f(Programmer's)g(Guide)p
 0 467 3900 24 v 0 580 a Fm(Da)n(vid)27 b(Hinds,)h Fj(dhinds@pcmcia.so)o
-(urc)o(ef)o(or)o(ge.)o(or)o(g)p Fm(.)1264 b(v2.18,)26
-b(26)g(Octob)r(er)h(1999)0 886 y Fi(This)34 b(do)r(cument)f(describ)r
-(es)g(ho)n(w)g(to)g(write)g(k)n(ernel)g(device)h(drivers)g(fo)n(r)f
-(the)h(Linux)g(PCMCIA)f(Ca)n(rd)h(Services)g(interface.)55
-b(It)0 1000 y(also)37 b(describ)r(es)h(ho)n(w)g(to)f(write)h(user-mo)r
-(de)g(utilities)f(fo)n(r)i(communicating)d(with)h(Ca)n(rd)i(Services.)
-69 b(The)38 b(latest)g(version)g(of)0 1113 y(this)29
-b(do)r(cument)g(can)h(alw)n(a)n(ys)e(b)r(e)i(found)g(at)59
-b Fh(<ftp://sourcefor)o(ge)o(.o)o(rg/)o(pc)o(mci)o(a>)o
+(urc)o(ef)o(or)o(ge.)o(or)o(g)p Fm(.)1192 b(v2.20,)26
+b(08)h(No)n(v)n(em)n(b)r(er)f(1999)0 886 y Fi(This)34
+b(do)r(cument)f(describ)r(es)g(ho)n(w)g(to)g(write)g(k)n(ernel)g
+(device)h(drivers)g(fo)n(r)f(the)h(Linux)g(PCMCIA)f(Ca)n(rd)h(Services)
+g(interface.)55 b(It)0 1000 y(also)37 b(describ)r(es)h(ho)n(w)g(to)f
+(write)h(user-mo)r(de)g(utilities)f(fo)n(r)i(communicating)d(with)h(Ca)
+n(rd)i(Services.)69 b(The)38 b(latest)g(version)g(of)0
+1113 y(this)29 b(do)r(cument)g(can)h(alw)n(a)n(ys)e(b)r(e)i(found)g(at)
+59 b Fh(<ftp://sourcefor)o(ge)o(.o)o(rg/)o(pc)o(mci)o(a>)o
 Fi(.)38 b(An)30 b(HTML)f(version)h(is)f(at)60 b Fh(<http:)0
 1227 y(//pcmcia.sourcef)o(or)o(ge.)o(or)o(g>)o Fi(.)0
 1558 y Fg(Con)l(ten)l(ts)0 1798 y Ff(1)77 b(In)m(tro)s(duction)3201
@@ -2507,172 +2507,186 @@ b(and)c(the)0 4937 y(con)n(ten)n(ts)27 b(of)g(the)h(request)f
 %%Page: 13 13
 13 12 bop 0 -167 3900 5 v 0 -200 a Ff(3.)73 b(Card)33
 b(Services)f(Subfunction)g(Descriptions)2008 b Fm(13)0
-162 y Ff(3.3.1)94 b(RequestIO)208 353 y Fd(int)39 b
+162 y Ff(3.3.1)94 b(RequestIO)208 352 y Fd(int)39 b
 (CardServices\(RequestIO,)45 b(client_handle_t)d(client,)f(io_req_t)g
-(*req\);)0 592 y Fm(The)28 b Fh(io_req_t)c Fm(data)j(structure)g(is)g
-(giv)n(en)g(b)n(y:)208 806 y Fd(typedef)40 b(struct)h(io_req_t)g({)521
-910 y(ioaddr_t)316 b(BasePort1;)521 1014 y(ioaddr_t)g(NumPorts1;)521
-1118 y(u_int)433 b(Attributes1;)521 1222 y(ioaddr_t)316
-b(BasePort2;)521 1326 y(ioaddr_t)g(NumPorts2;)521 1430
-y(u_int)433 b(Attributes2;)521 1534 y(u_int)g(IOAddrLines;)208
-1638 y(})39 b(io_req_t;)0 1861 y Fh(RequestIO)26 b Fm(reserv)n(es)i(IO)
-i(p)r(ort)g(windo)n(ws)g(for)f(a)h(card.)44 b(If)31 b
-Fh(BasePort1)26 b Fm(is)k(non-zero,)f(it)i(sp)r(eci\034es)f(the)h(IO)e
-(p)r(ort)h(address)0 1975 y(of)h(the)h(windo)n(w)e(to)h(b)r(e)h(reserv)
-n(ed;)f(if)g(it)h(is)f(zero,)g(Card)f(Services)g(will)h(\034nd)h(an)f
-(a)n(v)-5 b(ailable)29 b(windo)n(w)i(and)g(set)g Fh(BasePort1)0
-2088 y Fm(to)k(this)g(address.)57 b(If)35 b Fh(NumPorts2)c
-Fm(is)k(non-zero,)g(a)f(second)h(IO)f(p)r(ort)h(windo)n(w)f(will)h
-(also)f(b)r(e)h(reserv)n(ed.)57 b Fh(IOAddrLines)0 2202
-y Fm(sp)r(eci\034es)27 b(the)h(n)n(um)n(b)r(er)g(of)f(address)f(lines)i
-(that)g(are)e(actually)h(deco)r(ded)h(b)n(y)f(the)h(card;)f(this)h(is)f
-(not)h(curren)n(tly)e(used.)0 2358 y(With)35 b(m)n(ultifunction)h
-(cards,)f(this)f(call)g(will)h(allo)r(cate)f(IO)g(p)r(orts)g(for)g(eac)
-n(h)f(card)h(function)h(in)f(suc)n(h)g(a)g(w)n(a)n(y)g(that)g(all)g(a)0
-2472 y(card's)25 b(p)r(orts)h(can)g(b)r(e)g(mapp)r(ed)h(b)n(y)f(the)g
-(t)n(w)n(o)g(lo)n(w-lev)n(el)e(IO)i(p)r(ort)g(windo)n(ws)f(asso)r
-(ciated)g(with)i(eac)n(h)e(ph)n(ysical)g(so)r(c)n(k)n(et.)36
-b(F)-7 b(or)0 2586 y(example,)33 b(if)f(the)h(driv)n(ers)d(for)i(a)g(h)
-n(yp)r(othetical)f(four-function)h(card)f(eac)n(h)h(attempt)g(to)g
-(allo)r(cate)f(one)h(IO)g(windo)n(w)f(of)h(8)0 2699 y(p)r(orts,)27
+(*req\);)0 589 y Fm(The)28 b Fh(io_req_t)c Fm(data)j(structure)g(is)g
+(giv)n(en)g(b)n(y:)208 800 y Fd(typedef)40 b(struct)h(io_req_t)g({)521
+904 y(ioaddr_t)316 b(BasePort1;)521 1008 y(ioaddr_t)g(NumPorts1;)521
+1112 y(u_int)433 b(Attributes1;)521 1216 y(ioaddr_t)316
+b(BasePort2;)521 1320 y(ioaddr_t)g(NumPorts2;)521 1425
+y(u_int)433 b(Attributes2;)521 1529 y(u_int)g(IOAddrLines;)208
+1633 y(})39 b(io_req_t;)0 1853 y Fh(RequestIO)20 b Fm(reserv)n(es)h(IO)
+j(p)r(ort)f(windo)n(ws)g(for)g(a)g(card.)35 b Fh(BasePort1)20
+b Fm(sp)r(eci\034es)j(the)h(base)f(IO)g(p)r(ort)h(address)e(of)i(the)g
+(windo)n(w)0 1967 y(to)36 b(b)r(e)g(reserv)n(ed.)60 b(If)36
+b Fh(NumPorts2)c Fm(is)k(non-zero,)g(a)g(second)f(IO)h(p)r(ort)f(windo)
+n(w)h(will)g(also)e(b)r(e)j(reserv)n(ed.)60 b Fh(IOAddrLines)0
+2081 y Fm(sp)r(eci\034es)22 b(the)h(n)n(um)n(b)r(er)f(of)h(address)e
+(lines)h(that)h(are)f(actually)f(deco)r(ded)i(b)n(y)f(the)h(card.)34
+b(The)23 b(IO)f(p)r(ort)g(allo)r(cation)f(algorithm)0
+2194 y(assumes)40 b(that)i(an)n(y)f(alias)f(of)h(the)h(requested)f
+(address\(es\))f(that)i(preserv)n(es)d(the)j(lo)n(w)n(er)e
+Fh(IOAddrLines)c Fm(bits)42 b(will)g(b)r(e)0 2308 y(acceptable,)27
+b(and)g(will)h(up)r(date)g Fh(BasePort1)c Fm(and)j Fh(BasePort2)d
+Fm(to)k(re\035ect)f(the)h(address)e(range\(s\))g(actually)h(assigned.)0
+2464 y(Prior)33 b(to)h(release)f(3.1.4,)h(the)h Fh(IOAddrLines)29
+b Fm(\034eld)35 b(w)n(as)e(ignored.)55 b(The)34 b(allo)r(cator)e(alw)n
+(a)n(ys)g(tried)i(to)g(assign)f(the)i(exact)0 2578 y(address)29
+b(range)h(requested,)g(unless)h(the)g(base)e(address)h(w)n(as)f(zero;)i
+(in)g(that)g(case,)g(it)g(w)n(ould)f(assign)f(an)n(y)h(a)n(v)-5
+b(ailable)29 b(win-)0 2691 y(do)n(w)j(aligned)f(to)i(the)f(nearest)g(p)
+r(o)n(w)n(er)f(of)h(t)n(w)n(o)g(larger)e(than)i(the)h(windo)n(w)f
+(size.)51 b(The)32 b(new)g(allo)r(cator)f(v)n(eri\034es)g(that)i(the)0
+2805 y Fh(IOAddrLines)17 b Fm(parameter)i(agrees)g(with)j(the)f
+(requested)g(windo)n(w)f(parameters,)h(and)g(defaults)g(to)g(the)h
+(pre-3.1.4)d(b)r(eha)n(vior)0 2918 y(if)28 b(an)f(inconsistency)g(is)h
+(found.)0 3075 y(With)35 b(m)n(ultifunction)h(cards,)f(this)f(call)g
+(will)h(allo)r(cate)f(IO)g(p)r(orts)g(for)g(eac)n(h)f(card)h(function)h
+(in)f(suc)n(h)g(a)g(w)n(a)n(y)g(that)g(all)g(a)0 3188
+y(card's)25 b(p)r(orts)h(can)g(b)r(e)g(mapp)r(ed)h(b)n(y)f(the)g(t)n(w)
+n(o)g(lo)n(w-lev)n(el)e(IO)i(p)r(ort)g(windo)n(ws)f(asso)r(ciated)g
+(with)i(eac)n(h)e(ph)n(ysical)g(so)r(c)n(k)n(et.)36 b(F)-7
+b(or)0 3302 y(example,)33 b(if)f(the)h(driv)n(ers)d(for)i(a)g(h)n(yp)r
+(othetical)f(four-function)h(card)f(eac)n(h)h(attempt)g(to)g(allo)r
+(cate)f(one)h(IO)g(windo)n(w)f(of)h(8)0 3416 y(p)r(orts,)27
 b(Card)g(Services)f(will)i(consolidate)f(these)g(in)n(to)g(a)h(single)f
-(con)n(tiguous)f(32-p)r(ort)g(blo)r(c)n(k.)0 2856 y(When)38
+(con)n(tiguous)f(32-p)r(ort)g(blo)r(c)n(k.)0 3572 y(When)38
 b(this)h(function)f(is)g(in)n(v)n(ok)n(ed)e(b)n(y)i(a)f(CardBus)g
 (clien)n(t,)k(the)d(IO)g(request)f(structure)g(is)h(ignored.)67
-b(Instead,)40 b(Card)0 2969 y(Services)d(examines)g(the)h(card)e(and)i
+b(Instead,)40 b(Card)0 3686 y(Services)d(examines)g(the)h(card)e(and)i
 (allo)r(cates)e(an)n(y)h(necessary)f(system)i(resources:)54
-b(this)38 b(includes)g(IO)f(and)h(memory)0 3083 y(space,)25
+b(this)38 b(includes)g(IO)f(and)h(memory)0 3799 y(space,)25
 b(as)h(w)n(ell)f(as)g(an)h(in)n(terrupt,)g(if)g(needed.)36
 b(One)26 b(call)f(will)h(reserv)n(e)e(all)h(resources)f(needed)i(for)f
-(all)h(card)f(functions,)h(not)0 3196 y(just)i(the)g(function)g(of)g
-(the)g(clien)n(t)f(making)g(the)h(call.)0 3353 y(This)50
+(all)h(card)f(functions,)h(not)0 3913 y(just)i(the)g(function)g(of)g
+(the)g(clien)n(t)f(making)g(the)h(call.)0 4069 y(This)50
 b(call)g(do)r(es)g(not)g(actually)g(con\034gure)f(a)h(so)r(c)n(k)n
 (et's)f(IO)h(windo)n(ws:)82 b(this)50 b(is)g(done)g(b)n(y)g(a)g
-(subsequen)n(t)g(call)g(to)0 3466 y Fh(RequestConfigura)o(ti)o(on)p
-Fm(.)0 3623 y(The)28 b(follo)n(wing)e(\035ags)h(can)g(b)r(e)h(sp)r
+(subsequen)n(t)g(call)g(to)0 4183 y Fh(RequestConfigura)o(ti)o(on)p
+Fm(.)0 4339 y(The)28 b(follo)n(wing)e(\035ags)h(can)g(b)r(e)h(sp)r
 (eci\034ed)g(in)f Fh(Attributes1)c Fm(and)28 b Fh(Attributes2)p
-Fm(:)0 3846 y Fh(IO_DATA_PATH_WID)o(TH)208 3993 y Fm(This)20
+Fm(:)0 4560 y Fh(IO_DATA_PATH_WID)o(TH)208 4706 y Fm(This)20
 b(\034eld)h(ma)n(y)f(either)g(b)r(e)i Fh(IO_DATA_PATH_WI)o(DT)o(H_)o
 (16)14 b Fm(for)21 b(16-bit)e(access,)i(or)f Fh(IO_DATA_PATH_WID)o(TH)o
-(_8)14 b Fm(for)20 b(8-bit)208 4106 y(access,)26 b(or)h
+(_8)14 b Fm(for)20 b(8-bit)208 4820 y(access,)26 b(or)h
 Fh(IO_DATA_PATH_WI)o(DT)o(H_A)o(UT)o(O)22 b Fm(to)27
 b(dynamically)g(size)g(the)h(bus)g(based)f(on)g(the)h(access)e(size.)0
-4329 y(Return)i(co)r(des:)0 4552 y Fh(CS_BAD_HANDLE)208
-4699 y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)-5 b(alid.)0
-4879 y Fh(CS_NO_CARD)208 5025 y Fm(The)27 b(so)r(c)n(k)n(et)g(assigned)
-f(to)h(this)h(clien)n(t)g(is)f(curren)n(tly)g(v)-5 b(acan)n(t.)0
-5205 y Fh(CS_IN_USE)208 5352 y Fm(This)27 b(so)r(c)n(k)n(et's)f(IO)i
-(windo)n(ws)e(ha)n(v)n(e)h(already)f(b)r(een)i(reserv)n(ed.)p
+5040 y(Return)i(co)r(des:)0 5261 y Fh(CS_BAD_HANDLE)208
+5407 y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)-5 b(alid.)p
 eop
 %%Page: 14 14
 14 13 bop 0 -167 3900 5 v 0 -200 a Ff(3.)73 b(Card)33
 b(Services)f(Subfunction)g(Descriptions)2008 b Fm(14)0
-162 y Fh(CS_CONFIGURATION)o(_L)o(OCK)o(ED)208 307 y Fm(This)27
-b(so)r(c)n(k)n(et's)f(con\034guration)g(has)h(b)r(een)h(lo)r(c)n(k)n
-(ed)f(b)n(y)g(a)g(call)g(to)h Fh(RequestConfigura)o(ti)o(on)o
-Fm(.)0 485 y Fh(CS_BAD_ATTRIBUTE)208 631 y Fm(An)g(unsupp)r(orted)f
-(attribute)h(\035ag)f(w)n(as)f(sp)r(eci\034ed.)0 809
-y Fh(CS_UNSUPPORTED_F)o(UN)o(CTI)o(ON)208 955 y Fm(F)-7
+162 y Fh(CS_NO_CARD)208 303 y Fm(The)27 b(so)r(c)n(k)n(et)g(assigned)f
+(to)h(this)h(clien)n(t)g(is)f(curren)n(tly)g(v)-5 b(acan)n(t.)0
+471 y Fh(CS_IN_USE)208 612 y Fm(This)27 b(so)r(c)n(k)n(et's)f(IO)i
+(windo)n(ws)e(ha)n(v)n(e)h(already)f(b)r(een)i(reserv)n(ed.)0
+780 y Fh(CS_CONFIGURATION)o(_L)o(OCK)o(ED)208 921 y Fm(This)f(so)r(c)n
+(k)n(et's)f(con\034guration)g(has)h(b)r(een)h(lo)r(c)n(k)n(ed)f(b)n(y)g
+(a)g(call)g(to)h Fh(RequestConfigura)o(ti)o(on)o Fm(.)0
+1090 y Fh(CS_BAD_ATTRIBUTE)208 1231 y Fm(An)g(unsupp)r(orted)f
+(attribute)h(\035ag)f(w)n(as)f(sp)r(eci\034ed.)0 1399
+y Fh(CS_UNSUPPORTED_F)o(UN)o(CTI)o(ON)208 1540 y Fm(F)-7
 b(or)26 b(a)i(CardBus)e(clien)n(t,)i(this)g(is)f(returned)g(if)h(Card)f
 (Services)g(w)n(as)f(not)i(con\034gured)e(with)i(CardBus)e(supp)r(ort.)
-0 1227 y Ff(3.3.2)94 b(ReleaseIO)208 1417 y Fd(int)39
+0 1807 y Ff(3.3.2)94 b(ReleaseIO)208 1993 y Fd(int)39
 b(CardServices\(ReleaseIO,)45 b(client_handle_t)d(client,)f(io_req_t)g
-(*req\);)0 1651 y Fh(ReleaseIO)34 b Fm(un-reserv)n(es)i(IO)i(p)r(ort)g
+(*req\);)0 2203 y Fh(ReleaseIO)34 b Fm(un-reserv)n(es)i(IO)i(p)r(ort)g
 (windo)n(ws)f(allo)r(cated)h(b)n(y)f(a)h(previous)f(call)h(to)g
 Fh(RequestIO)p Fm(.)c(The)39 b Fh(req)e Fm(parameter)0
-1765 y(should)26 b(b)r(e)h(the)g(same)e(one)h(passed)g(to)g
+2317 y(should)26 b(b)r(e)h(the)g(same)e(one)h(passed)g(to)g
 Fh(RequestIO)p Fm(.)d(If)j(sev)n(eral)f(card)g(functions)i(are)e
-(sharing)g(a)h(larger)e(IO)i(p)r(ort)h(windo)n(w,)0 1878
+(sharing)g(a)h(larger)e(IO)i(p)r(ort)h(windo)n(w,)0 2430
 y(p)r(orts)e(released)f(b)n(y)h(one)f(function)i(ma)n(y)f(not)g(b)r
 (ecome)g(a)n(v)-5 b(ailable)24 b(for)h(other)f(uses)h(un)n(til)h(all)f
-(card)f(functions)h(ha)n(v)n(e)f(released)0 1992 y(their)k(IO)f(p)r
-(orts.)0 2148 y(F)-7 b(or)27 b(a)g(CardBus)f(clien)n(t,)i(this)g(call)f
+(card)f(functions)h(ha)n(v)n(e)f(released)0 2544 y(their)k(IO)f(p)r
+(orts.)0 2700 y(F)-7 b(or)27 b(a)g(CardBus)f(clien)n(t,)i(this)g(call)f
 (releases)f(all)h(system)h(resources)d(allo)r(cated)i(for)g(this)h
-(card.)0 2305 y(Return)g(co)r(des:)0 2524 y Fh(CS_BAD_HANDLE)208
-2670 y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)-5 b(alid.)0
-2848 y Fh(CS_CONFIGURATION)o(_L)o(OCK)o(ED)208 2993 y
+(card.)0 2857 y(Return)g(co)r(des:)0 3056 y Fh(CS_BAD_HANDLE)208
+3197 y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)-5 b(alid.)0
+3365 y Fh(CS_CONFIGURATION)o(_L)o(OCK)o(ED)208 3506 y
 Fm(This)33 b(so)r(c)n(k)n(et's)f(con\034guration)g(has)h(b)r(een)g(lo)r
 (c)n(k)n(ed)g(b)n(y)g(a)g(call)g(to)g Fh(RequestConfigurat)o(io)o(n)p
-Fm(.)48 b(The)34 b(con\034guration)208 3107 y(should)27
+Fm(.)48 b(The)34 b(con\034guration)208 3620 y(should)27
 b(b)r(e)h(released)e(b)r(efore)h(calling)g(ReleaseIO.)0
-3285 y Fh(CS_BAD_ARGS)208 3431 y Fm(The)g(parameters)f(in)i
+3788 y Fh(CS_BAD_ARGS)208 3929 y Fm(The)g(parameters)f(in)i
 Fh(req)e Fm(do)h(not)h(matc)n(h)f(the)h(parameters)e(passed)h(to)g
-Fh(RequestIO)p Fm(.)0 3703 y Ff(3.3.3)94 b(RequestIR)m(Q)208
-3892 y Fd(int)39 b(CardServices\(RequestIRQ,)45 b(client_handle_t)d
-(client,)f(irq_req_t)g(*req\);)0 4127 y Fm(The)28 b Fh(irq_req_t)23
-b Fm(structure)k(is)h(giv)n(en)f(b)n(y:)208 4336 y Fd(typedef)40
-b(struct)h(irq_req_t)g({)521 4441 y(u_int)433 b(Attributes;)521
-4545 y(u_int)g(AssignedIRQ;)521 4649 y(u_int)g(IRQInfo1,)41
-b(IRQInfo2;)521 4753 y(void)472 b(*\(Handler\)\(int,)42
-b(struct)f(pt_regs)g(*\);)521 4857 y(void)472 b(*Instance)208
-4961 y(})39 b(irq_req_t;)0 5180 y Fh(RequestIRQ)25 b
-Fm(reserv)n(es)j(an)h(in)n(terrupt)g(line)h(for)f(use)g(b)n(y)g(a)h
-(card.)41 b(The)30 b Fh(IRQInfo1)c Fm(and)k Fh(IRQInfo2)c
-Fm(\034elds)j(corresp)r(ond)f(to)0 5294 y(the)35 b(in)n(terrupt)g
-(description)g(b)n(ytes)f(in)i(a)e Fh(CFTABLE_ENTRY)c
-Fm(tuple.)60 b(If)36 b Fh(IRQ_INFO2_VALID)28 b Fm(is)35
-b(set)h(in)f Fh(IRQInfo1)p Fm(,)f(then)0 5407 y Fh(IRQInfo2)24
-b Fm(is)k(a)f(bit-mapp)r(ed)h(mask)f(of)g(allo)n(w)n(ed)g(in)n(terrupt)
-g(v)-5 b(alues.)36 b(Eac)n(h)28 b(bit)g(corresp)r(onds)e(to)h(one)g(in)
-n(terrupt)g(line:)38 b(bit)p eop
+Fh(RequestIO)p Fm(.)0 4197 y Ff(3.3.3)94 b(RequestIR)m(Q)208
+4382 y Fd(int)39 b(CardServices\(RequestIRQ,)45 b(client_handle_t)d
+(client,)f(irq_req_t)g(*req\);)0 4592 y Fm(The)28 b Fh(irq_req_t)23
+b Fm(structure)k(is)h(giv)n(en)f(b)n(y:)208 4783 y Fd(typedef)40
+b(struct)h(irq_req_t)g({)521 4887 y(u_int)433 b(Attributes;)521
+4991 y(u_int)g(AssignedIRQ;)521 5095 y(u_int)g(IRQInfo1,)41
+b(IRQInfo2;)521 5199 y(void)472 b(*\(Handler\)\(int,)42
+b(struct)f(pt_regs)g(*\);)521 5303 y(void)472 b(*Instance)208
+5407 y(})39 b(irq_req_t;)p eop
 %%Page: 15 15
 15 14 bop 0 -167 3900 5 v 0 -200 a Ff(3.)73 b(Card)33
 b(Services)f(Subfunction)g(Descriptions)2008 b Fm(15)0
-162 y(0)33 b(=)g(irq)g(0,)i(bit)f(1)f(=)g(irq)g(1,)i(etc.)54
+162 y Fh(RequestIRQ)25 b Fm(reserv)n(es)j(an)h(in)n(terrupt)g(line)h
+(for)f(use)g(b)n(y)g(a)h(card.)41 b(The)30 b Fh(IRQInfo1)c
+Fm(and)k Fh(IRQInfo2)c Fm(\034elds)j(corresp)r(ond)f(to)0
+275 y(the)35 b(in)n(terrupt)g(description)g(b)n(ytes)f(in)i(a)e
+Fh(CFTABLE_ENTRY)c Fm(tuple.)60 b(If)36 b Fh(IRQ_INFO2_VALID)28
+b Fm(is)35 b(set)h(in)f Fh(IRQInfo1)p Fm(,)f(then)0 389
+y Fh(IRQInfo2)24 b Fm(is)k(a)f(bit-mapp)r(ed)h(mask)f(of)g(allo)n(w)n
+(ed)g(in)n(terrupt)g(v)-5 b(alues.)36 b(Eac)n(h)28 b(bit)g(corresp)r
+(onds)e(to)h(one)g(in)n(terrupt)g(line:)38 b(bit)0 502
+y(0)33 b(=)g(irq)g(0,)i(bit)f(1)f(=)g(irq)g(1,)i(etc.)54
 b(So,)35 b(a)e(mask)g(of)g(0x1100)e(w)n(ould)i(mean)g(that)h(in)n
-(terrupts)f(12)g(and)g(8)g(could)g(b)r(e)h(used.)0 275
+(terrupts)f(12)g(and)g(8)g(could)g(b)r(e)h(used.)0 616
 y(If)c Fh(IRQ_INFO2_VALID)23 b Fm(is)30 b(not)f(set,)h
 Fh(IRQInfo1)d Fm(is)i(just)h(the)g(desired)f(in)n(terrupt)g(n)n(um)n(b)
 r(er.)43 b(If)30 b(the)f(call)h(is)f(successful,)h(the)0
-389 y(reserv)n(ed)c(in)n(terrupt)h(is)g(returned)g(in)h
-Fh(AssignedIRQ)p Fm(.)0 545 y(If)37 b(the)g Fh(IRQ_HANDLER_PRES)o(EN)o
+730 y(reserv)n(ed)c(in)n(terrupt)h(is)g(returned)g(in)h
+Fh(AssignedIRQ)p Fm(.)0 886 y(If)37 b(the)g Fh(IRQ_HANDLER_PRES)o(EN)o
 (T)31 b Fm(\035ag)36 b(is)g(set,)j(then)e(this)g(call)f(also)g(sp)r
 (eci\034es)g(an)g(in)n(terrupt)h(handler)f(to)g(b)r(e)h(installed)0
-659 y(when)31 b(the)g(in)n(terrupt)f(is)g(enabled.)45
+1000 y(when)31 b(the)g(in)n(terrupt)f(is)g(enabled.)45
 b(When)31 b Fh(RequestConfigurat)o(io)o(n)24 b Fm(is)31
 b(called,)g(the)g(handler)e(giv)n(en)h(b)n(y)g Fh(Handler)e
-Fm(will)0 772 y(b)r(e)23 b(installed.)36 b(F)-7 b(or)22
+Fm(will)0 1113 y(b)r(e)23 b(installed.)36 b(F)-7 b(or)22
 b(2.0)g(and)h(later)g(k)n(ernels,)g(the)g(in)n(terrupt)g(handler)f
 (will)i(b)r(e)f(installed)g(with)h(the)f(device)g(\020instance\021)29
-b(giv)n(en)0 886 y(in)c Fh(Instance)p Fm(.)32 b(F)-7
+b(giv)n(en)0 1227 y(in)c Fh(Instance)p Fm(.)32 b(F)-7
 b(or)24 b(pre-2.1.60)f(k)n(ernels,)h(the)h(k)n(ernel)e
 Fh(irq2dev_map)d Fm(table)25 b(will)g(also)e(b)r(e)i(up)r(dated.)37
-b(With)25 b(m)n(ultifunction)0 1000 y(cards,)g(the)h(in)n(terrupt)f
+b(With)25 b(m)n(ultifunction)0 1340 y(cards,)g(the)h(in)n(terrupt)f
 (will)g(b)r(e)h(allo)r(cated)f(in)h(shared)e(mo)r(de,)i(and)f(the)h
 (handler\(s\))g(ha)n(v)n(e)e(resp)r(onsibilit)n(y)g(for)h(determining)0
-1113 y(whic)n(h)34 b(card)g(function\(s\))i(require)d(atten)n(tion)h
+1454 y(whic)n(h)34 b(card)g(function\(s\))i(require)d(atten)n(tion)h
 (when)h(an)f(in)n(terrupt)h(is)f(receiv)n(ed.)57 b(If)35
-b(a)f(clien)n(t)h(instead)f(b)n(ypasses)f(Card)0 1227
+b(a)f(clien)n(t)h(instead)f(b)n(ypasses)f(Card)0 1567
 y(Services)d(to)i(install)f(its)h(o)n(wn)f(in)n(terrupt)g(service)f
 (routine,)i(it)g(should)f(allo)r(cate)g(the)h(in)n(terrupt)f(in)h
-(shared)e(mo)r(de)i(if)g(this)0 1340 y(clien)n(t)c(could)f(b)r(e)h(b)r
-(ound)g(to)f(a)g(m)n(ultifunction)i(card.)0 1497 y(The)f(follo)n(wing)e
+(shared)e(mo)r(de)i(if)g(this)0 1681 y(clien)n(t)c(could)f(b)r(e)h(b)r
+(ound)g(to)f(a)g(m)n(ultifunction)i(card.)0 1838 y(The)f(follo)n(wing)e
 (\035ags)h(can)g(b)r(e)h(sp)r(eci\034ed)g(in)f Fh(Attributes)p
-Fm(:)0 1720 y Fh(IRQ_FORCED_PULSE)208 1866 y Fm(Sp)r(eci\034es)g(that)h
+Fm(:)0 2060 y Fh(IRQ_FORCED_PULSE)208 2207 y Fm(Sp)r(eci\034es)g(that)h
 (the)g(in)n(terrupt)f(should)g(b)r(e)h(con\034gured)e(for)h(pulsed)h
 (mo)r(de,)f(rather)g(than)g(the)h(default)g(lev)n(el)f(mo)r(de.)0
-2046 y Fh(IRQ_TYPE_TIME)208 2193 y Fm(Sp)r(eci\034es)36
+2387 y Fh(IRQ_TYPE_TIME)208 2534 y Fm(Sp)r(eci\034es)36
 b(that)h(this)f(in)n(terrupt)g(can)g(b)r(e)h(time-shared)e(with)i
 (other)e(Card)h(Services)f(driv)n(ers.)62 b(Only)36 b(one)f(driv)n(er)
-208 2307 y(should)27 b(enable)g(the)h(in)n(terrupt)f(at)h(an)n(y)e
-(time.)0 2487 y Fh(IRQ_FIRST_SHARED)208 2634 y Fm(In)c(conjunction)f
+208 2648 y(should)27 b(enable)g(the)h(in)n(terrupt)f(at)h(an)n(y)e
+(time.)0 2828 y Fh(IRQ_FIRST_SHARED)208 2974 y Fm(In)c(conjunction)f
 (with)i Fh(IRQ_TYPE_TIME)p Fm(,)16 b(this)23 b(should)e(b)r(e)h(set)g
 (b)n(y)g(the)g(\034rst)g(driv)n(er)e(requesting)h(a)h(shared)e(in)n
-(terrupt.)0 2814 y Fh(IRQ_HANDLER_PRES)o(EN)o(T)208 2960
+(terrupt.)0 3154 y Fh(IRQ_HANDLER_PRES)o(EN)o(T)208 3301
 y Fm(Indicates)27 b(that)h(the)g Fh(Handler)c Fm(\034eld)k(p)r(oin)n
 (ts)g(to)f(an)g(in)n(terrupt)h(service)e(routine)h(that)h(should)f(b)r
-(e)h(installed.)0 3183 y(Return)g(co)r(des:)0 3406 y
-Fh(CS_BAD_HANDLE)208 3553 y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)
--5 b(alid.)0 3733 y Fh(CS_NO_CARD)208 3880 y Fm(The)27
+(e)h(installed.)0 3524 y(Return)g(co)r(des:)0 3747 y
+Fh(CS_BAD_HANDLE)208 3894 y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)
+-5 b(alid.)0 4074 y Fh(CS_NO_CARD)208 4220 y Fm(The)27
 b(so)r(c)n(k)n(et)g(assigned)f(to)h(this)h(clien)n(t)g(is)f(curren)n
-(tly)g(v)-5 b(acan)n(t.)0 4060 y Fh(CS_IN_USE)208 4206
+(tly)g(v)-5 b(acan)n(t.)0 4400 y Fh(CS_IN_USE)208 4547
 y Fm(An)28 b(in)n(terrupt)f(has)g(already)f(b)r(een)i(reserv)n(ed)e
 (for)h(this)g(so)r(c)n(k)n(et,)g(or)g(the)h(requested)e(in)n(terrupt)i
-(is)f(una)n(v)-5 b(ailable.)0 4386 y Fh(CS_CONFIGURATION)o(_L)o(OCK)o
-(ED)208 4533 y Fm(This)27 b(card)g(function's)h(con\034guration)d(has)j
+(is)f(una)n(v)-5 b(ailable.)0 4727 y Fh(CS_CONFIGURATION)o(_L)o(OCK)o
+(ED)208 4874 y Fm(This)27 b(card)g(function's)h(con\034guration)d(has)j
 (b)r(een)f(lo)r(c)n(k)n(ed)g(b)n(y)g(a)h(call)f(to)g
-Fh(RequestConfigura)o(tio)o(n)p Fm(.)0 4713 y Fh(CS_BAD_ATTRIBUTE)208
-4860 y Fm(An)h(unsupp)r(orted)f(attribute)h(\035ag)f(w)n(as)f(sp)r
+Fh(RequestConfigura)o(tio)o(n)p Fm(.)0 5054 y Fh(CS_BAD_ATTRIBUTE)208
+5201 y Fm(An)h(unsupp)r(orted)f(attribute)h(\035ag)f(w)n(as)f(sp)r
 (eci\034ed.)p eop
 %%Page: 16 16
 16 15 bop 0 -167 3900 5 v 0 -200 a Ff(3.)73 b(Card)33
@@ -3015,56 +3029,57 @@ b(.)0 4705 y Fh(CS_UNSUPPORTED_F)o(UN)o(CTI)o(ON)208
 23 22 bop 0 -167 3900 5 v 0 -200 a Ff(3.)73 b(Card)33
 b(Services)f(Subfunction)g(Descriptions)2008 b Fm(23)0
 162 y(The)28 b Fh(cisinfo_t)23 b Fm(structure)k(is)h(giv)n(en)f(b)n(y:)
-208 375 y Fd(typedef)40 b(struct)h(cisinfo_t)g({)521
-479 y(u_int)433 b(Chains;)208 583 y(})39 b(cisinfo_t;)0
-806 y Fh(ValidateCIS)29 b Fm(attempts)k(to)g(v)n(erify)f(that)i(a)e
+208 361 y Fd(typedef)40 b(struct)h(cisinfo_t)g({)521
+465 y(u_int)433 b(Chains;)208 569 y(})39 b(cisinfo_t;)0
+778 y Fh(ValidateCIS)29 b Fm(attempts)k(to)g(v)n(erify)f(that)i(a)e
 (card)h(has)f(a)h(reasonable)e(Card)h(Information)h(Structure.)53
-b(It)33 b(returns)g(the)0 920 y(n)n(um)n(b)r(er)27 b(of)h(tuples)g
+b(It)33 b(returns)g(the)0 892 y(n)n(um)n(b)r(er)27 b(of)h(tuples)g
 (found)g(in)f Fh(Chains)p Fm(.)35 b(If)28 b(the)g(CIS)f(app)r(ears)g
 (to)g(b)r(e)h(unin)n(terpretable,)f Fh(Chains)e Fm(will)j(b)r(e)g(set)f
-(to)h(0.)0 1076 y(Return)g(co)r(des:)0 1299 y Fh(CS_BAD_HANDLE)208
-1446 y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)-5 b(alid.)0
-1626 y Fh(CS_OUT_OF_RESOUR)o(CE)208 1773 y Fm(Card)26
+(to)h(0.)0 1048 y(Return)g(co)r(des:)0 1257 y Fh(CS_BAD_HANDLE)208
+1401 y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)-5 b(alid.)0
+1574 y Fh(CS_OUT_OF_RESOUR)o(CE)208 1717 y Fm(Card)26
 b(Services)h(w)n(as)f(unable)i(to)f(set)h(up)g(a)f(memory)g(windo)n(w)g
-(to)g(map)h(the)g(card's)e(CIS.)0 2045 y Ff(3.4.5)94
-b(ReplaceCIS)208 2236 y Fd(int)39 b(CardServices\(ReplaceCIS,)45
+(to)g(map)h(the)g(card's)e(CIS.)0 1987 y Ff(3.4.5)94
+b(ReplaceCIS)208 2174 y Fd(int)39 b(CardServices\(ReplaceCIS,)45
 b(client_handle_t)d(client,)f(cisdump_t)g(*cisinfo\);)0
-2476 y Fm(The)28 b Fh(cisdump_t)23 b Fm(structure)k(is)h(giv)n(en)f(b)n
-(y:)208 2689 y Fd(typedef)40 b(struct)h(cisdump_t)g({)521
-2793 y(u_int)433 b(Length;)521 2897 y(cisdata_t)277 b
-(Data[CISTPL_MAX_CIS_SIZE];)208 3001 y(})39 b(cisinfo_t;)0
-3224 y Fh(ReplaceCIS)26 b Fm(allo)n(ws)j(a)h(clien)n(t)g(to)h(pass)e
+2396 y Fm(The)28 b Fh(cisdump_t)23 b Fm(structure)k(is)h(giv)n(en)f(b)n
+(y:)208 2596 y Fd(typedef)40 b(struct)h(cisdump_t)g({)521
+2700 y(u_int)433 b(Length;)521 2804 y(cisdata_t)277 b
+(Data[CISTPL_MAX_CIS_SIZE];)208 2908 y(})39 b(cisinfo_t;)0
+3117 y Fh(ReplaceCIS)26 b Fm(allo)n(ws)j(a)h(clien)n(t)g(to)h(pass)e
 (Card)h(Services)f(a)h(replacemen)n(t)f(for)h(the)h(CIS)f(found)h(on)f
-(a)g(card.)44 b(Its)31 b(in)n(tended)0 3338 y(application)23
+(a)g(card.)44 b(Its)31 b(in)n(tended)0 3231 y(application)23
 b(is)g(for)h(cards)e(with)i(incomplete)g(or)f(inaccurate)f(CIS)i
 (information.)35 b(If)24 b(a)f(correct)f(CIS)i(can)g(b)r(e)g(deduced)f
-(from)0 3452 y(other)33 b(information)h(a)n(v)-5 b(ailable)32
+(from)0 3344 y(other)33 b(information)h(a)n(v)-5 b(ailable)32
 b(for)i(the)g(card,)h(this)f(allo)n(ws)f(that)h(information)g(to)g(b)r
 (e)g(pro)n(vided)f(to)h(clien)n(ts)g(in)g(a)g(clean)0
-3565 y(fashion.)43 b(The)29 b(alternativ)n(e)g(is)g(to)h(p)r(ollute)g
+3458 y(fashion.)43 b(The)29 b(alternativ)n(e)g(is)g(to)h(p)r(ollute)g
 (clien)n(t)f(source)g(co)r(de)g(with)h(\034xes)g(targeted)e(for)h(eac)n
-(h)g(card)g(with)h(a)f(CIS)h(error.)0 3679 y(The)i(replacemen)n(t)g
+(h)g(card)g(with)h(a)f(CIS)h(error.)0 3572 y(The)i(replacemen)n(t)g
 (CIS)g(remains)g(in)h(e\033ect)f(un)n(til)h(the)g(card)e(is)i(ejected,)
 h(and)e(all)g(tuple-related)g(services)f(will)h(use)h(the)0
-3792 y(replacemen)n(t)27 b(instead)g(of)h(the)f(card's)g(actual)g(CIS.)
-0 3949 y(The)35 b Fh(Length)d Fm(\034eld)k(giv)n(es)d(the)j(n)n(um)n(b)
+3685 y(replacemen)n(t)27 b(instead)g(of)h(the)f(card's)g(actual)g(CIS.)
+0 3842 y(The)35 b Fh(Length)d Fm(\034eld)k(giv)n(es)d(the)j(n)n(um)n(b)
 r(er)e(of)h(b)n(ytes)g(of)f(CIS)h(data)g(in)g(the)g Fh(Data)f
 Fm(arra)n(y)-7 b(.)56 b(The)35 b Fh(Data)e Fm(arra)n(y)g(can)i(b)r(e)g
-(con-)0 4062 y(sidered)30 b(to)g(b)r(e)g(just)h(the)f(ev)n(en)g(b)n
+(con-)0 3955 y(sidered)30 b(to)g(b)r(e)g(just)h(the)f(ev)n(en)g(b)n
 (ytes)g(of)g(a)g(card's)f(attribute)h(memory)-7 b(.)44
 b(It)31 b(should)e(con)n(tain)h(all)g(required)f(features)g(of)h(a)0
-4176 y(normal)e(CIS,)h(including)f(an)h(initial)g Fh(CISTPL_DEVICE)23
+4069 y(normal)e(CIS,)h(including)f(an)h(initial)g Fh(CISTPL_DEVICE)23
 b Fm(tuple)29 b(and)g(a)f(\034nal)h Fh(CISTPL_END)24
-b Fm(tuple.)41 b(Long)28 b(links)h(\(including)0 4289
+b Fm(tuple.)41 b(Long)28 b(links)h(\(including)0 4182
 y Fh(CISTPL_LONGLINK_)o(MF)o(C)p Fm(\))i(ma)n(y)k(b)r(e)i(used:)54
 b(all)36 b(target)f(addresses)g(are)g(in)n(terpreted)h(in)g(the)h
-(replacemen)n(t)e(CIS)i(space.)0 4403 y(In)h(general,)i(a)e(replacemen)
+(replacemen)n(t)e(CIS)i(space.)0 4296 y(In)h(general,)i(a)e(replacemen)
 n(t)f(CIS)i(should)f(also)f(con)n(tain)h(the)g(same)g(basic)g(iden)n
 (ti\034cation)g(tuples)g(\()p Fh(CISTPL_MANFID)p Fm(,)0
-4517 y Fh(CISTPL_VERS_1)p Fm(\))22 b(as)27 b(the)h(original)e(card.)0
-4673 y(Return)i(co)r(des:)0 4896 y Fh(CS_BAD_HANDLE)208
-5043 y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)-5 b(alid.)0
-5223 y Fh(CS_OUT_OF_RESOUR)o(CE)208 5369 y Fm(Card)26
+4409 y Fh(CISTPL_VERS_1)p Fm(\))22 b(as)27 b(the)h(original)e(card.)0
+4566 y(This)i(service)e(w)n(as)h(added)g(in)h(release)e(3.0.1.)0
+4722 y(Return)i(co)r(des:)0 4931 y Fh(CS_BAD_HANDLE)208
+5075 y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)-5 b(alid.)0
+5248 y Fh(CS_OUT_OF_RESOUR)o(CE)208 5391 y Fm(Card)26
 b(Services)h(w)n(as)f(unable)i(to)f(allo)r(cate)g(memory)g(to)g(hold)h
 (the)f(replacemen)n(t)g(CIS.)p eop
 %%Page: 24 24
@@ -3125,8 +3140,8 @@ n(w)g(is)h(turned)g(on.)0 4509 y Fh(WIN_USE_WAIT)208
 r(oundary)-7 b(.)35 b(This)27 b(ma)n(y)e(not)i(b)r(e)f(p)r(ossible)g
 (on)208 5087 y(some)h(platforms.)0 5263 y Fh(WIN_STRICT_ALIGN)208
 5407 y Fm(Requests)g(that)h(the)g(windo)n(w)f(base)g(b)r(e)g(aligned)g
-(to)h(a)f(m)n(ultiple)h(of)g(the)g(windo)n(w)f(size.)p
-eop
+(to)h(a)f(m)n(ultiple)h(of)g(the)g(windo)n(w)f(size.)36
+b(A)n(dded)28 b(in)g(release)e(3.1.2.)p eop
 %%Page: 25 25
 25 24 bop 0 -167 3900 5 v 0 -200 a Ff(3.)73 b(Card)33
 b(Services)f(Subfunction)g(Descriptions)2008 b Fm(25)0
@@ -4884,7 +4899,7 @@ y Fg(8)131 b(Anatom)l(y)44 b(of)g(a)g(Card)f(Services)i(Clien)l(t)h
 (ell-commen)n(ted)f(\020dumm)n(y\021)36 b(clien)n(t)30
 b(driv)n(er)e(that)0 2620 y(should)k(b)r(e)h(used)f(as)g(a)g(starting)f
 (p)r(oin)n(t)i(for)f(writing)g(a)g(new)g(driv)n(er.)50
-b(Lo)r(ok)32 b(for)g(it)g(in)h Fh(modules/dummy_cs)o(.c)o
+b(Lo)r(ok)32 b(for)g(it)g(in)h Fh(clients/dummy_cs)o(.c)o
 Fm(.)46 b(This)32 b(is)0 2733 y(not)f(just)g(a)g(piece)g(of)g(sample)f
 (co)r(de:)43 b(it)32 b(is)e(written)h(to)g(function)h(as)e(a)g(sort)g
 (of)h(generic)f(card)g(enabler.)46 b(If)31 b(b)r(ound)h(to)e(an)0
