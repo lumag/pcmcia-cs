@@ -1548,24 +1548,7 @@ int wvlan_tx (struct sk_buff *skb, struct net_device *dev)
 		wvlan_hw_config(dev);
 	}
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-	// Sending a NULL skb means some higher layer thinks we've
-	// missed a tx-done interrupt.
-	// Caution: dev_tint() handles the cli()/sti() itself.
-	if (!skb)
-	{
-		DEBUG(DEBUG_INFO, "%s: %s Tx skb==NULL!\n", dev_info, dev->name);
-		dev_tint(dev);
-		local->stats.tx_dropped++;
-		return 0;
-	}
-	if (skb->len <= 0)
-	{
-		printk(KERN_WARNING "%s: %s Tx skb->len <= 0!\n", dev_info, dev->name);
-		local->stats.tx_dropped++;
-		return 0;
-	}
-#endif
+	skb_tx_check(dev, skb);
 #if (LINUX_VERSION_CODE < VERSION(2,1,79))
 	skb->arp = 1;
 #endif
@@ -1601,9 +1584,7 @@ int wvlan_tx (struct sk_buff *skb, struct net_device *dev)
 
 	// Send packet
 	rc = hcf_send(&local->ifb, 0);
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-	local->stats.tx_bytes += len;
-#endif
+	add_tx_bytes(&local->stats, len);
 
 	// Re-enable interrupts
 	restore_flags(flags);
@@ -1659,9 +1640,7 @@ void wvlan_rx (struct net_device *dev, int len)
 	// Hand the packet over to the kernel
 	netif_rx(skb);
 	local->stats.rx_packets++;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-	local->stats.rx_bytes += len;
-#endif
+	add_rx_bytes(&local->stats, len);
 
 #ifdef WIRELESS_EXT
 #if defined(WIRELESS_SPY) || defined(HISTOGRAM)
@@ -1751,7 +1730,6 @@ static int wvlan_open (struct net_device *dev)
 	// Start reception and declare the driver ready
 	if (!local->ifb.IFB_CardStat)
 		return -ENODEV;
-	dev->interrupt = 0;
 	dev->start = 1;
 	dev->tbusy = 0;
 	link->open++;
@@ -1816,9 +1794,6 @@ static void wvlan_interrupt IRQ (int irq, void *dev_id, struct pt_regs *regs)
 	// Turn off interrupts (lock)
 	rc = hcf_action(&local->ifb, HCF_ACT_INT_OFF);
 	DEBUG(DEBUG_NOISY, "%s: hcf_action(HCF_ACT_INT_OFF) returned 0x%x\n", dev_info, rc);
-	if (dev->interrupt)
-		printk(KERN_WARNING "%s: Warning: IRQ %d Reentering interrupt handler!\n", dev_info, irq);
-	dev->interrupt = 1;
 
 	// Process pending interrupts.
 	// We continue until hcf_service_nic tells that no received
@@ -1881,8 +1856,7 @@ static void wvlan_interrupt IRQ (int irq, void *dev_id, struct pt_regs *regs)
 			if (!dev->tbusy)
 				printk(KERN_WARNING "%s: Non-existent Transmission successful completed!?\n", dev_info);
 			DEBUG(DEBUG_TXRX, "%s: Transmission successful completed\n", dev_info);
-			dev->tbusy = 0;
-			mark_bh(NET_BH);
+			netif_wake_queue(dev);
 			local->stats.tx_packets++;
 		}
 
@@ -1911,7 +1885,6 @@ static void wvlan_interrupt IRQ (int irq, void *dev_id, struct pt_regs *regs)
 	// Turn back interrupts on (unlock)
 	rc = hcf_action(&local->ifb, HCF_ACT_INT_ON);
 	DEBUG(DEBUG_NOISY, "%s: hcf_action(HCF_ACT_INT_ON) returned 0x%x\n", dev_info, rc);
-	dev->interrupt = 0;
 
 	DEBUG(DEBUG_INTERRUPT, "<- wvlan_interrupt()\n");
 }

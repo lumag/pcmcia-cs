@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    pcnet_cs.c 1.111 2000/01/24 17:51:14
+    pcnet_cs.c 1.112 2000/02/11 01:24:44
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.111 2000/01/24 17:51:14 (David Hinds)";
+"pcnet_cs.c 1.112 2000/02/11 01:24:44 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -310,7 +310,6 @@ static dev_link_t *pcnet_attach(void)
 	for (i = 0; i < 4; i++)
 	    link->irq.IRQInfo2 |= 1 << irq_list[i];
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     ethdev_init(dev);
@@ -599,6 +598,7 @@ static void pcnet_config(dev_link_t *link)
     int i, last_ret, last_fn, start_pg, stop_pg, cm_offset;
     int manfid = 0, prodid = 0, has_shmem = 0;
     u_short buf[64];
+    config_info_t conf;
     hw_info_t *hw_info;
 
     DEBUG(0, "pcnet_config(0x%p)\n", link);
@@ -616,6 +616,10 @@ static void pcnet_config(dev_link_t *link)
 
     /* Configure card */
     link->state |= DEV_CONFIG;
+
+    /* Look up current Vcc */
+    CS_CHECK(GetConfigurationInfo, handle, &conf);
+    link->conf.Vcc = conf.Vcc;
 
     tuple.DesiredTuple = CISTPL_MANFID;
     tuple.Attributes = TUPLE_RETURN_COMMON;
@@ -1027,9 +1031,8 @@ static void dma_get_8390_hdr(struct net_device *dev,
 
     if (ei_status.dmaing) {
 	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_input."
-	       "[DMAstat:%1x][irqlock:%1x][intr:%ld]\n",
-	       dev->name, ei_status.dmaing, ei_status.irqlock,
-	       (long)dev->interrupt);
+	       "[DMAstat:%1x][irqlock:%1x]\n",
+	       dev->name, ei_status.dmaing, ei_status.irqlock);
 	return;
     }
     
@@ -1065,9 +1068,8 @@ static void dma_block_input(struct net_device *dev, int count,
 #endif
     if (ei_status.dmaing) {
 	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_input."
-	       "[DMAstat:%1x][irqlock:%1x][intr:%ld]\n",
-	       dev->name, ei_status.dmaing, ei_status.irqlock,
-	       (long)dev->interrupt);
+	       "[DMAstat:%1x][irqlock:%1x]\n",
+	       dev->name, ei_status.dmaing, ei_status.irqlock);
 	return;
     }
     ei_status.dmaing |= 0x01;
@@ -1131,9 +1133,8 @@ static void dma_block_output(struct net_device *dev, int count,
 	count++;
     if (ei_status.dmaing) {
 	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_output."
-	       "[DMAstat:%1x][irqlock:%1x][intr:%ld]\n",
-	       dev->name, ei_status.dmaing, ei_status.irqlock,
-	       (long)dev->interrupt);
+	       "[DMAstat:%1x][irqlock:%1x]\n",
+	       dev->name, ei_status.dmaing, ei_status.irqlock);
 	return;
     }
     ei_status.dmaing |= 0x01;

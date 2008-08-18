@@ -165,7 +165,6 @@ static struct symbol_table ray_cs_syms = {
 #include <linux/symtab_end.h>
 };
 #else /* (kernel > 2.1.17) Use new kernel method of registering symbols */
-#define register_symtab(n)
 EXPORT_SYMBOL(ray_dev_ioctl);
 EXPORT_SYMBOL(ray_rx);
 #endif
@@ -324,7 +323,7 @@ static char hop_pattern_length[] = { 1,
 };
 
 #if defined(PCMCIA_DEBUG) || defined(HAS_PROC_BUS)
-static char rcsid[] = " ray_cs.c,v 1.4 2000/01/27 00:47:51 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.7 2000/02/17 23:19:01 root Exp - Corey Thomas corey@world.std.com";
 #endif
 
 /*===========================================================================*/
@@ -1089,14 +1088,7 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
         printk(KERN_NOTICE "ray_dev_start_xmit busy\n");
         return 1;
     }
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-    if (skb == NULL) {
-        dev_tint(dev);
-        return 0;
-    }
-    if (skb->len <= 0)
-        return 0;
-#endif
+    skb_tx_check(dev, skb);
     if (local->authentication_state == NEED_TO_AUTH) {
         DEBUG(0,"ray_cs Sending authentication request.\n");
         if (!build_auth_frame (local, local->auth_id, OPEN_AUTH_REQUEST)) {
@@ -1153,9 +1145,7 @@ static int ray_hw_xmit(unsigned char* data, int len, struct net_device* dev,
     addr = TX_BUF_BASE + (ccsindex << 11);
 
     if (msg_type == DATA_TYPE) {
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-        local->stats.tx_bytes += len;
-#endif
+	add_tx_bytes(&local->stats, len);
         local->stats.tx_packets++;
     }
 
@@ -1587,7 +1577,6 @@ static int ray_open(struct net_device *dev)
     link->open++;
     MOD_INC_USE_COUNT;
 
-    dev->interrupt = 0;
     if (sniffer) dev->tbusy = 1;
     else         dev->tbusy = 0;
     dev->start = 1;
@@ -1923,11 +1912,6 @@ static void ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
     DEBUG(4,"ray_cs: interrupt for *dev=%p\n",dev);
 
-    if (test_and_set_bit(0, (void *)&dev->interrupt)) {
-        printk("ray_cs Reentering interrupt handler not allowed\n");
-        return;
-    }
-
     local = (ray_dev_t *)dev->priv;
     link = (dev_link_t *)local->finder;
     if ( ! (link->state & DEV_PRESENT) || link->state & DEV_SUSPEND ) {
@@ -1940,7 +1924,6 @@ static void ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
     {
         DEBUG(1,"ray_cs interrupt bad rcsindex = 0x%x\n",rcsindex);
         clear_interrupt(local);
-        dev->interrupt = 0;
         return;
     }
     if (rcsindex < NUMBER_OF_CCS) /* If it's a returned CCS */
@@ -2036,8 +2019,8 @@ static void ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
             else {
                 DEBUG(1,"ray_cs interrupt tx request failed\n");
             }
-            if (!sniffer) dev->tbusy = 0;
-            mark_bh(NET_BH);
+            if (!sniffer)
+		netif_wake_queue(dev);
             break;
         case CCS_TEST_MEMORY:
             DEBUG(1,"ray_cs interrupt mem test done\n");
@@ -2097,7 +2080,6 @@ static void ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
         writeb(CCS_BUFFER_FREE, &prcs->buffer_status);
     }
     clear_interrupt(local);
-    dev->interrupt = 0;
 } /* ray_interrupt */
 /*===========================================================================*/
 static void ray_rx(struct net_device *dev, ray_dev_t *local, struct rcs *prcs)
@@ -2285,10 +2267,7 @@ static void rx_data(struct net_device *dev, struct rcs *prcs, unsigned int pkt_a
     netif_rx(skb);
 
     local->stats.rx_packets++;
-
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-    local->stats.rx_bytes += skb->len;
-#endif
+    add_rx_bytes(&local->stats, skb->len);
 
     /* Gather signal strength per address */
 #ifdef WIRELESS_SPY

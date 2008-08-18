@@ -1,5 +1,5 @@
 /*
- * yenta.h 1.17 2000/01/04 02:15:34
+ * yenta.h 1.18 2000/02/06 06:57:49
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -118,6 +118,7 @@
 #define  CB_SS_3VCARD			0x00000800
 #define  CB_SS_XVCARD			0x00001000
 #define  CB_SS_YVCARD			0x00002000
+#define  CB_SS_VSENSE			0x00003c86
 #define  CB_SS_5VSOCKET			0x10000000
 #define  CB_SS_3VSOCKET			0x20000000
 #define  CB_SS_XVSOCKET			0x40000000

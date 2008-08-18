@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.104 2000/01/28 00:03:14
+ * k_compat.h 1.108 2000/02/17 23:18:11
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -234,24 +234,6 @@ typedef struct wait_queue *wait_queue_head_t;
 #define outsl_ns(p,b,l)		outsl(p,b,l)
 #endif
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,93))
-#include <linux/bios32.h>
-#define _PCI(p) (p)->bus, (p)->devfn
-#define pci_read_config_dword(p,w,v) pcibios_read_config_dword(_PCI(p),w,v)
-#define pci_read_config_word(p,w,v) pcibios_read_config_word(_PCI(p),w,v)
-#define pci_read_config_byte(p,w,v) pcibios_read_config_byte(_PCI(p),w,v)
-#define pci_write_config_dword(p,w,v) pcibios_write_config_dword(_PCI(p),w,v)
-#define pci_write_config_word(p,w,v) pcibios_write_config_word(_PCI(p),w,v)
-#define pci_write_config_byte(p,w,v) pcibios_write_config_byte(_PCI(p),w,v)
-#endif
-
-#include <linux/pci.h>
-#ifndef PCI_FUNC
-#define PCI_FUNC(devfn)		((devfn)&7)
-#define PCI_SLOT(devfn)		((devfn)>>3)
-#define PCI_DEVFN(dev,fn)	(((dev)<<3)|((fn)&7))
-#endif
-
 #if (LINUX_VERSION_CODE < VERSION(2,1,126))
 #define SCSI_DISK0_MAJOR	SCSI_DISK_MAJOR
 #endif
@@ -307,6 +289,25 @@ extern void release_mem_region(unsigned long base, unsigned long num);
     do { (dev)->part[(drive)*(minors)].nr_sects = size; \
 	if (size == 0) (dev)->part[(drive)*(minors)].start_sect = -1; \
 	resetup_one_dev(dev, drive); } while (0);
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,1,25))
+#define skb_tx_check(dev, skb) \
+    do { if (skb == NULL) { dev_tint(dev); return 0; } \
+    if (skb->len <= 0) return 0; } while (0)
+#define add_rx_bytes(stats, n) do { int x; x = (n); } while (0)
+#define add_tx_bytes(stats, n) do { int x; x = (n); } while (0)
+#else
+#define skb_tx_check(dev, skb) do { } while (0)
+#define add_rx_bytes(stats, n) do { (stats)->rx_bytes += n; } while (0)
+#define add_tx_bytes(stats, n) do { (stats)->tx_bytes += n; } while (0)
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,3,43))
+#define netif_stop_queue(dev) set_bit(0, (void *)&(dev)->tbusy)
+#define netif_start_queue(dev) clear_bit(0, (void *)&(dev)->tbusy)
+#define netif_wake_queue(dev) \
+    do { netif_start_queue(dev); mark_bh(NET_BH); } while (0)
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

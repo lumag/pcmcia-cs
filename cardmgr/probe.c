@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.47 1999/12/06 23:44:14
+    probe.c 1.49 2000/02/07 19:29:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file

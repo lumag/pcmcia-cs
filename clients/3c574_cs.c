@@ -108,11 +108,6 @@ MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
 MODULE_PARM(max_interrupt_work, "i");
 MODULE_PARM(full_duplex, "i");
-#ifdef BROKEN_FEATURES
-MODULE_PARM(use_fifo_buffer, "i");
-MODULE_PARM(use_memory_ops, "i");
-MODULE_PARM(no_wait, "i");
-#endif
 
 /* Now-standard PC card module parameters. */
 static u_int irq_mask = 0xdeb8;			/* IRQ3,4,5,7,9,10,11,12,14,15 */
@@ -126,16 +121,6 @@ static int max_interrupt_work = 32;
 
 /* Force full duplex modes? */
 static int full_duplex = 0;
-
-#ifdef BROKEN_FEATURES
-/* Performance features: best left disabled. */
-/* Set to buffer all Tx/RxFIFO accesses. */
-static int use_fifo_buffer = 0;
-/* Set iff memory ops are faster than I/O ops. */
-static int use_memory_ops = 0;
-/* Set iff disabling the WAIT signal is reliable and faster. */
-static int no_wait = 0;
-#endif
 
 /* To minimize the size of the driver source and make the driver more
    readable not all constants are symbolically defined.
@@ -482,27 +467,6 @@ static void tc574_config(dev_link_t *link)
 	CS_CHECK(RequestIRQ, link->handle, &link->irq);
 	CS_CHECK(RequestConfiguration, link->handle, &link->conf);
 
-	dev->mem_start = 0;
-#ifdef BROKEN_FEATURES
-	if (use_memory_ops) {
-		win_req_t req;
-		memreq_t mem;
-		req.Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM |
-			WIN_ENABLE | WIN_USE_WAIT;
-		req.Base = 0;
-		req.Size = 0x1000;
-		req.AccessSpeed = 0;
-		link->win = (window_handle_t)link->handle;
-		i = CardServices(RequestWindow, &link->win, &req);
-		if (i == CS_SUCCESS) {
-			mem.Page = mem.CardOffset = 0;
-			CardServices(MapMemPage, link->win, &mem);
-			dev->mem_start = (long)(ioremap(req.Base, 0x1000)) + 0x800;
-		} else
-			cs_error(link->handle, RequestWindow, i);
-	}
-#endif
-
 	dev->irq = link->irq.AssignedIRQ;
 	dev->base_addr = link->io.BasePort1;
 
@@ -548,10 +512,6 @@ static void tc574_config(dev_link_t *link)
 
 	for (i = 0; i < 6; i++)
 		printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : ".\n"));
-
-	if (dev->mem_start)
-		printk(KERN_INFO"  Acceleration window at memory base %#lx.\n",
-			   dev->mem_start);
 
 	{
 		u_char mcr, *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
@@ -627,8 +587,6 @@ failed:
 static void tc574_release(u_long arg)
 {
 	dev_link_t *link = (dev_link_t *)arg;
-	struct el3_private *lp = link->priv;
-	struct net_device *dev = &lp->dev;
 
 	DEBUG(0, "3c574_release(0x%p)\n", link);
 
@@ -642,10 +600,6 @@ static void tc574_release(u_long arg)
 	CardServices(ReleaseConfiguration, link->handle);
 	CardServices(ReleaseIO, link->handle, &link->io);
 	CardServices(ReleaseIRQ, link->handle, &link->irq);
-	if (link->win) {
-		iounmap((void *)(dev->mem_start - 0x800));
-		CardServices(ReleaseWindow, link->win);
-	}
 
 	link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
 
@@ -835,19 +789,6 @@ static void tc574_reset(struct net_device *dev)
 
 	wait_for_completion(dev, TotalReset|0x10);
 
-#ifdef BROKEN_FEATURES
-	/* Set the PIO ctrl bits in the PC card LAN COR using Runner window 1. */
-	if (dev->mem_start || no_wait) {
-		u8 lan_cor;
-		outw(1<<11, ioaddr + RunnerRdCtrl);
-		lan_cor = inw(ioaddr) & ~0x30;
-		if (dev->mem_start)		/* Iff use_memory_ops worked! */
-			lan_cor |= 0x10;
-		if (no_wait)
-			lan_cor |= 0x20;
-		outw(lan_cor, ioaddr);
-	}
-#endif
 	/* Clear any transactions in progress. */
 	outw(0, ioaddr + RunnerWrCtrl);
 	outw(0, ioaddr + RunnerRdCtrl);
@@ -917,7 +858,7 @@ static int el3_open(struct net_device *dev)
 	
 	link->open++;
 	MOD_INC_USE_COUNT;
-	dev->interrupt = 0; dev->tbusy = 0; dev->start = 1;
+	dev->tbusy = 0; dev->start = 1;
 	
 	tc574_reset(dev);
 	lp->media.function = &media_check;
@@ -972,9 +913,6 @@ static void pop_tx_status(struct net_device *dev)
 static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	ioaddr_t ioaddr = dev->base_addr;
-#ifdef BROKEN_FEATURES
-	long flags = 0;
-#endif
 
 	/* Transmitter timeout, serious problems. */
 	if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
@@ -987,39 +925,11 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		  "status %4.4x.\n", dev->name, (long)skb->len,
 		  inw(ioaddr + EL3_STATUS));
 
-#ifdef BROKEN_FEATURES
-	if (use_fifo_buffer) {
-		/* Avoid other accesses to the chip while RunnerWrCtrl is non-zero. */
-		save_flags(flags);
-		cli();
-		outw((((skb->len + 7)>>2)<<1), ioaddr + RunnerWrCtrl);
-		DEBUG(0, "TxFree %x, tx length %x, RunnerWrCtrl is %4.4x.\n",
-			  inw(ioaddr+TxFree), skb->len, inw(ioaddr+RunnerWrCtrl));
-	}
+	skb_tx_check(dev, skb);
 
-	/* Put out the doubleword header... */
-	/* ... and the packet rounded to a doubleword. */
-	if (dev->mem_start) {
-		writew(skb->len, (void *)dev->mem_start);
-		writew(0, (void *)dev->mem_start);
-		copy_to_pc((void*)dev->mem_start, skb->data, (skb->len+3)&~3);
-	} else {
-		outw(skb->len, ioaddr + TX_FIFO);
-		outw(0, ioaddr + TX_FIFO);
-		outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
-	}
-
-	if (use_fifo_buffer) {
-		DEBUG(0, " RunnerWr/RdCtrl is %4.4x/%4.4x, TxFree %x.\n",
-			  inw(ioaddr + RunnerWrCtrl), inw(ioaddr + RunnerRdCtrl),
-			  inw(ioaddr + TxFree));
-		restore_flags(flags);
-	}
-#else
 	outw(skb->len, ioaddr + TX_FIFO);
 	outw(0, ioaddr + TX_FIFO);
 	outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
-#endif
 
 	dev->trans_start = jiffies;
 
@@ -1045,19 +955,12 @@ static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	ioaddr_t ioaddr, status;
 	int work_budget = max_interrupt_work;
 
-	if ((lp == NULL) || !dev->start)
+	if (!dev->start)
 		return;
 	ioaddr = dev->base_addr;
 
-#ifdef PCMCIA_DEBUG
-	if (test_and_set_bit(0, (void*)&dev->interrupt)) {
-		printk(KERN_NOTICE "%s: re-entering the interrupt handler.\n",
-			   dev->name);
-		return;
-	}
 	DEBUG(3, "%s: interrupt, status %4.4x.\n",
 		  dev->name, inw(ioaddr + EL3_STATUS));
-#endif
 
 	while ((status = inw(ioaddr + EL3_STATUS)) &
 		   (IntLatch | RxComplete | RxEarly | StatsFull)) {
@@ -1073,8 +976,7 @@ static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			DEBUG(3, "  TX room bit was handled.\n");
 			/* There's room in the FIFO for a full-sized packet. */
 			outw(AckIntr | TxAvailable, ioaddr + EL3_CMD);
-			dev->tbusy = 0;
-			mark_bh(NET_BH);
+			netif_wake_queue(dev);
 		}
 
 		if (status & TxComplete)
@@ -1121,11 +1023,8 @@ static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		outw(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
 	}
 
-#ifdef PCMCIA_DEBUG
 	DEBUG(3, "%s: exiting interrupt, status %4.4x.\n",
 		  dev->name, inw(ioaddr + EL3_STATUS));
-	dev->interrupt = 0;
-#endif
 	return;
 }
 
@@ -1236,7 +1135,7 @@ static void update_stats(struct net_device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	ioaddr_t ioaddr = dev->base_addr;
-	u8 upper_cnt;
+	u8 rx, tx, up;
 
 	DEBUG(2, "%s: updating the statistics.\n", dev->name);
 
@@ -1253,29 +1152,19 @@ static void update_stats(struct net_device *dev)
 	lp->stats.tx_window_errors		+= inb(ioaddr + 4);
 	lp->stats.rx_fifo_errors		+= inb(ioaddr + 5);
 	lp->stats.tx_packets			+= inb(ioaddr + 6);
-	upper_cnt 						 = inb(ioaddr + 9);
-	lp->stats.tx_packets			+= (upper_cnt&0x30) << 4;
-	/* Rx packets   */				inb(ioaddr + 7);
-	/* Tx deferrals */				inb(ioaddr + 8);
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-	lp->stats.rx_bytes 				+= inw(ioaddr + 10);
-	lp->stats.tx_bytes				+= inw(ioaddr + 12);
-#else
-	inw(ioaddr + 10);
-	inw(ioaddr + 12);
-#endif
+	up		 						 = inb(ioaddr + 9);
+	lp->stats.tx_packets			+= (up&0x30) << 4;
+	/* Rx packets   */				   inb(ioaddr + 7);
+	/* Tx deferrals */				   inb(ioaddr + 8);
+	rx		 						 = inw(ioaddr + 10);
+	tx								 = inw(ioaddr + 12);
 
-	/* With Vortex and later we must also clear the BadSSD counter. */
 	EL3WINDOW(4);
-	inb(ioaddr + 12);
+	/* BadSSD */					   inb(ioaddr + 12);
+	up								 = inb(ioaddr + 13);
 
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-	{
-		u8 up = inb(ioaddr + 13);
-		lp->stats.rx_bytes += (up & 0x0f) << 16;
-		lp->stats.tx_bytes += (up & 0xf0) << 12;
-	}
-#endif
+	add_rx_bytes(&lp->stats, rx + ((up & 0x0f) << 16));
+	add_tx_bytes(&lp->stats, tx + ((up & 0xf0) << 12));
 
 	EL3WINDOW(1);
 }
@@ -1313,30 +1202,8 @@ static int el3_rx(struct net_device *dev, int worklimit)
 				skb->dev = dev;
 				skb_reserve(skb, 2);
 
-#ifdef BROKEN_FEATURES
-				if (use_fifo_buffer) {
-					outw(((pkt_len+3)>>2)<<1, ioaddr + RunnerRdCtrl);
-					DEBUG(0,"Start Rx %x -- RunnerRdCtrl is %4.4x.\n",
-						  pkt_len, inw(ioaddr + RunnerRdCtrl));
-				}
-				if (dev->mem_start) {
-					copy_from_pc(skb_put(skb, pkt_len),
-								 (void*)dev->mem_start, (pkt_len+3)&~3);
-				} else {
-					insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
-							((pkt_len+3)>>2));
-				}
-				if (use_fifo_buffer) {
-					DEBUG(0," RunnerRdCtrl is now %4.4x.\n",
-						  inw(ioaddr + RunnerRdCtrl));
-					outw(0, ioaddr + RunnerRdCtrl);
-					DEBUG(0, " Rx packet with data %2.2x:%2.2x:%2.2x\n",
-						  skb->head[0], skb->head[1], skb->head[2]);
-				}
-#else
 				insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
 						((pkt_len+3)>>2));
-#endif
 
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);

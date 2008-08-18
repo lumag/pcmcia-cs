@@ -234,6 +234,10 @@ static spinlock_t xxx_lock = SPIN_LOCK_UNLOCKED;
 #if (LINUX_VERSION_CODE < 0x02030e)
 #define net_device device
 #endif
+#ifndef HAS_NETIF_QUEUE
+#define netif_wake_queue(dev) \
+	do { dev->tbusy = 0; mark_bh(NET_BH); } while (0)
+#endif
 
 #define min(x,y) ((x<y)?x:y)
 
@@ -600,7 +604,7 @@ static int airo_open(struct net_device *dev) {
 	}
 	info->open++;
 	
-	dev->interrupt = 0; dev->tbusy = 0; dev->start = 1;
+	dev->tbusy = 0; dev->start = 1;
 	
 	return 0;
 }
@@ -824,7 +828,7 @@ int reset_airo_card( struct net_device *dev ) {
 		}
 	}
 	enable_interrupts( ai );
-	dev->interrupt = 0; dev->tbusy = 0; dev->start = 1;
+	dev->tbusy = 0; dev->start = 1;
 	return 0;
 }
 
@@ -839,13 +843,6 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 
 	if ((dev == NULL) || !dev->start )
 		return;
-	
-	if (dev->interrupt) {
-		printk( KERN_INFO 
-			"%s: re-entering the interrupt handler.\n", dev->name);
-		return;
-	}
-	dev->interrupt = 1;
 	
 	status = IN4500( apriv, EVSTAT );
 	if ( !status ) return;
@@ -953,7 +950,7 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 				len = apriv->fids[i] >> 16;
 				/* Set up to be used again */
 				apriv->fids[i] &= 0xffff; 
-				dev->tbusy = 0;
+				netif_wake_queue(dev);
 				break;
 			}
 		}
@@ -970,7 +967,6 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 		} else {
 			apriv->stats.tx_errors++;
 		}
-		mark_bh( NET_BH );
 	}
 	if ( status & ~STATUS_INTS ) 
 		printk( KERN_INFO 
@@ -980,7 +976,6 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 	OUT4500( apriv, EVINTEN, savedInterrupts );
 	
 	/* done.. */
-	dev->interrupt = 0;
 	return;     
 }
 

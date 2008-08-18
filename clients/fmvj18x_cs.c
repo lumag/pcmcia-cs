@@ -673,12 +673,6 @@ static void fjn_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	       "unknown device.\n", irq);
         return;
     }
-    if (dev->interrupt) {
-        printk(KERN_NOTICE "%s: re-entering the interrupt handler.\n",
-	       dev->name);
-        return;
-    }
-    dev->interrupt = 1;
     ioaddr = dev->base_addr;
 
     /* avoid multiple interrupts */
@@ -711,18 +705,15 @@ static void fjn_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	    lp->tx_queue = 0;
 	    lp->tx_queue_len = 0;
 	    dev->trans_start = jiffies;
-	    dev->tbusy = 0;
-	    mark_bh(NET_BH);	/* Inform upper layers. */
+	    netif_wake_queue(dev);
 	} else {
 	    lp->tx_started = 0;
-	    dev->tbusy = 0;
-	    mark_bh(NET_BH);	/* Inform upper layers. */
+	    netif_wake_queue(dev);
 	}
     }
     DEBUG(4, "%s: exiting interrupt,\n", dev->name);
     DEBUG(4, "    tx_status %02x, rx_status %02x.\n", tx_stat, rx_stat);
 
-    dev->interrupt = 0;
     outb(D_TX_INTR, ioaddr + TX_INTR);
     outb(D_RX_INTR, ioaddr + RX_INTR);
 
@@ -736,7 +727,7 @@ static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
     ioaddr_t ioaddr = dev->base_addr;
 
-    if (dev->tbusy) {
+    if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
 	/* If we get here, some higher level has decided we are broken.
 	   There should really be a "kick me" function call instead. */
 	int tickssofar = jiffies - dev->trans_start;
@@ -764,25 +755,15 @@ static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	lp->tx_queue_len = 0;
 	lp->sent = 0;
 	lp->open_time = jiffies;
-	dev->interrupt = 0;
 	dev->tbusy = 0;
 	dev->start = 1;
     
 	sti();
     }
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-    if (skb == NULL) {
-	dev_tint(dev);
-	return 0;
-    }
-#endif
-    
-    /* Block a timer-based transmit from overlapping.  This could better be
-       done with atomic_swap(1, dev->tbusy), but set_bit() works as well. */
-    if (test_and_set_bit(0, (void*)&dev->tbusy) != 0)
-	printk(KERN_NOTICE "%s: Transmitter access conflict.\n", dev->name);
-    else {
+    skb_tx_check(dev, skb);
+
+    {
 	short length = ETH_ZLEN < skb->len ? skb->len : ETH_ZLEN;
 	unsigned char *buf = skb->data;
 
@@ -794,9 +775,7 @@ static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	DEBUG(4, "%s: Transmitting a packet of length %lu.\n",
 	      dev->name, (unsigned long)skb->len);
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-	lp->stats.tx_bytes += skb->len;
-#endif
+	add_tx_bytes(&lp->stats, skb->len);
 
 	/* Disable both interrupts. */
 	outw(0x0000, ioaddr + TX_INTR);
@@ -985,16 +964,14 @@ static void fjn_rx(struct net_device *dev)
 
 	    netif_rx(skb);
 	    lp->stats.rx_packets++;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-	    lp->stats.rx_bytes += skb->len;
-#endif
+	    add_rx_bytes(&lp->stats, skb->len);
 	}
 	if (--boguscount <= 0)
 	    break;
     }
 
     /* If any worth-while packets have been received, dev_rint()
-	   has done a mark_bh(NET_BH) for us and will work on them
+	   has done a netif_wake_queue() for us and will work on them
 	   when we get to the bottom-half routine. */
 /*
     if( lp->cardtype != TDK ) {
@@ -1039,7 +1016,6 @@ static int fjn_open(struct net_device *dev)
     lp->tx_queue = 0;
     lp->tx_queue_len = 0;
     lp->open_time = jiffies;
-    dev->interrupt = 0;
     dev->tbusy = 0;
     dev->start = 1;
     

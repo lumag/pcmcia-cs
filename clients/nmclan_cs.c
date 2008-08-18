@@ -114,7 +114,6 @@ Conditional Compilation Options
 ---------------------------------------------------------------------------- */
 
 #define MULTI_TX			0
-#define TIMEOUT_TX			1
 #define RESET_ON_TIMEOUT		1
 #define TX_INTERRUPTABLE		1
 #define RESET_XILINX			0
@@ -163,11 +162,6 @@ Defines
 					/* 6 bytes in an Ethernet Address */
 #define MACE_LADRF_LEN			8
 					/* 8 bytes in Logical Address Filter */
-
-/* Transmitter Busy Bit Index Defines */
-#define TBUSY_UNSPECIFIED		0
-#define TBUSY_PARTIAL_TX_FRAME		0
-#define TBUSY_NO_FREE_TX_FRAMES		1
 
 /* Loop Control Defines */
 #define MACE_MAX_IR_ITERATIONS		10
@@ -1032,7 +1026,6 @@ static int mace_open(struct net_device *dev)
 
   MACEBANK(0);
 
-  dev->interrupt = 0;
   dev->tbusy = 0;
   dev->start = 1;
 
@@ -1088,9 +1081,8 @@ static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev)
   ioaddr_t ioaddr = dev->base_addr;
   dev_link_t *link = &lp->link;
 
-#if TIMEOUT_TX
   /* Transmitter timeout. */
-  if (dev->tbusy) {
+  if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
     int tickssofar = jiffies - dev->trans_start;
 
     if (tickssofar < (HZ/5))
@@ -1105,29 +1097,11 @@ static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev)
     dev->trans_start = jiffies;
     return 1;
   }
-#else /* #if TIMEOUT_TX */
-  if (dev->tbusy)
-    return 1;
-#endif /* #if TIMEOUT_TX */
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-  if (skb == NULL) {
-    dev_tint(dev);
-    return 0;
-  }
-  if (skb->len <= 0)
-    return 0;
-#endif
+  skb_tx_check(dev, skb);
 
   DEBUG(3, "%s: mace_start_xmit(length = %ld) called.\n",
 	dev->name, (long)skb->len);
-
-  /* Avoid timer-based retransmission conflicts. */
-  if (test_and_set_bit(TBUSY_UNSPECIFIED, (void*)&dev->tbusy) != 0) {
-    printk(KERN_NOTICE "%s: transmitter access conflict.\n",
-	   dev->name);
-    return 1;
-  }
 
 #if (!TX_INTERRUPTABLE)
   /* Disable MACE TX interrupts. */
@@ -1142,13 +1116,9 @@ static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev)
        the upper layers.  The interrupt handler is guaranteed never to
        service a transmit interrupt while we are in here.
     */
-    set_bit(TBUSY_PARTIAL_TX_FRAME, (void*)&dev->tbusy);
 
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-    lp->linux_stats.tx_bytes += skb->len;
-#endif
+    add_tx_bytes(&lp->linux_stats, skb->len);
     lp->tx_free_frames--;
-    set_bit(TBUSY_NO_FREE_TX_FRAMES, (void*)&dev->tbusy);
 
     /* WARNING: Write the _exact_ number of bytes written in the header! */
     /* Put out the word header [must be an outw()] . . . */
@@ -1162,13 +1132,10 @@ static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
     dev->trans_start = jiffies;
 
-    if (lp->tx_free_frames > 0) {
 #if MULTI_TX
-      clear_bit(TBUSY_NO_FREE_TX_FRAMES, (void*)&dev->tbusy);
+    if (lp->tx_free_frames > 0)
+      clear_bit(0, (void*)&dev->tbusy);
 #endif /* #if MULTI_TX */
-    }
-
-    clear_bit(TBUSY_PARTIAL_TX_FRAME, (void*)&dev->tbusy);
   }
 
 #if (!TX_INTERRUPTABLE)
@@ -1202,7 +1169,7 @@ static void mace_interrupt(int irq, void *dev_id, struct pt_regs *regs)
     return;
   }
 
-  if (dev->interrupt || lp->tx_irq_disabled) {
+  if (lp->tx_irq_disabled) {
     printk(
       (lp->tx_irq_disabled?
        KERN_NOTICE "%s: Interrupt with tx_irq_disabled "
@@ -1216,7 +1183,6 @@ static void mace_interrupt(int irq, void *dev_id, struct pt_regs *regs)
     /* WARNING: MACE_IR has been read! */
     return;
   }
-  dev->interrupt = 1;
 
   if (dev->start == 0) {
     DEBUG(2, "%s: interrupt from dead card\n", dev->name);
@@ -1293,8 +1259,8 @@ static void mace_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
       lp->linux_stats.tx_packets++;
       lp->tx_free_frames++;
-      clear_bit(TBUSY_NO_FREE_TX_FRAMES, (void*)&dev->tbusy);
-      mark_bh(NET_BH);
+      clear_bit(0, (void*)&dev->tbusy);
+      netif_wake_queue(dev);
     } /* if (status & MACE_IR_XMTINT) */
 
 
@@ -1331,7 +1297,6 @@ static void mace_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 
 exception:
-  dev->interrupt = 0;
   return;
 } /* mace_interrupt */
 
@@ -1399,9 +1364,7 @@ static int mace_rx(struct net_device *dev, unsigned char RxCnt)
 	netif_rx(skb); /* Send the packet to the upper (protocol) layers. */
 
 	lp->linux_stats.rx_packets++;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-	lp->linux_stats.rx_bytes += skb->len;
-#endif
+	add_rx_bytes(&lp->linux_stats, skb->len);
 	outb(0xFF, ioaddr + AM2150_RCV_NEXT); /* skip to next frame */
 	continue;
       } else {

@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.51, 26 January 2000
+  v2.52, 18 February 2000
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -343,7 +343,7 @@
   The following things should be installed on your system before you
   begin:
 
-  +o  A 2.0.*, 2.1.*, 2.2.*, or 2.3.* series kernel source tree.
+  +o  A 2.0.*, 2.2.*, or 2.3.* series kernel source tree.
 
   +o  An appropriate set of module utilities.
 
@@ -356,9 +356,9 @@
   require you to do so.
 
   Current ``stable'' kernel sources and patches are available from
-  <ftp://sunsite.unc.edu/pub/Linux/kernel/v2.0>, or from
-  <ftp://tsx-11.mit.edu/pub/linux/sources/system/v2.0>.  Development
-  kernels can be found in the corresponding v2.1 subdirectories.
+  <ftp://sunsite.unc.edu/pub/Linux/kernel/v2.2>, or from
+  <ftp://tsx-11.mit.edu/pub/linux/sources/system/v2.2>.  Development
+  kernels can be found in the corresponding v2.3 subdirectories.
   Current module utilities can be found in the same locations.
 
   In the Linux kernel source tree, the Documentation/Changes file

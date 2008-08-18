@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.68 2000/01/04 01:26:58
+    cardbus.c 1.69 2000/02/10 23:24:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -99,6 +99,9 @@ static int pc_debug = PCMCIA_DEBUG;
 #ifdef __LINUX__
 #if (LINUX_VERSION_CODE >= VERSION(2,1,103))
 #define NEW_LINUX_PCI
+#endif
+#if (LINUX_VERSION_CODE >= VERSION(2,3,40))
+#define NEWER_LINUX_PCI
 #endif
 #endif
 
@@ -290,9 +293,8 @@ void read_cb_mem(socket_info_t *s, u_char fn, int space,
 	}
 	if (addr+len > s->cb_cis_map.stop - s->cb_cis_map.start)
 	    goto fail;
-	if (s->cb_cis_virt != NULL)
-	    for (; len; addr++, ptr++, len--)
-		*(u_char *)ptr = readb(s->cb_cis_virt+addr);
+	for (; len; addr++, ptr++, len--)
+	    *(u_char *)ptr = readb(s->cb_cis_virt+addr);
     }
     return;
  fail:
@@ -318,7 +320,11 @@ int cb_alloc(socket_info_t *s)
     struct pci_dev tmp;
     int i;
     tmp.bus = s->cap.cb_bus; tmp.devfn = 0;
+#ifdef NEWER_LINUX_PCI
+    list_add(&tmp.global_list, &pci_devices);
+#else
     tmp.next = pci_devices; pci_devices = &tmp;
+#endif
 #endif
 
     /* The APA1480 did not like reading the vendor ID first */
@@ -346,25 +352,33 @@ int cb_alloc(socket_info_t *s)
     s->cb_config = c;
 
 #ifdef NEW_LINUX_PCI
-    pci_devices = tmp.next;
     for (i = 0; i < fn; i++) {
 	c[i].dev.bus = s->cap.cb_bus;
 	c[i].dev.devfn = i;
+#ifdef NEWER_LINUX_PCI
+	list_add(&c[i].dev.bus_list, &s->cap.cb_bus->devices); 
+	list_add(&c[i].dev.global_list, &pci_devices);
+#else
 	if (i < fn-1) {
 	    c[i].dev.sibling = c[i].dev.next = &c[i+1].dev;
 	}
+#endif
     }
+#ifdef NEWER_LINUX_PCI
+    list_del(&tmp.global_list);
+#else
     s->cap.cb_bus->devices = &c[0].dev;
     /* Link into PCI device chain */
-    c[fn-1].dev.next = pci_devices;
+    c[fn-1].dev.next = tmp.next;
     pci_devices = &c[0].dev;
+#endif
     for (i = 0; i < fn; i++) {
 	c[i].dev.vendor = vend;
 	pci_readw(bus, i, PCI_DEVICE_ID, &c[i].dev.device);
 	pci_readl(bus, i, PCI_CLASS_REVISION, &c[i].dev.class);
 	c[i].dev.class >>= 8;
 	c[i].dev.hdr_type = hdr;
-#ifdef CONFIG_PROC_FS
+#if defined(CONFIG_PROC_FS) && !defined(NEWER_LINUX_PCI)
 	pci_proc_attach_device(&c[i].dev);
 #endif
     }
@@ -379,6 +393,16 @@ void cb_free(socket_info_t *s)
 
     if (c) {
 #ifdef NEW_LINUX_PCI
+#ifdef NEWER_LINUX_PCI
+	int i;
+	for (i = 0; i < s->functions; i++) {
+	    list_del(&c[0].dev.global_list);
+#if defined(CONFIG_PROC_FS) && !defined(NEWER_LINUX_PCI)
+	    pci_proc_detach_device(&c[i].dev);
+#endif
+	}
+	INIT_LIST_HEAD(&s->cap.cb_bus->devices);
+#else
 	struct pci_dev **p, *q;
 	/* Unlink from PCI device chain */
 	for (p = &pci_devices; *p; p = &((*p)->next))
@@ -391,6 +415,7 @@ void cb_free(socket_info_t *s)
 	}
 	if (*p) *p = q;
 	s->cap.cb_bus->devices = NULL;
+#endif
 #endif
 	kfree(s->cb_config);
 	s->cb_config = NULL;
@@ -416,7 +441,7 @@ int cb_config(socket_info_t *s)
     u_char fn = s->functions;
     u_char i, j, bus = s->cap.cardbus, *name;
     u_int sz, align, m, mask[3], num[3], base[3];
-    int irq, try, ret;
+    int irq;
 
     printk(KERN_INFO "cs: cb_config(bus %d)\n", s->cap.cardbus);
 
@@ -514,34 +539,32 @@ int cb_config(socket_info_t *s)
     }
     
     /* Allocate interrupt if needed */
-    s->irq.AssignedIRQ = irq = 0; ret = -1;
+    s->irq.AssignedIRQ = irq = 0;
     for (i = 0; i < fn; i++) {
 	pci_readb(bus, i, PCI_INTERRUPT_PIN, &j);
 	if (j == 0) continue;
-	if (irq == 0) {
-	    if (s->cap.irq_mask & (1 << s->cap.pci_irq)) {
-		irq = s->cap.pci_irq;
-		ret = 0;
-	    }
+	if ((irq == 0) && (s->cap.irq_mask & (1 << s->cap.pci_irq)))
+	    irq = s->cap.pci_irq;
 #ifdef CONFIG_ISA
-	    else
-		for (try = 0; try < 2; try++) {
-		    for (irq = 0; irq < 32; irq++)
-			if ((s->cap.irq_mask >> irq) & 1) {
-			    ret = try_irq(IRQ_TYPE_EXCLUSIVE, irq, try);
-			    if (ret == 0) break;
-			}
-		    if (ret == 0) break;
-		}
-	    if (ret != 0) {
-		printk(KERN_NOTICE "cs: could not allocate interrupt"
-		       " for CardBus socket %d\n", s->sock);
-		goto failed;
+	if (irq == 0) {
+	    int try;
+	    for (try = 0; try < 2; try++) {
+		for (irq = 0; irq < 32; irq++)
+		    if (((s->cap.irq_mask >> irq) & 1) &&
+			(try_irq(IRQ_TYPE_EXCLUSIVE, irq, try) == 0))
+			break;
+		if (irq < 32) break;
 	    }
-#endif
-	    s->irq.AssignedIRQ = irq;
+	    if (irq == 32) irq = 0;
 	}
+	if (irq == 0) {
+	    printk(KERN_NOTICE "cs: could not allocate interrupt"
+		   " for CardBus socket %d\n", s->sock);
+	    goto failed;
+	}
+#endif
     }
+    s->irq.AssignedIRQ = irq;
     for (i = 0; i < fn; i++)
 	c[i].dev.irq = irq;
     

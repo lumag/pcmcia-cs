@@ -125,6 +125,10 @@ static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
 #if LINUX_VERSION_CODE < 0x2030e
 #define net_device device
 #endif
+#if ! defined(HAS_NETIF_QUEUE)
+#define netif_wake_queue(dev) \
+	do { dev->tbusy = 0; mark_bh(NET_BH); } while (0)
+#endif
 
 #if defined(MODULE) && LINUX_VERSION_CODE > 0x20115
 MODULE_AUTHOR("Donald Becker <becker@cesdis.gsfc.nasa.gov>");
@@ -464,7 +468,6 @@ struct vortex_private {
 	int chip_id;
 
 	/* The remainder are related to chip state, mostly media selection. */
-	unsigned long in_interrupt;
 	struct timer_list timer;	/* Media selection timer. */
 	int options;				/* User-settable misc. driver options. */
 	unsigned int media_override:4, 			/* Passed-in media type. */
@@ -566,8 +569,8 @@ static void vortex_reap(void)
 		unregister_netdev(*devp);
 		if (vp->cb_fn_base) iounmap(vp->cb_fn_base);
 		kfree(*devp);
-		kfree(vp->priv_addr);
 		*devp = *next; next = devp;
+		kfree(vp->priv_addr);
 	}
 }
 
@@ -1202,9 +1205,7 @@ vortex_up(struct net_device *dev)
 	set_rx_mode(dev);
 	outw(StatsEnable, ioaddr + EL3_CMD); /* Turn on statistics. */
 
-	vp->in_interrupt = 0;
 	dev->tbusy = 0;
-	dev->interrupt = 0;
 	dev->start = 1;
 
 	outw(RxEnable, ioaddr + EL3_CMD); /* Enable the receiver. */
@@ -1254,12 +1255,8 @@ vortex_open(struct net_device *dev)
 			if (skb == NULL)
 				break;			/* Bad news!  */
 			skb->dev = dev;			/* Mark as being used by this device. */
-#if LINUX_VERSION_CODE >= 0x10300
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 			vp->rx_ring[i].addr = cpu_to_le32(virt_to_bus(skb->tail));
-#else
-			vp->rx_ring[i].addr = virt_to_bus(skb->data);
-#endif
 		}
 		/* Wrap the ring. */
 		vp->rx_ring[i-1].next = cpu_to_le32(virt_to_bus(&vp->rx_ring[0]));
@@ -1648,23 +1645,6 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	int latency, status;
 	int work_done = max_interrupt_work;
 
-#if defined(__i386__)
-	/* A lock to prevent simultaneous entry bug on Intel SMP machines. */
-	if (test_and_set_bit(0, (void*)&dev->interrupt)) {
-		printk(KERN_ERR"%s: SMP simultaneous entry of an interrupt handler.\n",
-			   dev->name);
-		dev->interrupt = 0;	/* Avoid halting machine. */
-		return;
-	}
-#else
-	if (dev->interrupt) {
-		printk(KERN_ERR "%s: Re-entering the interrupt handler.\n", dev->name);
-		return;
-	}
-	dev->interrupt = 1;
-#endif
-
-	dev->interrupt = 1;
 	ioaddr = dev->base_addr;
 	latency = inb(ioaddr + Timer);
 	status = inw(ioaddr + EL3_STATUS);
@@ -1694,8 +1674,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				printk(KERN_DEBUG "	TX room bit was handled.\n");
 			/* There's room in the FIFO for a full-sized packet. */
 			outw(AckIntr | TxAvailable, ioaddr + EL3_CMD);
-			clear_bit(0, (void*)&dev->tbusy);
-			mark_bh(NET_BH);
+			netif_wake_queue(dev);
 		}
 
 		if (status & DownComplete) {
@@ -1717,8 +1696,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			vp->dirty_tx = dirty_tx;
 			if (vp->tx_full && (vp->cur_tx - dirty_tx <= TX_RING_SIZE - 1)) {
 				vp->tx_full = 0;
-				clear_bit(0, (void*)&dev->tbusy);
-				mark_bh(NET_BH);
+				netif_wake_queue(dev);
 			}
 		}
 		if (status & DMADone) {
@@ -1726,8 +1704,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				outw(0x1000, ioaddr + Wn7_MasterStatus); /* Ack the event. */
 				DEV_FREE_SKB(vp->tx_skb); /* Release the transfered buffer */
 				if (inw(ioaddr + TxFree) > 1536) {
-					clear_bit(0, (void*)&dev->tbusy);
-					mark_bh(NET_BH);
+					netif_wake_queue(dev);
 				} else /* Interrupt when FIFO has room for max-sized packet. */
 					outw(SetTxThreshold + (1536>>2), ioaddr + EL3_CMD);
 			}
@@ -1766,11 +1743,6 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		printk(KERN_DEBUG "%s: exiting interrupt, status %4.4x.\n",
 			   dev->name, status);
 handler_exit:
-#if defined(__i386__)
-	clear_bit(0, (void*)&dev->interrupt);
-#else
-	dev->interrupt = 0;
-#endif
 	return;
 }
 
@@ -2185,11 +2157,7 @@ static int mdio_read(long ioaddr, int phy_id, int location)
 		outw(MDIO_ENB_IN | MDIO_SHIFT_CLK, mdio_addr);
 		mdio_delay();
 	}
-#if 0
-	return (retval>>1) & 0x1ffff;
-#else
 	return retval & 0x20000 ? 0xffff : retval>>1 & 0xffff;
-#endif
 }
 
 static void mdio_write(long ioaddr, int phy_id, int location, int value)

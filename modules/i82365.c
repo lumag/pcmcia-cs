@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.290 2000/01/28 00:21:38
+    i82365.c 1.293 2000/02/14 23:01:29
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.290 2000/01/28 00:21:38 (David Hinds)";
+"i82365.c 1.293 2000/02/14 23:01:29 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -112,9 +112,9 @@ static int _check_irq(int irq, int flags)
     if ((flags != SA_SHIRQ) && check_pnp_irq(irq))
 	return -1;
 #endif
-    if (request_irq(irq, irq_count, flags, "x", NULL) != 0)
+    if (request_irq(irq, irq_count, flags, "x", irq_count) != 0)
 	return -1;
-    free_irq(irq, NULL);
+    free_irq(irq, irq_count);
     return 0;
 }
 #endif
@@ -160,13 +160,8 @@ INT_MODULE_PARM(wakeup, 0);
 #ifdef CONFIG_PCI
 static int pci_irq_list[8] = { 0 };	/* PCI interrupt assignments */
 MODULE_PARM(pci_irq_list, "1-8i");
-/* Default memory base addresses for CardBus controllers */
-static u_int cb_mem_base[] = { 0x68000000, 0xf8000000 };
-MODULE_PARM(cb_mem_base, "i");
 INT_MODULE_PARM(do_pci_probe, 1);	/* Scan for PCI bridges? */
 INT_MODULE_PARM(fast_pci, -1);
-INT_MODULE_PARM(cb_bus_base, 0);
-INT_MODULE_PARM(cb_bus_step, 2);
 INT_MODULE_PARM(cb_write_post, -1);
 INT_MODULE_PARM(irq_mode, -1);		/* Override BIOS routing? */
 INT_MODULE_PARM(hold_time, -1);		/* Ricoh specific */
@@ -231,8 +226,7 @@ typedef struct socket_info_t {
     u_short		vendor, device;
     u_char		revision, bus, devfn;
     u_short		bcr;
-    u_char		pci_lat, cb_lat, sub_bus;
-    u_char		cache, pmcs;
+    u_char		pci_lat, cb_lat, sub_bus, cache;
     u_int		cb_phys;
     char		*cb_virt;
 #endif
@@ -331,6 +325,7 @@ typedef enum pcic_id {
     IS_SMC34C90,
     IS_TI1130, IS_TI1131, IS_TI1250A, IS_TI1220, IS_TI1221, IS_TI1210,
     IS_TI1251A, IS_TI1251B, IS_TI1450, IS_TI1225, IS_TI1211, IS_TI1420,
+    IS_TI1031,
     IS_TOPIC95_A, IS_TOPIC95_B, IS_TOPIC97, IS_TOPIC100,
     IS_UNK_PCI, IS_UNK_CARDBUS
 #endif
@@ -404,6 +399,7 @@ static pcic_t pcic[] = {
     { "TI 1225", IS_TI|IS_CARDBUS, ID(TI, 1225) },
     { "TI 1211", IS_TI|IS_CARDBUS, ID(TI, 1211) },
     { "TI 1420", IS_TI|IS_CARDBUS, ID(TI, 1420) },
+    { "TI 1031", IS_TI|IS_CARDBUS, ID(TI, 1031) },
     { "Toshiba ToPIC95-A", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC95_A) },
     { "Toshiba ToPIC95-B", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC95_B) },
     { "Toshiba ToPIC97", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC97) },
@@ -514,7 +510,7 @@ static int cirrus_set_irq_mode(socket_info_t *s, int pcsc, int pint)
     flip(s->bcr, PD6832_BCR_MGMT_IRQ_ENA, !pcsc);
     return 0;
 }
-#endif /* CONFIG_PCI */
+#endif
 
 static u_int __init cirrus_set_opts(socket_info_t *s, char *buf)
 {
@@ -979,14 +975,10 @@ static void __init cb_get_state(socket_info_t *s)
 #ifdef __BEOS__
     pci_readb(s, PCI_INTERRUPT_LINE, &s->cap.pci_irq);
 #else
-#if (LINUX_VERSION_CODE < VERSION(2,1,93))
-    pci_readb(s, PCI_INTERRUPT_LINE, &s->cap.pci_irq);
-#else
     {
 	struct pci_dev *pdev = pci_find_slot(s->bus, s->devfn);
 	s->cap.pci_irq = (pdev) ? pdev->irq : 0;
     }
-#endif
 #endif
     if ((s->cap.pci_irq == 0) && (pci_csc || pci_int))
 	s->cap.pci_irq = pci_irq_list[s - socket];
@@ -995,8 +987,9 @@ static void __init cb_get_state(socket_info_t *s)
 
 static void cb_set_state(socket_info_t *s)
 {
-    if (s->pmcs)
-	pci_writew(s, s->pmcs, PCI_PMCS_PWR_STATE_D0);
+#ifdef __LINUX__
+    pci_set_power_state(pci_find_slot(s->bus, s->devfn), 0);
+#endif
     pci_writel(s, CB_LEGACY_MODE_BASE, 0);
     pci_writel(s, PCI_BASE_ADDRESS_0, s->cb_phys);
     pci_writew(s, PCI_COMMAND, CMD_DFLT);
@@ -1041,19 +1034,13 @@ static void __init cb_set_opts(socket_info_t *s, char *buf)
     else
 	sprintf(buf, " [pci irq %d]", s->cap.pci_irq);
     buf += strlen(buf);
-    if ((cb_bus_base > 0) || (s->cap.cardbus == 0)) {
-	if (cb_bus_base <= 0) cb_bus_base = 0x20;
-	s->cap.cardbus = cb_bus_base;
-	s->sub_bus = cb_bus_base+cb_bus_step;
-	cb_bus_base += cb_bus_step+1;
-    }
     if (!(s->flags & IS_TOPIC))
 	s->cap.features |= SS_CAP_PAGE_REGS;
     sprintf(buf, " [lat %d/%d] [bus %d/%d]",
 	    s->pci_lat, s->cb_lat, s->cap.cardbus, s->sub_bus);
 }
 
-#endif /* CONFIG_PCI */
+#endif
 
 /*======================================================================
 
@@ -1082,6 +1069,10 @@ static void cb_get_power(socket_info_t *s, socket_state_t *state)
 static int cb_set_power(socket_info_t *s, socket_state_t *state)
 {
     u_int reg = 0;
+    /* restart card voltage detection if it seems appropriate */
+    if ((state->Vcc == 0) && (state->Vpp == 0) &&
+	!(cb_readl(s, CB_SOCKET_STATE) & CB_SS_VSENSE))
+	cb_writel(s, CB_SOCKET_FORCE, CB_SF_CVSTEST);
     switch (state->Vcc) {
     case 0:		reg = 0; break;
     case 33:		reg = CB_SC_VCC_3V; break;
@@ -1195,18 +1186,7 @@ static u_int __init set_bridge_opts(socket_info_t *s, u_short ns)
 	       (*buf) ? buf : " none");
     }
 #ifdef CONFIG_PCI
-    /* Mask out all PCI interrupts */
-    for (i = 0; i < sockets; i++)
-	m &= ~(1<<s[i].cap.pci_irq);
-#ifdef __LINUX__
-#if (LINUX_VERSION_CODE > VERSION(2,1,0))
-    {
-	struct pci_dev *p;
-	for (p = pci_devices; p; p = p->next)
-	    m &= ~(1<<p->irq);
-    }
-#endif
-#endif
+    m &= ~pci_irq_mask;
 #endif
     return m;
 }
@@ -1289,12 +1269,6 @@ static u_int __init isa_scan(socket_info_t *s, u_int mask0)
     u_int mask1 = 0;
     int i;
 
-#ifdef __alpha__
-#define PIC 0x4d0
-    /* Don't probe level-triggered interrupts -- reserved for PCI */
-    mask0 &= ~(inb(PIC) | (inb(PIC+1) << 8));
-#endif
-    
 #ifdef CONFIG_PCI
     /* Only scan if we can select ISA csc irq's */
     if (!(s->flags & IS_CARDBUS) || (cb_set_irq_mode(s, 0, 0) == 0))
@@ -1564,10 +1538,6 @@ static int pci_lookup(u_int class, pci_id_t *id,
     return -1;
 }
 #else
-#if (LINUX_VERSION_CODE < VERSION(2,1,93))
-typedef u_short pci_id_t;
-#define pci_lookup(c,i,b,d) pcibios_find_class((c)<<8,(*i)++,b,d)
-#else
 typedef struct pci_dev *pci_id_t;
 static int __init pci_lookup(u_int class, pci_id_t *id,
 			     u_char *bus, u_char *devfn)
@@ -1579,17 +1549,19 @@ static int __init pci_lookup(u_int class, pci_id_t *id,
     } else return -1;
 }
 #endif
-#endif
 
 static void __init add_pci_bridge(int type, u_short v, u_short d)
 {
     socket_info_t *s = &socket[sockets];
     u_int addr, ns;
 
+#ifdef __LINUX__
+    pci_enable_device(pci_find_slot(s->bus, s->devfn));
+#endif
+
     if (type == PCIC_COUNT) type = IS_UNK_PCI;
     pci_readl(s, PCI_BASE_ADDRESS_0, &addr);
     addr &= ~0x1;
-    pci_writew(s, PCI_COMMAND, CMD_DFLT);
     for (ns = 0; ns < ((type == IS_I82092AA) ? 4 : 2); ns++) {
 	s[ns].bus = s->bus; s[ns].devfn = s->devfn;
 	s[ns].vendor = v; s[ns].device = d;
@@ -1603,7 +1575,8 @@ static int check_cb_mapping(socket_info_t *s)
     /* A few sanity checks to validate the bridge mapping */
     if ((cb_readb(s, 0x800+I365_IDENT) & 0x70) ||
 	(cb_readb(s, 0x800+I365_CSC) && cb_readb(s, 0x800+I365_CSC) &&
-	 cb_readb(s, 0x800+I365_CSC)) || cb_readl(s, CB_SOCKET_FORCE))
+	 cb_readb(s, 0x800+I365_CSC)) || cb_readl(s, CB_SOCKET_FORCE) ||
+	((cb_readl(s, CB_SOCKET_STATE) >> 16) != 0x3000))
 	return 1;
     return 0;
 }
@@ -1612,8 +1585,8 @@ static void __init add_cb_bridge(int type, u_short v, u_short d0)
 {
     socket_info_t *s = &socket[sockets];
     u_char bus = s->bus, devfn = s->devfn;
-    u_short d, ns, i;
-    u_char a, b, r, max;
+    u_short d, ns;
+    u_char a, r, max;
     
     /* PCI bus enumeration is broken on some systems */
     for (ns = 0; ns < sockets; ns++)
@@ -1632,121 +1605,51 @@ static void __init add_cb_bridge(int type, u_short v, u_short d0)
 	s->vendor = v; s->device = d; s->revision = r;
 
 #ifdef __LINUX__
-#if (LINUX_VERSION_CODE >= VERSION(2,3,24))
 	pci_enable_device(pci_find_slot(bus, devfn));
+	pci_set_power_state(pci_find_slot(bus, devfn), 0);
 #endif
-#endif
-	
-	/* Check for PCI power management capabilities */
-	pci_readb(s, PCI_STATUS, &a);
-	if (a & PCI_STATUS_CAPLIST) {
-	    pci_readb(s, PCI_CB_CAPABILITY_POINTER, &b);
-	    while (b != 0) {
-		pci_readb(s, b+PCI_CAPABILITY_ID, &a);
-		if (a == PCI_CAPABILITY_PM) {
-		    s->pmcs = b + PCI_PM_CONTROL_STATUS;
-		    /* Make sure we're in D0 state */
-		    pci_writew(s, s->pmcs, PCI_PMCS_PWR_STATE_D0);
-		    break;
-		}
-		pci_readb(s, b+PCI_NEXT_CAPABILITY, &b);
-	    }
-	}
-	
-	/* Map CardBus registers if they are not already mapped */
+	/* Set up CardBus register mapping */
 	pci_writel(s, CB_LEGACY_MODE_BASE, 0);
 	pci_readl(s, PCI_BASE_ADDRESS_0, &s->cb_phys);
 	if (s->cb_phys == 0) {
-	    pci_writew(s, PCI_COMMAND, CMD_DFLT);
-	    for (i = 0; i < sizeof(cb_mem_base)/sizeof(u_int); i++) {
-		s->cb_phys = cb_mem_base[i];
-		s->cb_virt = ioremap(s->cb_phys, 0x1000);
-		pci_writel(s, PCI_BASE_ADDRESS_0, s->cb_phys);
-		/* Simple sanity checks */
-		if (check_cb_mapping(s) == 0) break;
-		iounmap(s->cb_virt);
-	    }
-	    if (i == sizeof(cb_mem_base)/sizeof(u_int)) {
-		pci_writel(s, PCI_BASE_ADDRESS_0, 0);
-		s->cb_phys = 0; s->cb_virt = NULL;
-		printk("\n");
-		printk(KERN_NOTICE "  Bridge register mapping failed:"
-		       " check cb_mem_base setting\n");
-		break;
-	    }
-	    cb_mem_base[0] = cb_mem_base[i] + PAGE_SIZE;
-	} else {
-	    s->cb_virt = ioremap(s->cb_phys, 0x1000);
-	    if (check_cb_mapping(s) != 0) {
-		printk(KERN_NOTICE "  Bad bridge mapping at 0x%08x!\n",
-		       s->cb_phys);
-		break;
-	    }
+	    printk("\n" KERN_NOTICE "  Bridge register mapping failed:"
+		   " check cb_mem_base setting\n");
+	    break;
 	}
-	
+	s->cb_virt = ioremap(s->cb_phys, 0x1000);
+	if (check_cb_mapping(s) != 0) {
+	    printk("\n" KERN_NOTICE "  Bad bridge mapping at "
+		   "0x%08x!\n", s->cb_phys);
+	    break;
+	}
+
 	request_mem_region(s->cb_phys, 0x1000, "i82365");
 	add_socket(0, 0, type);
     }
     if (ns == 0) return;
     
-    s -= ns;
-    if (ns == 2) {
-	/* Nasty special check for bad bus mapping */
-	pci_readb(s+0, CB_CARDBUS_BUS, &a);
-	pci_readb(s+1, CB_CARDBUS_BUS, &b);
-	if (a == b) {
-	    pci_writeb(s+0, CB_CARDBUS_BUS, 0);
-	    pci_writeb(s+1, CB_CARDBUS_BUS, 0);
-	}
-    }
     add_pcic(ns, type);
-
-    /* Re-do card voltage detection, if needed: this checks for
-       card presence with no voltage detect bits set */
-    for (a = 0; a < ns; a++)
-	if (!(cb_readl(s+a, CB_SOCKET_STATE) & 0x3c86))
-	    cb_writel(s+a, CB_SOCKET_FORCE, CB_SF_CVSTEST);
-    for (i = 0; i < 200; i++) {
-	for (a = 0; a < ns; a++)
-	    if (!(cb_readl(s+a, CB_SOCKET_STATE) & 0x3c86)) break;
-	if (a == ns) break;
-	__set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ/20);
-    }
-    if (i == 200)
-	printk(KERN_NOTICE "i82365: card voltage interrogation"
-	       " timed out!\n");
 
 #ifdef __LINUX__
 #if (LINUX_VERSION_CODE >= VERSION(2,1,103))
-    /* Set up PCI bus bridge structures if needed */
+    /* Look up PCI bus bridge structures if needed */
+    s -= ns;
     for (a = 0; a < ns; a++) {
 	struct pci_dev *self = pci_find_slot(bus, s[a].devfn);
-	struct pci_bus *child, *parent = self->bus;
-	for (child = parent->children; child; child = child->next)
+#if (LINUX_VERSION_CODE >= VERSION(2,3,40))
+	s[a].cap.cb_bus = self->subordinate;
+#else
+	struct pci_bus *child;
+	for (child = self->bus->children; child; child = child->next)
 	    if (child->number == s[a].cap.cardbus) break;
-	if (!child) {
-	    child = kmalloc(sizeof(struct pci_bus), GFP_KERNEL);
-	    memset(child, 0, sizeof(struct pci_bus));
-	    child->self = self;
-	    child->primary = bus;
-	    child->number = child->secondary = s[a].cap.cardbus;
-	    child->subordinate = s[a].sub_bus;
-	    child->parent = parent;
-#if (LINUX_VERSION_CODE >= VERSION(2,3,15))
-	    child->ops = parent->ops;
-#endif
-	    child->next = parent->children;
-	    parent->children = child;
-	}
 	s[a].cap.cb_bus = child;
+#endif
     }
 #endif
 #endif
 }
 
-static void __init pci_probe(u_int class, void (add_fn)
-			     (int, u_short, u_short))
+static void __init pci_probe(u_int class)
 {
     socket_info_t *s = &socket[sockets];
     u_short i, v, d;
@@ -1759,12 +1662,15 @@ static void __init pci_probe(u_int class, void (add_fn)
 	pci_readw(s, PCI_DEVICE_ID, &d);
 	for (i = 0; i < PCIC_COUNT; i++)
 	    if ((pcic[i].vendor == v) && (pcic[i].device == d)) break;
-	add_fn(i, v, d);
+	if (pcic[i].flags & IS_CARDBUS)
+	    add_cb_bridge(i, v, d);
+	else
+	    add_pci_bridge(i, v, d);
 	s = &socket[sockets];
     }
 }
 
-#endif /* CONFIG_PCI */
+#endif
 
 /*====================================================================*/
 
@@ -1947,6 +1853,7 @@ static int i365_get_status(socket_info_t *s, u_int *value)
 	*value |= (status & CB_SS_32BIT) ? SS_CARDBUS : 0;
 	*value |= (status & CB_SS_3VCARD) ? SS_3VCARD : 0;
 	*value |= (status & CB_SS_XVCARD) ? SS_XVCARD : 0;
+	*value |= (status & CB_SS_VSENSE) ? 0 : SS_PENDING;
     } else if (s->flags & IS_O2MICRO) {
 	status = i365_get(s, O2_MODE_B);
 	*value |= (status & O2_MODE_B_VS1) ? 0 : SS_3VCARD;
@@ -2337,6 +2244,7 @@ static int cb_get_status(socket_info_t *s, u_int *value)
     *value |= (state & CB_SS_PWRCYCLE) ? (SS_POWERON|SS_READY) : 0;
     *value |= (state & CB_SS_3VCARD) ? SS_3VCARD : 0;
     *value |= (state & CB_SS_XVCARD) ? SS_XVCARD : 0;
+    *value |= (state & CB_SS_VSENSE) ? 0 : SS_PENDING;
     DEBUG(1, "yenta: GetStatus(%d) = %#4.4x\n", s-socket, *value);
     return 0;
 } /* cb_get_status */
@@ -2676,8 +2584,8 @@ static int __init init_i82365(void)
     
 #ifdef CONFIG_PCI
     if (do_pci_probe && pcibios_present()) {
-	pci_probe(PCI_CLASS_BRIDGE_CARDBUS, add_cb_bridge);
-	pci_probe(PCI_CLASS_BRIDGE_PCMCIA, add_pci_bridge);
+	pci_probe(PCI_CLASS_BRIDGE_CARDBUS);
+	pci_probe(PCI_CLASS_BRIDGE_PCMCIA);
     }
 #endif
 

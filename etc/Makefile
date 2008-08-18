@@ -1,5 +1,5 @@
 #
-# etc/Makefile 1.52 1999/12/28 22:51:42 (David Hinds)
+# etc/Makefile 1.53 2000/02/12 00:25:38 (David Hinds)
 #
 
 # Include site dependent options
@@ -24,12 +24,16 @@ endif
 ETC = $(PREFIX)/etc/pcmcia
 
 all:	$(EXTRA) $(CLIENTS) $(CLIENT_OPTS)
+ifeq ($(HOST_ARCH),$(ARCH))
 	@set -e ; $(MAKE) -C cis
+endif
 
 dep:
 
 clean:
+ifeq ($(HOST_ARCH),$(ARCH))
 	@set -e ; $(MAKE) -C cis clean
+endif
 
 R=$(PREFIX)$(RC_DIR)
 RC_DIRS=$R/init.d $R/rc0.d $R/rc2.d $R/rc3.d $R/rc5.d $R/rc6.d

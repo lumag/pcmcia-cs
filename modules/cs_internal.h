@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.49 2000/01/15 04:29:44
+ * cs_internal.h 1.51 2000/02/08 00:31:51
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -144,7 +144,7 @@ typedef struct socket_info_t {
     u_int			real_clients;
     client_handle_t		reset_handle;
     struct timer_list		setup, shutdown;
-    u_long			unreset_timeout;
+    u_long			setup_timeout;
     pccard_mem_map		cis_mem;
     u_char			*cis_virt;
     config_t			*config;
@@ -269,7 +269,6 @@ int proc_read_io(char *buf, char **start, off_t pos,
 int proc_read_mem(char *buf, char **start, off_t pos,
 		  int count, int *eof, void *data);
 
-#ifdef CONFIG_PNP_BIOS
 /* in pnp components */
 int proc_read_irq(char *buf, char **start, off_t pos,
 		  int count, int *eof, void *data);
@@ -279,11 +278,10 @@ void pnp_proc_init(void);
 void pnp_proc_done(void);
 void pnp_rsrc_init(void);
 void pnp_rsrc_done(void);
-#endif
 
-#ifdef CONFIG_PCI
-void scan_pirq_table(void);
-#endif
+/* in pci_fixup */
+void pci_fixup_init(void);
+void pci_fixup_done(void);
 
 #define MAX_SOCK 8
 extern socket_t sockets;

@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 #
-# Makefile 1.123 2000/01/21 23:26:16
+# Makefile 1.124 2000/02/15 02:19:23
 #
 
 # Include site dependent options and kernel configuration
@@ -70,7 +70,7 @@ SCSI=$(LINUX)/drivers/scsi
 
 ifdef CONFIG_SCSI
 SRCS    += qlogicfas.c aha152x.c fdomain.c
-SRCS    += qlogic_cs.c aha152x_cs.c fdomain_cs.c
+SRCS    += qlogic_stub.c aha152x_stub.c fdomain_stub.c
 MODULES += qlogic_cs.o aha152x_cs.o fdomain_cs.o
 endif
 
@@ -94,23 +94,14 @@ qlogicfas.o aha152x.o fdomain.o: %.o: %.c
 	$(CC) -MD -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
-qlogic_cs.o: qlogic_cs.c qlogicfas.o
-	$(CC) -c -MD $(CFLAGS) $(CPPFLAGS) $< -o .$@
-	@mkdir -p .depfiles ; mv $*.d .depfiles
-	$(LD) -r -o $@ .$@ qlogicfas.o
-	rm -f .$@ ; chmod -x $@
+qlogic_cs.o: qlogic_stub.o qlogicfas.o
+	$(LD) -r -o $@ $+ ; chmod -x $@
 
-aha152x_cs.o: aha152x_cs.c aha152x.o
-	$(CC) -c -MD $(CFLAGS) $(CPPFLAGS) $< -o .$@
-	mkdir -p .depfiles ; mv $*.d .depfiles
-	$(LD) -r -o $@ .$@ aha152x.o
-	rm -f .$@ ; chmod -x $@
+aha152x_cs.o: aha152x_stub.o aha152x.o
+	$(LD) -r -o $@ $+ ; chmod -x $@
 
-fdomain_cs.o: fdomain_cs.c fdomain.o
-	$(CC) -c -MD $(CFLAGS) $(CPPFLAGS) $< -o .$@
-	@mkdir -p .depfiles ; mv $*.d .depfiles
-	$(LD) -r -o $@ .$@ fdomain.o
-	rm -f .$@ ; chmod -x $@
+fdomain_cs.o: fdomain_stub.o fdomain.o
+	$(LD) -r -o $@ $+ ; chmod -x $@
 
 3c575_cb.o tulip_cb.o: %.o: %.c
 	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS $<
@@ -135,11 +126,8 @@ else
 endif
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
-apa1480_cb.o: apa1480_cb.c aic7xxx.o
-	$(CC) -c -MD $(CFLAGS) $(CPPFLAGS) $< -o .$@
-	@mkdir -p .depfiles ; mv $*.d .depfiles
-	$(LD) -r -o $@ .$@ aic7xxx.o
-	rm -f .$@ ; chmod -x $@
+apa1480_cb.o: apa1480_stub.o aic7xxx.o
+	$(LD) -r -o $@ $+ ; chmod -x $@
 
 clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d

@@ -1,5 +1,5 @@
 #
-# Makefile 1.38 2000/01/14 20:40:25 (David Hinds)
+# Makefile 1.39 2000/02/14 22:16:30 (David Hinds)
 #
 
 ifeq (config.mk, $(wildcard config.mk))
@@ -7,9 +7,9 @@ include config.mk
 endif
 
 ALL  = modules clients wireless cardmgr flash debug-tools man etc
-DIRS = clients wireless cardmgr flash debug-tools man etc
+DIRS = cardmgr flash debug-tools man etc
 ifndef CONFIG_PCMCIA
-DIRS := modules $(DIRS)
+DIRS := modules clients wireless $(DIRS)
 endif
 
 help:

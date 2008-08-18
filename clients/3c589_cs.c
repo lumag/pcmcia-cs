@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    3c589_cs.c 1.143 1999/12/30 21:28:10
+    3c589_cs.c 1.146 2000/02/17 23:18:31
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -120,7 +120,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.143 1999/12/30 21:28:10 (David Hinds)";
+"3c589_cs.c 1.146 2000/02/17 23:18:31 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -686,7 +686,7 @@ static int el3_open(struct net_device *dev)
 
     link->open++;
     MOD_INC_USE_COUNT;
-    dev->interrupt = 0; dev->tbusy = 0; dev->start = 1;
+    dev->tbusy = 0; dev->start = 1;
     
     tc589_reset(dev);
     lp->media.function = &media_check;
@@ -743,47 +743,32 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
     ioaddr_t ioaddr = dev->base_addr;
 
     /* Transmitter timeout, serious problems. */
-    if (dev->tbusy) {
+    if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
 	if (jiffies - dev->trans_start < TX_TIMEOUT)
 	    return 1;
 	el3_tx_timeout(dev);
     }
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-    if (skb == NULL) {
-	dev_tint(dev);
-	return 0;
-    }
-    if (skb->len <= 0)
-	return 0;
-#endif
+    skb_tx_check(dev, skb);
 
     DEBUG(3, "%s: el3_start_xmit(length = %ld) called, "
 	  "status %4.4x.\n", dev->name, (long)skb->len,
 	  inw(ioaddr + EL3_STATUS));
 
-    /* Avoid timer-based retransmission conflicts. */
-    if (test_and_set_bit(0, (void*)&dev->tbusy) != 0)
-	printk(KERN_NOTICE "%s: transmitter access conflict.\n",
-	       dev->name);
-    else {
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-	struct el3_private *lp = (struct el3_private *)dev->priv;
-	lp->stats.tx_bytes += skb->len;
-#endif
-	/* Put out the doubleword header... */
-	outw(skb->len, ioaddr + TX_FIFO);
-	outw(0x00, ioaddr + TX_FIFO);
-	/* ... and the packet rounded to a doubleword. */
-	outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
-	
-	dev->trans_start = jiffies;
-	if (inw(ioaddr + TX_FREE) > 1536) {
-	    dev->tbusy = 0;
-	} else
-	    /* Interrupt us when the FIFO has room for max-sized packet. */
-	    outw(SetTxThreshold + 1536, ioaddr + EL3_CMD);
-    }
+    add_tx_bytes(&((struct el3_private *)dev->priv)->stats, skb->len);
+
+    /* Put out the doubleword header... */
+    outw(skb->len, ioaddr + TX_FIFO);
+    outw(0x00, ioaddr + TX_FIFO);
+    /* ... and the packet rounded to a doubleword. */
+    outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
+
+    dev->trans_start = jiffies;
+    if (inw(ioaddr + TX_FREE) > 1536) {
+	dev->tbusy = 0;
+    } else
+	/* Interrupt us when the FIFO has room for max-sized packet. */
+	outw(SetTxThreshold + 1536, ioaddr + EL3_CMD);
 
     DEV_KFREE_SKB(skb);
     pop_tx_status(dev);
@@ -803,16 +788,8 @@ static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return;
     ioaddr = dev->base_addr;
 
-#ifdef PCMCIA_DEBUG
-    if (dev->interrupt) {
-	printk(KERN_NOTICE "%s: re-entering the interrupt handler.\n",
-	       dev->name);
-	return;
-    }
-    dev->interrupt = 1;
     DEBUG(3, "%s: interrupt, status %4.4x.\n",
 	  dev->name, inw(ioaddr + EL3_STATUS));
-#endif
     
     while ((status = inw(ioaddr + EL3_STATUS)) &
 	(IntLatch | RxComplete | StatsFull)) {
@@ -828,8 +805,7 @@ static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	    DEBUG(3, "    TX room bit was handled.\n");
 	    /* There's room in the FIFO for a full-sized packet. */
 	    outw(AckIntr | TxAvailable, ioaddr + EL3_CMD);
-	    dev->tbusy = 0;
-	    mark_bh(NET_BH);
+	    netif_wake_queue(dev);
 	}
 	
 	if (status & TxComplete)
@@ -877,11 +853,8 @@ static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
     }
 
     lp->last_irq = jiffies;
-#ifdef PCMCIA_DEBUG
     DEBUG(3, "%s: exiting interrupt, status %4.4x.\n",
 	  dev->name, inw(ioaddr + EL3_STATUS));
-    dev->interrupt = 0;
-#endif
     return;
 }
 
@@ -1053,9 +1026,7 @@ static int el3_rx(struct net_device *dev)
 		
 		netif_rx(skb);
 		lp->stats.rx_packets++;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-		lp->stats.rx_bytes += skb->len;
-#endif
+		add_rx_bytes(&lp->stats, skb->len);
 	    } else {
 		DEBUG(1, "%s: couldn't allocate a sk_buff of"
 		      " size %d.\n", dev->name, pkt_len);

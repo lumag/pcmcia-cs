@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/02/02 04:30:06
+		Last updated: 2000/02/18 01:24:13
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -101,7 +101,7 @@ Ethernet cards:
 	LanPro EP4000A
 	Lantech Ethernet
 	Level One EPC-0100TB
-	Linksys EtherCard
+	Linksys EtherCard, EC2T Combo
 	Logitec LPM-LN10T, LPM-LN10BA, LPM-LN20T Ethernet
 	Longshine ShineNet LCS-8534TB Ethernet
 	Macnica ME-1 Ethernet
@@ -129,7 +129,8 @@ Ethernet cards:
 	Sky Link Express
 	SMC 8022 EZCard-10
 	Socket Communications EA LAN Adapter
-	Socket Communications LPE Low Power Ethernet
+	Socket Communications LP-E Ethernet
+	Socket Communications LP-E CF+ Ethernet
 	SOHOware ND5120-E Ethernet
 	SuperSocket RE450T
 	Surecom Ethernet
@@ -175,8 +176,9 @@ Fast Ethernet (10/100baseT) adapters:
 	Microcom TravelCard 10/100
 	Micronet EtherFast Adapter
 	NetGear FA410TXC
-	New Media Livewire 10/100
+	New Media LiveWire 10/100
 	Planex FNW-3600T
+	ZONET Fast Ethernet
 
 	[smc91c92_cs driver] [x86]
 	Argosy EN220
@@ -212,13 +214,13 @@ Fast Ethernet (10/100baseT) adapters:
 	Asante FriendlyNET CardBus
 	Compex Linkport TX
 	D-Link DFE-660TX
-	Genius MF3000			[ some do not work! ]
+	Genius MF3000			[ some do not work?? ]
 	Kingston KNE-CB4TX
 	Laneed LD-10/100CB
 	LevelOne FPC-0101TX 10/100Mbps CardBus
 	Linksys PCMPC200 EtherFast CardBus
 	OvisLink LFS PCM 32
-	SMC EZ CardBus 10/100 Ethernet
+	SMC EZ CardBus 10/100 Ethernet	[ some do not work?? ]
 	SVEC FD606 10/100 Ethernet
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
 	UMAX Technologies UMAX250
@@ -256,6 +258,7 @@ Wireless network adapters:
 
 	[wvlan_cs driver] [x86,axp]
 	Lucent WaveLAN/IEEE 802.11(b)
+	Melco WLI-PCM-L11
 	NCR WaveLAN/IEEE 802.11
 	Cabletron RoamAbout 802.11 DS
 

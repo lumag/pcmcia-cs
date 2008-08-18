@@ -1,5 +1,5 @@
 /*
- * ss.h 1.25 1999/10/25 20:23:17
+ * ss.h 1.26 2000/02/04 20:35:21
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -51,6 +51,7 @@ typedef struct ss_callback_t {
 #define SS_CARDBUS	0x0800
 #define SS_3VCARD	0x1000
 #define SS_XVCARD	0x2000
+#define SS_PENDING	0x4000
 
 /* for InquireSocket */
 typedef struct socket_cap_t {

@@ -1185,10 +1185,8 @@ static int netwave_hw_xmit(unsigned char* data, int len,
 	       dev->name);
 	return 1;
     }
-	
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-    priv->stats.tx_bytes += len;
-#endif
+
+    add_tx_bytes(&priv->stats, len);
 
     DEBUG(3, "Transmitting with SPCQ %x SPU %x LIF %x ISPLQ %x\n",
 	  readb(ramBase + NETWAVE_EREG_SPCQ),
@@ -1266,20 +1264,7 @@ static int netwave_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 	  dev->tbusy = 0;*/
     }
 
-    /* Sending a NULL skb means some higher layer thinks we've missed an
-     * tx-done interrupt. Caution: dev_tint() handles the cli()/sti()
-     * itself. 
-     */
-
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-    if (skb == NULL) {
-        dev_tint(dev);
-	return 0;
-    }
-   
-    if (skb->len <= 0)
-	return 0;
-#endif
+    skb_tx_check(dev, skb);
 
     /* Block a timer-based transmit from overlapping. This could 
      * better be done with atomic_swap(1, dev->tbusy, but set_bit()
@@ -1322,12 +1307,6 @@ static void netwave_interrupt(int irq, void* dev_id, struct pt_regs *regs) {
     
     if ((dev == NULL) | (!dev->start))
 	return;
-    
-    if (dev->interrupt) {
-	printk("%s: re-entering the interrupt handler.\n", dev->name);
-	return;
-    }
-    dev->interrupt = 1;
     
     iobase = dev->base_addr;
     ramBase = priv->ramBase;
@@ -1427,8 +1406,7 @@ static void netwave_interrupt(int irq, void* dev_id, struct pt_regs *regs) {
 	    /* If watchdog was activated, kill it ! */
 	    del_timer(&priv->watchdog);
 
-	    dev->tbusy = 0;
-	    mark_bh(NET_BH);
+	    netif_wake_queue(dev);
 	}
 	/* TxBA, this would trigger on all error packets received */
 	/* if (status & 0x01) {
@@ -1438,7 +1416,6 @@ static void netwave_interrupt(int irq, void* dev_id, struct pt_regs *regs) {
 	   */
     }
     /* done.. */
-    dev->interrupt = 0;
     return;
 } /* netwave_interrupt */
 
@@ -1592,9 +1569,7 @@ static int netwave_rx(struct net_device *dev) {
 		
 	priv->stats.rx_packets++;
 
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-	priv->stats.rx_bytes += skb->len;
-#endif	
+	add_rx_bytes(&priv->stats, skb->len);
     }
     return 0;
 }
@@ -1612,7 +1587,7 @@ static int netwave_open(struct net_device *dev) {
     link->open++;
     MOD_INC_USE_COUNT;
 	
-    dev->interrupt = 0; dev->tbusy = 0; dev->start = 1;
+    dev->tbusy = 0; dev->start = 1;
     netwave_reset(dev);
 	
     return 0;

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.135 2000/01/28 02:12:03
+# Configure 1.143 2000/02/16 03:05:26
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -72,6 +72,7 @@ usage () {
     echo "  --kernel=DIR       use kernel source tree at DIR"
     echo "  --target=DIR       install all files using DIR as root"
     echo "  --moddir=DIR       install modules under DIR"
+    echo "  --arch=ARCH        select target architecture for build"
     echo "  --cc=PATH          use another C compiler"
     echo "  --ld=PATH          use another linker"
     echo "  --debug=FLAGS      set compiler flags for debugging"
@@ -97,6 +98,7 @@ while [ $# -gt 0 ] ; do
     --debug=*)		arg PCDEBUG "$1"	;;
     --kflags=*)		arg KFLAGS "$1"		;;
     --uflags=*)		arg UFLAGS "$1"		;;
+    --arch=*)		arg ARCH "$1"		;;
     --trust)		UNSAFE_TOOLS=y		;;
     --notrust)		UNSAFE_TOOLS=n		;;
     --cardbus)		CONFIG_CARDBUS=y	;;
@@ -198,7 +200,7 @@ echo ""
 
 ask_str "Linux source directory" LINUX
 
-if [ ! -f $LINUX/Makefile ] ; then
+if [ ! -f $LINUX/kernel/Makefile ] ; then
     echo "Linux source tree $LINUX is incomplete or missing!"
     if [ -d $LINUX/include/linux ] ; then
 	echo "    The kernel header files are present, but not " \
@@ -226,11 +228,18 @@ if [ $VERSION_CODE -lt `version 2 0 0` ] ; then
     echo "This package requires at least a 2.0 series kernel."
     fail
 fi
+
+HOST_ARCH=`uname -m | sed -e 's/i.86/i386/'`
+if [ ! "$ARCH" ] ; then ARCH=$HOST_ARCH ; fi
 CUR_RELEASE=`uname -r`
-if [ "$SRC_RELEASE" != "$CUR_RELEASE" ] ; then
-    echo "WARNING: the current kernel is actually version $CUR_RELEASE."
+MATCH=0 # different releases and/or architectures
+if [ $ARCH = $HOST_ARCH ] ; then
+    if [ "$SRC_RELEASE" != "$CUR_RELEASE" ] ; then
+	echo "WARNING: the current kernel is actually version $CUR_RELEASE."
+    else
+	MATCH=1 # same release
+    fi
 fi
-ARCH=`uname -m | sed -e 's/i.86/i386/'`
 
 # Check for consistent kernel build dates
 
@@ -243,11 +252,13 @@ if [ -f $LINUX/include/linux/compile.h ] ; then
 	sed -e 's/.*"\(.*\)"/\1/'`
     SRC_D=`echo $UTS_VERSION | sed -e 's/^#[0-9]* //;s/SMP //'`
     SRC_D=`echo $SRC_D | sed -e 's/\(:[0-9][0-9]\) .* \([12][90]\)/\1 \2/'`
-    if [ $SRC_RELEASE = $CUR_RELEASE -a "$SRC_D" != "$CUR_D" ] ; then
+    if [ $MATCH = 1 -a "$SRC_D" != "$CUR_D" ] ; then
 	echo "WARNING: the source tree has a build date of $SRC_D."
 	if [ `date -d "$SRC_D" +%s` -gt `date -d "$CUR_D" +%s` ] ; then
 	    echo "   Did you forget to install your new kernel?!?"
 	fi
+    elif [ $MATCH = 1 ] ; then
+	MATCH=2 # same release & date
     fi
 fi
 echo ""
@@ -265,6 +276,8 @@ else
 fi
 ask_str "  Module install directory" MODDIR
 
+write_str CC
+write_str LD
 write_str KFLAGS
 write_str UFLAGS
 write_str PCDEBUG
@@ -272,57 +285,58 @@ write_bool USE_APM
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
 ask_bool "Include 32-bit (CardBus) card support" CONFIG_CARDBUS
-if [ $ARCH = "i386" -a $VERSION_CODE -lt `version 2 3 37` ] ; then
+if [ $ARCH = "i386" -a $VERSION_CODE -gt `version 2 2 0` -a \
+     $VERSION_CODE -lt `version 2 3 37` ] ; then
     ask_bool "Include PnP BIOS resource checking" CONFIG_PNP_BIOS
 else
     CONFIG_PNP_BIOS=n
     write_bool CONFIG_PNP_BIOS
 fi
 
-echo ""
-echo "The PCMCIA drivers need to be compiled to match the kernel they"
-echo "will be used with, or some or all of the modules may fail to load."
-echo "If you are not sure what to do, please consult the PCMCIA-HOWTO."
-echo ""
-echo "How would you like to set kernel-specific options?"
-echo "    1 - Read from the currently running kernel"
-echo "    2 - Read from the Linux source tree"
+if [ $MATCH = 0 -o $MATCH = 2 ] ; then
+    CONF_SRC=2 # Use source tree when required or safe to do so
+elif [ $MATCH = 1 -a ! -r $LINUX/.config ] ; then
+    CONF_SRC=1 # Use running kernel if tree is not configured
+else
+    echo ""
+    echo "The PCMCIA drivers need to be compiled to match the kernel they"
+    echo "will be used with, or some or all of the modules may fail to load."
+    echo "If you are not sure what to do, please consult the PCMCIA-HOWTO."
+    echo ""
+    echo "How would you like to set kernel-specific options?"
+    echo "    1 - Read from the currently running kernel"
+    echo "    2 - Read from the Linux source tree"
 
-ans=""
-while [ "$ans" != 1 -a "$ans" != 2 ] ; do
-    prompt "Enter option (1-2)" "$CONF_SRC" ans
-done
-CONF_SRC=$ans
+    ans=""
+    while [ "$ans" != 1 -a "$ans" != 2 ] ; do
+	prompt "Enter option (1-2)" "$CONF_SRC" ans
+    done
+    CONF_SRC=$ans
+fi
 echo "CONF_SRC=$CONF_SRC" >> $CONFIG
 echo ""
 
 #=======================================================================
 
 symcheck () {
-    if $KSYMS | grep "$1" >/dev/null ; then
-	eval "$2=y"
-    else
-	eval "$2=n"
-    fi
-}
-
-modcheck () {
-    if [ "$2" = "y" ] ; then return ; fi
-    /sbin/insmod $1 > /dev/null 2>&1
-    if /sbin/lsmod | grep -q "^$1 " ; then
-	eval "$2=y"
-	INSTALL_DEPMOD=y
+    eval "$1=n"
+    if $KSYMS | grep "$2" >/dev/null ; then eval "$1=y" ; fi
+    if [ "$3" ] ; then
+	insmod $3 > /dev/null 2>&1
+	if $KSYMS | grep "$2" > /dev/null ; then
+	    eval "$1=y"
+	    INSTALL_DEPMOD=y
+	fi
     fi
 }
 
 configcheck () {
+    eval "$1=n"
     if grep "^$1=y" $AUTOCONF >/dev/null ; then
 	eval "$1=y"
     elif grep "^$1=m" $AUTOCONF >/dev/null ; then
 	eval "$1=y"
 	INSTALL_DEPMOD=y
-    else
-	eval "$1=n"
     fi
 }
 
@@ -373,6 +387,10 @@ printconfig () {
     if [ $ARCH = "alpha" ] ; then
 	printflag "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
     fi
+    if [ $ARCH = "arm" ] ; then
+	printflag "Brutus architecture" CONFIG_ARCH_BRUTUS
+	printflag "Itsy target platform" CONFIG_ITSY
+    fi
     printflag "/proc filesystem support" CONFIG_PROC_FS
     if [ "$BIGMEM" ] ; then
 	if [ "$CONFIG_3GB" = "y" ] ; then MEMMAX=3GB
@@ -415,41 +433,40 @@ case $CONF_SRC in
 		CONFIG_PCMCIA=y
 	    fi
 	else
-	    symcheck CardServices CONFIG_PCMCIA
-	    modcheck pcmcia_core CONFIG_PCMCIA
+	    symcheck CONFIG_PCMCIA CardServices pcmcia_core
 	fi
-	symcheck smp_invalidate_needed CONFIG_SMP
-	symcheck pcibios CONFIG_PCI
-	symcheck apm_register_callback CONFIG_APM
-	symcheck scsi_register CONFIG_SCSI
-	modcheck scsi_mod CONFIG_SCSI
-	#modcheck serial CONFIG_SERIAL
-	#modcheck parport CONFIG_PARPORT
-	#modcheck parport_pc CONFIG_PARPORT_PC
-	symcheck register_netdev CONFIG_INET
-	symcheck dev_fastroute_stat CONFIG_NET_FASTROUTE
+	symcheck CONFIG_SMP smp_invalidate_needed
+	symcheck CONFIG_PCI pcibios
+	symcheck CONFIG_APM apm_register_callback
+	symcheck CONFIG_SCSI scsi_register scsi_mod
+	symcheck CONFIG_SERIAL register_serial serial
+	symcheck CONFIG_PARPORT parport_register parport
+	symcheck CONFIG_PARPORT_PC parport_pc_ops parport_pc
+	symcheck CONFIG_INET register_netdev
+	symcheck CONFIG_NET_FASTROUTE dev_fastroute_stat
 	if [ -r /proc/net/wireless ] ; then
 	    CONFIG_NET_RADIO=y
 	else
 	    CONFIG_NET_RADIO=n
 	fi
-	symcheck printk_R CONFIG_MODVERSIONS
+	symcheck CONFIG_MODVERSIONS printk_R
 	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
-	    symcheck ide_register CONFIG_BLK_DEV_IDE_PCMCIA
+	    symcheck CONFIG_BLK_DEV_IDE_PCMCIA ide_register
 	fi
-	symcheck tr_setup CONFIG_TR
+	symcheck CONFIG_TR tr_setup
 	if [ $ARCH = "alpha" ] ; then
-	    symcheck hwrpb CONFIG_ALPHA_LCA
+	    symcheck CONFIG_ALPHA_LCA hwrpb
 	fi
 	if [ "$BIGMEM" ] ; then
-	    symcheck ^c01 CONFIG_1GB
-	    symcheck ^801 CONFIG_2GB
-	    symcheck ^401 CONFIG_3GB
+	    symcheck CONFIG_1GB ^c01
+	    symcheck CONFIG_2GB ^801
+	    symcheck CONFIG_3GB ^401
 	fi
-	symcheck proc_root CONFIG_PROC_FS
+	symcheck CONFIG_PROC_FS proc_root
 	echo "#ifndef __LINUX_MODVERSIONS_H" > $MODVER
 	echo "#define __LINUX_MODVERSIONS_H" >> $MODVER
-	$KSYMS | sed -ne 's/.* \(.*\)_R\([0-9a-f]*\)/\1 \2/p' | \
+	H='[0-9a-f][0-9a-f]'
+	$KSYMS | sed -ne 's/.* \(.*\)_R\('$H$H$H$H'\)/\1 \2/p' | \
 	    awk '{ printf "#define %s\t%s_R%s\n", $1, $1, $2 }' \
 	    >> $MODVER
 	echo "#endif" >> $MODVER
@@ -484,11 +501,16 @@ case $CONF_SRC in
 	fi
 	for C in CONFIG_PCI CONFIG_APM CONFIG_SCSI CONFIG_INET \
 	    CONFIG_NET_FASTROUTE CONFIG_NET_RADIO CONFIG_TR \
-	    CONFIG_MODVERSIONS CONFIG_PROC_FS ; do
+	    CONFIG_MODVERSIONS CONFIG_PROC_FS CONFIG_PARPORT \
+	    CONFIG_PARPORT_PC CONFIG_SERIAL ; do
 	    configcheck $C
 	done
 	if [ $ARCH = "alpha" ] ; then
 	    configcheck CONFIG_ALPHA_LCA
+	fi
+	if [ $ARCH = "arm" ] ; then
+	    configcheck CONFIG_ARCH_BRUTUS
+	    configcheck CONFIG_ITSY
 	fi
 	if [ "$BIGMEM" ] ; then
 	    configcheck CONFIG_1GB
@@ -518,6 +540,9 @@ if [ $VERSION_CODE -ge `version 2 3 37` -a "$CONFIG_PCMCIA" != "y" ] ; then
 fi
 
 if [ ! -r $LINUX/include/asm ] ; then
+    cd $LINUX/include ; ln -s asm-$ARCH asm 2>/dev/null
+fi
+if [ ! -r $LINUX/include/asm ] ; then
     echo "$LINUX/include/asm does not exist!"
     echo "    To fix, do 'ln -s asm-$ARCH asm' in $LINUX/include."
     fail
@@ -539,8 +564,9 @@ elif [ $ARCH = "alpha" ] ; then
     fi
     CONFIG_UID16=n
 fi
-echo "ARCH=$ARCH" >> $CONFIG_MK
-echo "AFLAGS=$AFLAGS" >> $CONFIG_MK
+write_str ARCH
+write_str HOST_ARCH
+write_str AFLAGS
 write_bool CONFIG_ISA
 if [ $VERSION_CODE -ge `version 2 3 40` ] ; then
     write_bool CONFIG_UID16
@@ -619,7 +645,7 @@ if [ $VERSION_CODE -ge `version 2 1 7` -o \
     echo "DO_IDE=y" >> $CONFIG_MK
 fi
 
-if [ $VERSION_CODE -ge `version 2 2 0` -a \
+if [ $CONFIG_PARPORT_PC = "y" -a $VERSION_CODE -ge `version 2 2 0` -a \
      $VERSION_CODE -lt `version 2 3 6` ] ; then
     echo "DO_PARPORT=y" >> $CONFIG_MK
 fi

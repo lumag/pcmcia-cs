@@ -1,4 +1,4 @@
-Known problems with the 3.1.10 PCMCIA release
+Known problems with the 3.1.11 PCMCIA release
 =============================================
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
@@ -24,34 +24,31 @@ o All of the SCSI drivers, and most of the CardBus drivers, do not
   but it has not been a high priority.  SCSI drivers are less likely
   to be fixed since we're more dependent on kernel code.
 
-o The apa1480_cb driver is based on the kernel aic7xxx driver.  This
-  has been under active development in 2.2.* and 2.3.* kernels, and
-  I've received a number of hard-to-categorize reports of problems
-  with particular hardware and kernel combinations.
-  
-  Prognosis: If you have a problem with an older kernel, try upgrading
-  to a newer one before reporting a bug.
+o The kernel aic7xxx driver, which is linked into the apa1480_cb
+  driver, can generate spurious interrupts when a card is initialized,
+  which can cause system lockups.
+
+  Prognosis: I've sent a patch to the driver maintainer.  The problem
+  can be mostly mitigated by disabling use of PCI interrupts for
+  CardBus cards, by setting PCIC_OPTS="pci_int=0".  This setting does
+  not work on some newer laptops; in those cases, you'll have to wait
+  for a kernel update to fix the problem.
 
 o Interrupt routing on O2Micro CardBus bridges seems to have problems.
   Toshiba ToPIC97 bridges also seem to have problems, particularly
   with Cardbus cards.
 
-  Prognosis: for the ToPIC problem, Toshiba does not seem willing
-  and/or able to provide adequate help, so I've mostly given up on
-  it.  For both the O2Micro and ToPIC problems, fixes would require
-  someone with device driver experience and the relevant hardware to
-  work on it: data sheets are available, and I can make suggestions of
-  things to try, but I can't debug the problems by email.
+  Prognosis: I think the O2Micro problems should now be fixed.  For
+  the ToPIC problem, Toshiba does not seem willing and/or able to
+  provide adequate help, so I've mostly given up on it.  For both the
+  O2Micro and ToPIC problems, fixes would require someone with device
+  driver experience and the relevant hardware to work on it: data
+  sheets are available, and I can make suggestions of things to try,
+  but I can't debug the problems by email.
 
   With ToPIC chipsets, some systems seem to work better if the bridge
   mode is changed to either "PCIC" or "CardBus", rather than "Auto",
   in the BIOS setup menu.
-
-  In some O2Micro bridge configurations, it is necessary to set
-  PCIC_OPTS to "pci_csc=1 pci_int=1" to enable use of PCI interrupts
-  for card status changes and for CardBus cards.  I am not completely
-  sure how to tell where this is required, and it causes new problems
-  on some systems, so I have not made it the default.
 
 o Newer Ositech Jack of Diamonds cards don't work for some people.
 
@@ -103,3 +100,4 @@ o Xircom CBEM support in the tulip_cb driver seems to be extremely
   that seem to help for some cards, break other cards.  Until someone
   can try to characterize what the revision differences might be, this
   is not going to get fixed.
+

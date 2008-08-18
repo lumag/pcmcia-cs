@@ -1294,7 +1294,6 @@ wv_dev_show(device *	dev)
   printk(KERN_DEBUG "dev:");
   printk(" start=%d,", dev->start);
   printk(" tbusy=%ld,", dev->tbusy);
-  printk(" interrupt=%d,", dev->interrupt);
   printk(" trans_start=%ld,", dev->trans_start);
   printk(" flags=0x%x,", dev->flags);
   printk("\n");
@@ -2772,9 +2771,7 @@ wv_packet_read(device *		dev,
 
   /* Keep stats up to date */
   lp->stats.rx_packets++;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-  lp->stats.rx_bytes += skb->len;
-#endif	/* 2.1.25 */
+  add_rx_bytes(&lp->stats, skb->len);
 
 #ifdef DEBUG_RX_TRACE
   printk(KERN_DEBUG "%s: <-wv_packet_read()\n", dev->name);
@@ -2968,10 +2965,8 @@ wv_packet_write(device *	dev,
   wv_82593_cmd(dev, "wv_packet_write(): transmit",
 	       OP0_TRANSMIT, SR0_NO_RESULT);
 
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
   /* Keep stats up to date */
-  lp->stats.tx_bytes += length;
-#endif	/* 2.1.25 */
+  add_tx_bytes(&lp->stats, length);
 
   /* If watchdog not already active, activate it... */
   if(lp->watchdog.prev == (timer_list *) NULL)
@@ -3018,30 +3013,7 @@ wavelan_packet_xmit(struct sk_buff *	skb,
   if(dev->tbusy)
     return(1);
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-  /*
-   * If some higher layer thinks we've missed
-   * a tx-done interrupt we are passed NULL.
-   * Caution: dev_tint() handles the cli()/sti() itself.
-   */
-  if(skb == (struct sk_buff *) NULL)
-    {
-#ifdef DEBUG_TX_ERROR
-      printk(KERN_INFO "%s: wavelan_packet_xmit(): skb == NULL\n", dev->name);
-#endif
-      dev_tint(dev);
-      return 0;
-    }
-
-  if(skb->len <= 0)
-    {
-#ifdef DEBUG_TX_ERROR
-      printk(KERN_INFO "%s: wavelan_packet_xmit(): skb->len <= 0\n",
-	     dev->name);
-#endif
-      return(0);
-    }
-#endif	/* 2.1.25 */
+  skb_tx_check(dev, skb);
   
   /*
    * For ethernet, fill in the header.
@@ -4046,14 +4018,6 @@ wavelan_interrupt(int		irq,
   lp = (net_local *) dev->priv;
   base = dev->base_addr;
 
-  /* Prevent reentrance. What should we do here ? */
-#ifdef DEBUG_INTERRUPT_ERROR
-  if(dev->interrupt)
-    printk(KERN_INFO "%s: wavelan_interrupt(): Re-entering the interrupt handler.\n",
-	   dev->name);
-#endif
-  dev->interrupt = 1;
-
   /* Treat all pending interrupts */
   while(1)
     {
@@ -4256,8 +4220,7 @@ wavelan_interrupt(int		irq,
 	  lp->stats.collisions += (tx_status & TX_NCOL_MASK);
 	  lp->stats.tx_packets++;
 
-	  dev->tbusy = FALSE;
-	  mark_bh(NET_BH);
+	  netif_wake_queue(dev);
 	  outb(CR0_INT_ACK | OP0_NOP, LCCR(base));	/* Acknowledge the interrupt */
     	} 
       else	/* if interrupt = transmit done or retransmit done */
@@ -4269,7 +4232,6 @@ wavelan_interrupt(int		irq,
 	  outb(CR0_INT_ACK | OP0_NOP, LCCR(base));	/* Acknowledge the interrupt */
     	}
     }
-  dev->interrupt = FALSE;
 
 #ifdef DEBUG_INTERRUPT_TRACE
   printk(KERN_DEBUG "%s: <-wavelan_interrupt()\n", dev->name);
@@ -4404,7 +4366,6 @@ wavelan_open(device *	dev)
     return FALSE;
   if(!wv_ru_start(dev))
     wv_hw_reset(dev);		/* If problem : reset */
-  dev->interrupt = 0;
   dev->start = 1;
   dev->tbusy = 0;   
 

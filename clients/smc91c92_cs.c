@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    smc91c92_cs.c 1.85 2000/01/15 02:03:14
+    smc91c92_cs.c 1.88 2000/02/17 23:18:31
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -1204,7 +1204,7 @@ static int smc91c92_open(struct net_device *dev)
     link->open++;
     MOD_INC_USE_COUNT;
     
-    dev->interrupt = 0; dev->tbusy = 0; dev->start = 1;
+    dev->tbusy = 0; dev->start = 1;
     smc->saved_skb = 0;
     smc->packets_waiting = 0;
     
@@ -1287,10 +1287,8 @@ static void smc_hardware_send_packet( struct net_device * dev )
 	dev->tbusy = 0;
 	return;
     }
-    
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-    smc->stats.tx_bytes += skb->len;
-#endif
+
+    add_tx_bytes(&smc->stats, skb->len);
     /* The card should use the just-allocated buffer. */
     outw( packet_no, ioaddr + PNR_ARR );
     /* point to the beginning of the packet */
@@ -1348,7 +1346,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
     short time_out, ir;
     
     /* Transmitter timeout, serious problems. */
-    if (dev->tbusy) {
+    if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
 	int tickssofar = jiffies - dev->trans_start;
 	if (tickssofar < TX_TIMEOUT)
 	    return 1;
@@ -1362,24 +1360,10 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	smc->saved_skb = NULL;
     }
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-    /* Sanity check the queue-layer request. */
-    if (skb == NULL) {
-	dev_tint(dev);
-	return 0;
-    }
-    if (skb->len <= 0)
-	return 0;
-#endif
-    
+    skb_tx_check(dev, skb);
+
     DEBUG(2, "%s: smc91c92_start_xmit(length = %d) called,"
 	  " status %4.4x.\n", dev->name, skb->len, inw(ioaddr + 2));
-    
-    /* Avoid timer-based retransmission conflicts. */
-    if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
-	printk(KERN_ERR "%s: transmitter access conflict.\n", dev->name);
-	return 1;
-    }
     
     if ( smc->saved_skb) {
 	/* THIS SHOULD NEVER HAPPEN. */
@@ -1519,17 +1503,8 @@ static void smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return;
     ioaddr = dev->base_addr;
     
-#ifdef PCMCIA_DEBUG
-    if (dev->interrupt) {
-	printk(KERN_ERR "%s: re-entering the interrupt handler.\n",
-	       dev->name);
-	return;
-    }
-    dev->interrupt = 1;
-
     DEBUG(3, "%s: SMC91c92 interrupt %d at %#x.\n", dev->name,
 	  irq, ioaddr);
-#endif
     
     smc->watchdog = 0;
     saved_bank = inw(ioaddr + BANK_SELECT);
@@ -1540,7 +1515,6 @@ static void smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (dev->start)
 	    DEBUG(1, "%s: SMC91c92 interrupt %d for non-existent"
 		  "/ejected device.\n", dev->name, irq);
-	dev->interrupt = 0;
 #endif
 	goto irq_done;
     }
@@ -1584,7 +1558,7 @@ static void smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	    mask |= ( IM_TX_EMPTY_INT | IM_TX_INT );
 	    
 	    /* and let the card send more packets to me */
-	    mark_bh( NET_BH );
+	    netif_wake_queue(dev);
 	}
 	if (status & IM_RX_OVRN_INT) {
 	    smc->stats.rx_errors++;
@@ -1603,10 +1577,7 @@ static void smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
     outw(saved_pointer, ioaddr + POINTER);
     SMC_SELECT_BANK( saved_bank );
 
-#ifdef PCMCIA_DEBUG
-    dev->interrupt = 0;
     DEBUG(3, "%s: Exiting interrupt IRQ%d.\n", dev->name, irq);
-#endif
 
 irq_done:
     
@@ -1682,9 +1653,7 @@ static void smc_rx(struct net_device *dev)
 	skb->dev = dev;
 	netif_rx(skb);
 	smc->stats.rx_packets++;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-	smc->stats.rx_bytes += skb->len;
-#endif
+	add_rx_bytes(&smc->stats, skb->len);
 	if (rx_status & RS_MULTICAST)
 	    smc->stats.multicast++;
     } else {

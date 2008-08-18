@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 #
-# Makefile 1.111 2000/01/24 06:51:44
+# Makefile 1.112 2000/02/06 03:11:55
 #
 
 # Include site dependent options and kernel configuration
@@ -26,11 +26,9 @@ CORE    += cardbus.o
 MODULES += cb_enabler.o
 endif
 
-ifeq ($(ARCH),i386)
 ifdef CONFIG_PCI
-SRCS    += pci_pirq.c
-CORE    += pci_pirq.o
-endif
+SRCS    += pci_fixup.c
+CORE    += pci_fixup.o
 endif
 
 ifdef CONFIG_PNP_BIOS

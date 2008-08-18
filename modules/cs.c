@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.248 2000/01/28 17:47:33
+    cs.c 1.249 2000/02/10 23:26:11
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -74,7 +74,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.248 2000/01/28 17:47:33 (David Hinds)";
+"cs.c 1.249 2000/02/10 23:26:11 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -492,7 +492,17 @@ static void setup_socket(u_long i)
     socket_info_t *s = socket_table[i];
 
     s->ss_entry(s->sock, SS_GetStatus, &val);
-    if (val & SS_DETECT) {
+    if (val & SS_PENDING) {
+	/* Does the socket need more time? */
+	DEBUG(2, "cs: setup_socket(%ld): status pending\n", i);
+	if (++s->setup_timeout > 100) {
+	    printk(KERN_NOTICE "cs: socket %ld voltage interrogation"
+		   " timed out\n", i);
+	} else {
+	    s->setup.expires = jiffies + HZ/10;
+	    add_timer(&s->setup);
+	}
+    } else if (val & SS_DETECT) {
 	DEBUG(1, "cs: setup_socket(%ld): applying power\n", i);
 	s->state |= SOCKET_PRESENT;
 	s->socket.flags = 0;
@@ -538,7 +548,7 @@ static void reset_socket(u_long i)
     udelay((long)reset_time);
     s->socket.flags &= ~SS_RESET;
     s->ss_entry(s->sock, SS_SetSocket, &s->socket);
-    s->unreset_timeout = 0;
+    s->setup_timeout = 0;
     s->setup.expires = jiffies + unreset_delay;
     s->setup.function = &unreset_socket;
     add_timer(&s->setup);
@@ -577,12 +587,11 @@ static void unreset_socket(u_long i)
 	}
     } else {
 	DEBUG(2, "cs: socket %ld not ready yet\n", i);
-	if (s->unreset_timeout > unreset_limit) {
+	if (++s->setup_timeout > unreset_limit) {
 	    printk(KERN_NOTICE "cs: socket %ld timed out during"
 		   " reset\n", i);
 	    s->state &= ~EVENT_MASK;
 	} else {
-	    s->unreset_timeout++;
 	    s->setup.expires = jiffies + unreset_check;
 	    add_timer(&s->setup);
 	}
@@ -656,6 +665,7 @@ static void parse_events(void *info, u_int events)
 	    }
 	    s->state |= SOCKET_SETUP_PENDING;
 	    s->setup.function = &setup_socket;
+	    s->setup_timeout = 0;
 	    if (s->state & SOCKET_SUSPEND)
 		s->setup.expires = jiffies + resume_delay;
 	    else
@@ -2269,6 +2279,8 @@ int CardServices(int func, void *a1, void *a2, void *a3)
 
 #ifdef __LINUX__
 
+#include <linux/pci.h>
+
 #if (LINUX_VERSION_CODE <= VERSION(2,1,17))
 
 #undef CONFIG_MODVERSIONS
@@ -2290,6 +2302,15 @@ static struct symbol_table cs_symtab = {
 #ifdef CONFIG_PNP_BIOS
     X(check_pnp_irq),
 #endif
+#ifdef CONFIG_PCI
+    X(pci_irq_mask),
+    X(pci_devices),
+    X(pci_root),
+    X(pci_find_slot),
+    X(pci_find_class),
+    X(pci_enable_device),
+    X(pci_set_power_state),
+#endif
 #include <linux/symtab_end.h>
 };
 
@@ -2309,6 +2330,13 @@ EXPORT_SYMBOL(release_mem_region);
 #ifdef CONFIG_PNP_BIOS
 EXPORT_SYMBOL(check_pnp_irq);
 #endif
+#ifdef CONFIG_PCI
+EXPORT_SYMBOL(pci_irq_mask);
+#if (LINUX_VERSION_CODE < VERSION(2,3,24))
+EXPORT_SYMBOL(pci_enable_device);
+EXPORT_SYMBOL(pci_set_power_state);
+#endif
+#endif
 
 #endif
 
@@ -2324,8 +2352,8 @@ static int __init init_pcmcia_cs(void)
     if (do_apm)
 	apm_register_callback(&handle_apm_event);
 #endif
-#if defined(CONFIG_PCI) && defined(__i386__)
-    scan_pirq_table();
+#ifdef CONFIG_PCI
+    pci_fixup_init();
 #endif
 #ifdef CONFIG_PNP_BIOS
     if (do_pnp) {
@@ -2378,6 +2406,9 @@ static void __exit exit_pcmcia_cs(void)
 #ifdef CONFIG_APM
     if (do_apm)
 	apm_unregister_callback(&handle_apm_event);
+#endif
+#ifdef CONFIG_PCI
+    pci_fixup_done();
 #endif
 #ifdef CONFIG_PNP_BIOS
     if (do_pnp) {

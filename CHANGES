@@ -1,3 +1,26 @@
+[17-Feb-00] Version 3.1.11
+-- Changed master Makefile to not build any modules for new kernels.
+-- Added support for TI 1031 bridge.
+-- Changed cb_mem_base parameter semantics so that it can override an
+   existing bridge register mapping.
+-- Fixed out-of-order kfree() bug in 3c575_cb and tulip_cb drivers.
+-- Fixed the dhcpcd version check so it doesn't log strange messages.
+-- Fixed serial script to work with older versions of setserial.
+-- Fixed typo in bootp handler in network script.
+-- Added code to enable PCI interrupts in certain cases where they are
+   disabled in the PCI host bridge.
+-- Renamed pci_irq.c to pci_fixup.c, and moved most of the PCI bus
+   hacks from the i82365 driver into this file.  The cb_bus_base,
+   cb_bus_step, and cb_mem_base parameters all moved, also.
+-- Fix for systems that have trouble with card voltage detection
+   following a suspend.
+-- Changed Configure script to automatically decide how to get kernel
+   configuration options, whenever safe to do so.
+-- Fixed Configure script bug in parsing of 'ksyms' output, triggered
+   by lucent winmodem module.
+-- Partial fix for APA1480 lockup when card is inserted with no
+   devices.  The other part requires an aic7xxx driver update.
+
 [01-Feb-00] Version 3.1.10
 -- More complete PCI interrupt lookup code for 2.2.* kernels.
 -- Fixed dumb bug that broke 2.0.* kernel builds.
@@ -1063,7 +1086,7 @@ Version 2.7.1
 -- Fixed module unloading in network drivers.
 -- Fixed problem with new timer behavior in 1.3.X.
 
-[22-Sep-95?] Version 2.7.0
+[22-Sep-95] Version 2.7.0
 -- New interactive configuration procedure.
 -- Updated to work with 1.3.X kernels.
 -- Fixed iflash2_mtd driver to work with IBM flash cards.  Added more
@@ -1169,7 +1192,7 @@ Version 2.5.4
    not-present strings.
 -- A few new sanity checks for 'make prereq' and 'make install-etc'.
 
-[03-Apr-95?] Version 2.5.3
+[03-Apr-95] Version 2.5.3
 -- Another fix to cistpl.c version string parsing.
 -- Another fix to CIS end-of-chain handling.
 
@@ -1194,7 +1217,7 @@ Version 2.5.1
 -- Fixed race condition in socket initialization that could sometimes
    cause a card to be configured twice.
 
-[22-Mar-95?] Version 2.5.0
+[22-Mar-95] Version 2.5.0
 -- Verified with Linux 1.2.0
 -- Added a lot of new text to the Programmer's Guide.
 -- Added Roger Pao's alpha driver for New Media Ethernet.

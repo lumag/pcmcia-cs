@@ -179,7 +179,8 @@ MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");
 #define capable(CAP_XXX) (suser())
 #endif
 #if ! defined(HAS_NETIF_QUEUE)
-#define netif_wake_queue(dev)  mark_bh(NET_BH);
+#define netif_wake_queue(dev) \
+	do { dev->tbusy = 0; mark_bh(NET_BH); } while (0)
 #endif
 
 /* Condensed operations for readability. */
@@ -508,6 +509,7 @@ struct tulip_private {
 #endif
 	/* The addresses of receive-in-place skbuffs. */
 	struct sk_buff* rx_skbuff[RX_RING_SIZE];
+	void *priv_addr;
 	char *rx_buffs;				/* Address of temporary Rx buffers. */
 	u8 setup_buf[96*sizeof(u16) + 7];
 	u16 *setup_frame;		/* Pseudo-Tx frame to init address table. */
@@ -516,7 +518,6 @@ struct tulip_private {
 	int flags;
 	struct net_device_stats stats;
 	struct timer_list timer;	/* Media selection timer. */
-	int interrupt;				/* In-interrupt flag. */
 	unsigned int cur_rx, cur_tx;		/* The next free ring entry */
 	unsigned int dirty_rx, dirty_tx;	/* The ring entries to be free()ed. */
 	unsigned int tx_full:1;				/* The Tx queue is full. */
@@ -754,8 +755,12 @@ static struct net_device *tulip_probe1(int pci_bus, int pci_devfn,
 	dev = init_etherdev(dev, 0);
 
 	/* Make certain the data structures are quadword aligned. */
-	tp = (void *)(((long)kmalloc(sizeof(*tp), GFP_KERNEL | GFP_DMA) + 7) & ~7);
-	memset(tp, 0, sizeof(*tp));
+	{
+		void *mem = kmalloc(sizeof(*tp) + 7, GFP_KERNEL | GFP_DMA);
+		tp = (void *)(((long)mem + 7) & ~7);
+		memset(tp, 0, sizeof(*tp));
+		tp->priv_addr = mem;
+	}
 	dev->priv = tp;
 
 	tp->next_module = root_tulip_dev;
@@ -1543,7 +1548,7 @@ tulip_up(struct net_device *dev)
 	tp->cur_rx = tp->cur_tx = 0;
 	tp->dirty_rx = tp->dirty_tx = 0;
 	for (i = 0; i < RX_RING_SIZE; i++)
-		tp->rx_ring[i].status = DescOwned;
+		tp->rx_ring[i].status = cpu_to_le32(DescOwned);
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		tp->tx_skbuff[i] = 0;
 		tp->tx_ring[i].status = 0x00000000;
@@ -1725,7 +1730,6 @@ media_picked:
 	outl_CSR6(tp->csr6 | 0x2000, ioaddr, tp->chip_id);
 
 	dev->tbusy = 0;
-	tp->interrupt = 0;
 	dev->start = 1;
 
 	/* Enable interrupts by setting the interrupt mask. */
@@ -2786,22 +2790,6 @@ static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	int maxtx = TX_RING_SIZE;
 	int maxoi = TX_RING_SIZE;
 
-#if defined(__i386__) && defined(SMP_CHECK)
-	if (test_and_set_bit(0, (void*)&dev->interrupt)) {
-		printk(KERN_ERR "%s: Duplicate entry of the interrupt handler by "
-			   "processor %d.\n",
-			   dev->name, hard_smp_processor_id());
-		dev->interrupt = 0;
-		return;
-	}
-#else
-	if (dev->interrupt) {
-		printk(KERN_ERR "%s: Re-entering the interrupt handler.\n", dev->name);
-		return;
-	}
-	dev->interrupt = 1;
-#endif
-
 	tp->nir++;
 
 	do {
@@ -2982,11 +2970,6 @@ static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 		printk(KERN_DEBUG "%s: exiting interrupt, csr5=%#4.4x.\n",
 			   dev->name, inl(ioaddr + CSR5));
 
-#if defined(__i386__)
-	clear_bit(0, (void*)&dev->interrupt);
-#else
-	dev->interrupt = 0;
-#endif
 	return;
 }
 
@@ -3170,6 +3153,11 @@ tulip_close(struct net_device *dev)
 		if (tp->tx_skbuff[i])
 			dev_free_skb(tp->tx_skbuff[i]);
 		tp->tx_skbuff[i] = 0;
+#ifdef CARDBUS
+		if (tp->tx_aligned_skbuff[i])
+			dev_free_skb(tp->tx_aligned_skbuff[i]);
+		tp->tx_aligned_skbuff[i] = 0;
+#endif
 	}
 
 	MOD_DEC_USE_COUNT;
@@ -3461,8 +3449,8 @@ static void tulip_reap(void)
 		if (tp->open || !tp->reap) continue;
 		unregister_netdev(*devp);
 		kfree(*devp);
-		kfree(tp);
 		*devp = *next; next = devp;
+		kfree(tp->priv_addr);
 	}
 }
 
@@ -3578,6 +3566,7 @@ void cleanup_module(void)
 		release_region(root_tulip_dev->base_addr,
 					   tulip_tbl[tp->chip_id].io_size);
 		kfree(root_tulip_dev);
+		kfree(tp->priv_addr);
 		root_tulip_dev = next_dev;
 	}
 }

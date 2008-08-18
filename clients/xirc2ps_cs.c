@@ -1422,11 +1422,6 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
     if (!dev->start)
        return;
 
-    if (dev->interrupt) {
-	printk(KERR_XIRC "re-entering isr on irq %d (dev=%p)\n", irq, dev);
-	return;
-    }
-    dev->interrupt = 1;
     ioaddr = dev->base_addr;
     if (lp->mohawk) { /* must disable the interrupt */
 	PutByte(XIRCREG_CR, 0);
@@ -1538,9 +1533,7 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		skb->dev = dev;
 		netif_rx(skb);
 		lp->stats.rx_packets++;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-		lp->stats.rx_bytes += pktlen;
-#endif
+		add_rx_bytes(&lp->stats, pktlen);
 		if (!(rsr & PhyPkt))
 		    lp->stats.multicast++;
 	    }
@@ -1583,8 +1576,7 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	    DEBUG(0, "PTR not changed?\n");
 	} else
 	    lp->stats.tx_packets += lp->last_ptr_value - n;
-	dev->tbusy = 0;
-	mark_bh(NET_BH);  /* Inform upper layers. */
+	netif_wake_queue(dev);
     }
     if (tx_status & 0x0002) {	/* Execessive collissions */
 	DEBUG(0, "tx restarted due to execssive collissions\n");
@@ -1623,7 +1615,6 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	    goto loop_entry;
     }
     SelectPage(saved_page);
-    dev->interrupt = 0;
     PutByte(XIRCREG_CR, EnableIntr);  /* re-enable interrupts */
     /* Instead of dropping packets during a receive, we could
      * force an interrupt with this command:
@@ -1646,7 +1637,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	  skb, dev, pktlen);
 
     /* Transmitter timeout, serious problems */
-    if (dev->tbusy) {
+    if (test_and_set_bit(0, (void*)&dev->tbusy)) {
 	int tickssofar = jiffies - dev->trans_start;
 
 	if (lp->suspended) {
@@ -1666,24 +1657,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->tbusy = 0;
     }
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-    if (!skb) {
-	dev_tint(dev);
-	return 0;
-    }
-
-    if (skb->len <= 0) {
-	DEV_KFREE_SKB (skb);
-	DEBUG(0, "zero length packet dropped by tx\n");
-	return 0;
-    }
-#endif
-
-    if (test_and_set_bit(0, (void*)&dev->tbusy)) {
-	printk(KWRN_XIRC "transmitter access conflict\n");
-	DEV_KFREE_SKB (skb);
-	return 0;
-    }
+    skb_tx_check(dev, skb);
 
     /* adjust the packet length to min. required
      * and hope that the buffer is large enough
@@ -1720,9 +1694,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     DEV_KFREE_SKB (skb);
     dev->trans_start = jiffies;
     dev->tbusy = 0;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,25))
-    lp->stats.tx_bytes += pktlen;
-#endif
+    add_tx_bytes(&lp->stats, pktlen);
     return 0;
 }
 
@@ -1874,7 +1846,7 @@ do_open(struct net_device *dev)
     link->open++;
     MOD_INC_USE_COUNT;
 
-    dev->interrupt = 0; dev->tbusy = 0; dev->start = 1;
+    dev->tbusy = 0; dev->start = 1;
     lp->suspended = 0;
     do_reset(dev,1);
 
