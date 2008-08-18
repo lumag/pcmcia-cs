@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.232 1999/10/20 22:17:24
+    cs.c 1.234 1999/10/25 20:03:33
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -15,7 +15,7 @@
     rights and limitations under the License.
 
     The initial developer of the original code is David A. Hinds
-    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
@@ -75,7 +75,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.232 1999/10/20 22:17:24 (David Hinds)";
+"cs.c 1.234 1999/10/25 20:03:33 (David Hinds)";
 #endif
 
 #ifdef __BEOS__
@@ -114,7 +114,7 @@ static const char *options = "options: "
 static int setup_delay		= HZ/20;	/* ticks */
 static int resume_delay		= HZ/5;		/* ticks */
 static int shutdown_delay	= HZ/40;	/* ticks */
-static int vcc_settle		= HZ*3/10;	/* ticks */
+static int vcc_settle		= HZ*4/10;	/* ticks */
 static int reset_time		= 10;		/* usecs */
 static int unreset_delay	= HZ/10;	/* ticks */
 static int unreset_check	= HZ/10;	/* ticks */

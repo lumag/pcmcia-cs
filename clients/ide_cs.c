@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.23 1999/10/21 00:56:19
+    ide_cs.c 1.24 1999/10/25 20:03:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -15,7 +15,7 @@
     rights and limitations under the License.
 
     The initial developer of the original code is David A. Hinds
-    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
@@ -62,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.23 1999/10/21 00:56:19 (David Hinds)";
+"ide_cs.c 1.24 1999/10/25 20:03:17 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

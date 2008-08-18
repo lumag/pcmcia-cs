@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.1 1999/05/25 05:39:40 (David Hinds)
+# serial 1.2 1999/10/25 18:16:20 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA parallel device
 #
@@ -49,19 +49,19 @@ case "$ACTION" in
     ;;
     
 'stop')
-    fuser -s -k /dev/$LP $LINK
+    fuser -k /dev/$LP $LINK > /dev/null
     rm -f $LINK ; mv -f $LINK.O $LINK 2>/dev/null
     ;;
 
 'suspend')
-    fuser -s -k -STOP /dev/$LP
+    fuser -k -STOP /dev/$LP > /dev/null
     ;;
 
 'resume')
     if [ "$LP_OPTS" ] ; then
 	tunelp /dev/$LP $LP_OPTS
     fi
-    fuser -s -k -CONT /dev/$LP $LINK
+    fuser -k -CONT /dev/$LP $LINK > /dev/null
     ;;
 
 *)

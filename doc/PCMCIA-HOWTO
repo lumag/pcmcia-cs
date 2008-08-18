@@ -1,12 +1,12 @@
   Linux PCMCIA HOWTO
-  David Hinds, dhinds@hyper.stanford.edu.
-  v2.41, 19 October 1999
+  David Hinds, dhinds@pcmcia.sourceforge.org.
+  v2.42, 26 October 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
-  version of this document can always be found at <ftp://hyper.stan-
-  ford.edu/pub/pcmcia/doc>.  An HTML version is at <http://hyper.stan-
-  ford.edu/HyperNews/get/pcmcia/home.html>.
+  version of this document can always be found at <ftp://source-
+  forge.org/pcmcia/doc>.  An HTML version is at  <http://pcmcia.source-
+  forge.org>.
   ______________________________________________________________________
 
   Table of Contents
@@ -93,7 +93,6 @@
      6.1 Configuring unrecognized cards
      6.2 Adding support for an NE2000-compatible ethernet card
      6.3 PCMCIA floppy interface cards
-     6.4 What's up with support for Xircom cards?
 
   7. Debugging tips and programming information
 
@@ -126,7 +125,7 @@
   experiences, good or bad!
 
   If you have any suggestions for how this document could be improved,
-  please let me know (dhinds@hyper.stanford.edu).
+  please let me know (dhinds@pcmcia.sourceforge.org).
 
   11..22..  CCooppyyrriigghhtt nnoottiiccee aanndd ddiissccllaaiimmeerr
 
@@ -149,21 +148,21 @@
 
   11..33..  WWhhaatt iiss tthhee llaatteesstt vveerrssiioonn,, aanndd wwhheerree ccaann II ggeett iitt??
 
-  The current major release of Card Services is version 3.0, and minor
-  updates or bug fixes are numbered 3.0.1, 3.0.2, and so on.
+  The current major release of Card Services is version 3.1, and minor
+  updates or bug fixes are numbered 3.1.1, 3.1.2, and so on.
 
-  Source code for the latest version is available from
-  hyper.stanford.edu in the /pub/pcmcia directory, as pcmcia-
-  cs-3.0.?.tar.gz.  There will usually be several versions here.  I
-  generally only keep the latest minor release for a given major
-  release.  New major releases may contain relatively untested code, so
-  I also keep the latest version of the previous major release as a
-  relatively stable fallback; the current fallback is 2.9.12.  It is up
-  to you to decide which version is more appropriate, but the CHANGES
-  file will summarize the most important differences.
+  Source code for the latest version is available from sourceforge.org
+  in the /pcmcia directory, as pcmcia-cs-3.1.?.tar.gz.  There will
+  usually be several versions here.  I generally only keep the latest
+  minor release for a given major release.  New major releases may
+  contain relatively untested code, so I also keep the latest version of
+  the previous major release as a relatively stable fallback; the
+  current fallback is 3.0.14.  It is up to you to decide which version
+  is more appropriate, but the CHANGES file will summarize the most
+  important differences.
 
-  hyper.stanford.edu is mirrored at sunsite.unc.edu (and all sunsite
-  mirror sites) in /pub/Linux/kernel/pcmcia.
+  sourceforge.org is mirrored at sunsite.unc.edu (and all sunsite mirror
+  sites) in /pub/Linux/kernel/pcmcia.
 
   If you do not feel up to compiling the drivers from scratch, pre-
   compiled drivers are included with current releases of most of the
@@ -271,11 +270,11 @@
   PCMCIA issues.  There are lists for installation and configuration
   issues, for different types of cards, and for programming and
   debugging issues.  The Linux PCMCIA information page is at
-  <http://hyper.stanford.edu/HyperNews/get/pcmcia/home.html>.  Users can
-  request email notification of new responses to particular questions,
-  or notification for all new messages in a given category.  I hope that
-  this will become a useful repository of information, for questions
-  that go beyond the scope of the HOWTO.
+  <http://pcmcia.sourceforge.org>.  Users can request email notification
+  of new responses to particular questions, or notification for all new
+  messages in a given category.  I hope that this will become a useful
+  repository of information, for questions that go beyond the scope of
+  the HOWTO.
 
   There is a Linux mailing list devoted to laptop issues, the ``linux-
   laptop'' list.  For more information, send a message containing the
@@ -327,6 +326,7 @@
   modem enabler, it would end up incorporating much of the functionality
   of Card Services, to handle cards from different vendors and the full
   range of host controller variants.
+
   22..  CCoommppiillaattiioonn aanndd iinnssttaallllaattiioonn
 
   22..11..  PPrreerreeqquuiissiitteess aanndd kkeerrnneell sseettuupp
@@ -418,9 +418,9 @@
 
   Here is a synopsis of the installation process:
 
-  +o  Unpack pcmcia-cs-3.0.?.tar.gz in /usr/src.
+  +o  Unpack pcmcia-cs-3.1.?.tar.gz in /usr/src.
 
-  +o  Run ``make config'' in the new pcmcia-cs-3.0.? directory.
+  +o  Run ``make config'' in the new pcmcia-cs-3.1.? directory.
 
   +o  Run ``make all'', then ``make install''.
 
@@ -1538,8 +1538,7 @@
      the Linux drivers.  One workaround is to boot DOS and use the
      vendor-supplied utility to select the transceiver, then warm boot
      Linux.  Alternatively, a Linux utility to perform this function is
-     available at
-     <ftp://hyper.stanford.edu/pub/pcmcia/extras/dlport.c>.
+     available at  <ftp://sourceforge.org/pcmcia/extras/dlport.c>.
 
   +o  For WaveLAN wireless network adapters, Jean Tourrilhes
      (jt@hpl.hp.com) has put together a wireless HOWTO at
@@ -2167,28 +2166,18 @@
   serial driver and an ethernet driver: in fact, the PCMCIA
   specification requires all card functions to share the same interrupt.
   Normally, all card functions are available without having to swap
-  drivers.
+  drivers.  Any remotely recent Linux kernel (i.e., 1.3.72 or later)
+  supports this kind of interrupt sharing.
 
   Simultaneous use of two card functions is ``tricky'' and various
   hardware vendors have implemented interrupt sharing in their own
   incompatible (and sometimes proprietary) ways.  The drivers for some
-  cards (Ositech Jack of Diamonds, 3Com 3c562, Linksys) properly support
-  simultaneous access, but others (Megahertz in particular) do not.
-  Older kernels do not support interrupt sharing between different
-  device drivers, so it is not possible for the PCMCIA drivers to
-  configure this card for simultaneous ethernet and modem access.  The
-  ethernet and serial drivers are both loaded automatically.  However,
-  the ethernet driver ``owns'' the card interrupt by default.  To use
-  the modem, you can unload the ethernet driver and reconfigure the
-  serial port by doing something like:
-
-       ifconfig eth0 down
-       rmmod 3c589_cs
-       setserial /dev/modem autoconfig auto_irq
-       setserial /dev/modem
-
-  The second setserial should verify that the port has been configured
-  to use the interrupt previously used by the ethernet driver.
+  cards (Ositech Jack of Diamonds, 3Com 3c562 and related cards, Linksys
+  cards) properly support simultaneous access, but others (older
+  Megahertz cards in particular) do not.  If you have trouble using a
+  card with both functions active, try using each function in isolation.
+  That may require explicitly doing an ``ifconfig down'' to shut down a
+  network interface and use a modem on the same card.
 
   55..  AAddvvaanncceedd ttooppiiccss
 
@@ -2232,16 +2221,16 @@
   schemes, called ``home'' and ``work''.  Here is an example of a
   network.opts script with scheme-specific settings:
 
-       case "$ADDRESS" in
-       work,*,*,*)
-           # definitions for network card in work scheme
-           ...
-           ;;
-       home,*,*,*|default,*,*,*)
-           # definitions for network card in home scheme
-           ...
-           ;;
-       esac
+  case "$ADDRESS" in
+  work,*,*,*)
+      # definitions for network card in work scheme
+      ...
+      ;;
+  home,*,*,*|default,*,*,*)
+      # definitions for network card in home scheme
+      ...
+      ;;
+  esac
 
   The first part of a device address is always the configuration scheme.
   In this example, the second ``case'' clause will select for both the
@@ -2278,14 +2267,14 @@
   To save even more keystrokes, schemes can be specified in lilo's
   configuration file.  For instance, you could have:
 
-       root = /dev/hda1
-       read-only
-       image = /boot/vmlinuz
-         label  = home
-         append = "SCHEME=home"
-       image = /boot/vmlinuz
-         label  = work
-         append = "SCHEME=work"
+  root = /dev/hda1
+  read-only
+  image = /boot/vmlinuz
+    label  = home
+    append = "SCHEME=home"
+  image = /boot/vmlinuz
+    label  = work
+    append = "SCHEME=work"
 
   Typing ``home'' or ``work'' at the boot prompt would then boot into
   the appropriate scheme.
@@ -2376,13 +2365,13 @@
   files for lilo to a clean floppy.  In the following example, we assume
   that the desired PCMCIA root device is /dev/sda1:
 
-  mke2fs /dev/fd0
-  mount /dev/fd0 /mnt
-  mkdir /mnt/etc /mnt/boot /mnt/dev
-  cp -a /dev/fd0 /dev/sda1 /mnt/dev
-  cp [kernel-image] /mnt/vmlinuz
-  cp /boot/boot.b /mnt/boot/boot.b
-  gzip < [initrd-image] > /mnt/initrd
+       mke2fs /dev/fd0
+       mount /dev/fd0 /mnt
+       mkdir /mnt/etc /mnt/boot /mnt/dev
+       cp -a /dev/fd0 /dev/sda1 /mnt/dev
+       cp [kernel-image] /mnt/vmlinuz
+       cp /boot/boot.b /mnt/boot/boot.b
+       gzip < [initrd-image] > /mnt/initrd
 
   Create /mnt/etc/lilo.conf with the contents:
 
@@ -2472,6 +2461,7 @@
   card, cardmgr will normally record some identification information in
   the system log that can be used to construct the config entry.  This
   information can also be displayed with the ``cardctl ident'' command.
+
   Here is an example of how cardmgr will report an unsupported card in
   /usr/adm/messages.
 
@@ -2588,19 +2578,6 @@
   driver, and this socket will be left alone.  So, the drive can be used
   if it is present at boot time, but the card is not hot swappable.
 
-  66..44..  WWhhaatt''ss uupp wwiitthh ssuuppppoorrtt ffoorr XXiirrccoomm ccaarrddss??
-
-  A driver for Xircom ethernet and ethernet/modem cards is included in
-  the current PCMCIA package, thanks to the work of Werner Koch.  I've
-  set up a HyperNews forum specifically for discussion of Xircom driver
-  development, at
-  <http://hyper.stanford.edu/HyperNews/get/pcmcia/xircom.html>.
-
-  For a long time, Xircom cards were not supported because Xircom had a
-  company policy of not disclosing technical information about their
-  cards.  However, they have relaxed their rules, and now, they do
-  distribute driver information.
-
   77..  DDeebbuuggggiinngg ttiippss aanndd pprrooggrraammmmiinngg iinnffoorrmmaattiioonn
 
   77..11..  SSuubbmmiittttiinngg uusseeffuull bbuugg rreeppoorrttss
@@ -2614,7 +2591,8 @@
 
   +o  What PCMCIA cards you are using.
 
-  +o  Your Linux kernel version, and PCMCIA driver version.
+  +o  Your Linux kernel version (i.e., ``uname -rv''), and PCMCIA driver
+     version (i.e., ``cardctl -V'').
 
   +o  Any changes you have made to the startup files in /etc/pcmcia, or
      to the PCMCIA startup script.
@@ -2625,16 +2603,17 @@
   the system log.  This will usually be something like /var/log/messages
   or /usr/adm/messages.  This file should be the first place to look
   when tracking down a problem.  When submitting a bug report, always
-  include the contents of this file.  If you are having trouble finding
-  your system messages, check /etc/syslog.conf to see how different
-  classes of messages are handled.
+  include the relevant contents of this file.  If you are having trouble
+  finding your system messages, check /etc/syslog.conf to see how
+  different classes of messages are handled.
 
   Before submitting a bug report, please check to make sure that you are
   using an up-to-date copy of the driver package.  While it is somewhat
   gratifying to read bug reports for things I've already fixed, it isn't
   a particularly constructive use of my time.
+
   If you do not have web access, bug reports can be sent to me at
-  dhinds@hyper.stanford.edu.  However, I prefer that bug reports be
+  dhinds@pcmcia.sourceforge.org.  However, I prefer that bug reports be
   posted to my web site, so that they can be seen by others.
 
   77..22..  IInntteerrpprreettiinngg kkeerrnneell ttrraapp rreeppoorrttss
@@ -2654,13 +2633,13 @@
   on the module's load address.  Let's say that you have the following
   kernel fault:
 
-       Unable to handle kernel NULL pointer dereference
-       current->tss.cr3 = 014c9000, %cr3 = 014c9000
-       *pde = 00000000
-       Oops: 0002
-       CPU:    0
-       EIP:    0010:[<c2026081>]
-       EFLAGS: 00010282
+  Unable to handle kernel NULL pointer dereference
+  current->tss.cr3 = 014c9000, %cr3 = 014c9000
+  *pde = 00000000
+  Oops: 0002
+  CPU:    0
+  EIP:    0010:[<c2026081>]
+  EFLAGS: 00010282
 
   The fault address is 0xc2026081.  Looking at System.map, we see that
   this is past the end of the kernel, i.e., is in a kernel module.  To
@@ -2789,8 +2768,8 @@
 
   The Linux PCMCIA Programmer's Guide is the best documentation for the
   client driver interface.  The latest version is always available from
-  hyper.stanford.edu in /pub/pcmcia/doc, or on the web at
-  <http://hyper.stanford.edu/HyperNews/get/pcmcia/home.html>.
+  sourceforge.org in /pcmcia/doc, or on the web at
+  <http://pcmcia.sourceforge.org>.
 
   For devices that are close relatives of normal ISA devices, you will
   probably be able to use parts of existing Linux drivers.  In some
@@ -2857,13 +2836,13 @@
   (for example, sample_cs-1.5.tar.gz).  A complete distribution could
   look like:
 
-  sample_cs.mk
-  README.sample_cs
-  modules/sample_cs.c
-  modules/sample_cs.h
-  etc/sample
-  etc/sample.opts
-  man/sample_cs.4
+       sample_cs.mk
+       README.sample_cs
+       modules/sample_cs.c
+       modules/sample_cs.h
+       etc/sample
+       etc/sample.opts
+       man/sample_cs.4
 
   With this arrangement, when the contributed driver is unpacked, it
   becomes essentially part of the PCMCIA source tree.  It can make use
@@ -2872,9 +2851,9 @@
   like a ``normal'' client driver.
 
   I will accept client drivers prepared according to this specification
-  and place them in the /pub/pcmcia/contrib directory on my FTP server,
-  hyper.stanford.edu.  The README in this directory will describe how to
-  unpack a contributed driver.
+  and place them in the /pcmcia/contrib directory on sourceforge.org.
+  The README in this directory will describe how to unpack a contributed
+  driver.
 
   The client driver interface has not changed much over time, and has
   almost always preserved backwards compatibility.  A client driver will

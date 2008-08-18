@@ -2,9 +2,9 @@
 #
 # Utility for constructing PCMCIA initrd boot images
 #
-# Copyright (C) David A. Hinds -- dhinds@hyper.stanford.edu
+# Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 #
-# pcinitrd 1.20 1999/02/08 17:42:00
+# pcinitrd 1.21 1999/10/25 20:02:14
 #
 RELEASE=""
 ALL=""

@@ -1,4 +1,4 @@
-Copyright (c) 1998 David A. Hinds
+Copyright (c) 1998, 1999 David A. Hinds
 
 Unless otherwise indicated, this code is distributed under version 1.1
 of the Mozilla Public License ("MPL"), included in the LICENSE file.
@@ -17,7 +17,4 @@ written by others, subject to more restrictive (GPL) licensing
 requirements.
 
 	-- David Hinds
-	   Stanford University Medical Center
-	   300 Pasteur Drive rm M322
-	   Stanford, CA  94305-5120
-	   dhinds@hyper.stanford.edu
+	   dhinds@pcmcia.sourceforge.edu

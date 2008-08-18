@@ -9,7 +9,7 @@
     The exit code is 0 if any host is using the specified interface,
     and 1 if the interface is not in use (just like fuser).
     
-    ifuser.c 1.13 1999/10/11 03:19:13
+    ifuser.c 1.14 1999/10/25 20:00:14
 
     1998/10/24: Regis "HPReg" Duchesne <regis@via.ecp.fr>
       . Added network names (/etc/networks) management
@@ -27,7 +27,7 @@
     rights and limitations under the License.
 
     The initial developer of the original code is David A. Hinds
-    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the

@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.43 1999/09/07 15:19:04
+ * cs_internal.h 1.45 1999/10/25 20:03:34
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -12,7 +12,7 @@
  * limitations under the License. 
  *
  * The initial developer of the original code is David A. Hinds
- * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
  *  are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  */
 
@@ -264,6 +264,7 @@ int proc_read_io(char *buf, char **start, off_t pos,
 int proc_read_mem(char *buf, char **start, off_t pos,
 		  int count, int *eof, void *data);
 
+#ifdef CONFIG_PNP_BIOS
 /* in pnp components */
 int proc_read_irq(char *buf, char **start, off_t pos,
 		  int count, int *eof, void *data);
@@ -272,6 +273,7 @@ void pnp_proc_init(void);
 void pnp_proc_done(void);
 void pnp_rsrc_init(void);
 void pnp_rsrc_done(void);
+#endif
 
 #define MAX_SOCK 8
 extern socket_t sockets;

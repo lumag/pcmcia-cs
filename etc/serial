@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.30 1999/06/09 17:11:12 (David Hinds)
+# serial 1.31 1999/10/25 18:16:20 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -69,19 +69,19 @@ case "$ACTION" in
 	mv /etc/inittab.new /etc/inittab
 	telinit q
     fi
-    fuser -s -k /dev/$DEVICE /dev/$CALLOUT $LINK
+    fuser -k /dev/$DEVICE /dev/$CALLOUT $LINK > /dev/null
     rm -f $LINK ; mv -f $LINK.O $LINK 2>/dev/null
     ;;
 
 'suspend')
-    fuser -s -k -STOP /dev/$DEVICE /dev/$CALLOUT
+    fuser -k -STOP /dev/$DEVICE /dev/$CALLOUT > /dev/null
     ;;
 
 'resume')
     if [ "$SERIAL_OPTS" ] ; then
 	setserial /dev/$DEVICE $SERIAL_OPTS
     fi
-    fuser -s -k -CONT /dev/$DEVICE /dev/$CALLOUT $LINK
+    fuser -k -CONT /dev/$DEVICE /dev/$CALLOUT $LINK > /dev/null
     ;;
 
 *)

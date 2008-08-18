@@ -2,7 +2,7 @@
 
     A driver for CardBus serial devices
 
-    serial_cb.c 1.11 1999/10/21 00:56:19
+    serial_cb.c 1.12 1999/10/25 20:03:18
 
     Copyright 1998, 1999 by Donald Becker and David Hinds
     
@@ -16,7 +16,7 @@
     Donald Becker may be reached as becker@CESDIS.edu, or C/O
     USRA Center of Excellence in Space Data and Information Sciences
     Code 930.5, NASA Goddard Space Flight Center, Greenbelt MD 20771
-    David Hinds may be reached at dhinds@zen.stanford.edu
+    David Hinds may be reached at dhinds@pcmcia.sourceforge.org
     
 ======================================================================*/
 
@@ -39,7 +39,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cb.c 1.11 1999/10/21 00:56:19 (David Hinds)";
+"serial_cb.c 1.12 1999/10/25 20:03:18 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

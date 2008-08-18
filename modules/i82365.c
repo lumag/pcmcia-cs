@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.260 1999/10/21 00:56:07
+    i82365.c 1.262 1999/10/25 20:03:33
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -16,7 +16,7 @@
     rights and limitations under the License.
 
     The initial developer of the original code is David A. Hinds
-    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.260 1999/10/21 00:56:07 (David Hinds)";
+"i82365.c 1.262 1999/10/25 20:03:33 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -1693,7 +1693,7 @@ static void __init add_cb_bridge(int type, u_char bus, u_char devfn,
 				 u_short v, u_short d0)
 {
     socket_info_t *s = &socket[sockets];
-    u_short d, ns;
+    u_short d, ns, i;
     u_char a, b, r, max;
     
     /* PCI bus enumeration is broken on some systems */
@@ -1732,7 +1732,6 @@ static void __init add_cb_bridge(int type, u_char bus, u_char devfn,
 	pci_writel(bus, devfn, CB_LEGACY_MODE_BASE, 0);
 	pci_readl(bus, devfn, PCI_BASE_ADDRESS_0, &s->cb_phys);
 	if (s->cb_phys == 0) {
-	    int i;
 	    pci_writew(bus, devfn, PCI_COMMAND, CMD_DFLT);
 	    for (i = 0; i < sizeof(cb_mem_base)/sizeof(u_int); i++) {
 		s->cb_phys = cb_mem_base[i];
@@ -1776,10 +1775,20 @@ static void __init add_cb_bridge(int type, u_char bus, u_char devfn,
     }
     add_pcic(ns, type);
 
-    /* Re-do card type & voltage detection */
-    cb_writel(sockets-ns, CB_SOCKET_FORCE, CB_SF_CVSTEST);
-    __set_current_state(TASK_UNINTERRUPTIBLE);
-    schedule_timeout(HZ/5);
+    /* Re-do card voltage detection, if needed: this checks for
+       card presence with no voltage detect bits set */
+    if (!(cb_readl(sockets-ns, CB_SOCKET_STATE) & 0x3c86)) {
+	cb_writel(sockets-ns, CB_SOCKET_FORCE, CB_SF_CVSTEST);
+	for (i = 0; i < 20; i++) {
+	    __set_current_state(TASK_UNINTERRUPTIBLE);
+	    schedule_timeout(HZ/20);
+	    if (cb_readl(sockets-ns, CB_SOCKET_STATE) & 0x3c86)
+		break;
+	}
+	if (i == 20)
+	    printk(KERN_NOTICE "i82365: card voltage interrogation"
+		   " timed out!\n");
+    }
 
 #ifdef __LINUX__
 #if (LINUX_VERSION_CODE >= VERSION(2,1,103))

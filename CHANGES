@@ -1,3 +1,14 @@
+[25-Oct-99] Version 3.1.3
+-- Deleted manual configuration option from Configure script: it is
+   almost always a bad idea.
+-- Increased Vcc settle time from 300ms to 400ms, to fix flaky card
+   detect on some Toshiba laptops running on battery power.
+-- Changed i82365 startup-time card voltage detection to be more
+   bullet proof, again to fix trouble on Toshiba laptops.
+-- Documentation updates.
+-- Fixed build if <linux/compile.h> is missing.
+-- Fixed config scripts to handle broken "fuser -s" behavior.
+
 [20-Oct-99] Version 3.1.2
 -- Minor wavelan & netwave driver update.
 -- Updated Xircom support in tulip_cb, from Doug Ledford.

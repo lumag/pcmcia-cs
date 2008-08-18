@@ -2,9 +2,9 @@
 
     A PCMCIA ethernet driver for the 3com 3c589 card.
     
-    Copyright (C) 1999 David A. Hinds -- dhinds@hyper.stanford.edu
+    Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    3c589_cs.c 1.135 1999/10/07 20:14:54
+    3c589_cs.c 1.136 1999/10/25 20:03:16
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -118,7 +118,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.135 1999/10/07 20:14:54 (David Hinds)";
+"3c589_cs.c 1.136 1999/10/25 20:03:16 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

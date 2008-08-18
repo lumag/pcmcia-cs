@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.29 1999/10/21 02:26:21 (David Hinds)
+# rc.pcmcia 1.30 1999/10/25 18:17:36 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -17,6 +17,36 @@
 #              configured so it is safe to have it installed on machines \
 #              that don't need it.
 
+# Allow environment variables to override all options
+if [ "$PCMCIA" ] ; then readonly PCMCIA ; fi
+if [ "$PCIC" ] ; then readonly PCIC ; fi
+if [ "$PCIC_OPTS" ] ; then readonly PCIC_OPTS ; fi
+if [ "$CORE_OPTS" ] ; then readonly CORE_OPTS ; fi
+if [ "$CARDMGR_OPTS" ] ; then readonly CARDMGR_OPTS ; fi
+if [ "$SCHEME" ] ; then readonly SCHEME ; fi
+
+# Source PCMCIA configuration, if available
+if [ -f /etc/pcmcia.conf ] ; then
+    # Debian startup option file
+    . /etc/pcmcia.conf
+elif [ -f /etc/sysconfig/pcmcia ] ; then
+    # Red Hat startup option file
+    . /etc/sysconfig/pcmcia
+else
+    # Slackware startup options go right here
+    # Should be either i82365 or tcic
+    PCIC=i82365
+    # Put socket driver timing parameters here
+    PCIC_OPTS=
+    # Put pcmcia_core options here
+    CORE_OPTS=
+    # Put cardmgr options here
+    CARDMGR_OPTS=
+    # To set the PCMCIA scheme at startup...
+    SCHEME=
+fi
+if [ "$PCMCIA" -a "$PCMCIA" != "yes" ] ; then exit 0 ; fi
+
 usage()
 {
     echo "Usage: $0 {start|stop|status|restart|reload}"
@@ -30,33 +60,6 @@ cleanup()
 	fi
     done
 }
-
-# Allow environment variables to override all options
-if [ "$PCMCIA" ] ; then readonly PCMCIA ; fi
-if [ "$PCIC" ] ; then readonly PCIC ; fi
-if [ "$PCIC_OPTS" ] ; then readonly PCIC_OPTS ; fi
-if [ "$CORE_OPTS" ] ; then readonly CORE_OPTS ; fi
-if [ "$CARDMGR_OPTS" ] ; then readonly CARDMGR_OPTS ; fi
-if [ "$SCHEME" ] ; then readonly SCHEME ; fi
-
-# Source PCMCIA configuration, if available
-if [ -f /etc/pcmcia.conf ] ; then
-    . /etc/pcmcia.conf
-elif [ -f /etc/sysconfig/pcmcia ] ; then
-    . /etc/sysconfig/pcmcia
-else
-    # Should be either i82365 or tcic
-    PCIC=i82365
-    # Put socket driver timing parameters here
-    PCIC_OPTS=
-    # Put pcmcia_core options here
-    CORE_OPTS=
-    # Put cardmgr options here
-    CARDMGR_OPTS=
-    # To set the PCMCIA scheme at startup...
-    SCHEME=
-fi
-if [ "$PCMCIA" -a "$PCMCIA" != "yes" ] ; then exit 0 ; fi
 
 EXITCODE=1
 for x in "1" ; do

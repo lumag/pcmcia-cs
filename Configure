@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.119 1999/10/15 19:39:06
+# Configure 1.122 1999/10/26 02:52:58
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # The initial developer of the original code is David A. Hinds
-# <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+# <dhinds@pcmcia.sourceforge.edu>.  Portions created by David A. Hinds
 # are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 #
 # Alternatively, the contents of this file may be used under the terms
@@ -283,10 +283,9 @@ echo ""
 echo "How would you like to set kernel-specific options?"
 echo "    1 - Read from the currently running kernel"
 echo "    2 - Read from the Linux source tree"
-echo "    3 - Set each option by hand (experts only!)"
 
 ans=""
-while [ "$ans" != 1 -a "$ans" != 2 -a "$ans" != 3 ] ; do
+while [ "$ans" != 1 -a "$ans" != 2 ] ; do
     prompt "Enter option (1-3)" "$CONF_SRC" ans
 done
 CONF_SRC=$ans
@@ -313,9 +312,9 @@ modcheck () {
 }
 
 configcheck () {
-    if grep -q "^$1=y" $AUTOCONF ; then
+    if grep "^$1=y" $AUTOCONF >/dev/null ; then
 	eval "$1=y"
-    elif grep -q "^$1=m" $AUTOCONF ; then
+    elif grep "^$1=m" $AUTOCONF >/dev/null ; then
 	eval "$1=y"
 	INSTALL_DEPMOD=y
     else
@@ -349,6 +348,7 @@ tweak () {
 
 printconfig () {
     echo "Kernel configuration options:"
+    printflag "Static in-kernel PCMCIA support" CONFIG_PCMCIA
     printflag "Symmetric multiprocessing support" CONFIG_SMP
     printflag "PCI BIOS support" CONFIG_PCI
     tweak
@@ -385,6 +385,7 @@ if [ $ARCH = "i386" ] && \
     grep -qs CONFIG_1GB $LINUX/include/asm-i386/page_offset.h ; then
     BIGMEM=y
 fi
+CONFIG_PCMCIA=n
 
 case $CONF_SRC in
     1)
@@ -400,6 +401,9 @@ case $CONF_SRC in
 	echo "CHECK=\"/proc/version\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < /proc/version`\"" >> $CONFIG
 	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
+	if $KSYMS | grep CardServices | grep -v pcmcia > /dev/null ; then
+	    CONFIG_PCMCIA=y
+	fi
 	symcheck smp_invalidate_needed CONFIG_SMP
 	symcheck pcibios CONFIG_PCI
 	symcheck apm_register_callback CONFIG_APM
@@ -450,6 +454,9 @@ case $CONF_SRC in
 	echo "CHECK=\"$AUTOCONF\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < $AUTOCONF`\"" >> $CONFIG
 	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
+	if grep "^CONFIG_PCMCIA=y" $AUTOCONF >/dev/null ; then
+	    CONFIG_PCMCIA=y
+	fi
 	if grep "^ *SMP *= *1" $LINUX/Makefile >/dev/null ; then
 	    CONFIG_SMP=y
 	else
@@ -472,46 +479,6 @@ case $CONF_SRC in
 	    configcheck CONFIG_3GB
 	fi
 	printconfig
-	;;
-    3)
-	echo "# Configured manually" >> $CONFIG
-	echo "# Configured manually" >> $CONFIG_MK
-	echo "/* Configured manually */" >> $CONFIG_H
-	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
-	ask_bool "Symmetric multiprocessing support" CONFIG_SMP
-	ask_bool "PCI BIOS support" CONFIG_PCI
-	tweak
-	ask_bool "Advanced Power Management (APM) support" CONFIG_APM
-	ask_bool "SCSI support" CONFIG_SCSI
-	ask_bool "TCP/IP networking" CONFIG_INET
-	ask_bool " Radio network interface support" CONFIG_NET_RADIO
-	ask_bool " Token Ring device support" CONFIG_TR
-	ask_bool "Set version information for module symbols" \
-	    CONFIG_MODVERSIONS
-	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
-	    ask_bool "Include PCMCIA IDE device support" \
-		CONFIG_BLK_DEV_IDE_PCMCIA
-	fi
-	if [ $ARCH = "alpha" ] ; then
-	    ask_bool "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
-	fi
-	if [ "$BIGMEM" ] ; then
-	    if [ ! "$MEMMAX" ] ; then MEMMAX=1GB ; fi
-	    ans=""
-	    while [ "$ans" != "1GB" -a "$ans" != "2GB" ] ; do
-		prompt "Maximum physical memory (1GB, 2GB)" "$MEMMAX" ans
-	    done
-	    echo "MEMMAX=$MEMMAX" >> $CONFIG
-	    if [ "$MEMMAX" = "1GB" ] ; then
-		CONFIG_1GB=y ; CONFIG_2GB=n ; CONFIG_3GB=n
-	    elif [ "$MEMMAX" = "2GB" ] ; then
-		CONFIG_1GB=n ; CONFIG_2GB=y ; CONFIG_3GB=n
-	    fi
-	    write_bool CONFIG_1GB
-	    write_bool CONFIG_2GB
-	    write_bool CONFIG_3GB
-	fi
-	ask_bool "/proc filesystem support" CONFIG_PROC_FS
 	;;
 esac
 

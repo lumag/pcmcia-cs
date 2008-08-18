@@ -1,7 +1,7 @@
 #
-# Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+# Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 #
-# Makefile 1.101 1999/10/19 21:22:37
+# Makefile 1.102 1999/10/25 20:02:38
 #
 
 # Include site dependent options and kernel configuration

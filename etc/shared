@@ -1,5 +1,5 @@
 #
-# shared 1.13 1999/10/16 01:19:34 (David Hinds)
+# shared 1.14 1999/10/25 18:16:20 (David Hinds)
 #
 
 usage ()
@@ -50,7 +50,7 @@ rm_blkdev ()
 {
     # usage: rm_blkdev [device]
     test -b $1 || return 1
-    fuser -s -k -m $1
+    fuser -k -m $1 > /dev/null
     if mount | fgrep "$1 on" ; then
 	umount -v $1 || return 1
     fi
@@ -76,7 +76,7 @@ rm_parts ()
 	    mv /etc/fstab.N /etc/fstab
 	fi
     done
-    fuser -s -k -m /dev/${DEVICE}*
+    fuser -k -m /dev/${DEVICE}* > /dev/null
     LIST=`mount | sed -ne "s+^\($BLK[0-9]*\) .*+\1+p"`
     if [ "$LIST" ] ; then
 	for MT in $LIST ; do

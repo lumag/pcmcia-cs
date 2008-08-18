@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_config.y 1.47 1999/09/26 01:36:50
+ * yacc_config.y 1.48 1999/10/25 20:00:14
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -13,7 +13,7 @@
  * limitations under the License. 
  *
  * The initial developer of the original code is David A. Hinds
- * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * Alternatively, the contents of this file may be used under the

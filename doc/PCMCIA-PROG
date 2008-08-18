@@ -1,13 +1,13 @@
   Linux PCMCIA Programmer's Guide
-  David Hinds, dhinds@hyper.stanford.edu.
-  v2.17, 21 October 1999
+  David Hinds, dhinds@pcmcia.sourceforge.org.
+  v2.18, 26 October 1999
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
   user-mode utilities for communicating with Card Services.  The latest
-  version of this document can always be found at <ftp://hyper.stan-
-  ford.edu/pub/pcmcia/doc>.  An HTML version is at <http://hyper.stan-
-  ford.edu/HyperNews/get/pcmcia/home.html>.
+  version of this document can always be found at <ftp://source-
+  forge.org/pcmcia>.  An HTML version is at  <http://pcmcia.source-
+  forge.org>.
   ______________________________________________________________________
 
   Table of Contents
@@ -188,7 +188,7 @@
   Driver Services modules, and the user interface to Driver Services.
   It is intended for use by client device driver developers.  The Linux
   PCMCIA-HOWTO describes how to install and use Linux PCMCIA support.
-  It is available from hyper.stanford.edu in /pub/pcmcia.
+  It is available from sourceforge.org in /pcmcia.
 
   11..11..  CCooppyyrriigghhtt nnoottiiccee aanndd ddiissccllaaiimmeerr
 

@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.56 1999/10/18 21:12:03 (David Hinds)
+# network 1.57 1999/10/25 18:16:20 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -128,7 +128,7 @@ case "$ACTION" in
 	    if read HOST MT ; then
 		nfsstop
 		if /sbin/ifuser $DEVICE $HOST ; then
-		    fuser -s -k -m $MT
+		    fuser -k -m $MT > /dev/null
 		    umount -v $MT
 		fi
 	    fi

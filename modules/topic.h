@@ -1,5 +1,5 @@
 /*
- * topic.h 1.8 1999/08/28 04:01:47
+ * topic.h 1.9 1999/10/25 20:03:34
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -12,7 +12,7 @@
  * limitations under the License. 
  *
  * The initial developer of the original code is David A. Hinds
- * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * Alternatively, the contents of this file may be used under the
@@ -25,7 +25,7 @@
  * other provisions required by the GPL.  If you do not delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
- * topic.h $Release$ 1999/08/28 04:01:47
+ * topic.h $Release$ 1999/10/25 20:03:34
  */
 
 #ifndef _LINUX_TOPIC_H

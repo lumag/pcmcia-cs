@@ -1,5 +1,5 @@
 /*
- * pack_cis.h 1.4 1999/08/28 04:09:24
+ * pack_cis.h 1.5 1999/10/25 19:57:59
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -12,7 +12,7 @@
  * limitations under the License. 
  *
  * The initial developer of the original code is David A. Hinds
- * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * Alternatively, the contents of this file may be used under the

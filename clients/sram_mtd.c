@@ -2,7 +2,7 @@
 
     A simple MTD for accessing static RAM
 
-    sram_mtd.c 1.43 1999/09/16 03:56:27
+    sram_mtd.c 1.44 1999/10/25 20:03:18
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -15,7 +15,7 @@
     rights and limitations under the License.
 
     The initial developer of the original code is David A. Hinds
-    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
@@ -64,7 +64,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"sram_mtd.c 1.43 1999/09/16 03:56:27 (David Hinds)";
+"sram_mtd.c 1.44 1999/10/25 20:03:18 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif

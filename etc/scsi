@@ -47,7 +47,7 @@ case "$ACTION" in
     if [ -b /dev/$DEVICE ] ; then
 	rm_parts $ADDRESS "$PARTS"
     else
-	fuser -s -k /dev/$DEVICE
+	fuser -k /dev/$DEVICE > /dev/null
     fi
     exit $?
     ;;

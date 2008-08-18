@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/10/20 19:12:47
+		Last updated: 1999/10/25 19:48:02
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -17,7 +17,7 @@ Next to each driver, I've tried to indicate which system architectures
 (x86,ppc,axp) are known to be supported.  This information is likely
 to be incomplete, and additions/corrections would be very welcome.
 
-	-- David Hinds <dhinds@zen.stanford.edu>
+	-- David Hinds <dhinds@pcmcia.sourceforge.org>
 
 Ethernet cards:
 
@@ -203,6 +203,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Accton EN2220 CardBus
 	Allied Telesyn AT-2800
 	AmbiCom AMB8100
+	Apollo FE2000
 	Compex Linkport TX
 	D-Link DFE-660TX
 	Genius MF3000
