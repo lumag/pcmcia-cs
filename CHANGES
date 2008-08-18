@@ -1,3 +1,41 @@
+Version 3.0.1
+-- Adopted Mozilla Public License for all core components, and cleaned
+   up various copyrights and attributions.
+-- Updated skeleton driver to work as generic IO card enabler, renamed
+   as "dummy_cs".
+-- Updated for 2.1.89, 2.1.90, 2.1.94 kernels.
+-- Updated 3c574_cs and 3c575_cb drivers (note new driver name).
+-- Adapted all drivers to not rely on direct mapping of physical to
+   virtual addresses (i.e., the 640K-1MB "hole") for memory windows. 
+-- More HOWTO revisions: added section with info about different Linux
+   distributions.
+-- Made 'cardmgr -v' generate a bit more verbose messages.
+-- Made CIS processing for Cardbus cards much more complete, also
+   fixed host byte order dependencies.
+-- Added Adaptec SlimSCSI 1480 CardBus support.
+-- Added ReplaceCIS service to core modules, and added support for
+   this to cardmgr.
+-- Added support for PCI functional interrupts for IO cards to i82365
+   module, for Cardbus controllers.
+-- Added support for automatic detection of low voltage cards.
+-- Added support for TI 1220 and TI 1250A host controllers.
+-- Added 'SEARCH' parameter to network setup scripts.
+-- Changed iflash2_mtd and iflash2+_mtd timing options to all be
+   expressed in milliseconds for consistency.
+-- Changed pcnet_cs hardware address probe order to fix interference
+   of Linksys EtherFast probe with some clones.
+-- Changed name of ATA/IDE driver from "fixed_cs" to "ide_cs".
+-- Changed i82365 module to use memory mapped registers for CardBus,
+   instead of legacy IO port mode, and to set Cirrus timing registers
+   to sane values if they are zeroed out at startup time.
+-- Fixed voltage scaling bug in ide_cs driver.
+-- Fixed multicast code in fmvj18x_cs driver.
+-- Fixed resource allocation bug in suspend/resume handling for
+   CardBus cards.
+-- Fixed hot eject bug in fmvj18x_cs driver.
+-- Fixed network script to properly detect open connections and NFS
+   mounts on an interface, using the new 'ifuser' utility.
+
 Version 3.0.0
 -- Added 3c574_cs module.
 -- Major update of HOWTO and programming guide.

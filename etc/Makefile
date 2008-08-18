@@ -1,14 +1,14 @@
 #
-# etc/Makefile 1.37 1998/02/13 23:47:41 (David Hinds)
+# etc/Makefile 1.42 1998/04/24 23:14:36 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
 EXTRA = shared
-CLIENTS = config network memory serial ftl scsi fixed cdrom
+CLIENTS = config network memory serial ftl scsi ide cdrom
 CLIENT_OPTS = config.opts network.opts memory.opts serial.opts \
-	ftl.opts scsi.opts fixed.opts cdrom.opts
+	ftl.opts scsi.opts ide.opts cdrom.opts
 
 ifdef SYSV_INIT
 INST = install-sysv
@@ -27,31 +27,45 @@ ETC = $(PREFIX)/etc/pcmcia
 CONF = $(PREFIX)/etc/conf.modules
 
 all:	$(EXTRA) $(CLIENTS) $(CLIENT_OPTS)
+	set -e ; $(MAKE) -C cis
 
 dep:
 
 clean:
+	set -e ; $(MAKE) -C cis clean
 
 R=$(PREFIX)$(RC_DIR)
 RC_DIRS=$R/init.d $R/rc0.d $R/rc2.d $R/rc3.d $R/rc5.d $R/rc6.d
-$(PREFIX)/etc/rc.d $(PREFIX)/etc/sysconfig $(ETC) $(RC_DIRS):
+$(PREFIX)/etc/rc.d $(ETC) $(RC_DIRS):
 	mkdir -p $@
 
-install-bsd: $(PREFIX)/etc/rc.d
-	RC=$(PREFIX)/etc/rc.d/rc.pcmcia ;			\
-	if [ -r $$RC ] ; then RC=$$RC.N ; fi ;			\
-	sed -e s/=i82365/=`../cardmgr/probe -m`/ rc.pcmcia > $$RC ;\
-	chmod +x $$RC
+PROBE=../cardmgr/probe
 
-install-sysv: $(PREFIX)/etc/sysconfig $(RC_DIRS)
-	CFG=$(PREFIX)/etc/sysconfig/pcmcia ;			\
-	if [ -f $$CFG ] ; then . $$CFG ; fi;			\
-	if [ "$$PCMCIA" != "yes" ] ; then			\
-	    echo PCMCIA=yes > $$CFG ;				\
-	    echo PCIC=`../cardmgr/probe -m` >> $$CFG ;		\
-	    echo PCIC_OPTS= >> $$CFG ;				\
-	    echo CORE_OPTS= >> $$CFG ;				\
-	    echo CARDMGR_OPTS= >> $$CFG ;			\
+BSD=$(PREFIX)/etc/rc.d/rc.pcmcia
+
+install-bsd: $(PREFIX)/etc/rc.d
+	if [ -x $(PROBE) ] ; then				\
+	    sed -e s/=i82365/=`$(PROBE) -m`/ rc.pcmcia > $(BSD).N ; \
+	else cp rc.pcmcia $(BSD).N ; fi
+	chmod +x $(BSD).N
+	if [ ! -e $(BSD) ] ; then mv $(BSD).N $(BSD) ; fi
+
+install-sysv: $(RC_DIRS)
+	if [ -d /etc/sysconfig ] ; then				\
+	    mkdir -p $(PREFIX)/etc/sysconfig ;			\
+	    CFG=$(PREFIX)/etc/sysconfig/pcmcia ;		\
+	    if [ -f $$CFG ] ; then . $$CFG ; fi;		\
+	    if [ "$$PCMCIA" != "yes" ] ; then			\
+		echo PCMCIA=yes > $$CFG ;			\
+		if [ -x $(PROBE) ] ; then			\
+		    echo PCIC=`../cardmgr/probe -m` >> $$CFG ;	\
+		else						\
+		    echo PCIC=i82365 >> $$CFG ;			\
+		fi ; 						\
+		echo PCIC_OPTS= >> $$CFG ;			\
+		echo CORE_OPTS= >> $$CFG ;			\
+		echo CARDMGR_OPTS= >> $$CFG ;			\
+	    fi ;						\
 	fi
 	cp rc.pcmcia $(PREFIX)$(RC_DIR)/init.d/pcmcia
 	chmod +x $(PREFIX)$(RC_DIR)/init.d/pcmcia
@@ -74,9 +88,6 @@ install-clients:
 	done
 
 install-extra: $(EXTRA)
-	if [ -r $(PREFIX)/etc/sysconfig/pcmcia-scripts ] ; then	\
-	    mv $(PREFIX)/etc/sysconfig/pcmcia-scripts $(ETC) ;  \
-	fi
 	for f in $(EXTRA) ; do					\
 	    cmp -s $$f $(ETC)/$$f || cp -b -Vt $$f $(ETC)/$$f ; \
 	done
@@ -88,3 +99,4 @@ install-depmod:
 	if [ "$(PREFIX)" = "" ] ; then depmod -a ; fi
 
 install: $(INST) $(ETC) install-extra install-clients
+	set -e ; $(MAKE) -C cis install

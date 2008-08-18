@@ -16,7 +16,7 @@
 
 /* Driver author info must always be in the binary.  Version too.. */
 static const char *tc574_version =
-"3c574_cs.c v1.03 2/2/98 Donald Becker/David Hinds, becker@cesdis.gsfc.nasa.gov.\n";
+"3c574_cs.c v1.06 4/17/98 Donald Becker/David Hinds, becker@cesdis.gsfc.nasa.gov.\n";
 
 /*
 				Theory of Operation
@@ -259,9 +259,12 @@ static void update_stats(int addr, struct device *dev);
 static struct net_device_stats *el3_get_stats(struct device *dev);
 static int el3_rx(struct device *dev, int worklimit);
 static int el3_close(struct device *dev);
-
+#ifdef HAVE_PRIVATE_IOCTL
+static int private_ioctl(struct device *dev, struct ifreq *rq, int cmd);
+#endif
+#ifdef NEW_MULTICAST
 static void set_rx_mode(struct device *dev);
-#ifndef NEW_MULTICAST
+#else
 static void set_multicast_list(struct device *dev, int num_addrs, void *addrs);
 #endif
 
@@ -341,11 +344,10 @@ static dev_link_t *tc574_attach(void)
 	dev->hard_start_xmit = &el3_start_xmit;
 	dev->set_config = &el3_config;
 	dev->get_stats = &el3_get_stats;
-#ifdef NEW_MULTICAST
-	dev->set_multicast_list = &set_rx_mode;
-#else
-	dev->set_multicast_list = &set_multicast_list;
+#ifdef HAVE_PRIVATE_IOCTL
+	dev->do_ioctl = &private_ioctl;
 #endif
+	dev->set_multicast_list = &set_rx_mode;
 	ether_setup(dev);
 	dev->name = ((struct el3_private *)dev->priv)->node.dev_name;
 	dev->init = &tc574_init;
@@ -452,7 +454,7 @@ static void tc574_config(dev_link_t *link)
 	tuple_t tuple;
 	cisparse_t parse;
 	u_short buf[32];
-	int last_fn, last_ret, i, j, multi = 0;
+	int last_fn, last_ret, i, j;
 	int ioaddr;
 	u16 *phys_addr;
 
@@ -473,23 +475,10 @@ static void tc574_config(dev_link_t *link)
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
-	/* Is this a 3c562? */
-	tuple.DesiredTuple = CISTPL_MANFID;
-	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if ((CardServices(GetFirstTuple, handle, &tuple) == CS_SUCCESS) &&
-		(CardServices(GetTupleData, handle, &tuple) == CS_SUCCESS)) {
-		if (buf[0] != MANFID_3COM)
-			printk(KERN_INFO "3c574_cs: hmmm, is this really a "
-				   "3Com card??\n");
-		multi = (buf[1] == PRODID_3COM_3C562);
-	}
-
 	/* Configure card */
 	link->state |= DEV_CONFIG;
 
-	/* For the 3c562, the base address must be xx00-xx7f */
-	for (i = j = 0; j < 0x400; j += 0x10) {
-		if (multi && (j & 0x80)) continue;
+	for (i = j = 0; j < 0x400; j += 0x20) {
 		link->io.BasePort1 = j ^ 0x300;
 		i = CardServices(RequestIO, link->handle, &link->io);
 		if (i == CS_SUCCESS) break;
@@ -506,7 +495,7 @@ static void tc574_config(dev_link_t *link)
 		win_req_t req;
 		memreq_t mem;
 		req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
-		req.Base = NULL;
+		req.Base = 0;
 		req.Size = 0x1000;
 		req.AccessSpeed = 0;
 		link->win = (window_handle_t)link->handle;
@@ -514,7 +503,7 @@ static void tc574_config(dev_link_t *link)
 		if (i == CS_SUCCESS) {
 			mem.Page = mem.CardOffset = 0;
 			CardServices(MapMemPage, link->win, &mem);
-			dev->mem_start = (long)req.Base + 0x800;
+			dev->mem_start = (long)(ioremap(req.Base, 0x1000)) + 0x800;
 		} else
 			cs_error(link->handle, RequestWindow, i);
 	}
@@ -664,7 +653,10 @@ static void tc574_release(u_long arg)
 	if (dev->irq != 0)
 		irq2dev_map[dev->irq] = NULL;
 #endif
-	CardServices(ReleaseWindow, link->win);
+	if (link->win) {
+		iounmap((void *)(dev->mem_start - 0x800));
+		CardServices(ReleaseWindow, link->win);
+	}
 	if (link->dev)
 		unregister_netdev(dev);
 	link->dev = NULL;
@@ -1324,6 +1316,58 @@ static int el3_rx(struct device *dev, int worklimit)
 	return worklimit;
 }
 
+#ifdef HAVE_PRIVATE_IOCTL
+/* Provide ioctl() calls to examine the MII xcvr state. */
+static int private_ioctl(struct device *dev, struct ifreq *rq, int cmd)
+{
+	struct el3_private *vp = (struct el3_private *)dev->priv;
+	int ioaddr = dev->base_addr;
+	u16 *data = (u16 *)&rq->ifr_data;
+	int phy = vp->phys[0] & 0x1f;
+
+	DEBUG(2, "%s: In ioct(%-.6s, %#4.4x) %4.4x %4.4x %4.4x %4.4x.\n",
+		  dev->name, rq->ifr_ifrn.ifrn_name, cmd,
+		  data[0], data[1], data[2], data[3]);
+
+    switch(cmd) {
+	case SIOCDEVPRIVATE:		/* Get the address of the PHY in use. */
+		data[0] = phy;
+	case SIOCDEVPRIVATE+1:		/* Read the specified MII register. */
+		{
+			int saved_window;
+			long flags;
+
+			save_flags(flags);
+			cli();
+			saved_window = inw(ioaddr + EL3_CMD) >> 13;
+			EL3WINDOW(4);
+			data[3] = mdio_read(ioaddr, data[0] & 0x1f, data[1] & 0x1f);
+			EL3WINDOW(saved_window);
+			restore_flags(flags);
+			return 0;
+		}
+	case SIOCDEVPRIVATE+2:		/* Write the specified MII register */
+		{
+			int saved_window;
+			long flags;
+
+			if (!suser())
+				return -EPERM;
+			save_flags(flags);
+			cli();
+			saved_window = inw(ioaddr + EL3_CMD) >> 13;
+			EL3WINDOW(4);
+			mdio_write(ioaddr, data[0] & 0x1f, data[1] & 0x1f, data[2]);
+			EL3WINDOW(saved_window);
+			restore_flags(flags);
+			return 0;
+		}
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+#endif  /* HAVE_PRIVATE_IOCTL */
+
 /* The Odie chip has a 64 bin multicast filter, but the bit layout is not
    documented.  Until it is we revert to receiving all multicast frames when
    any multicast reception is desired.
@@ -1332,7 +1376,11 @@ static int el3_rx(struct device *dev, int worklimit)
    typical PC card machines, so we omit the message.
    */
 
+#ifdef NEW_MULTICAST
 static void set_rx_mode(struct device *dev)
+#else
+static void set_rx_mode(struct device *dev, int num_addrs, void *addrs)
+#endif
 {
 	int ioaddr = dev->base_addr;
 
@@ -1344,15 +1392,6 @@ static void set_rx_mode(struct device *dev)
 	else
 		outw(SetRxFilter | RxStation | RxBroadcast, ioaddr + EL3_CMD);
 }
-
-#ifndef NEW_MULTICAST
-/* The old interface to set the Rx mode. */
-static void
-set_multicast_list(struct device *dev, int num_addrs, void *addrs)
-{
-	set_rx_mode(dev);
-}
-#endif
 
 static int el3_close(struct device *dev)
 {

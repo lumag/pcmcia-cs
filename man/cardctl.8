@@ -1,26 +1,26 @@
-.\" Copyright (c) 1995 David Hinds <dhinds@allegro.stanford.edu>
-.\" cardctl.8 1.7 1996/11/26 07:22:08
+.\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+.\" cardctl.8 1.10 1998/05/04 23:27:45
 .\"
-.TH CARDCTL 8 "1996/11/26 07:22:08" "Stanford University"
+.TH CARDCTL 8 "1998/05/04 23:27:45" "pcmcia-cs"
 .SH NAME
 cardctl \- PCMCIA card control utility
 .SH SYNOPSIS
 .B cardctl
-command
-.RB [ sock ]
-.BR
+.I command
+.RI [ socket ]
+.br
 .B cardctl
 .RB [ "\-c\ "\c
-.I configpath\c
+.I config\c
 ]
 .RB [ "\-f\ "\c
 .I schemefile\c
 ]
 .RB [ "\-s\ "\c
-.I stabfile\c
+.I stab\c
 ]
 .B scheme
-.RB [ name ]
+.RI [ name ]
 .SH DESCRIPTION
 .B Cardctl
 is used to monitor and control the state of PCMCIA sockets.  If a
@@ -73,7 +73,7 @@ will unconfigure all PCMCIA devices, and reconfigure for the new
 scheme.
 .SH OPTIONS
 .TP
-.BI "\-c " configpath
+.BI "\-c " config
 Look for the card configuration database and card configuration
 scripts in the specified directory, instead of 
 .IR /etc/pcmcia .
@@ -83,10 +83,10 @@ Use the specified file to keep track of the current configuration
 scheme, instead of
 .IR /var/run/pcmcia-scheme .
 .TP
-.BI "\-s " stabpath
+.BI "\-s " stab
 Read current socket information from the specified file, instead of
 .IR /var/run/stab .
 .SH AUTHOR
-David Hinds \- dhinds@allegro.stanford.edu
+David Hinds \- dhinds@hyper.stanford.edu
 .SH "SEE ALSO"
 cardmgr(8).

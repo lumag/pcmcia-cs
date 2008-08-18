@@ -1,8 +1,22 @@
 /*======================================================================
 
-    PCMCIA Card Manager
+    PCMCIA Card Manager daemon
 
-    Written by David Hinds, dhinds@hyper.stanford.edu
+    cardmgr.c 1.105 1998/05/10 12:12:59
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -109,6 +123,9 @@ static int one_pass = 0;
 
 /* most recent signal */
 static int caught_signal = 0;
+
+/* Extra message logging? */
+static int verbose = 0;
 
 /*====================================================================*/
 
@@ -303,6 +320,35 @@ static int get_tuple(int ns, cisdata_t code, ds_ioctl_arg_t *arg)
 
 /*====================================================================*/
 
+static void log_card_info(cistpl_vers_1_t *vers,
+			  cistpl_manfid_t *manfid,
+			  cistpl_funcid_t *funcid)
+{
+    char v[256] = "";
+    int i;
+    static char *fn[] = {
+	"multi", "memory", "serial", "parallel", "fixed disk",
+	"video", "network", "AIMS", "SCSI"
+    };
+    
+    if (vers) {
+	for (i = 0; i < vers->ns; i++)
+	    sprintf(v+strlen(v), "%s\"%s\"",
+		    (i>0) ? ", " : "", vers->str+vers->ofs[i]);
+	syslog(LOG_INFO, "  version info: %s", v);
+    } else {
+	syslog(LOG_INFO, "  no version info available");
+    }
+    *v = '\0';
+    if (manfid->manf != 0)
+	sprintf(v, "  manfid: 0x%04x, 0x%04x",
+		manfid->manf, manfid->card);
+    if (funcid->func != 0xff)
+	sprintf(v+strlen(v), "  function: %d (%s)", funcid->func,
+		fn[funcid->func]);
+    if (strlen(v) > 0) syslog(LOG_INFO, "%s", v);
+}
+
 static card_info_t *lookup_card(int ns)
 {
     socket_info_t *s = &socket[ns];
@@ -310,6 +356,7 @@ static card_info_t *lookup_card(int ns)
     ds_ioctl_arg_t arg;
     cistpl_vers_1_t *vers = NULL;
     cistpl_manfid_t manfid = { 0, 0 };
+    cistpl_funcid_t funcid = { 0xff, 0xff };
     int i, ret, match;
     int has_cis = 0;
 
@@ -319,6 +366,9 @@ static card_info_t *lookup_card(int ns)
     
     /* Try to read VERS_1, MANFID tuples */
     if (has_cis) {
+	if (get_tuple(ns, CISTPL_FUNCID, &arg) == 0)
+	    memcpy(&funcid, &arg.tuple_parse.parse.funcid,
+		   sizeof(funcid));
 	if (get_tuple(ns, CISTPL_MANFID, &arg) == 0)
 	    memcpy(&manfid, &arg.tuple_parse.parse.manfid,
 		   sizeof(manfid));
@@ -375,18 +425,20 @@ static card_info_t *lookup_card(int ns)
 	if (match) {
 	    syslog(LOG_INFO, "socket %d: %s", ns, card->name);
 	    beep(BEEP_TIME, BEEP_OK);
+	    if (verbose) log_card_info(vers, &manfid, &funcid);
 	    return card;
 	}
     }
 
     /* Try for a FUNCID match */
-    if (get_tuple(ns, CISTPL_FUNCID, &arg) == 0) {
+    if (funcid.func != 0xff) {
 	for (card = root_func; card; card = card->next)
-	    if (card->id.func.funcid == arg.tuple_parse.parse.funcid.func)
+	    if (card->id.func.funcid == funcid.func)
 		break;
 	if (card) {
 	    syslog(LOG_INFO, "socket %d: %s", ns, card->name);
 	    beep(BEEP_TIME, BEEP_OK);
+	    if (verbose) log_card_info(vers, &manfid, &funcid);
 	    return card;
 	}
     }
@@ -395,18 +447,7 @@ static card_info_t *lookup_card(int ns)
 	syslog(LOG_INFO, "unsupported card in socket %d", ns);
 	if (one_pass) return NULL;
 	beep(BEEP_TIME, BEEP_ERR);
-	if (vers) {
-	    char v[256] = "";
-	    for (i = 0; i < vers->ns; i++)
-		sprintf(v+strlen(v), "%s\"%s\"",
-			(i>0) ? ", " : "", vers->str+vers->ofs[i]);
-	    syslog(LOG_INFO, "version info: %s", v);
-	}
-	else
-	    syslog(LOG_INFO, "no version info");
-	if (manfid.manf != 0)
-	    syslog(LOG_INFO, "manfid: 0x%04x, 0x%04x",
-		   manfid.manf, manfid.card);
+	log_card_info(vers, &manfid, &funcid);
 	return NULL;
     } else {
 	card = blank_card;
@@ -426,7 +467,7 @@ static void load_config(void)
 	exit(EXIT_FAILURE);
     if (root_device == NULL)
 	syslog(LOG_INFO, "no device drivers defined");
-    if (root_card == NULL)
+    if ((root_card == NULL) && (root_func == NULL))
 	syslog(LOG_INFO, "no cards defined");
 }
 
@@ -514,8 +555,7 @@ static int execute(char *msg, char *cmd)
 	    syslog(LOG_INFO, "%s exited with status %d",
 		   msg, WEXITSTATUS(ret));
 	return WEXITSTATUS(ret);
-    }
-    else
+    } else
 	syslog(LOG_INFO, "%s exited on signal %d",
 	       msg, WTERMSIG(ret));
     return -1;
@@ -702,6 +742,22 @@ static void bind_mtd(int sn)
 
 /*====================================================================*/
 
+static void update_cis(socket_info_t *s)
+{
+    cisdump_t cis;
+    FILE *f = fopen(s->card->cis_file, "r");
+    if (f == NULL)
+	syslog(LOG_INFO, "could not open '%s': %m", s->card->cis_file);
+    else {
+	cis.Length = fread(cis.Data, 1, CISTPL_MAX_CIS_SIZE, f);
+	fclose(f);
+	if (ioctl(s->fd, DS_REPLACE_CIS, &cis) != 0)
+	    syslog(LOG_INFO, "could not replace CIS: %m");
+    }
+}
+
+/*====================================================================*/
+
 static void do_insert(int sn)
 {
     socket_info_t *s = &socket[sn];
@@ -720,6 +776,7 @@ static void do_insert(int sn)
     if (card == s->card)
 	return;
     s->card = card;
+    if (card->cis_file) update_cis(s);
 
     dev = card->device;
 
@@ -948,9 +1005,8 @@ static void free_resources(void)
 	if (al->adj.Action == ADD_MANAGED_RESOURCE) {
 	    al->adj.Action = REMOVE_MANAGED_RESOURCE;
 	    ioctl(fd, DS_ADJUST_RESOURCE_INFO, &al->adj);
-	}
-	else if ((al->adj.Action == REMOVE_MANAGED_RESOURCE) &&
-		 (al->adj.Resource == RES_IRQ)) {
+	} else if ((al->adj.Action == REMOVE_MANAGED_RESOURCE) &&
+		   (al->adj.Resource == RES_IRQ)) {
 	    al->adj.Action = ADD_MANAGED_RESOURCE;
 	    ioctl(fd, DS_ADJUST_RESOURCE_INFO, &al->adj);
 	}
@@ -1105,7 +1161,7 @@ int main(int argc, char *argv[])
 {
     int optch, errflg;
     int i, max_fd, ret, event, pass;
-    int verbose = 0, delay_fork = 0;
+    int delay_fork = 0;
     struct timeval tv;
     extern char *optarg;
     fd_set fds;
@@ -1145,10 +1201,7 @@ int main(int argc, char *argv[])
 #ifdef DEBUG
     openlog("cardmgr", LOG_PID|LOG_PERROR, LOG_DAEMON);
 #else
-    if (verbose)
-	openlog("cardmgr", LOG_PID|LOG_PERROR, LOG_DAEMON);
-    else
-	openlog("cardmgr", LOG_PID|LOG_CONS, LOG_DAEMON);
+    openlog("cardmgr", LOG_PID|LOG_CONS, LOG_DAEMON);
 #endif
 
 #ifndef DEBUG

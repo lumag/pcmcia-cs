@@ -1,5 +1,19 @@
 /*
- *  cs.h 1.49 1997/12/29 17:04:50 (David Hinds)
+ * cs.h 1.55 1998/05/10 12:10:34
+ *
+ * The contents of this file are subject to the Mozilla Public License
+ * Version 1.0 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License
+ * at http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+ * the License for the specific language governing rights and
+ * limitations under the License. 
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
 #ifndef _LINUX_CS_H
@@ -110,26 +124,6 @@ typedef struct client_req_t {
 } client_req_t;
 
 #define CLIENT_THIS_SOCKET	0x01
-
-/* For GetFirstRegion and GetNextRegion */
-typedef struct region_info_t {
-    u_int		Attributes;
-    u_int		CardOffset;
-    u_int		RegionSize;
-    u_int		AccessSpeed;
-    u_int		BlockSize;
-    u_int		PartMultiple;
-    u_char		JedecMfr, JedecInfo;
-    memory_handle_t	next;
-} region_info_t;
-
-#define REGION_TYPE		0x0001
-#define REGION_TYPE_CM		0x0000
-#define REGION_TYPE_AM		0x0001
-#define REGION_PREFETCH		0x0008
-#define REGION_CACHEABLE	0x0010
-#define REGION_BAR_MASK		0xe000
-#define REGION_BAR_SHIFT	13
 
 /* For RegisterClient */
 typedef struct client_reg_t {
@@ -265,7 +259,7 @@ typedef struct modwin_t {
 /* For RequestWindow */
 typedef struct win_req_t {
     u_int	Attributes;
-    caddr_t	Base;
+    u_long	Base;
     u_int	Size;
     u_int	AccessSpeed;
 } win_req_t;
@@ -354,6 +348,8 @@ typedef struct mtd_bind_t {
 #define CS_EVENT_ERASE_COMPLETE		0x040000
 #define CS_EVENT_REQUEST_ATTENTION	0x080000
 #define CS_EVENT_CB_DETECT		0x100000
+#define CS_EVENT_3VCARD			0x200000
+#define CS_EVENT_XVCARD			0x400000
 
 /* Return codes */
 #define CS_SUCCESS		0x00
@@ -420,7 +416,7 @@ enum service {
     RequestSocketMask, RequestWindow, ResetCard, ReturnSSEntry,
     SetEventMask, SetRegion, ValidateCIS, VendorSpecific,
     WriteMemory, BindDevice, BindMTD, ReportError,
-    SuspendCard, ResumeCard, EjectCard, InsertCard
+    SuspendCard, ResumeCard, EjectCard, InsertCard, ReplaceCIS
 };
 
 #ifdef IN_CARD_SERVICES

@@ -1,7 +1,7 @@
-.\" Copyright (c) 1995 David Hinds <dhinds@allegro.stanford.edu>
-.\" ftl_format.1 1.3 1996/09/15 04:15:49
+.\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+.\" ftl_format.1 1.8 1998/05/04 23:27:57
 .\"
-.TH FTL_FORMAT 1 "1996/09/15 04:15:49" "Stanford University"
+.TH FTL_FORMAT 1 "1998/05/04 23:27:57" "pcmcia-cs"
 .SH NAME
 ftl_format \- Flash Translation Layer formatting utility
 .SH SYNOPSIS
@@ -14,7 +14,7 @@ ftl_format \- Flash Translation Layer formatting utility
 .IR reserve ]
 .RB [ "\-b "\c
 .IR bootsize ]
-device
+.I device
 .SH DESCRIPTION
 .B Ftl_format
 creates a Flash Translation Layer partition on a flash memory device.   
@@ -33,8 +33,14 @@ commands should access the device via the FTL device file (such as
 Optionally,
 .B ftl_format
 can reserve a region at the beginning of the flash card address space
-for a boot image.  The boot area is not part of the FTL partition, and
-can only be accessed via the raw memory device.
+for a boot image (or any other purpose).  The boot area is not part of
+the FTL partition, and can only be accessed via the raw memory device.
+.PP
+On Intel Series 100 flash cards, the first flash block is used to
+store the card's configuration information structures.  If no boot
+area is specified on the command line,
+.B ftl_format
+will automatically create one to span the first block.
 .SH OPTIONS
 .TP
 .B \-q
@@ -53,11 +59,11 @@ improve write efficiency.  The default is 5%.  Reserving less space
 increases the frequency of flash erase operations to reclaim free
 blocks.
 .TP
-.BI "\-b" bootsize
+.BI "\-b " bootsize
 Requests that a portion of the flash card be reserved for a boot
 image.  The size will be rounded up to an integral number of erase
 blocks.
 .SH AUTHOR
-David Hinds \- dhinds@allegro.stanford.edu
+David Hinds \- dhinds@hyper.stanford.edu
 .SH "SEE ALSO"
 ftl_cs(4), ftl_check(8).

@@ -2,7 +2,21 @@
 
     PCMCIA Card Information Structure parser
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    cistpl.c 1.49 1998/05/10 12:06:44
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -18,11 +32,8 @@
 #include <linux/malloc.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/pci.h>
 #include <asm/io.h>
-
-#ifdef CONFIG_CARDBUS
-#include <linux/bios32.h>
-#endif
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
@@ -32,7 +43,7 @@
 #include "cs_internal.h"
 #include "rsrc_mgr.h"
 
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MIN(a, b)		(((a) < (b)) ? (a) : (b))
 
 static const u_char mantissa[] = {
     10, 12, 13, 15, 20, 25, 30, 35,
@@ -49,10 +60,13 @@ static const u_int exponent[] = {
 /* Convert a power byte to a current in 0.1 microamps */
 #define POWER_CVT(v) \
     (mantissa[((v)>>3)&15] * exponent[(v)&7] / 10)
-#define POWER_SCALE(v) (exponent[(v)&7])
+#define POWER_SCALE(v)		(exponent[(v)&7])
 
 /* Upper limit on reasonable # of tuples */
-#define MAX_TUPLES 200
+#define MAX_TUPLES		200
+
+/* Size of the CIS memory window */
+#define CIS_WINDOW_SIZE		0x1000
 
 /*======================================================================
 
@@ -69,34 +83,27 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
     u_int inc = 1;
     
     DEBUG(3, "cs: read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    if (setup_cis_mem(s) != 0) {
+	memset(ptr, 0xff, len);
+	return;
+    }
     mem->flags &= ~MAP_ATTRIB;
     if (attr) { mem->flags |= MAP_ATTRIB; inc++; addr *= 2; }
-    sys = (u_char *)(mem->sys_start + (addr & 0x0fff));
-    mem->card_start = addr & ~0x0fff;
-    
-    for (; len > 0; mem->card_start += 0x1000, sys -= 0x1000) {
+    sys = s->cis_virt + (addr & (CIS_WINDOW_SIZE-1));
+    mem->card_start = addr & ~(CIS_WINDOW_SIZE-1);
+
+    for (; len > 0; sys = s->cis_virt) {
 	s->ss_entry(s->sock, SS_SetMemMap, mem);
 	DEBUG(3,  "cs:  %#2.2x %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
 	      readb(sys), readb(sys+inc), readb(sys+2*inc),
 	      readb(sys+3*inc), readb(sys+4*inc));
 	for ( ; len > 0; len--, ptr++, sys += inc) {
-	    if (sys > (u_char *)mem->sys_stop) break;
+	    if (sys == s->cis_virt+CIS_WINDOW_SIZE) break;
 	    *(u_char *)ptr = readb(sys);
 	}
+	mem->card_start += CIS_WINDOW_SIZE;
     }
 }
-
-#ifdef CONFIG_CARDBUS
-void read_cb_mem(socket_info_t *s, u_char fn, int space, u_int addr,
-		 u_int len, void *ptr)
-{
-    DEBUG(3, "cs: read_cb_mem(%d, %#x, %u)\n", space, addr, len);
-    if (space == 0) {
-	for (; len; addr++, ptr++, len--)
-	    pcibios_read_config_byte(s->cap.cardbus, fn, addr, ptr);
-    }
-}
-#endif
 
 void write_cis_mem(socket_info_t *s, int attr, u_int addr,
 		   u_int len, void *ptr)
@@ -105,17 +112,20 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
     u_char *sys;
     int inc = 1;
     
+    DEBUG(3, "cs: write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    if (setup_cis_mem(s) != 0) return;
     mem->flags &= ~MAP_ATTRIB;
     if (attr) { mem->flags |= MAP_ATTRIB; inc++; addr *= 2; }
-    sys = (u_char *)(mem->sys_start + (addr & 0x0fff));
-    mem->card_start = addr & ~0x0fff;
+    sys = s->cis_virt + (addr & (CIS_WINDOW_SIZE-1));
+    mem->card_start = addr & ~(CIS_WINDOW_SIZE-1);
     
-    for (; len > 0; mem->card_start += 0x1000, sys -= 0x1000) {
+    for (; len > 0; sys = s->cis_virt) {
 	s->ss_entry(s->sock, SS_SetMemMap, mem);
 	for ( ; len > 0; len--, ptr++, sys += inc) {
-	    if (sys > (u_char *)mem->sys_stop) break;
+	    if (sys == s->cis_virt+CIS_WINDOW_SIZE) break;
 	    writeb(*(u_char *)ptr, sys);
 	}
+	mem->card_start += CIS_WINDOW_SIZE;
     }
 }
 
@@ -126,6 +136,8 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
     
 ======================================================================*/
 
+#ifdef CONFIG_ISA
+
 /* Scratch pointer to the socket we use for validation */
 static socket_info_t *vs = NULL;
 
@@ -135,15 +147,18 @@ static int cis_readable(u_long base)
     cisinfo_t info1, info2;
     int ret;
     vs->cis_mem.sys_start = base;
-    vs->cis_mem.sys_stop = base+0x0fff;
+    vs->cis_mem.sys_stop = base+CIS_WINDOW_SIZE-1;
+    vs->cis_virt = ioremap(base, CIS_WINDOW_SIZE);
     ret = validate_cis(vs->clients, &info1);
-    vs->cis_used = 0; /* invalidate CIS cache */
+    /* invalidate mapping and CIS cache */
+    iounmap(vs->cis_virt); vs->cis_used = 0;
     if ((ret != 0) || (info1.Chains == 0))
 	return 0;
-    vs->cis_mem.sys_start = base+0x1000;
-    vs->cis_mem.sys_stop = base+0x1fff;
+    vs->cis_mem.sys_start = base+CIS_WINDOW_SIZE;
+    vs->cis_mem.sys_stop = base+2*CIS_WINDOW_SIZE-1;
+    vs->cis_virt = ioremap(base+CIS_WINDOW_SIZE, CIS_WINDOW_SIZE);
     ret = validate_cis(vs->clients, &info2);
-    vs->cis_used = 0;
+    iounmap(vs->cis_virt); vs->cis_used = 0;
     return ((ret == 0) && (info1.Chains == info2.Chains));
 }
 
@@ -152,35 +167,52 @@ static int checksum(u_long base)
 {
     int i, a;
     vs->cis_mem.sys_start = base;
-    vs->cis_mem.sys_stop = base+0xfff;
+    vs->cis_mem.sys_stop = base+CIS_WINDOW_SIZE-1;
+    vs->cis_virt = ioremap(base, CIS_WINDOW_SIZE);
     vs->cis_mem.card_start = 0;
     vs->cis_mem.flags = MAP_ACTIVE;
     vs->ss_entry(vs->sock, SS_SetMemMap, &vs->cis_mem);
     /* Don't bother checking every word... */
-    for (i = a = 0; i < 0x1000; i += 56)
-	a += (int)readl(base+i);
+    for (i = a = 0; i < CIS_WINDOW_SIZE; i += 56)
+	a += (int)readl(vs->cis_virt+i);
+    iounmap(vs->cis_virt);
     return a;
 }
 
 static int checksum_match(u_long base)
 {
-    return (checksum(base) == checksum(base+0x1000));
+    return (checksum(base) == checksum(base+CIS_WINDOW_SIZE));
 }
+
+#endif
 
 int setup_cis_mem(socket_info_t *s)
 {
     if (s->cis_mem.sys_start == 0) {
+#ifdef CONFIG_ISA
 	if (vs == NULL) {
 	    vs = s;
 	    validate_mem(cis_readable, checksum_match);
 	    s->cis_mem.sys_start = 0;
 	}
+#endif
 	if (find_mem_region(&s->cis_mem.sys_start,
-			    0x1000, "card services") != 0)
+			    CIS_WINDOW_SIZE, "card services",
+			    (s->cap.cardbus != 0)) != 0)
 	    return CS_OUT_OF_RESOURCE;
-	s->cis_mem.sys_stop = s->cis_mem.sys_start + 0x0fff;
+	s->cis_mem.sys_stop = s->cis_mem.sys_start+CIS_WINDOW_SIZE-1;
+	s->cis_virt = ioremap(s->cis_mem.sys_start, CIS_WINDOW_SIZE);
     }
     return 0;
+}
+
+void release_cis_mem(socket_info_t *s)
+{
+    if (s->cis_mem.sys_start != 0) {
+	release_mem_region(s->cis_mem.sys_start, CIS_WINDOW_SIZE);
+	iounmap(s->cis_virt);
+	s->cis_mem.sys_start = 0;
+    }
 }
 
 /*======================================================================
@@ -197,6 +229,13 @@ static void read_cis_cache(socket_info_t *s, int attr, u_int addr,
     int i;
     char *caddr;
 
+    if (s->fake_cis) {
+	if (s->fake_cis_len > addr+len)
+	    memcpy(ptr, s->fake_cis+addr, len);
+	else
+	    memset(ptr, 0xff, len);
+	return;
+    }
     caddr = s->cis_cache;
     for (i = 0; i < s->cis_used; i++) {
 	if ((s->cis_table[i].addr == addr) &&
@@ -239,8 +278,14 @@ int verify_cis_cache(socket_info_t *s)
     
     caddr = s->cis_cache;
     for (i = 0; i < s->cis_used; i++) {
-	read_cis_mem(s, s->cis_table[i].attr, s->cis_table[i].addr,
-		     s->cis_table[i].len, buf);
+#ifdef CONFIG_CARDBUS
+	if (s->state & SOCKET_CARDBUS)
+	    read_cb_mem(s, 0, s->cis_table[i].attr, s->cis_table[i].addr,
+			s->cis_table[i].len, buf);
+	else
+#endif
+	    read_cis_mem(s, s->cis_table[i].attr, s->cis_table[i].addr,
+			 s->cis_table[i].len, buf);
 	if (memcmp(buf, caddr, s->cis_table[i].len) != 0)
 	    break;
 	caddr += s->cis_table[i].len;
@@ -250,7 +295,34 @@ int verify_cis_cache(socket_info_t *s)
 
 /*======================================================================
 
-    Read tuple codes from attribute memory.
+    For really bad cards, we provide a facility for uploading a
+    replacement CIS.
+    
+======================================================================*/
+
+int replace_cis(client_handle_t handle, cisdump_t *cis)
+{
+    socket_info_t *s;
+    if (CHECK_HANDLE(handle))
+	return CS_BAD_HANDLE;
+    s = SOCKET(handle);
+    if (s->fake_cis != NULL) {
+	kfree(s->fake_cis);
+	s->fake_cis = NULL;
+    }
+    if (cis->Length > CISTPL_MAX_CIS_SIZE)
+	return CS_BAD_SIZE;
+    s->fake_cis = kmalloc(cis->Length, GFP_KERNEL);
+    if (s->fake_cis == NULL)
+	return CS_OUT_OF_RESOURCE;
+    s->fake_cis_len = cis->Length;
+    memcpy(s->fake_cis, cis->Data, cis->Length);
+    return CS_SUCCESS;
+}
+
+/*======================================================================
+
+    The high-level CIS tuple services
     
 ======================================================================*/
 
@@ -274,23 +346,21 @@ int get_first_tuple(client_handle_t handle, tuple_t *tuple)
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
     s = SOCKET(handle);
+    tuple->TupleLink = tuple->Flags = 0;
 #ifdef CONFIG_CARDBUS
     if (s->state & SOCKET_CARDBUS) {
 	u_int ptr;
 	pcibios_read_config_dword(s->cap.cardbus, 0, 0x28, &ptr);
 	tuple->CISOffset = ptr & ~7;
-	tuple->TupleLink = 0;
 	SPACE(tuple->Flags) = (ptr & 7);
     } else {
-	tuple->CISOffset = tuple->TupleLink = 0;
 	/* Assume presence of a LONGLINK_C to address 0 */
-	tuple->LinkOffset = tuple->Flags = 0;
+	tuple->CISOffset = tuple->LinkOffset = 0;
 	SPACE(tuple->Flags) = HAS_LINK(tuple->Flags) = 1;
     }
 #else
-    tuple->CISOffset = tuple->TupleLink = 0;
     /* Assume presence of a LONGLINK_C to address 0 */
-    tuple->LinkOffset = tuple->Flags = 0;
+    tuple->CISOffset = tuple->LinkOffset = 0;
     SPACE(tuple->Flags) = HAS_LINK(tuple->Flags) = 1;
 #endif
     if (!(s->state & SOCKET_CARDBUS) && (s->functions > 1) &&
@@ -317,7 +387,7 @@ static int follow_link(socket_info_t *s, tuple_t *tuple)
 	/* Get indirect link from the MFC tuple */
 	read_cis_cache(s, LINK_SPACE(tuple->Flags),
 		       tuple->LinkOffset, 5, link);
-	ofs = *(u_int *)(link+1);
+	ofs = le32_to_cpu(*(u_int *)(link+1));
 	SPACE(tuple->Flags) = (link[0] == CISTPL_MFC_ATTR);
 	/* Move to the next indirect link */
 	tuple->LinkOffset += 5;
@@ -356,8 +426,6 @@ int get_next_tuple(client_handle_t handle, tuple_t *tuple)
 	return CS_BAD_HANDLE;
 
     s = SOCKET(handle);
-    if (setup_cis_mem(s) != 0)
-	return CS_OUT_OF_RESOURCE;
 
     link[1] = tuple->TupleLink;
     ofs = tuple->CISOffset + tuple->TupleLink;
@@ -449,8 +517,6 @@ int get_tuple_data(client_handle_t handle, tuple_t *tuple)
 	return CS_BAD_HANDLE;
 
     s = SOCKET(handle);
-    if (setup_cis_mem(s) != 0)
-	return CS_OUT_OF_RESOURCE;
 
     if (tuple->TupleLink < tuple->TupleOffset)
 	return CS_NO_MORE_ITEMS;
@@ -523,8 +589,8 @@ static int parse_checksum(tuple_t *tuple, cistpl_checksum_t *csum)
     if (tuple->TupleDataLen < 5)
 	return CS_BAD_TUPLE;
     p = (char *)tuple->TupleData;
-    csum->addr = *(u_short *)p;
-    csum->len = *(u_short *)(p + 2);
+    csum->addr = le16_to_cpu(*(u_short *)p);
+    csum->len = le16_to_cpu(*(u_short *)(p + 2));
     csum->sum = *(p+4);
     return CS_SUCCESS;
 }
@@ -535,7 +601,7 @@ static int parse_longlink(tuple_t *tuple, cistpl_longlink_t *link)
 {
     if (tuple->TupleDataLen < 4)
 	return CS_BAD_TUPLE;
-    link->addr = *(u_int *)tuple->TupleData;
+    link->addr = le32_to_cpu(*(u_int *)tuple->TupleData);
     return CS_SUCCESS;
 }
 
@@ -554,7 +620,7 @@ static int parse_longlink_mfc(tuple_t *tuple,
 	return CS_BAD_TUPLE;
     for (i = 0; i < link->nfn; i++) {
 	link->fn[i].space = *p; p++;
-	link->fn[i].addr = *(u_int *)p; p += 4;
+	link->fn[i].addr = le32_to_cpu(*(u_int *)p); p += 4;
     }
     return CS_SUCCESS;
 }
@@ -583,10 +649,7 @@ static int parse_strings(u_char *p, u_char *q, int max,
 	*found = ns;
 	return CS_SUCCESS;
     } else {
-	if (ns == max)
-	    return CS_SUCCESS;
-	else
-	    return CS_BAD_TUPLE;
+	return (ns == max) ? CS_SUCCESS : CS_BAD_TUPLE;
     }
 }
 
@@ -648,8 +711,8 @@ static int parse_manfid(tuple_t *tuple, cistpl_manfid_t *m)
     if (tuple->TupleDataLen < 4)
 	return CS_BAD_TUPLE;
     p = (u_short *)tuple->TupleData;
-    m->manf = p[0];
-    m->card = p[1];
+    m->manf = le16_to_cpu(p[0]);
+    m->card = le16_to_cpu(p[1]);
     return CS_SUCCESS;
 }
 
@@ -714,7 +777,6 @@ static int parse_config(tuple_t *tuple, cistpl_config_t *config)
     
 ======================================================================*/
 
-
 static u_char *parse_power(u_char *p, u_char *q,
 			   cistpl_power_t *pwr)
 {
@@ -761,19 +823,22 @@ static u_char *parse_timing(u_char *p, u_char *q,
 	if (++p == q) return NULL;
 	timing->wait = SPEED_CVT(*p);
 	timing->waitscale = exponent[scale & 3];
-    }
+    } else
+	timing->wait = 0;
     scale >>= 2;
     if ((scale & 7) != 7) {
 	if (++p == q) return NULL;
 	timing->ready = SPEED_CVT(*p);
 	timing->rdyscale = exponent[scale & 7];
-    }
+    } else
+	timing->ready = 0;
     scale >>= 3;
     if (scale != 7) {
 	if (++p == q) return NULL;
 	timing->reserved = SPEED_CVT(*p);
 	timing->rsvscale = exponent[scale];
-    }
+    } else
+	timing->reserved = 0;
     p++;
     return p;
 }
@@ -849,7 +914,7 @@ static u_char *parse_mem(u_char *p, u_char *q, cistpl_mem_t *mem)
 	    }
 	mem->win[i].len = len << 8;
 	mem->win[i].card_addr = ca << 8;
-	mem->win[i].host_addr = (caddr_t)(ha << 8);
+	mem->win[i].host_addr = ha << 8;
     }
     return p;
 }
@@ -946,17 +1011,18 @@ static int parse_cftable_entry(tuple_t *tuple,
 	break;
     case 0x20:
 	entry->mem.nwin = 1;
-	entry->mem.win[0].len = (*(u_short *)p) << 8;
+	entry->mem.win[0].len = le16_to_cpu(*(u_short *)p) << 8;
 	entry->mem.win[0].card_addr = 0;
-	entry->mem.win[0].host_addr = NULL;
+	entry->mem.win[0].host_addr = 0;
 	p += 2;
 	if (p > q) return CS_BAD_TUPLE;
 	break;
     case 0x40:
 	entry->mem.nwin = 1;
-	entry->mem.win[0].len = (*(u_short *)p) << 8;
-	entry->mem.win[0].card_addr = (*(u_short *)(p+2)) << 8;
-	entry->mem.win[0].host_addr = (caddr_t)entry->mem.win[0].host_addr;
+	entry->mem.win[0].len = le16_to_cpu(*(u_short *)p) << 8;
+	entry->mem.win[0].card_addr =
+	    le16_to_cpu(*(u_short *)(p+2)) << 8;
+	entry->mem.win[0].host_addr = 0;
 	p += 4;
 	if (p > q) return CS_BAD_TUPLE;
 	break;
@@ -992,7 +1058,7 @@ static int parse_bar(tuple_t *tuple, cistpl_bar_t *bar)
     p = (char *)tuple->TupleData;
     bar->attr = *p;
     p += 2;
-    bar->size = p[0] + (p[1]<<8) + (p[2]<<16) + (p[3]<<24);
+    bar->size = le32_to_cpu(*(u_int *)p);
     return CS_SUCCESS;
 }
 
@@ -1005,7 +1071,7 @@ static int parse_config_cb(tuple_t *tuple, cistpl_config_t *config)
 	return CS_BAD_TUPLE;
     config->last_idx = *(++p);
     p++;
-    config->base = p[0] + (p[1]<<8) + (p[2]<<16) + (p[3]<<24);
+    config->base = le32_to_cpu(*(u_int *)p);
     config->subtuples = tuple->TupleDataLen - 6;
     return CS_SUCCESS;
 }
@@ -1121,7 +1187,7 @@ static int parse_vers_2(tuple_t *tuple, cistpl_vers_2_t *v2)
 
     v2->vers = p[0];
     v2->comply = p[1];
-    v2->dindex = *(u_short *)(p+2);
+    v2->dindex = le16_to_cpu(*(u_short *)(p+2));
     v2->vspec8 = p[6];
     v2->vspec9 = p[7];
     v2->nhdr = p[8];

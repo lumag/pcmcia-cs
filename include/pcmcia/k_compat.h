@@ -1,5 +1,19 @@
 /*
- * k_compat.h 1.42 1998/02/12 00:01:20 (David Hinds)
+ * k_compat.h 1.50 1998/05/10 12:10:34
+ *
+ * The contents of this file are subject to the Mozilla Public License
+ * Version 1.0 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License
+ * at http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+ * the License for the specific language governing rights and
+ * limitations under the License. 
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
 #ifndef _LINUX_K_COMPAT_H
@@ -141,14 +155,15 @@ char kernel_version[] = UTS_RELEASE;
 #if (LINUX_VERSION_CODE < VERSION(1,3,0))
 #define kdev_t			int
 #define ioremap(a, b)		((char *)(a))
-#define iounmap(a)
+#define iounmap(a)		while (0)
 #define put_user(x, ptr) \
 		((sizeof(*ptr) == 4) ? put_fs_long(x, ptr) : \
 		 (sizeof(*ptr) == 2) ? put_fs_word(x, ptr) : \
 		 put_fs_byte(x, ptr))
 #else
-#define ioremap			vremap
-#define iounmap			vfree
+#define ioremap(a,b)		(((a) < 0x100000) ? (void *)(a) : vremap(a,b))
+#define iounmap(v)		do { if ((u_long)(v) > 0x100000) \
+				     vfree(v); } while (0)
 /* This is evil... throw away the built-in get_user in 1.3, 2.0 */
 #include <asm/segment.h>
 #undef get_user
@@ -204,9 +219,27 @@ char kernel_version[] = UTS_RELEASE;
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,86))
-#define DEV_KFREE_SKB(skb) dev_kfree_skb(skb, FREE_WRITE)
+#define DEV_KFREE_SKB(skb)	dev_kfree_skb(skb, FREE_WRITE)
 #else
-#define DEV_KFREE_SKB(skb) dev_kfree_skb(skb)
+#define DEV_KFREE_SKB(skb)	dev_kfree_skb(skb)
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,1,89))
+#define POLL_WAIT(f, q, w)	poll_wait(q, w)
+#else
+#define POLL_WAIT(f, q, w)	poll_wait(f, q, w)
+#endif
+
+#include <asm/byteorder.h>
+#ifndef le16_to_cpu
+#define le16_to_cpu(x)		(x)
+#define le32_to_cpu(x)		(x)
+#define cpu_to_le16(x)		(x)
+#define cpu_to_le32(x)		(x)
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,1,93))
+#include <linux/bios32.h>
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

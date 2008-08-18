@@ -2,7 +2,9 @@
 
     A PCMCIA ethernet driver for the 3com 3c589 card.
     
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+
+    3c589_cs.c 1.104 1998/04/19 11:51:03
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -104,7 +106,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.102 1998/02/12 00:05:48 (David Hinds)";
+"3c589_cs.c 1.104 1998/04/19 11:51:03 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -341,7 +343,7 @@ static void tc589_config(dev_link_t *link)
     tuple.DesiredTuple = CISTPL_CONFIG;
     CS_CHECK(GetFirstTuple, handle, &tuple);
     tuple.TupleData = (cisdata_t *)buf;
-    tuple.TupleDataMax = 64;
+    tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
     CS_CHECK(GetTupleData, handle, &tuple);
     CS_CHECK(ParseTuple, handle, &tuple, &parse);
@@ -353,10 +355,10 @@ static void tc589_config(dev_link_t *link)
     tuple.Attributes = TUPLE_RETURN_COMMON;
     if ((CardServices(GetFirstTuple, handle, &tuple) == CS_SUCCESS) &&
 	(CardServices(GetTupleData, handle, &tuple) == CS_SUCCESS)) {
-	if (buf[0] != MANFID_3COM)
+	if (le16_to_cpu(buf[0]) != MANFID_3COM)
 	    printk(KERN_INFO "3c589_cs: hmmm, is this really a "
 		   "3Com card??\n");
-	multi = (buf[1] == PRODID_3COM_3C562);
+	multi = (le16_to_cpu(buf[1]) == PRODID_3COM_3C562);
     }
     
     /* Configure card */

@@ -315,30 +315,30 @@ static void ibmtr_config(dev_link_t *link)
     /* Allocate the MMIO memory window */
     req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
     req.Attributes |= WIN_USE_WAIT;
-    req.Base = (caddr_t) mmiobase;
+    req.Base = mmiobase;
     req.Size = 0x2000;
     req.AccessSpeed = 0x81;
     link->win = (window_handle_t)link->handle;
     CS_CHECK(RequestWindow, &link->win, &req);
 
-    mem.CardOffset = (u_long) req.Base;
+    mem.CardOffset = req.Base;
     mem.Page = 0;
     CS_CHECK(MapMemPage, link->win, &mem);
-    ti->mmio = (u_long)req.Base;
+    ti->mmio = req.Base;
 
     /* Allocate the SRAM memory window */
     req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
     req.Attributes |= WIN_USE_WAIT;
-    req.Base = (caddr_t) srambase;
+    req.Base = srambase;
     req.Size = sramsize * 1024;
     req.AccessSpeed = 0x81;
     info->sram_win_handle = (window_handle_t)link->handle;
     CS_CHECK(RequestWindow, &info->sram_win_handle, &req);
 
-    mem.CardOffset = (u_long) req.Base;
+    mem.CardOffset = req.Base;
     mem.Page = 0;
     CS_CHECK(MapMemPage, info->sram_win_handle, &mem);
-    Shared_Ram_Base = (int) req.Base >> 12;
+    Shared_Ram_Base = req.Base >> 12;
     /*  By setting the ti->sram to NULL, the RRR gets written by ibmtr.c */
     ti->sram = 0;
     ti->sram_base = Shared_Ram_Base;

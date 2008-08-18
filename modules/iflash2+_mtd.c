@@ -2,8 +2,22 @@
 
     A simple MTD for Intel Series 2+ Flash devices
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    iflash2+_mtd.c 1.40 1998/05/10 12:06:44
 
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    
     For efficiency and simplicity, this driver is very block oriented.
     Reads and writes must not span erase block boundaries.  Erases
     are limited to one erase block per request.  This makes it much
@@ -44,7 +58,6 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"iflash2+_mtd.c 1.36 1998/01/09 04:19:01 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -53,11 +66,11 @@ static char *version =
 
 /* Parameters that can be set with 'insmod' */
 
-static int vpp_timeout_period	= HZ;		/* in ticks */
-static int vpp_settle		= HZ/10;	/* in ticks */
-static int write_timeout	= HZ/10;	/* in ticks */
+static int vpp_timeout_period	= 1000;		/* in ms */
+static int vpp_settle		= 100;		/* in ms */
+static int write_timeout	= 100;		/* in ms */
 static int erase_timeout	= 100;		/* in ms */
-static int erase_limit		= 10*HZ;	/* in ticks */
+static int erase_limit		= 10000;	/* in ms */
 static int retry_limit		= 4;		/* write retries */
 static u_int max_tries       	= 4096;		/* status polling */
 
@@ -556,7 +569,7 @@ static void flash_config(dev_link_t *link)
 
     /* Allocate a 4K memory window */
     req.Attributes = WIN_DATA_WIDTH_16;
-    req.Base = NULL; req.Size = WINDOW_SIZE;
+    req.Base = 0; req.Size = WINDOW_SIZE;
     req.AccessSpeed = 0;
     link->win = (window_handle_t)link->handle;
     ret = MTDHelperEntry(MTDRequestWindow, &link->win, &req);
@@ -567,10 +580,10 @@ static void flash_config(dev_link_t *link)
 	return;
     }
     dev = link->priv;
-    dev->Base = req.Base;
+    dev->Base = ioremap(req.Base, WINDOW_SIZE);
 
     /* Allocate a 4K memory window for ESR accesses*/
-    req.Base = NULL; req.Size = WINDOW_SIZE;
+    req.Base = 0; req.Size = WINDOW_SIZE;
     dev->ESRwin = (window_handle_t)link->handle;
     ret = MTDHelperEntry(MTDRequestWindow, &dev->ESRwin, &req);
     if (ret != 0) {
@@ -579,8 +592,8 @@ static void flash_config(dev_link_t *link)
 	flash_release((u_long)link);
 	return;
     }
-    dev->ESRbase = req.Base;
-
+    dev->ESRbase = ioremap(req.Base, WINDOW_SIZE);
+    
     link->state |= DEV_CONFIG;
 
     /* Grab info for all the memory regions we can access */
@@ -634,16 +647,18 @@ static void flash_release(u_long arg)
     DEBUG(0, "iflash2+_mtd: flash_release(0x%p)\n", link);
 
     link->state &= ~DEV_CONFIG;
-    if (link->win) {
-	int ret = MTDHelperEntry(MTDReleaseWindow, link->win);
-	if (ret != CS_SUCCESS)
-	    cs_error(link->handle, ReleaseWindow, ret);
-    }
     dev = link->priv;
+    if (link->win) {
+	iounmap(dev->Base);
+	i = MTDHelperEntry(MTDReleaseWindow, link->win);
+	if (i != CS_SUCCESS)
+	    cs_error(link->handle, ReleaseWindow, i);
+    }
     if (dev->ESRwin) {
-	int ret = MTDHelperEntry(MTDReleaseWindow, dev->ESRwin);
-	if (ret != CS_SUCCESS)
-	    cs_error(link->handle, ReleaseWindow, ret);
+	iounmap(dev->ESRbase);
+	i = MTDHelperEntry(MTDReleaseWindow, dev->ESRwin);
+	if (i != CS_SUCCESS)
+	    cs_error(link->handle, ReleaseWindow, i);
     }
     if (dev->vpp_usage == 0)
 	del_timer(&dev->vpp_timeout);
@@ -1140,6 +1155,12 @@ int init_module(void)
     servinfo_t serv;
     
     DEBUG(0, "%s\n", version);
+    
+    /* Rescale parameters */
+    vpp_timeout_period = (vpp_timeout_period * HZ) / 1000;
+    vpp_settle = (vpp_settle * HZ) / 1000;
+    write_timeout = (write_timeout * HZ) / 1000;
+    erase_limit = (erase_limit * HZ) / 1000;
     
     CardServices(GetCardServicesInfo, &serv);
     if (serv.Revision != CS_RELEASE_CODE) {

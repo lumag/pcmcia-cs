@@ -1,5 +1,7 @@
 #
-# modules/Makefile 1.78 1998/02/05 07:46:57 (David Hinds)
+# Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+#
+# Makefile 1.87 1998/04/20 22:23:22
 #
 
 # Include site dependent options and kernel configuration
@@ -8,6 +10,10 @@ include ../config.mk
 ifndef CFLAGS
 # Don't remove "-O2" or bad things will happen!
 CFLAGS = -O2 -Wall -Wstrict-prototypes -Winline -pipe
+endif
+
+ifeq ($(ARCH),ppc)
+CC := $(CC) -fno-builtin -msoft-float
 endif
 
 CPPFLAGS = $(PCDEBUG) -D__KERNEL__ -DMODULE -I../include \
@@ -22,12 +28,12 @@ endif
 
 SRCS = \
 	i82365.c tcic.c cs.c cistpl.c rsrc_mgr.c bulkmem.c ds.c \
-	serial_cs.c memory_cs.c ftl_cs.c \
+	serial_cs.c memory_cs.c ftl_cs.c dummy_cs.c \
 	sram_mtd.c iflash2_mtd.c iflash2+_mtd.c
 
 MODULES = \
 	i82365.o tcic.o pcmcia_core.o ds.o \
-	serial_cs.o memory_cs.o ftl_cs.o \
+	serial_cs.o memory_cs.o ftl_cs.o dummy_cs.o \
 	sram_mtd.o iflash2_mtd.o iflash2+_mtd.o
 
 CORE = cs.o cistpl.o rsrc_mgr.o bulkmem.o
@@ -35,8 +41,13 @@ CORE = cs.o cistpl.o rsrc_mgr.o bulkmem.o
 EXTRA =
 
 ifdef CONFIG_CARDBUS
+SRCS := $(SRCS) cardbus.c cb_enabler.c 3c575_cb.c
 CORE := $(CORE) cardbus.o
-MODULES := $(MODULES) cb_enabler.o
+MODULES := $(MODULES) cb_enabler.o 3c575_cb.o
+ifdef CONFIG_SCSI
+MODULES := ${MODULES} apa1480_cb.o
+SRCS := ${SRCS} apa1480_cb.c
+endif
 endif
 
 ifdef CONFIG_INET
@@ -56,8 +67,8 @@ endif
 endif
 
 ifdef DO_IDE
-MODULES := ${MODULES} fixed_cs.o
-SRCS := ${SRCS} fixed_cs.c
+MODULES := ${MODULES} ide_cs.o
+SRCS := ${SRCS} ide_cs.c
 endif
 
 ifdef DO_AZTCD
@@ -73,10 +84,6 @@ ifdef DO_FDOMAIN
 MODULES := ${MODULES} fdomain_cs.o
 SRCS := ${SRCS} fdomain_cs.c
 endif
-ifdef DO_T460
-MODULES := ${MODULES} t460_cs.o
-SRCS := ${SRCS} t460_cs.c
-endif
 endif
 
 all:	$(MODULES) $(EXTRA)
@@ -88,7 +95,8 @@ ibmtr.o: $(LINUX)/drivers/net/ibmtr.c ../include/linux/config.h
 	$(CC) -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
 
 ibmtr_cs.o: ibmtr_cs.c ibmtr.o
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	$(CC) -MD -c $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	@mkdir -p .depfiles ; mv ibmtr_cs.d .depfiles
 	$(LD) -r -o $@ .$@ ibmtr.o
 	rm -f .$@
 	chmod -x $@
@@ -105,13 +113,15 @@ qlogic.o: $(LINUX)/drivers/scsi/qlogic.c ../include/linux/config.h
 endif
 
 qlogic_cs.o: qlogic_cs.c qlogic.o
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	$(CC) -MD -c $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	@mkdir -p .depfiles ; mv qlogic_cs.d .depfiles
 	$(LD) -r -o $@ .$@ qlogic.o
 	rm -f .$@
 	chmod -x $@
 
-3c59x_cb.o: 3c59x.c
-	$(CC) -c $(XFLAGS) -DMODULE -DCARDBUS -o $@ $<
+3c575_cb.o: 3c575_cb.c
+	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS -o $@ $<
+	@mkdir -p .depfiles ; mv 3c575_cb.d .depfiles
 
 aha152x.o: $(LINUX)/drivers/scsi/aha152x.c ../include/linux/config.h
 ifdef FIX_AHA152X
@@ -124,19 +134,40 @@ else
 endif
 
 aha152x_cs.o: aha152x_cs.c aha152x.o
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	$(CC) -MD -c $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	@mkdir -p .depfiles ; mv aha152x_cs.d .depfiles
 	$(LD) -r -o $@ .$@ aha152x.o
-	rm -f .$@
-	chmod -x $@
+	rm -f .$@ ; chmod -x $@
 
 fdomain.o: $(LINUX)/drivers/scsi/fdomain.c ../include/linux/config.h
 	$(CC) -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
 
 fdomain_cs.o: fdomain_cs.c fdomain.o
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	$(CC) -MD -c $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	@mkdir -p .depfiles ; mv fdomain_cs.d .depfiles
 	$(LD) -r -o $@ .$@ fdomain.o
-	rm -f .$@
-	chmod -x $@
+	rm -f .$@ ; chmod -x $@
+
+$(LINUX)/drivers/scsi/aic7xxx_seq.h:
+	cd $(LINUX)/drivers/scsi ; \
+	$(CC) -o aic7xxx_asm aic7xxx_asm.c ; \
+	./aic7xxx_asm -o aic7xxx_seq.h aic7xxx.seq
+
+aic7xxx.o: $(LINUX)/drivers/scsi/aic7xxx.c $(LINUX)/drivers/scsi/aic7xxx_seq.h
+ifdef FIX_AIC7XXX
+	patch $< patches/aic7xxx.fix -o aic7xxx.c
+	$(CC) -c $(XFLAGS) -I$(LINUX)/drivers/scsi \
+		-DPCMCIA -D__NO_VERSION__ aic7xxx.c
+	rm aic7xxx.c
+else
+	$(CC) -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
+endif
+
+apa1480_cb.o: apa1480_cb.c aic7xxx.o
+	$(CC) -MD -c $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	@mkdir -p .depfiles ; mv apa1480_cb.d .depfiles
+	$(LD) -r -o $@ .$@ aic7xxx.o
+	rm -f .$@ ; chmod -x $@
 
 pcmcia_core.o: $(CORE)
 	$(LD) -r -o pcmcia_core.o $(CORE)

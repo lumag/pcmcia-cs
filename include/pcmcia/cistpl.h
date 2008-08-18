@@ -1,5 +1,19 @@
 /*
- * cistpl.h 1.20 1998/01/02 02:07:30 (David Hinds)
+ * cistpl.h 1.25 1998/05/10 12:47:12
+ *
+ * The contents of this file are subject to the Mozilla Public License
+ * Version 1.0 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License
+ * at http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+ * the License for the specific language governing rights and
+ * limitations under the License. 
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
 #ifndef _LINUX_CISTPL_H
@@ -333,7 +347,7 @@ typedef struct cistpl_ide_feature_t {
 
 typedef struct cistpl_bar_t {
     u_char	attr;
-    u_long	size;
+    u_int	size;
 } cistpl_bar_t;
 
 typedef struct cistpl_config_t {
@@ -396,7 +410,7 @@ typedef struct cistpl_mem_t {
     struct {
 	u_int	len;
 	u_int	card_addr;
-	caddr_t	host_addr;
+	u_int	host_addr;
     } win[CISTPL_MEM_MAX_WIN];
 } cistpl_mem_t;
 
@@ -517,5 +531,13 @@ typedef struct tuple_t {
 typedef struct cisinfo_t {
     u_int	Chains;
 } cisinfo_t;
+
+#define CISTPL_MAX_CIS_SIZE	0x200
+
+/* For ReplaceCIS */
+typedef struct cisdump_t {
+    u_int	Length;
+    cisdata_t	Data[CISTPL_MAX_CIS_SIZE];
+} cisdump_t;
 
 #endif /* LINUX_CISTPL_H */

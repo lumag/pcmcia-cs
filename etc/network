@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.35 1998/02/13 23:41:04 (David Hinds)
+# network 1.42 1998/05/03 21:12:41 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -28,6 +28,8 @@ ADDRESS="$SCHEME,$SOCKET,$INSTANCE,$HWADDR"
 start_fn () { return; }
 stop_fn () { return; }
 . $0.opts
+
+RESOLV=/etc/resolv.conf
 
 case "$ACTION" in
 
@@ -60,16 +62,17 @@ case "$ACTION" in
 	test "$GATEWAY" && /sbin/route add default gw $GATEWAY metric 1
 
 	# Update DNS stuff
-	cp /etc/resolv.conf /etc/resolv.new
-	echo "# $DEVICE begin" >> /etc/resolv.new
-	test "$DOMAIN" && echo "domain $DOMAIN" >> /etc/resolv.new
-	if [ "$DNSSRVS $DNS_1 $DNS_2 $DNS_3" != "   " ] ; then
+	if [ "$DOMAIN$SEARCH$DNSSRVS$DNS_1$DNS_2$DNS_3" != "" ] ; then
+	    cp $RESOLV $RESOLV.N
+	    echo "# $DEVICE begin" >> $RESOLV.N
+	    test "$DOMAIN" && echo "domain $DOMAIN" >> $RESOLV.N
+	    test "$SEARCH" && echo "search $SEARCH" >> $RESOLV.N
 	    for DNS in $DNSSRVS $DNS_1 $DNS_2 $DNS_3 ; do
-		echo "nameserver $DNS" >> /etc/resolv.new
+		echo "nameserver $DNS" >> $RESOLV.N
 	    done
+	    echo "# $DEVICE end" >> $RESOLV.N
+	    mv $RESOLV.N $RESOLV
 	fi
-	echo "# $DEVICE end" >> /etc/resolv.new
-	mv /etc/resolv.new /etc/resolv.conf
 
 	# Handle NFS mounts
 	if [ "$MOUNTS" != "" ] ; then
@@ -91,22 +94,26 @@ case "$ACTION" in
     
     if is_true $BOOTP || [ "$IPADDR" != "" ] ; then
 
-	# Shut down NFS mounts
-	if [ "$MOUNTS" != "" ] ; then
-	    for MT in $MOUNTS ; do
-		if mount | fgrep " on $MT type" ; then
+	# Shut down all NFS mounts on this interface
+	nfsstop ()
+	{
+	    while read HOST MT ; do
+		if /sbin/ifuser $DEVICE $HOST ; then
 		    fuser -s -k -m $MT
 		    umount -v $MT
 		fi
 	    done
-	fi
+	}
+	mount -t nfs | sed -e 's/:.* on \(.*\) type .*/ \1/' | nfsstop
 
 	test "$IPX_NETNUM" && ipx_interface del $DEVICE $IPX_FRAME
 
 	# Remove nameservers
-	sed -e "/# $DEVICE begin/,/# $DEVICE end/d"	\
-	    < /etc/resolv.conf > /etc/resolv.new &&	\
-	    mv /etc/resolv.new /etc/resolv.conf
+	if fgrep -q "# $DEVICE begin" $RESOLV ; then
+	    sed -e "/# $DEVICE begin/,/# $DEVICE end/d"	\
+		< $RESOLV > $RESOLV.N
+	    mv $RESOLV.N $RESOLV
+	fi
 
     fi
     /sbin/ifconfig $DEVICE down
@@ -114,16 +121,31 @@ case "$ACTION" in
 
 'check')
     /sbin/ifconfig $DEVICE | grep -q RUNNING || exit 0
-    if [ "$MOUNTS" != "" ] ; then
-	for MT in $MOUNTS ; do
-	    if mount | fgrep " on $MT type" ; then
-		fuser -s -m $MT && exit 1
+
+    # Check for any in-use NFS mounts
+    nfscheck ()
+    {
+	while read HOST MT ; do
+	    /sbin/ifuser $DEVICE $HOST && fuser -sm $MT && exit 1
+	done
+    }
+    mount -t nfs | sed -e 's/:.* on \(.*\) type .*/ \1/' | nfscheck
+
+    # Check for active TCP or UDP connections
+    getdests ()
+    {
+    	IFS=" :" ; read A ; read A
+	while read A B C D E HOST PORT STATE ; do
+	    if [ "$STATE" != "FIN_WAIT1" -a "$STATE" != "FIN_WAIT2" \
+		-a "$STATE" != "CLOSE_WAIT" -a "$STATE" != "TIME_WAIT" \
+		-a "$HOST" != "127.0.0.1" -a "$HOST" != "0.0.0.0" \
+		-a "$PORT" != "*" ] ; then
+		echo $HOST
 	    fi
 	done
-    fi
-    # This is crude -- it checks for any external network activity
-    netstat -ntuw | tail +3 | awk '{ print $5, $6 }' | \
-	egrep -qv '127.0.0.1|FIN_WAIT|TIME_WAIT|CLOSE' && exit 1
+    }
+    DESTS=`netstat -ntuw | getdests`
+    /sbin/ifuser $DEVICE $DESTS && exit 1
     ;;
 
 'cksum')

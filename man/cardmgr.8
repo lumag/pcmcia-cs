@@ -1,7 +1,7 @@
-.\" Copyright (c) 1998 David Hinds <dhinds@hyper.stanford.edu>
-.\" cardmgr.8 1.25 1998/01/14 03:15:56
+.\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+.\" cardmgr.8 1.28 1998/05/04 23:27:47
 .\"
-.TH CARDMGR 8 "1998/01/14 03:15:56" "Stanford University"
+.TH CARDMGR 8 "1998/05/04 23:27:47" "pcmcia-cs"
 .SH NAME
 cardmgr \- PCMCIA device manager
 .SH SYNOPSIS
@@ -10,6 +10,7 @@ cardmgr \- PCMCIA device manager
 .RB [ -d ]
 .RB [ -o ]
 .RB [ -f ]
+.RB [ -v ]
 .RB [ "\-c\ "\c
 .I configpath\c
 ]
@@ -68,6 +69,10 @@ main card configuration file is read.
 .TP
 .B \-q
 Quiet mode: don't beep when cards are inserted.
+.TP
+.B \-v
+Verbose mode: generates more informational messages during normal
+operation.
 .TP
 .B \-d
 Follow module dependencies when loading driver modules, by defaulting

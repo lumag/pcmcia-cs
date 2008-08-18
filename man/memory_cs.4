@@ -1,7 +1,7 @@
-.\" Copyright (c) 1995 David Hinds <dhinds@allegro.stanford.edu>
-.\" memory_cs.4 1.4 1997/09/05 04:51:15
+.\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+.\" memory_cs.4 1.7 1998/05/04 23:28:13
 .\"
-.TH MEMORY_CS 4 "1997/09/05 04:51:15" "Stanford University"
+.TH MEMORY_CS 4 "1998/05/04 23:28:13" "pcmcia-cs"
 .SH NAME
 memory_cs \- MTD-aware PCMCIA memory card driver
 .SH SYNOPSIS
@@ -85,6 +85,23 @@ states).  Values of up to 1000 are legal.
 .B word_width=n
 A flag indicating if direct access devices should be configured for
 8-bit (if 0) or 16-bit (if 1) transfers.  The default is 1 (16-bit).
+.SH IOCTLS
+These are defined in
+.BR <pcmcia/memory.h> .
+.TP
+.B MEMGETINFO
+This takes an argument of type
+.BR (region_info_t\ *) ,
+defined in
+.BR <pcmcia/bulkmem.h> .
+The structure will be filled in with memory region information for 
+this device, such as access speed, erase block size, and JEDEC
+identifiers.  
+.TP
+.B MEMERASE
+This takes an argument of type
+.BR (erase_info_t\ *) ,
+specifying the offset and length of a memory region to be erased.  
 .SH AUTHOR
 David Hinds \- dhinds@hyper.stanford.edu
 .SH "SEE ALSO"

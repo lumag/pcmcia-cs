@@ -1,6 +1,10 @@
 #!/bin/sh
 #
-# pcinitrd revision 1.11 1998/02/10 11:08:34 (David Hinds)
+# Utility for constructing PCMCIA initrd boot images
+#
+# Copyright (C) David A. Hinds -- dhinds@hyper.stanford.edu
+#
+# pcinitrd 1.12 1998/03/08 20:34:07
 #
 RELEASE=""
 ALL=""

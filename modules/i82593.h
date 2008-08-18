@@ -3,7 +3,7 @@
  * The definitions are taken from the 1992 users manual with Intel
  * order number 297125-001.
  *
- * /usr/src/pc/modules/RCS/i82593.h,v 1.1 1996/07/17 15:23:12 root Exp
+ * /usr/src/pc/RCS/i82593.h,v 1.1 1996/07/17 15:23:12 root Exp
  *
  * Copyright 1994, Anders Klemets <klemets@it.kth.se>
  *

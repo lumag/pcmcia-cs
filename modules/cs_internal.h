@@ -1,5 +1,19 @@
 /*
- *  cs_internal.h 1.17 1998/01/13 06:46:43 (David Hinds)
+ * cs_internal.h 1.22 1998/05/10 11:59:46
+ *
+ * The contents of this file are subject to the Mozilla Public License
+ * Version 1.0 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License
+ * at http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+ * the License for the specific language governing rights and
+ * limitations under the License. 
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ *  are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
 #ifndef _LINUX_CS_INTERNAL_H
@@ -115,8 +129,12 @@ typedef struct socket_info_t {
     struct timer_list	setup, shutdown;
     u_long		unreset_timeout;
     pcmcia_mem_map	cis_mem;
+    u_char		*cis_virt;
     config_t		*config;
 #ifdef CONFIG_CARDBUS
+    u_int		cb_cis_space;
+    cb_bridge_map	cb_cis_map;
+    u_char		*cb_cis_virt;
     struct cb_config_t	*cb_config;
 #endif
     struct {
@@ -135,6 +153,8 @@ typedef struct socket_info_t {
 	u_short		attr;
     }			cis_table[MAX_CIS_TABLE];
     char		cis_cache[MAX_CIS_DATA];
+    u_int		fake_cis_len;
+    char		*fake_cis;
 } socket_info_t;
 
 /* Flags in config state */
@@ -176,6 +196,10 @@ int cb_config(socket_info_t *s);
 void cb_release(socket_info_t *s);
 void cb_enable(socket_info_t *s);
 void cb_disable(socket_info_t *s);
+void read_cb_mem(socket_info_t *s, u_char fn, int space,
+		 u_int addr, u_int len, void *ptr);
+int cb_setup_cis_mem(socket_info_t *s, int space);
+void cb_release_cis_mem(socket_info_t *s);
 
 /* Stuff in cistpl.c */
 void read_cis_mem(socket_info_t *s, int attr,
@@ -183,6 +207,7 @@ void read_cis_mem(socket_info_t *s, int attr,
 void write_cis_mem(socket_info_t *s, int attr,
 		   u_int addr, u_int len, void *ptr);
 int setup_cis_mem(socket_info_t *s);
+void release_cis_mem(socket_info_t *s);
 int verify_cis_cache(socket_info_t *s);
 void preload_cis_cache(socket_info_t *s);
 int get_first_tuple(client_handle_t handle, tuple_t *tuple);
@@ -190,6 +215,7 @@ int get_next_tuple(client_handle_t handle, tuple_t *tuple);
 int get_tuple_data(client_handle_t handle, tuple_t *tuple);
 int parse_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse);
 int validate_cis(client_handle_t handle, cisinfo_t *info);
+int replace_cis(client_handle_t handle, cisdump_t *cis);
 int read_tuple(client_handle_t handle, cisdata_t code, void *parse);
 
 /* In bulkmem.c */

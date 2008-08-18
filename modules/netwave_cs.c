@@ -829,8 +829,7 @@ static void netwave_pcmcia_config(dev_link_t *link) {
     DEBUG(1, "Setting mem speed of %d\n", mem_speed);
     
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
-    req.Base = NULL;
-    req.Size = 0x8000;
+    req.Base = 0; req.Size = 0x8000;
     req.AccessSpeed = mem_speed;
     link->win = (window_handle_t)link->handle;
     CS_CHECK(RequestWindow, &link->win, &req);
@@ -838,8 +837,8 @@ static void netwave_pcmcia_config(dev_link_t *link) {
     CS_CHECK(MapMemPage, link->win, &mem);
     
     /* Store base address of the common window frame */
-    ((netwave_private*)dev->priv)->ramBase = req.Base;
-    ramBase = req.Base;
+    ramBase = ioremap(req.Base, 0x8000);
+    ((netwave_private*)dev->priv)->ramBase = ramBase;
     
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
@@ -911,7 +910,10 @@ static void netwave_release(u_long arg) {
     link->dev = NULL;
     
     /* Don't bother checking to see if these succeed or not */
-    CardServices(ReleaseWindow, link->win); 
+    if (link->win) {
+	iounmap(((netwave_private *)dev->priv)->ramBase);
+	CardServices(ReleaseWindow, link->win);
+    }
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);

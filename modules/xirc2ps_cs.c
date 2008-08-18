@@ -1,4 +1,4 @@
-/* [xirc2ps_cs.c wk 14.04.97] (1.25 1998/02/03 07:34:32)
+/* [xirc2ps_cs.c wk 14.04.97] (1.26 1998/04/08 08:50:32)
  * Xircom Creditcard Ethernet Adapter IIps driver
  *
  * This driver works for the CE2, CEM28, CEM33, CE3 and CEM56 cards.
@@ -9,9 +9,12 @@
  * based on David Hinds skeleton driver.
  *
  * You can get the latest driver revision from
- *	"http://www.d.shuttle.de/isil/soft-xircom.html"
+ *	"http://www.d.shuttle.de/isil/xircom/xirc2ps.html"
  *
  * Please report bugs to: "xircom-bugs@isil.d.shuttle.de"
+ *
+ * A bug fix for the CEM56 to use modem and ethernet simultaneously
+ * was provided by Koen Van Herck (Koen.Van.Herck@xircom.com).
  *
  * Thanks to David Hinds for the PCMCIA package, Donald Becker for some
  * advice, Xircom for providing specs and help, 4PC GmbH Duesseldorf for
@@ -216,7 +219,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #endif
 static char *version =
-"xirc2ps_cs.c 1.25 1998/02/03 07:34:32 (Werner Koch)";
+"xirc2ps_cs.c 1.26 1998/04/08 08:50:32 (Werner Koch)";
 	    /* !--- CVS revision */
 #define KDBG_XIRC KERN_DEBUG   "xirc2ps_cs: "
 #define KERR_XIRC KERN_ERR     "xirc2ps_cs: "
@@ -1124,15 +1127,39 @@ xirc2ps_config(dev_link_t * link)
     }
 
     if( local->dingo ) {
+	conf_reg_t reg;
+	win_req_t req;
+	memreq_t mem;
+
+	/* Reset the modem's BAR to the correct value
+	 * This is necessary because in the RequestConfiguration call,
+	 * the base address of the ethernet port (BasePort1) is written
+	 * to the BAR registers of the modem.
+	 */
+	reg.Action = CS_WRITE;
+	reg.Offset = CISREG_IOBASE_0;
+	reg.Value = link->io.BasePort2 & 0xff;
+	if( (err = CardServices(AccessConfigurationRegister,
+				link->handle, &reg )) ) {
+	    cs_error(link->handle, AccessConfigurationRegister, err);
+	    goto config_error;
+	}
+	reg.Action = CS_WRITE;
+	reg.Offset = CISREG_IOBASE_1;
+	reg.Value = (link->io.BasePort2 >> 8) & 0xff;
+	if( (err = CardServices(AccessConfigurationRegister,
+				link->handle, &reg )) ) {
+	    cs_error(link->handle, AccessConfigurationRegister, err);
+	    goto config_error;
+	}
+	
 	/* There is no config entry for the Ethernet part which
 	 * is at 0x0800. So we allocate a window into the attribute
 	 * memory and write direct to the CIS registers
 	 */
-	win_req_t req;
-	memreq_t mem;
 
 	req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-	req.Base = NULL;
+	req.Base = 0;
 	req.Size = 0x1000; /* 4k window */
 	req.AccessSpeed = 0;
 	link->win = (window_handle_t)link->handle;
@@ -1140,7 +1167,7 @@ xirc2ps_config(dev_link_t * link)
 	    cs_error(link->handle, RequestWindow, err);
 	    goto config_error;
 	}
-	local->dingo_ccr = req.Base + 0x0800;
+	local->dingo_ccr = ioremap(req.Base,0x1000) + 0x0800;
 	mem.CardOffset = 0x0;
 	mem.Page = 0;
 	if( (err = CardServices(MapMemPage, link->win, &mem) ) ) {
@@ -1269,8 +1296,11 @@ xirc2ps_release( u_long arg)
     if( link->dev )
 	unregister_netdev(dev);
     link->dev = NULL;
-    if( link->win )
+    if( link->win ) {
+	local_info_t *local = dev->priv;
+	iounmap(local->dingo_ccr-0x800);
 	CardServices(ReleaseWindow, link->win );
+    }
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);

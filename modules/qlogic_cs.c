@@ -2,7 +2,21 @@
 
     A driver for the Qlogic SCSI card
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    qlogic_cs.c 1.59 1998/05/10 12:06:44
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -61,7 +75,6 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"qlogic_cs.c 1.55 1998/01/08 04:48:14 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -200,6 +213,9 @@ static void qlogic_detach(dev_link_t *link)
 #define CS_CHECK(fn, args...) \
 while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 
+#define CFG_CHECK(fn, args...) \
+if (CardServices(fn, args) != 0) goto next_entry
+
 static void qlogic_config(dev_link_t *link)
 {
     client_handle_t handle;
@@ -233,7 +249,7 @@ static void qlogic_config(dev_link_t *link)
     tuple.DesiredTuple = CISTPL_MANFID;
     if ((CardServices(GetFirstTuple, handle, &tuple) == CS_SUCCESS) &&
 	(CardServices(GetTupleData, handle, &tuple) == CS_SUCCESS))
-	info->manf_id = tuple.TupleData[0];
+	info->manf_id = le16_to_cpu(tuple.TupleData[0]);
 
     /* Configure card */
 #if (LINUX_VERSION_CODE >= VERSION(2,1,23))
@@ -244,23 +260,18 @@ static void qlogic_config(dev_link_t *link)
     link->state |= DEV_CONFIG;
 
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    i = CardServices(GetFirstTuple, handle, &tuple);
-    while (i == CS_SUCCESS) {
-	i = CardServices(GetTupleData, handle, &tuple);
-	if (i != CS_SUCCESS) break;
-	i = CardServices(ParseTuple, handle, &tuple, &parse);
-	if (i != CS_SUCCESS) break;
+    CS_CHECK(GetFirstTuple, handle, &tuple);
+    while (1) {
+	CFG_CHECK(GetTupleData, handle, &tuple);
+	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
 	link->conf.ConfigIndex = parse.cftable_entry.index;
 	link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
 	if (link->io.BasePort1 != 0) {
 	    i = CardServices(RequestIO, handle, &link->io);
-	    if (i != CS_IN_USE) break;
+	    if (i == CS_SUCCESS) break;
 	}
-	i = CardServices(GetNextTuple, handle, &tuple);
-    }
-    if (i != CS_SUCCESS) {
-	cs_error(handle, RequestIO, i);
-	goto failed;
+    next_entry:
+	CS_CHECK(GetNextTuple, handle, &tuple);
     }
     
     CS_CHECK(RequestIRQ, handle, &link->irq);
@@ -333,7 +344,6 @@ static void qlogic_config(dev_link_t *link)
 
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
-failed:
     qlogic_release((u_long)link);
     return;
 

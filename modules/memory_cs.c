@@ -7,7 +7,21 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    memory_cs.c 1.47 1998/05/10 12:06:44
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -61,7 +75,6 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.44 1998/02/11 21:28:16 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -397,14 +410,14 @@ static void memory_config(dev_link_t *link)
 	req.Attributes = WIN_DATA_WIDTH_16;
     else
 	req.Attributes = WIN_DATA_WIDTH_8;
-    req.Base = NULL; req.Size = WINDOW_SIZE;
+    req.Base = 0; req.Size = WINDOW_SIZE;
     req.AccessSpeed = mem_speed;
     link->win = (window_handle_t)link->handle;
     CS_CHECK(RequestWindow, &link->win, &req);
     /* Get write protect status */
     CS_CHECK(GetStatus, link->handle, &status);
     
-    dev->direct.Base = req.Base;
+    dev->direct.Base = ioremap(req.Base, WINDOW_SIZE);
     dev->direct.size = 0;
 
     for (attr = 0; attr < 2; attr++) {
@@ -489,8 +502,11 @@ static void memory_release(u_long arg)
     }
 
     link->dev = NULL;
-    if (link->win)
+    if (link->win) {
+	memory_dev_t *dev = link->priv;
+	iounmap(dev->direct.Base);
 	CardServices(ReleaseWindow, link->win);
+    }
     link->state &= ~DEV_CONFIG;
     
     if (link->state & DEV_STALE_LINK)

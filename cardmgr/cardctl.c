@@ -2,9 +2,21 @@
 
     PCMCIA device control program
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    cardctl.c 1.29 1998/05/10 12:22:54
 
-    cardctl.c 1.8 1995/02/07 23:16:38
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
 
 ======================================================================*/
 
@@ -26,11 +38,6 @@
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
-
-#if 0
-static const char *version =
-"cardinfo.c 1.24 1998/01/09 04:18:49 (David Hinds)";
-#endif
 
 /*====================================================================*/
 
@@ -103,6 +110,10 @@ static void print_status(status_t *status)
 	printf("no card\n");
 	return;
     }
+    if (status->CardState & CS_EVENT_3VCARD)
+	printf(", 3.3V card");
+    if (status->CardState & CS_EVENT_XVCARD)
+	printf(", X.XV card");
     if (status->CardState & CS_EVENT_PM_SUSPEND) {
 	printf(", suspended\n");
 	return;
@@ -134,7 +145,7 @@ static void print_config(config_info_t *config)
 	case INT_MEMORY:
 	    printf("memory-only\n"); break;
 	case INT_MEMORY_AND_IO:
-	    printf("memory and and I/O\n"); break;
+	    printf("memory and I/O\n"); break;
 	case INT_CARDBUS:
 	    printf("cardbus\n"); break;
 	}

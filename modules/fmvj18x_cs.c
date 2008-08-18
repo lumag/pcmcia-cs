@@ -3,16 +3,28 @@
 
     A fmvj18x (and its compatibles) PCMCIA client driver
 
-    Written by Shingo Fujimoto, shingo@flab.fujitsu.co.jp
+    Contributed by Shingo Fujimoto, shingo@flab.fujitsu.co.jp
 
     TDK LAK-CD021 and CONTEC C-NET(PC)C support added by 
     Nobuhiro Katayama, kata-n@po.iijnet.or.jp
 
+    The PCMCIA client code is based on code written by David Hinds.
     Network code is based on the "FMV-18x driver" by Yutaka TAMIYA
+    but is actually largely Donald Becker's AT1700 driver, which
+    carries the following attribution:
 
+    Written 1993-94 by Donald Becker.
+
+    Copyright 1993 United States Government as represented by the
+    Director, National Security Agency.
+    
     This software may be used and distributed according to the terms
-    of the GNU Public License.
-
+    of the GNU Public License, incorporated herein by reference.
+    
+    The author may be reached as becker@CESDIS.gsfc.nasa.gov, or C/O
+    Center of Excellence in Space Data and Information Sciences
+    Code 930.5, Goddard Space Flight Center, Greenbelt MD 20771
+    
 ======================================================================*/
 
 #include <pcmcia/config.h>
@@ -115,9 +127,9 @@ static void fjn_reset(struct device *dev);
 static struct net_device_stats *fjn_get_stats(struct device *dev);
 
 #ifdef NEW_MULTICAST
-static void set_multicast_list(struct device *dev);
+static void set_rx_mode(struct device *dev);
 #else
-static void set_multicast_list(struct device *dev, int num_addrs, void *addrs);
+#warning "This driver does not support multicast with old kernels."
 #endif /* NEW_MULTICAST */
 
 static dev_info_t dev_info = "fmvj18x_cs";
@@ -140,8 +152,10 @@ typedef struct local_info_t {
     ushort tx_queue_len;
     cardtype_t cardtype;
     ushort sent;
+    u_char mc_filter[8];
 } local_info_t;
 
+#define MC_FILTERBREAK 64
 
 /*====================================================================*/
 /* 
@@ -291,7 +305,9 @@ static dev_link_t *fmvj18x_attach(void)
     dev->hard_start_xmit = &fjn_start_xmit;
     dev->set_config = &fjn_config;
     dev->get_stats = &fjn_get_stats;
-    dev->set_multicast_list = &set_multicast_list;
+#ifdef NEW_MULTICAST
+    dev->set_multicast_list = &set_rx_mode;
+#endif
     ether_setup(dev);
     dev->name = ((local_info_t *)dev->priv)->node.dev_name;
     dev->init = &fmvj18x_init;
@@ -327,7 +343,8 @@ static dev_link_t *fmvj18x_attach(void)
 static void fmvj18x_detach(dev_link_t *link)
 {
     dev_link_t **linkp;
-
+    long flags;
+    
     DEBUG(0, "fmvj18x_detach(0x%p)\n", link);
     
     /* Locate device structure */
@@ -336,6 +353,14 @@ static void fmvj18x_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
+    save_flags(flags);
+    cli();
+    if (link->state & DEV_RELEASE_PENDING) {
+	del_timer(&link->release);
+	link->state &= ~DEV_RELEASE_PENDING;
+    }
+    restore_flags(flags);
+    
     if (link->state & DEV_CONFIG) {
 	fmvj18x_release((u_long)link);
 	if (link->state & DEV_STALE_CONFIG) {
@@ -352,7 +377,6 @@ static void fmvj18x_detach(dev_link_t *link)
     *linkp = link->next;
     if (link->priv) {
 	struct device *dev = link->priv;
-	
 	if (dev->priv) 
 	    kfree_s(dev->priv, sizeof(local_info_t));
 	kfree_s(dev, sizeof(struct device));
@@ -415,7 +439,7 @@ static void fmvj18x_config(dev_link_t *link)
 	CS_CHECK(GetFirstTuple, handle, &tuple);
 	CS_CHECK(GetTupleData, handle, &tuple);
 
-	switch (buf[0]) {
+	switch (le16_to_cpu(buf[0])) {
 	case MANFID_TDK:
 	    cardtype = TDK;
 	    break;
@@ -423,9 +447,9 @@ static void fmvj18x_config(dev_link_t *link)
 	    cardtype = CONTEC;
 	    break;
 	case MANFID_FUJITSU:
-	    if (buf[1] == PRODID_FUJITSU_MBH10302)
+	    if (le16_to_cpu(buf[1]) == PRODID_FUJITSU_MBH10302)
 		cardtype = MBH10302;
-	    else if (buf[1] == PRODID_FUJITSU_MBH10304)
+	    else if (le16_to_cpu(buf[1]) == PRODID_FUJITSU_MBH10304)
 		cardtype = MBH10304;
 	    else
 		cardtype = LA501;
@@ -639,11 +663,8 @@ void cleanup_module(void)
 {
     DEBUG(0, "fmvj18x_cs: unloading\n");
     unregister_pcmcia_driver(&dev_info);
-    while (dev_list != NULL) {
-	if (dev_list->state & DEV_CONFIG)
-	    fmvj18x_release((u_long)dev_list);
+    while (dev_list != NULL)
 	fmvj18x_detach(dev_list);
-    }
 }
 
 /*====================================================================*/
@@ -1112,28 +1133,80 @@ static int fjn_close(struct device *dev)
 static struct net_device_stats *fjn_get_stats(struct device *dev)
 {
     local_info_t *lp = (local_info_t *)dev->priv;
-
-    cli();
-    sti();
-
     return &lp->stats;
 } /* fjn_get_stats */
 
 /*====================================================================*/
 
-#ifdef NEW_MULTICAST
-#define num_addrs dev->mc_count
-static void set_multicast_list(struct device *dev)
-#else
-static void set_multicast_list(struct device *dev, int num_addrs, void *addrs)
-#endif /* NEW_MULTICAST */
-{
-    int ioaddr = dev->base_addr;
+/*
+  Set the multicast/promiscuous mode for this adaptor.
+*/
 
-    if (num_addrs) {
-	outb(RECV_ALL, ioaddr + RX_MODE);
-    } else {
-	outb(ID_MATCHED, ioaddr + RX_MODE);
+/* The little-endian AUTODIN II ethernet CRC calculation.
+   N.B. Do not use for bulk data, use a table-based routine instead.
+   This is common code and should be moved to net/core/crc.c */
+static unsigned const ethernet_polynomial_le = 0xedb88320U;
+static inline unsigned ether_crc_le(int length, unsigned char *data)
+{
+    unsigned int crc = 0xffffffff;	/* Initial value. */
+    while(--length >= 0) {
+	unsigned char current_octet = *data++;
+	int bit;
+	for (bit = 8; --bit >= 0; current_octet >>= 1) {
+	    if ((crc ^ current_octet) & 1) {
+		crc >>= 1;
+		crc ^= ethernet_polynomial_le;
+	    } else
+		crc >>= 1;
+	}
     }
+    return crc;
 }
 
+#ifdef NEW_MULTICAST
+static void set_rx_mode(struct device *dev)
+{
+    int ioaddr = dev->base_addr;
+    struct local_info_t *lp = (struct local_info_t *)dev->priv;
+    unsigned char mc_filter[8];		 /* Multicast hash filter */
+    long flags;
+    int i;
+    
+    if (dev->flags & IFF_PROMISC) {
+	/* Unconditionally log net taps. */
+	printk("%s: Promiscuous mode enabled.\n", dev->name);
+	memset(mc_filter, 0xff, sizeof(mc_filter));
+	outb(3, ioaddr + RX_MODE);	/* Enable promiscuous mode */
+    } else if (dev->mc_count > MC_FILTERBREAK
+	       ||  (dev->flags & IFF_ALLMULTI)) {
+	/* Too many to filter perfectly -- accept all multicasts. */
+	memset(mc_filter, 0xff, sizeof(mc_filter));
+	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */
+    } else if (dev->mc_count == 0) {
+	memset(mc_filter, 0x00, sizeof(mc_filter));
+	outb(1, ioaddr + RX_MODE);	/* Ignore almost all multicasts. */
+    } else {
+	struct dev_mc_list *mclist;
+	int i;
+	
+	memset(mc_filter, 0, sizeof(mc_filter));
+	for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+	     i++, mclist = mclist->next)
+	    set_bit(ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x3f,
+		    mc_filter);
+    }
+    
+    save_flags(flags);
+    cli();
+    if (memcmp(mc_filter, lp->mc_filter, sizeof(mc_filter))) {
+	int saved_bank = inb(ioaddr + CONFIG_1);
+	/* Switch to bank 1 and set the multicast table. */
+	outb(0xe4, ioaddr + CONFIG_1);
+	for (i = 0; i < 8; i++)
+	    outb(mc_filter[i], ioaddr + 8 + i);
+	memcpy(lp->mc_filter, mc_filter, sizeof(mc_filter));
+	outb(saved_bank, ioaddr + CONFIG_1);
+    }
+    restore_flags(flags);
+}
+#endif

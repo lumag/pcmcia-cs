@@ -1,9 +1,23 @@
 /*======================================================================
 
-    A simple MTD for Intel Series 2 Flash devices
+    A simple MTD for Intel Series 2 and Series 100 Flash devices
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    iflash2_mtd.c 1.34 1998/05/10 12:06:44
 
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    
     For efficiency and simplicity, this driver is very block oriented.
     Reads and writes must not span erase block boundaries.  Erases
     are limited to one erase block per request.  This makes it much
@@ -45,7 +59,6 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"iflash2_mtd.c 1.30 1998/01/07 05:45:41 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -54,10 +67,10 @@ static char *version =
 
 /* Parameters that can be set with 'insmod' */
 
-static int vpp_timeout_period	= HZ;		/* in ticks */
-static int vpp_settle		= HZ/10;	/* in ticks */
+static int vpp_timeout_period	= 1000;		/* in ms */
+static int vpp_settle		= 100;		/* in ms */
 static int erase_timeout	= 100;		/* in ms */
-static int erase_limit		= 10*HZ;	/* in ticks */
+static int erase_limit		= 10000;	/* in ms */
 static int retry_limit		= 4;		/* write retries */
 static u_int max_tries       	= 4096;		/* status polling */
 
@@ -98,6 +111,7 @@ typedef struct flash_region_t {
 
 typedef struct flash_dev_t {
     caddr_t		Base;
+    u_int		vpp;
     int			vpp_usage;
     u_int		vpp_start;
     struct timer_list	vpp_timeout;
@@ -300,6 +314,9 @@ static int vpp_setup(dev_link_t *link, mtd_request_t *req)
     flash_dev_t *dev = (flash_dev_t *)link->priv;
     mtd_vpp_req_t vpp_req;
 
+    /* First, do we need to do this? */
+    if (!dev->vpp) return 0;
+    
     /* First time for this request? */
     if (!(req->Function & MTD_REQ_TIMEOUT)) {
 	dev->vpp_usage++;
@@ -310,7 +327,7 @@ static int vpp_setup(dev_link_t *link, mtd_request_t *req)
 	    else {
 		DEBUG(1, "iflash2_mtd: raising Vpp...\n");
 		dev->vpp_start = jiffies;
-		vpp_req.Vpp1 = vpp_req.Vpp2 = 120;
+		vpp_req.Vpp1 = vpp_req.Vpp2 = dev->vpp;
 		MTDHelperEntry(MTDSetVpp, link->handle, &vpp_req);
 	    }
 	}
@@ -327,11 +344,11 @@ static int vpp_setup(dev_link_t *link, mtd_request_t *req)
 static void vpp_off(u_long arg)
 {
     dev_link_t *link = (dev_link_t *)arg;
-    flash_dev_t *dev;
+    flash_dev_t *dev = (flash_dev_t *)link->priv;
     mtd_vpp_req_t req;
 
+    if (!dev->vpp) return;
     DEBUG(1, "iflash2_mtd: lowering Vpp...\n");
-    dev = (flash_dev_t *)link->priv;
     dev->vpp_timeout.expires = 0;
     req.Vpp1 = req.Vpp2 = 0;
     MTDHelperEntry(MTDSetVpp, link->handle, &req);
@@ -339,8 +356,8 @@ static void vpp_off(u_long arg)
 
 static void vpp_shutdown(dev_link_t *link)
 {
-    flash_dev_t *dev;
-    dev = (flash_dev_t *)link->priv;
+    flash_dev_t *dev = (flash_dev_t *)link->priv;
+    if (!dev->vpp) return;
     dev->vpp_usage--;
     if (dev->vpp_usage == 0) {
 	dev->vpp_timeout.expires = RUN_AT(vpp_timeout_period);
@@ -474,7 +491,7 @@ static void flash_config(dev_link_t *link)
 
     /* Allocate a 4K memory window */
     req.Attributes = WIN_DATA_WIDTH_16;
-    req.Base = NULL; req.Size = WINDOW_SIZE;
+    req.Base = 0; req.Size = WINDOW_SIZE;
     req.AccessSpeed = 0;
     link->win = (window_handle_t)link->handle;
     ret = MTDHelperEntry(MTDRequestWindow, &link->win, &req);
@@ -485,7 +502,7 @@ static void flash_config(dev_link_t *link)
 	return;
     }
     dev = link->priv;
-    dev->Base = req.Base;
+    dev->Base = ioremap(req.Base, WINDOW_SIZE);
 
     link->state |= DEV_CONFIG;
 
@@ -514,6 +531,8 @@ static void flash_config(dev_link_t *link)
 	    if (region.BlockSize == 1)
 		region.BlockSize = 0x20000;
 	    dev->flash[i]->region = region;
+	    /* If not Series 100, then we'll use Vpp=12V */
+	    if (region.JedecInfo != 0xaa) dev->vpp = 120;
 	    /* All Series 2 cards have 2MB component pairs */
 	    dev->flash[i]->cell_size = 0x200000;
 	    i++;
@@ -540,12 +559,13 @@ static void flash_release(u_long arg)
     DEBUG(0, "iflash2_mtd: flash_release(0x%p)\n", link);
 
     link->state &= ~DEV_CONFIG;
-    if (link->win) {
-	int ret = MTDHelperEntry(MTDReleaseWindow, link->win);
-	if (ret != CS_SUCCESS)
-	    cs_error(link->handle, ReleaseWindow, ret);
-    }
     dev = link->priv;
+    if (link->win) {
+	iounmap(dev->Base);
+	i = MTDHelperEntry(MTDReleaseWindow, link->win);
+	if (i != CS_SUCCESS)
+	    cs_error(link->handle, ReleaseWindow, i);
+    }
     if (dev->vpp_usage == 0)
 	del_timer(&dev->vpp_timeout);
     vpp_off((u_long)link);
@@ -995,6 +1015,11 @@ int init_module(void)
     servinfo_t serv;
     
     DEBUG(0, "%s\n", version);
+
+    /* Rescale parameters */
+    vpp_timeout_period = (vpp_timeout_period * HZ) / 1000;
+    vpp_settle = (vpp_settle * HZ) / 1000;
+    erase_limit = (erase_limit * HZ) / 1000;
     
     CardServices(GetCardServicesInfo, &serv);
     if (serv.Revision != CS_RELEASE_CODE) {

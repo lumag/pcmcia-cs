@@ -2,7 +2,21 @@
 
     Register dump for the Intel 82365SL controller family
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    dump_i365.c 1.19 1998/05/10 12:21:47
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -35,9 +49,6 @@ typedef unsigned short u_short;
 #include "i82365.h"
 #include "pd67xx.h"
 #include "vg468.h"
-
-static const char *version =
-"dump_i365.c 1.16 1998/01/17 05:13:26 (David Hinds)\n";
 
 static int i365_base = 0x03e0;
 static int type = 0;
@@ -579,9 +590,6 @@ void dump_sock(int s)
 void main(int argc, char *argv[])
 {
     int sock, i;
-    
-    if ((argc > 1) && (strcmp(argv[1], "-v") == 0))
-	printf("%s", version);
     
     sock = i365_probe();
     for (i = 0; i < sock; i++) {

@@ -1,12 +1,12 @@
-.\" Copyright (c) 1996 David Hinds <dhinds@allegro.stanford.edu>
-.\" ide_info.8 1.1 1996/09/08 22:48:25
+.\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+.\" ide_info.8 1.4 1998/05/04 23:27:59
 .\"
-.TH IDE_INFO 8 "1996/09/08 22:48:25" "Stanford University"
+.TH IDE_INFO 8 "1998/05/04 23:27:59" "pcmcia-cs"
 .SH NAME
 ide_info \- IDE device description tool
 .SH SYNOPSIS
 .B ide_info
-device
+.I device
 .SH DESCRIPTION
 .B Ide_info
 opens the specified IDE device file, and retrieves its device
@@ -20,4 +20,4 @@ variables based on this information.  The PCMCIA configuration script
 for IDE-type devices uses this utility so that the serial number can
 be used to specify configurations for particular cards.
 .SH AUTHOR
-David Hinds \- dhinds@allegro.stanford.edu
+David Hinds \- dhinds@hyper.stanford.edu

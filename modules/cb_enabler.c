@@ -2,8 +2,22 @@
 
     Cardbus device enabler
 
-    Written by David Hinds, dhinds@hyper.stanford.edu
+    cb_enabler.c 1.9 1998/05/10 12:06:44
 
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    
     The general idea:
 
     A client driver registers using register_driver().  This module
@@ -34,7 +48,6 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.5 1998/02/04 17:02:17 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -69,7 +82,7 @@ static driver_info_t driver[4] = {
 
 typedef struct bus_info_t {
     u_char		bus;
-    int			ndev;
+    int			ncfg, nuse;
     struct bus_info_t	*next;
 } bus_info_t;
 
@@ -181,7 +194,7 @@ static void cb_config(dev_link_t *link)
 	b = kmalloc(sizeof(bus_info_t), GFP_KERNEL);
 	b->bus = bus;
 	b->next = bus_list;
-	b->ndev = 0;
+	b->ncfg = b->nuse = 0;
 	bus_list = b;
 
 	/* Special hook: CS know what to do... */
@@ -190,18 +203,21 @@ static void cb_config(dev_link_t *link)
 	    cs_error(handle, RequestIO, i);
 	    return;
 	}
+	b->nuse++;
 	i = CardServices(RequestConfiguration, handle, NULL);
 	if (i != CS_SUCCESS) {
 	    cs_error(handle, RequestConfiguration, i);
 	    return;
 	}
+	b->ncfg++;
+    } else {
+	b->ncfg++; b->nuse++;
     }
     link->win = (void *)b;
     loc.bus = LOC_PCI;
     loc.b.pci.bus = bus;
     loc.b.pci.devfn = devfn;
     link->dev = drv->ops->attach(&loc);
-    b->ndev++;
     
     link->state &= ~DEV_CONFIG_PENDING;
     link->state |= DEV_CONFIG;
@@ -222,11 +238,12 @@ static void cb_release(u_long arg)
 	link->dev = NULL;
     }
     if (link->state & DEV_CONFIG) {
-	b->ndev--;
-	if (b->ndev == 0) {
+	b->ncfg--;
+	if (b->ncfg == 0)
 	    CardServices(ReleaseConfiguration, link->handle);
+	b->nuse--;
+	if (b->nuse == 0)
 	    CardServices(ReleaseIO, link->handle, NULL);
-	}
     }
     link->state &= ~DEV_CONFIG;
 }
@@ -261,8 +278,8 @@ static int cb_event(event_t event, int priority,
 	if (link->state & DEV_CONFIG) {
 	    if (drv->ops->suspend != NULL)
 		drv->ops->suspend(link->dev);
-	    b->ndev--;
-	    if (b->ndev == 0)
+	    b->ncfg--;
+	    if (b->ncfg == 0)
 		CardServices(ReleaseConfiguration, link->handle);
 	}
 	break;
@@ -271,8 +288,8 @@ static int cb_event(event_t event, int priority,
 	/* Fall through... */
     case CS_EVENT_CARD_RESET:
 	if (link->state & DEV_CONFIG) {
-	    b->ndev++;
-	    if (b->ndev == 1)
+	    b->ncfg++;
+	    if (b->ncfg == 1)
 		CardServices(RequestConfiguration, link->handle, NULL);
 	    if (drv->ops->resume != NULL)
 		drv->ops->resume(link->dev);

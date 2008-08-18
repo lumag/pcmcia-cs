@@ -2,9 +2,21 @@
 
     Utility to create an FTL partition in a memory region
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    ftl_format.c 1.9 1998/05/10 12:15:28
 
-    ftl_format.c 1.5 1997/12/29 17:49:52
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
 
 ======================================================================*/
 
@@ -21,7 +33,7 @@
 #include <sys/stat.h>
 
 #include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
+#include <pcmcia/bulkmem.h>
 #include <pcmcia/ftl.h>
 #include <pcmcia/memory.h>
 
@@ -100,7 +112,15 @@ static int format_partition(int fd, int quiet, int interrogate,
 	perror("get info failed");
 	return -1;
     }
-	
+
+    /* Intel Series 100 Flash: skip first block */
+    if ((region.JedecMfr == 0x89) && (region.JedecInfo == 0xaa) &&
+	(bootsize == 0)) {
+	if (!quiet)
+	    printf("Skipping first block to protect CIS info...\n");
+	bootsize = 1;
+    }
+    
     /* Create header */
     build_header(&hdr, region.RegionSize, region.BlockSize,
 		 spare, reserve, bootsize);

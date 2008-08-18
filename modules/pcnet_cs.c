@@ -9,8 +9,10 @@
     Conrad ethernet card, and the Kingston KNE-PCM/x in shared-memory
     mode.  It will also handle the Socket EA card in either mode.
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
+    pcnet_cs.c 1.69 1998/04/21 21:28:07
+    
     The network driver code is based on Donald Becker's NE2000 code:
 
     Written 1992,1993 by Donald Becker.
@@ -71,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.63 1997/12/29 21:30:55 (David Hinds)";
+"pcnet_cs.c 1.69 1998/04/21 21:28:07 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -215,6 +217,7 @@ typedef struct pcnet_dev_t {
     struct device	dev;
     dev_node_t		node;
     u_long		flags;
+    caddr_t		base;
 } pcnet_dev_t;
 
 /*====================================================================*/
@@ -395,13 +398,12 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
     struct device *dev = link->priv;
     win_req_t req;
     memreq_t mem;
-    u_char *base;
+    u_char *base, *virt;
     int i, j;
 
     /* Allocate a 4K memory window */
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = NULL;
-    req.Size = 0x1000;
+    req.Base = 0; req.Size = 0x1000;
     req.AccessSpeed = 0;
     link->win = (window_handle_t)link->handle;
     i = CardServices(RequestWindow, &link->win, &req);
@@ -410,11 +412,12 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
 	return NULL;
     }
 
+    virt = ioremap(req.Base, 0x1000);
     mem.Page = 0;
     for (i = 0; i < NR_INFO; i++) {
 	mem.CardOffset = hw_info[i].offset & ~0x0fff;
 	CardServices(MapMemPage, link->win, &mem);
-	base = &req.Base[hw_info[i].offset & 0x0fff];
+	base = &virt[hw_info[i].offset & 0x0fff];
 	if ((readb(base+0) == hw_info[i].a0) &&
 	    (readb(base+2) == hw_info[i].a1) &&
 	    (readb(base+4) == hw_info[i].a2))
@@ -423,16 +426,13 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
     if (i < NR_INFO) {
 	for (j = 0; j < 6; j++)
 	    dev->dev_addr[j] = readb(base + (j<<1));
-	j = CardServices(ReleaseWindow, link->win);
-	if (j != CS_SUCCESS)
-	    cs_error(link->handle, ReleaseWindow, j);
-	return hw_info+i;
-    } else {
-	i = CardServices(ReleaseWindow, link->win);
-	if (i != CS_SUCCESS)
-	    cs_error(link->handle, ReleaseWindow, i);
-	return NULL;
     }
+    
+    iounmap(virt);
+    j = CardServices(ReleaseWindow, link->win);
+    if (j != CS_SUCCESS)
+	cs_error(link->handle, ReleaseWindow, j);
+    return (i < NR_INFO) ? hw_info+i : NULL;
 } /* get_hwinfo */
 
 /*======================================================================
@@ -535,7 +535,7 @@ static void pcnet_config(dev_link_t *link)
     pcnet_dev_t *info;
     struct device *dev;
     int i, j, last_ret, last_fn, start_pg, stop_pg, cm_offset;
-    int manfid = 0, multi = 0;
+    int manfid = 0, prodid, multi = 0;
     u_short buf[64];
     hw_info_t *hw_info;
 
@@ -564,16 +564,18 @@ static void pcnet_config(dev_link_t *link)
     tuple.Attributes = TUPLE_RETURN_COMMON;
     if ((CardServices(GetFirstTuple, handle, &tuple) == CS_SUCCESS) &&
  	(CardServices(GetTupleData, handle, &tuple) == CS_SUCCESS)) {
-	manfid = buf[0];
+	manfid = le16_to_cpu(buf[0]);
+	prodid = le16_to_cpu(buf[1]);
  	if ((manfid == MANFID_IBM) &&
-	    (buf[1] == PRODID_IBM_HOME_AND_AWAY)) {
+	    (prodid == PRODID_IBM_HOME_AND_AWAY)) {
 	    multi = 1;
 	    link->io.NumPorts1 = 32;
 	    link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	    link->io.NumPorts2 = 0;
 	}
  	if ((manfid == MANFID_LINKSYS) &&
-	    (buf[1] == PRODID_LINKSYS_PCMLM28)) {
+	    ((prodid == PRODID_LINKSYS_PCMLM28) ||
+	     (prodid == PRODID_LINKSYS_3400))) {
 	    multi = 1;
 	    link->io.NumPorts1 = 32;
 	    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -648,11 +650,11 @@ static void pcnet_config(dev_link_t *link)
 	goto failed;
     }
 
-    hw_info = get_DL10019A(link);
-    if (hw_info == NULL)
-	hw_info = get_hwinfo(link);
+    hw_info = get_hwinfo(link);
     if (hw_info == NULL)
 	hw_info = get_prom(link);
+    if (hw_info == NULL)
+	hw_info = get_DL10019A(link);
     if (hw_info == NULL)
 	hw_info = get_hwired(link);
     
@@ -736,8 +738,10 @@ static void pcnet_release(u_long arg)
 	return;
     }
 
-    if (info->flags & USE_SHMEM)
+    if (info->flags & USE_SHMEM) {
+	iounmap(info->base);
 	CardServices(ReleaseWindow, link->win);
+    }
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
@@ -1252,6 +1256,7 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
     memreq_t mem;
     int offset = 0, last_ret, last_fn;
     struct device *dev = link->priv;
+    pcnet_dev_t *info = link->priv;
     int window_size;
 
     window_size = (stop_pg - start_pg) << 8;
@@ -1265,8 +1270,7 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
     /* Allocate a memory window */
     req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
     req.Attributes |= WIN_USE_WAIT;
-    req.Base = NULL;
-    req.Size = window_size;
+    req.Base = 0; req.Size = window_size;
     req.AccessSpeed = mem_speed;
     link->win = (window_handle_t)link->handle;
     CS_CHECK(RequestWindow, &link->win, &req);
@@ -1277,9 +1281,10 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
     mem.Page = 0;
     CS_CHECK(MapMemPage, link->win, &mem);
 
-    dev->mem_start = (u_long)req.Base + offset;
+    info->base = ioremap(req.Base, window_size);
+    dev->mem_start = (u_long)info->base + offset;
     dev->rmem_start = dev->mem_start + (TX_PAGES<<8);
-    dev->mem_end = dev->rmem_end = (u_long)req.Base + req.Size;
+    dev->mem_end = dev->rmem_end = (u_long)info->base + req.Size;
 
     ei_status.tx_start_page = start_pg;
     ei_status.rx_start_page = start_pg + TX_PAGES;

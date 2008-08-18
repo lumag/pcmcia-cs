@@ -2,7 +2,21 @@
 
     PCMCIA card CIS dump
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    dump_cisreg.c 1.14 1998/05/10 12:21:47
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -22,9 +36,6 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-
-static const char *version =
-"dump_cisreg.c 1.11 1997/12/29 17:48:45 (David Hinds)\n";
 
 /*====================================================================*/
 
@@ -195,9 +206,6 @@ int main(int argc, char *argv[])
     u_int mask;
     ds_ioctl_arg_t arg;
 
-    if ((argc > 1) && (strcmp(argv[1], "-v") == 0))
-	printf("%s", version);
-    
     major = lookup_dev("pcmcia");
     if (major < 0) {
 	fprintf(stderr, "no pcmcia driver in /proc/devices\n");

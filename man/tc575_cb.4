@@ -1,0 +1,47 @@
+.\" Copyright (c) 1998 Donald Becker and David Hinds.
+.\" tc575_cb.4 1.0 1998/02/5 03:35:00
+.\"
+.TH 3C575_CB 4 "1998/02/05 03:35:00" "CESDIS"
+.SH NAME
+3c575_cb \- 3Com 3c575 Etherlink XL 10/100 CardBus device driver
+.SH SYNOPSIS
+.B insmod 3c575_cb.o
+.RB [ pc_debug=n ]
+.SH DESCRIPTION
+.B 3c575_cb
+is the low-level Card Services driver for the 3Com 3c575 EtherLink XL
+CardBus ethernet adapter.  When this driver is attached to a card, it
+allocates the next available ethernet device
+.RB ( eth0 .. eth# ).
+This information for this card will be reported in the kernel log file, and
+the device name passed on to
+.BR cardmgr (8).
+.PP
+The driver uses the N-Way autonegotiating transceiver to negotiate the speed
+and duplex of the network link.  If the link partner does not support
+negotiation only the link speed is detected.
+.PP
+If the on-card EEPROM is programmed for a full-duplex (FD) link, only FD media
+types are advertised and the link is assumed to be full-duplex.
+.SH PARAMETERS
+.TP
+.B rx_copybreak=n
+Set the breakpoint for copying incoming frames into reduced-sized
+packet buffers.  The default value of 200 bytes is reasonable for most systems.
+.TP
+.B max_interrupt_work=n
+This option selects the maximum amount of work handled during each
+interrupt.  Each received packet counts as one unit of work, as does
+updating statistics counters and handling errors.  The default value of
+20 should only need to be increased on very slow machines.
+If "too much work at interrupt" messages are logged
+the system power management configuration should be set to full speed rather
+than increasing this value.
+
+.SH AUTHOR
+This driver: Donald Becker \- becker@cesdis.gsfc.nasa.gov.
+.PP
+Linux PC Card control software: David Hinds \- dhinds@hyper.stanford.edu et al.
+.SH "SEE ALSO"
+cardmgr(8), pcmcia(5), ifport(8).
+

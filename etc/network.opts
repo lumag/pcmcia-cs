@@ -22,8 +22,10 @@ case "$ADDRESS" in
     BROADCAST="1.2.255.255"
     # Gateway address
     GATEWAY="1.2.0.1"
-    # Domain name
+    # Local domain name
     DOMAIN="stanford.edu"
+    # Search list for host lookup
+    SEARCH=""
     # Nameserver #1
     DNS_1=""
     # Nameserver #2

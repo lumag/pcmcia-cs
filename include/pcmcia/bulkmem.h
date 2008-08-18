@@ -1,13 +1,46 @@
 /*
- *  bulkmem.h 1.3 1995/05/27 04:49:49 (David Hinds)
+ * Definitions for bulk memory services
+ *
+ * bulkmem.h 1.8 1998/05/10 12:10:34
+ *
+ * The contents of this file are subject to the Mozilla Public License
+ * Version 1.0 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License
+ * at http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+ * the License for the specific language governing rights and
+ * limitations under the License. 
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+ * bulkmem.h 1.3 1995/05/27 04:49:49
  */
 
 #ifndef _LINUX_BULKMEM_H
 #define _LINUX_BULKMEM_H
 
-/*
- *  Definitions for bulk memory services
- */
+/* For GetFirstRegion and GetNextRegion */
+typedef struct region_info_t {
+    u_int		Attributes;
+    u_int		CardOffset;
+    u_int		RegionSize;
+    u_int		AccessSpeed;
+    u_int		BlockSize;
+    u_int		PartMultiple;
+    u_char		JedecMfr, JedecInfo;
+    memory_handle_t	next;
+} region_info_t;
+
+#define REGION_TYPE		0x0001
+#define REGION_TYPE_CM		0x0000
+#define REGION_TYPE_AM		0x0001
+#define REGION_PREFETCH		0x0008
+#define REGION_CACHEABLE	0x0010
+#define REGION_BAR_MASK		0xe000
+#define REGION_BAR_SHIFT	13
 
 /* For OpenMemory */
 typedef struct open_mem_t {

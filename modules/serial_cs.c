@@ -2,7 +2,21 @@
 
     A driver for PCMCIA serial devices
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    serial_cs.c 1.96 1998/05/10 12:06:44
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -34,7 +48,6 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.91 1998/02/06 04:55:15 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -67,6 +80,7 @@ typedef struct {
 static multi_id_t multi_id[] = {
     { MANFID_IBM, PRODID_IBM_HOME_AND_AWAY, 1 },
     { MANFID_3COM, PRODID_3COM_3C562, 1 },
+    { MANFID_3COM, PRODID_3COM_3CXEM556, 1 },
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D1, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_QUAD_RS232, 4 },
@@ -472,24 +486,30 @@ void serial_config(dev_link_t *link)
     tuple.DesiredTuple = CISTPL_MANFID;
     tuple.Attributes = TUPLE_RETURN_COMMON;
     if (first_tuple(handle, &tuple, &parse) == CS_SUCCESS) {
-	info->manfid = buf[0];
+	info->manfid = le16_to_cpu(buf[0]);
 	for (i = 0; i < MULTI_COUNT; i++)
-	    if ((buf[0] == multi_id[i].manfid) &&
-		(buf[1] == multi_id[i].prodid))
+	    if ((info->manfid == multi_id[i].manfid) &&
+		(le16_to_cpu(buf[1]) == multi_id[i].prodid))
 		break;
 	if (i < MULTI_COUNT)
 	    info->multi = multi_id[i].multi;
     }
 
-    /* Another check for dual-serial cards */
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
+    /* Another check for dual-serial cards: look for either serial or
+       multifunction cards that ask for appropriate IO port ranges */
+    tuple.DesiredTuple = CISTPL_FUNCID;
     if ((info->multi == 0) &&
-	(first_tuple(handle, &tuple, &parse) == CS_SUCCESS) &&
-	(((cf->io.nwin == 1) && (cf->io.win[0].len == 16)) ||
-	 ((cf->io.nwin == 2) && (cf->io.win[0].len == 8) &&
-	  (cf->io.win[1].len == 8))))
-	info->multi = 2;
-
+	((first_tuple(handle, &tuple, &parse) != CS_SUCCESS) ||
+	 (parse.funcid.func == CISTPL_FUNCID_MULTI) ||
+	 (parse.funcid.func == CISTPL_FUNCID_SERIAL))) {
+	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
+	if ((first_tuple(handle, &tuple, &parse) == CS_SUCCESS) &&
+	    (((cf->io.nwin == 1) && (cf->io.win[0].len == 16)) ||
+	     ((cf->io.nwin == 2) && (cf->io.win[0].len == 8) &&
+	      (cf->io.win[1].len == 8))))
+	    info->multi = 2;
+    }
+    
     if (info->multi > 1)
 	multi_config(link);
     else

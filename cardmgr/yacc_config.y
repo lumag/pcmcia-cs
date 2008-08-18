@@ -1,6 +1,20 @@
 %{
 /*
- * yacc_config.y 1.35 1998/01/02 16:49:56 (David Hinds)\n"
+ * yacc_config.y 1.38 1998/05/10 12:13:46
+ *
+ * The contents of this file are subject to the Mozilla Public License
+ * Version 1.0 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License
+ * at http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+ * the License for the specific language governing rights and
+ * limitations under the License. 
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
     
 #include <stdlib.h>
@@ -27,7 +41,7 @@ static int add_module(device_info_t *card, char *name);
 %}
 
 %token DEVICE CARD ANONYMOUS TUPLE MANFID VERSION FUNCTION
-%token BIND TO NEEDS_MTD MODULE OPTS CLASS
+%token BIND CIS TO NEEDS_MTD MODULE OPTS CLASS
 %token REGION JEDEC DTYPE DEFAULT MTD
 %token INCLUDE EXCLUDE RESERVE IRQ_NO PORT MEMORY
 %token STRING NUMBER
@@ -45,7 +59,7 @@ static int add_module(device_info_t *card, char *name);
 %type <num> NUMBER
 %type <adjust> adjust resource
 %type <device> device needs_mtd module class
-%type <card> card anonymous tuple manfid version function bind
+%type <card> card anonymous tuple manfid version function bind cis
 %type <mtd> region jedec dtype default mtd
 %%
 
@@ -173,6 +187,7 @@ card:	  CARD STRING
 	| version
 	| function
 	| bind
+	| cis
 	;
 
 anonymous: card ANONYMOUS
@@ -244,6 +259,10 @@ function: card FUNCTION NUMBER
 		    $1->ident_type = FUNC_IDENT;
 		    $1->id.func.funcid = $3;
 		}
+	;
+
+cis:	  card CIS STRING
+		{ $1->cis_file = strdup($3); }
 	;
 
 bind:	  card BIND STRING

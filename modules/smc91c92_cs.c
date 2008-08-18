@@ -2,9 +2,14 @@
 
     A PCMCIA ethernet driver for SMC91c92-based cards.
 
-    This driver supports Megahertz PCMCIA ethernet cards, and Ositech
-    ethernet/modem multifunction cards.
+    This driver supports Megahertz PCMCIA ethernet cards; and
+    Megahertz, Motorola, and Ositech ethernet/modem multifunction
+    cards.
 
+    Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+
+    smc91c92_cs.c 1.49 1998/04/19 11:51:03
+    
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
     David Hinds (dhinds@hyper.stanford.edu), and Erik Stahlman
@@ -532,14 +537,14 @@ static int mhz_mfc_config(dev_link_t *link)
     
     /* Allocate a memory window, for accessing the ISR */
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = NULL;
+    req.Base = 0;
     req.Size = 0x1000;
     req.AccessSpeed = 0;
     link->win = (window_handle_t)link->handle;
     i = CardServices(RequestWindow, &link->win, &req);
     if (i != CS_SUCCESS)
 	return i;
-    lp->base = req.Base;
+    lp->base = ioremap(req.Base, 0x1000);
     mem.CardOffset = mem.Page = 0;
     if (lp->manfid == MANFID_MOTOROLA)
 	mem.CardOffset = link->conf.ConfigBase;
@@ -851,8 +856,8 @@ static void smc91c92_config(dev_link_t *link)
     tuple.DesiredTuple = CISTPL_MANFID;
     i = first_tuple(handle, &tuple, &parse);
     CS_EXIT_TEST(i, GetFirstTuple, config_failed);
-    lp->manfid = buf[0];
-    lp->cardid = buf[1];
+    lp->manfid = le16_to_cpu(buf[0]);
+    lp->cardid = le16_to_cpu(buf[1]);
     
     /* Configure card */
     link->state |= DEV_CONFIG;
@@ -971,8 +976,11 @@ static void smc91c92_release(u_long arg)
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
-    if (link->win)
+    if (link->win) {
+	struct smc_private *lp = dev->priv;
+	iounmap(lp->base);
 	CardServices(ReleaseWindow, link->win);
+    }
     
     link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
     if (link->state & DEV_STALE_LINK)

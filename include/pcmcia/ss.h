@@ -1,5 +1,19 @@
 /*
- * ss.h 1.9 1997/12/18 07:37:47 (David Hinds)
+ * ss.h 1.14 1998/05/10 12:11:00
+ *
+ * The contents of this file are subject to the Mozilla Public License
+ * Version 1.0 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License
+ * at http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+ * the License for the specific language governing rights and
+ * limitations under the License. 
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
 #ifndef _LINUX_SS_H
@@ -24,10 +38,13 @@ typedef struct ss_callback_t {
 #define SS_GPI		0x0200
 #define SS_STSCHG	0x0400
 #define SS_CARDBUS	0x0800
+#define SS_3VCARD	0x1000
+#define SS_XVCARD	0x2000
 
 /* for InquireSocket */
 typedef struct socket_cap_t {
     u_int	irq_mask;
+    u_char	pci_irq;
     u_char	cardbus;
 } socket_cap_t;
 

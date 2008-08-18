@@ -1,14 +1,13 @@
-.\" Copyright (c) 1998 David Hinds <dhinds@hyper.stanford.edu>
-.\" i82365.4 1.13 1998/01/13 15:48:26
+.\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+.\" i82365.4 1.18 1998/05/04 23:27:58
 .\"
-.TH I82365 4 "1998/01/13 15:48:26" "Stanford University"
+.TH I82365 4 "1998/05/04 23:27:58" "pcmcia-cs"
 .SH NAME
 i82365 \- Intel i82365sl PCMCIA controller driver
 .SH SYNOPSIS
 .B insmod i82365.o
 .RB [ pc_debug=n ]
 .RB [ i365_base=n ]
-.RB [ cb_io_base=n ]
 .RB [ cb_mem_base=n ]
 .RB [ ignore=n ]
 .RB [ extra_sockets=n ]
@@ -16,6 +15,7 @@ i82365 \- Intel i82365sl PCMCIA controller driver
 .RB [ irq_list=i,j,... ]
 .RB [ cs_irq=n ]
 .RB [ pci_csc=n ]
+.RB [ pci_int=n ]
 .RB [ poll_interval=n ]
 .RB [ has_dma=n ]
 .RB [ has_led=n ]
@@ -33,13 +33,15 @@ i82365 \- Intel i82365sl PCMCIA controller driver
 .RB [ clkrun_sel=n ]
 .RB [ irq_mode=n ]
 .SH DESCRIPTION
-This is the low-level driver for the Intel i82365sl PCMCIA interface
-controller, and various clones chips.  Common clones include the
-Cirrus PD67xx, the VLSI 82C146, the Vadem VG-468, and Toshiba and IBM
-proprietary chips.  Various PCI-to-PCMCIA and PCI-to-CardBus chips are
-also supported.  This driver is used by Card Services for
-programming the i82365sl chip, and for monitoring card status change
-events.
+This is the low-level driver for the Intel i82365sl PCMCIA host
+controller, and many derivative controllers.  It also implements the
+Intel "Yenta" register specification for CardBus bridges.  Common
+clones of the i82365sl include controllers made by Cirrus Logic, IBM, 
+O2Micro, Omega Micro, Ricoh, SMC, Texas Instruments, Toshiba, Vadem,
+and VLSI.  The overwhelming majority of current PCMCIA controllers,
+and all CardBus bridges, are register compatible with the i82365sl.
+This driver is used by Card Services for configuring the host
+controller, and for monitoring card status change events.
 .PP
 When the
 .B i82365
@@ -72,10 +74,6 @@ enables debugging.
 .B i365_base=n
 Sets the base I/O port address of the i82365sl chip.  The default is
 0x3e0.
-.TP
-.B cb_io_base=n
-Sets the base I/O port address to use when configuring a CardBus
-controller.  The default is 0x3e0.
 .TP
 .B cb_mem_base=n
 Sets the base address to use for memory mapping CardBus registers, if
@@ -116,6 +114,10 @@ interrupt not already in use.  Legal values are 15, 14, 12, 11,
 .B pci_csc=n
 Specifies that card status change interrupts should be routed to PCI
 interrupts, for CardBus controllers.  The default is 0 (false).
+.TP
+.B pci_int=n
+Specifies that functional interrupts for IO cards should be routed to
+PCI interrupts, for CardBus controllers.  The default is 0 (false).
 .TP
 .B poll_interval=n
 Sets the card status polling delay, in 1/100 second increments.  If

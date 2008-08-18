@@ -2,10 +2,22 @@
 
     X Windows PCMCIA device control program
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    cardinfo.c 1.24 1998/05/10 12:22:54
 
-    cardinfo.c 1.11 1995/07/16 05:33:50
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
 
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    
 ======================================================================*/
 
 #include <sys/types.h>
@@ -31,11 +43,6 @@
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
-
-#if 0
-static const char *version =
-"cardinfo.c 1.19 1998/02/18 23:51:22 (David Hinds)";
-#endif
 
 /*====================================================================*/
 
@@ -249,7 +256,7 @@ static void do_update(FL_OBJECT *obj, long data)
     int i, j, event, ret, state;
     status_t status;
     config_info_t cfg;
-    char c, s[80], *t, d[80], io[20], irq[4];
+    char s[80], *t, d[80], io[20], irq[4];
     ioaddr_t stop;
     struct stat buf;
     static time_t last = 0;
@@ -303,12 +310,11 @@ static void do_update(FL_OBJECT *obj, long data)
 	    update_field(&st[i].card, s+9);
 	    *d = '\0';
 	    for (;;) {
-		c = fgetc(f);
+		int c = fgetc(f);
 		if ((c == EOF) || (c == 'S')) {
 		    update_field(&st[i].dev, d);
 		    break;
-		}
-		else {
+		} else {
 		    fgets(s, 80, f);
 		    for (t = s, j = 0; j < 4; j++)
 			t = strchr(t, '\t')+1;
@@ -334,8 +340,7 @@ static void do_update(FL_OBJECT *obj, long data)
 	if (strcmp(st[i].card.str, "empty") == 0) {
 	    if (status.CardState & CS_EVENT_CARD_DETECT)
 		state = S_PRESENT;
-	}
-	else {
+	} else {
 	    if (status.CardState & CS_EVENT_PM_SUSPEND)
 		state = S_SUSPEND;
 	    else {
@@ -383,7 +388,7 @@ static void do_update(FL_OBJECT *obj, long data)
 
 	strcpy(io, "");
 	strcpy(irq, "");
-	cfg.Function = 0;
+	memset(&cfg, 0, sizeof(cfg));
 	ret = ioctl(st[i].fd, DS_GET_CONFIGURATION_INFO, &cfg);
 	if (cfg.Attributes & CONF_VALID_CLIENT) {
 	    if (cfg.AssignedIRQ != 0)
@@ -397,8 +402,7 @@ static void do_update(FL_OBJECT *obj, long data)
 		    else
 			sprintf(io, "%#x-%#x, %#x-%#x", cfg.BasePort1, stop-1,
 				cfg.BasePort2, cfg.BasePort2+cfg.NumPorts2-1);
-		}
-		else
+		} else
 		    sprintf(io, "%#x-%#x", cfg.BasePort1, stop-1);
 	    }
 	}
@@ -450,8 +454,7 @@ int main(int argc, char *argv[])
 	    fprintf(stderr, "Card Services release does not match!\n");
 	    exit(EXIT_FAILURE);
 	}
-    }
-    else {
+    } else {
 	fprintf(stderr, "could not get CS revision info!\n");
 	exit(EXIT_FAILURE);
     }

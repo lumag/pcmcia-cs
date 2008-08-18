@@ -2,7 +2,21 @@
 
     A simple MTD for accessing static RAM
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    sram_mtd.c 1.29 1998/05/10 12:06:44
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -35,7 +49,6 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"sram_mtd.c 1.26 1998/01/09 04:19:01 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -194,7 +207,7 @@ static void sram_config(dev_link_t *link)
 
     /* Allocate a 4K memory window */
     req.Attributes = WIN_DATA_WIDTH_16;
-    req.Base = NULL; req.Size = WINDOW_SIZE;
+    req.Base = 0; req.Size = WINDOW_SIZE;
     req.AccessSpeed = 0;
     link->win = (window_handle_t)link->handle;
     ret = MTDHelperEntry(MTDRequestWindow, &link->win, &req);
@@ -209,7 +222,7 @@ static void sram_config(dev_link_t *link)
 
     /* Grab info for all the memory regions we can access */
     dev = link->priv;
-    dev->Base = req.Base;
+    dev->Base = ioremap(req.Base, WINDOW_SIZE);
     i = 0;
     for (attr = 0; attr < 2; attr++) {
 	region.Attributes = attr ? REGION_TYPE_AM : REGION_TYPE_CM;
@@ -243,15 +256,17 @@ static void sram_release(u_long arg)
 {
     dev_link_t *link = (dev_link_t *)arg;
     sram_dev_t *dev;
-
+    int ret;
+    
     DEBUG(0, "sram_release(0x%p)\n", link);
 
+    dev = link->priv;
     if (link->win) {
-	int ret = MTDHelperEntry(MTDReleaseWindow, link->win);
+	iounmap(dev->Base);
+	ret = MTDHelperEntry(MTDReleaseWindow, link->win);
 	if (ret != CS_SUCCESS)
 	    cs_error(link->handle, ReleaseWindow, ret);
     }
-    dev = link->priv;
     link->state &= ~DEV_CONFIG;
     
     if (link->state & DEV_STALE_LINK)

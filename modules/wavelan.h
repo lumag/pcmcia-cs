@@ -22,7 +22,7 @@
  *   An Ethernet-like radio transceiver controlled by an Intel 82593
  *   coprocessor.
  *
- * /usr/src/pc/modules/RCS/wavelan.h,v 1.1 1996/07/17 15:23:27 root Exp
+ * /usr/src/pc/RCS/wavelan.h,v 1.1 1996/07/17 15:23:27 root Exp
  *
  ****************************************************************************
  *   Copyright 1995

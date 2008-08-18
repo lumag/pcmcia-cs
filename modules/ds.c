@@ -1,8 +1,22 @@
 /*======================================================================
 
     PCMCIA Driver Services
+    
+    ds.c 1.81 1998/05/10 12:06:44
+    
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -38,7 +52,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.76 1997/12/29 17:36:38 (David Hinds)";
+"ds.c 1.81 1998/05/10 12:06:44 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -59,7 +73,7 @@ static FS_SIZE_T ds_write FOPS(struct inode *inode,
 static int ds_select(struct inode *inode, struct file *file,
 		     int sel_type, select_table *wait);
 #else
-static unsigned int ds_poll(struct file *file, poll_table *poll);
+static u_int ds_poll(struct file *file, poll_table *wait);
 #endif
 static int ds_ioctl(struct inode *inode, struct file *file,
 		    u_int cmd, u_long arg);
@@ -659,7 +673,7 @@ static int ds_select(struct inode *inode, struct file *file,
 
 #else
 
-static unsigned int ds_poll(struct file *file, poll_table *wait)
+static u_int ds_poll(struct file *file, poll_table *wait)
 {
     socket_t i = MINOR(F_INODE(file)->i_rdev);
     socket_info_t *s;
@@ -673,7 +687,7 @@ static unsigned int ds_poll(struct file *file, poll_table *wait)
     user = file->private_data;
     if (CHECK_USER(user))
 	return POLLERR;
-    poll_wait(&s->queue, wait);
+    POLL_WAIT(file, &s->queue, wait);
     if (!queue_empty(user))
 	return POLLIN | POLLRDNORM;
     return 0;
@@ -782,6 +796,9 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	break;
     case DS_GET_NEXT_REGION:
 	ret = CardServices(GetNextRegion, s->handle, &buf.region);
+	break;
+    case DS_REPLACE_CIS:
+	ret = CardServices(ReplaceCIS, s->handle, &buf.cisdump);
 	break;
     case DS_BIND_REQUEST:
 	if (!suser()) return -EPERM;

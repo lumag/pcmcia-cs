@@ -1,8 +1,22 @@
 /*======================================================================
 
-    PCMCIA Card Services driver
+    PCMCIA Card Services -- core services
 
-    Written by David Hinds, dhinds@hyper.stanford.edu
+    cs.c 1.177 1998/05/10 12:06:44
+    
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -41,7 +55,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.165 1998/02/18 23:55:46 (David Hinds)";
+"cs.c 1.177 1998/05/10 12:06:44 (David Hinds)";
 #endif
 
 static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
@@ -71,7 +85,7 @@ static struct symbol_table cs_symtab = {
     X(unregister_ss_entry),
     X(CardServices),
     X(MTDHelperEntry),
-    X(find_mem_region),
+    X(register_mem_region),
     X(release_mem_region),
 #include <linux/symtab_end.h>
 };
@@ -83,7 +97,7 @@ EXPORT_SYMBOL(register_ss_entry);
 EXPORT_SYMBOL(unregister_ss_entry);
 EXPORT_SYMBOL(CardServices);
 EXPORT_SYMBOL(MTDHelperEntry);
-EXPORT_SYMBOL(find_mem_region);
+EXPORT_SYMBOL(register_mem_region);
 EXPORT_SYMBOL(release_mem_region);
 
 #endif
@@ -221,25 +235,6 @@ static const lookup_t service_table[] = {
 
 /*======================================================================
 
-    Setting a card's COR seems to need a short delay.  We have to
-    busy loop because it might happen in an interrupt routine.  So
-    here's a generic busy loop.
-    
-======================================================================*/
-
-static void busy_loop(u_long len)
-{
-    u_long timeout = jiffies + len;
-    u_long flags;
-    save_flags(flags);
-    sti();
-    while (timeout >= jiffies)
-	;
-    restore_flags(flags);
-} /* busy_loop */
-
-/*======================================================================
-
     Reset a socket to the default state
     
 ======================================================================*/
@@ -324,7 +319,10 @@ void unregister_ss_entry(ss_entry_t ss_entry)
 	if (s->ss_entry == ss_entry) {
 	    init_socket(s);
 	    s->ss_entry = NULL;
-	    release_mem_region(s->cis_mem.sys_start, 0x1000);
+	    release_cis_mem(s);
+#ifdef CONFIG_CARDBUS
+	    cb_release_cis_mem(s);
+#endif
 	    kfree_s(s, sizeof(struct socket_info_t));
 	    socket_table[i] = NULL;
 	    for (j = i; j < sockets-1; j++)
@@ -373,6 +371,10 @@ static void shutdown_socket(u_long i)
     s->functions = 0;
     s->lock_count = 0;
     s->cis_used = 0;
+    if (s->fake_cis) {
+	kfree(s->fake_cis);
+	s->fake_cis = NULL;
+    }
     if (s->config) {
 	kfree(s->config);
 	s->config = NULL;
@@ -392,12 +394,17 @@ static void setup_socket(u_long i)
 	DEBUG(1, "cs: setup_socket(%ld): applying power\n", i);
 	s->state |= SOCKET_PRESENT;
 	s->socket.flags = 0;
-	s->socket.Vcc = 50;
-#ifdef CONFIG_CARDBUS
-	if (val & SS_CARDBUS) {
+	if (val & SS_3VCARD)
 	    s->socket.Vcc = 33;
-	    s->state |= SOCKET_CARDBUS;
+	else if (!(val & SS_XVCARD))
+	    s->socket.Vcc = 50;
+	else {
+	    printk(KERN_NOTICE "cs: socket %ld: unsupported "
+		   "voltage key\n", i);
+	    s->socket.Vcc = 0;
 	}
+#ifdef CONFIG_CARDBUS
+	if (val & SS_CARDBUS) s->state |= SOCKET_CARDBUS;
 #endif
 	s->ss_entry(s->sock, SS_SetSocket, &s->socket);
 	s->setup.function = &reset_socket;
@@ -715,8 +722,6 @@ static int access_configuration_register(client_handle_t handle,
     if (!(c->state & CONFIG_LOCKED))
 	return CS_CONFIGURATION_LOCKED;
 
-    if (setup_cis_mem(s) != 0)
-	return CS_OUT_OF_RESOURCE;
     addr = (c->ConfigBase + reg->Offset) >> 1;
     
     switch (reg->Action) {
@@ -849,9 +854,9 @@ static int deregister_client(client_handle_t handle)
 	    if (region->mtd == handle) region->mtd = NULL;
     }
     
+    sn = handle->Socket; s = socket_table[sn];
     save_flags(flags);
     cli();
-    sn = handle->Socket; s = socket_table[sn];
     client = &s->clients;
     while ((*client) && ((*client) != handle))
 	client = &(*client)->next;
@@ -1019,6 +1024,8 @@ static int get_status(client_handle_t handle, status_t *status)
 #ifdef CONFIG_CARDBUS
     status->CardState |= (val & SS_CARDBUS) ? CS_EVENT_CB_DETECT : 0;
 #endif
+    status->CardState |= (val & SS_3VCARD) ? CS_EVENT_3VCARD : 0;
+    status->CardState |= (val & SS_XVCARD) ? CS_EVENT_XVCARD : 0;
     if (s->state & SOCKET_SUSPEND)
 	status->CardState |= CS_EVENT_PM_SUSPEND;
     if (!(s->state & SOCKET_PRESENT))
@@ -1254,6 +1261,7 @@ static int release_configuration(client_handle_t handle,
 #ifdef CONFIG_CARDBUS
     if (handle->state & CLIENT_CARDBUS) {
 	cb_disable(s);
+	s->lock_count = 0;
 	return CS_SUCCESS;
     }
 #endif
@@ -1333,12 +1341,13 @@ static int release_io(client_handle_t handle, io_req_t *req)
 
 static int release_irq(client_handle_t handle, irq_req_t *req)
 {
+    socket_info_t *s;
     if (CHECK_HANDLE(handle) || !(handle->state & CLIENT_IRQ_REQ))
 	return CS_BAD_HANDLE;
     handle->state &= ~CLIENT_IRQ_REQ;
+    s = SOCKET(handle);
     
     if (!(handle->state & CLIENT_STALE)) {
-	socket_info_t *s = SOCKET(handle);
 	config_t *c = CONFIG(handle);
 	if (c->state & CONFIG_LOCKED)
 	    return CS_CONFIGURATION_LOCKED;
@@ -1355,8 +1364,11 @@ static int release_irq(client_handle_t handle, irq_req_t *req)
 	if (req->Instance)
 	    IRQ_MAP(req->AssignedIRQ, NULL);
     }
-    
-    undo_irq(req->Attributes, req->AssignedIRQ);
+
+#ifdef CONFIG_ISA
+    if (req->AssignedIRQ != s->cap.pci_irq)
+	undo_irq(req->Attributes, req->AssignedIRQ);
+#endif
     
     return CS_SUCCESS;
 } /* release_irq */
@@ -1406,6 +1418,8 @@ static int request_configuration(client_handle_t handle,
     
 #ifdef CONFIG_CARDBUS
     if (handle->state & CLIENT_CARDBUS) {
+	if (s->lock_count != 0)
+	    return CS_CONFIGURATION_LOCKED;
 	cb_enable(s);
 	handle->state |= CLIENT_CONFIG_LOCKED;
 	s->lock_count++;
@@ -1416,8 +1430,6 @@ static int request_configuration(client_handle_t handle,
     c = CONFIG(handle);
     if (c->state & CONFIG_LOCKED)
 	return CS_CONFIGURATION_LOCKED;
-    if (setup_cis_mem(s) != 0)
-	return CS_OUT_OF_RESOURCE;
 
     /* Do power control */
     s->socket.Vcc = req->Vcc;
@@ -1466,7 +1478,7 @@ static int request_configuration(client_handle_t handle,
 	    if (!(c->irq.Attributes & IRQ_FORCED_PULSE))
 		c->Option |= COR_LEVEL_REQ;
 	write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &c->Option);
-	busy_loop(HZ/25);
+	udelay(40000);
     }
     if (req->Present & PRESENT_STATUS) {
 	c->Status = req->Status;
@@ -1587,7 +1599,7 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 {
     socket_info_t *s;
     config_t *c;
-    int try, ret, irq;
+    int try, ret = 0, irq = 0;
     u_int mask;
     
     if (CHECK_HANDLE(handle))
@@ -1601,15 +1613,18 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
     if (c->state & CONFIG_IRQ_REQ)
 	return CS_IN_USE;
     
-    ret = CS_BAD_ARGS;
-    if (s->irq.AssignedIRQ != 0) {
+    /* Short cut: if the interrupt is PCI, there are no options */
+    if (s->cap.irq_mask == (1 << s->cap.pci_irq))
+	irq = s->cap.pci_irq;
+#ifdef CONFIG_ISA
+    else if (s->irq.AssignedIRQ != 0) {
 	/* If the interrupt is already assigned, it must match */
 	irq = s->irq.AssignedIRQ;
 	if (req->IRQInfo1 & IRQ_INFO2_VALID) {
 	    mask = req->IRQInfo2 & s->cap.irq_mask;
-	    ret = ((mask >> irq) & 1) ? 0 : ret;
+	    ret = ((mask >> irq) & 1) ? 0 : CS_BAD_ARGS;
 	} else
-	    ret = ((req->IRQInfo1 & IRQ_MASK) == irq) ? 0 : ret;
+	    ret = ((req->IRQInfo1&IRQ_MASK) == irq) ? 0 : CS_BAD_ARGS;
     } else {
 	if (req->IRQInfo1 & IRQ_INFO2_VALID) {
 	    mask = req->IRQInfo2 & s->cap.irq_mask;
@@ -1626,12 +1641,14 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 	    ret = try_irq(req->Attributes, irq, 1);
 	}
     }
+#endif
     if (ret != 0) return ret;
 
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
 	if (REQUEST_IRQ(irq, req->Handler,
 			((req->Attributes & IRQ_TYPE_DYNAMIC_SHARING) || 
-			 (s->functions > 1)) ? SA_SHIRQ : 0,
+			 (s->functions > 1) ||
+			 (irq == s->cap.pci_irq)) ? SA_SHIRQ : 0,
 			(char *)handle->dev_info, req->Instance))
 	    return CS_IN_USE;
 	if (req->Instance)
@@ -1681,12 +1698,13 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->index = w;
     win->handle = *handle;
     win->sock = s;
-    win->base = (u_long)req->Base;
+    win->base = req->Base;
     win->size = req->Size;
     if (find_mem_region(&win->base, win->size,
-			(char *)(*handle)->dev_info))
+			(char *)(*handle)->dev_info,
+			(s->cap.cardbus != 0)))
 	return CS_IN_USE;
-    req->Base = (caddr_t)win->base;
+    req->Base = win->base;
     (*handle)->state |= CLIENT_WIN_REQ(w);
 
     /* Configure the PCMCIA controller */
@@ -1701,8 +1719,8 @@ static int request_window(client_handle_t *handle, win_req_t *req)
 	win->ctl.flags |= MAP_16BIT;
     if (req->Attributes & WIN_USE_WAIT)
 	win->ctl.flags |= MAP_USE_WAIT;
-    win->ctl.sys_start = (u_long)req->Base;
-    win->ctl.sys_stop = (u_long)req->Base + req->Size-1;
+    win->ctl.sys_start = req->Base;
+    win->ctl.sys_stop = req->Base + req->Size-1;
     win->ctl.card_start = 0;
     s->ss_entry(s->sock, SS_SetMemMap, &win->ctl);
     s->state |= SOCKET_WIN_REQ(w);
@@ -2023,6 +2041,8 @@ int CardServices(int func, void *a1, void *a2, void *a3)
 	return eject_card(a1, a2); break;
     case InsertCard:
 	return insert_card(a1, a2); break;
+    case ReplaceCIS:
+	return replace_cis(a1, a2); break;
     default:
 	return CS_UNSUPPORTED_FUNCTION; break;
     }

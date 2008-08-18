@@ -5,7 +5,21 @@
     This driver supports the Adaptec AHA-1460, the New Media Bus
     Toaster, and the New Media Toast & Jam.
     
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    aha152x_cs.c 1.39 1998/05/10 12:06:44
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -53,7 +67,6 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"aha152x_cs.c 1.36 1998/01/31 19:55:16 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -207,6 +220,9 @@ static void aha152x_detach(dev_link_t *link)
 #define CS_CHECK(fn, args...) \
 while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 
+#define CFG_CHECK(fn, args...) \
+if (CardServices(fn, args) != 0) goto next_entry
+
 /* Avoid name conflict with aha152x_config in aha152x.h */
 
 static void aha152x_config_x(dev_link_t *link)
@@ -248,12 +264,10 @@ static void aha152x_config_x(dev_link_t *link)
     link->state |= DEV_CONFIG;
 
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    i = CardServices(GetFirstTuple, handle, &tuple);
-    while (i == CS_SUCCESS) {
-	i = CardServices(GetTupleData, handle, &tuple);
-	if (i != CS_SUCCESS) break;
-	i = CardServices(ParseTuple, handle, &tuple, &parse);
-	if (i != CS_SUCCESS) break;
+    CS_CHECK(GetFirstTuple, handle, &tuple);
+    while (1) {
+	CFG_CHECK(GetTupleData, handle, &tuple);
+	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
 	/* For New Media T&J, look for a SCSI window */
 	if (parse.cftable_entry.io.win[0].len >= 0x20)
 	    link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
@@ -264,13 +278,10 @@ static void aha152x_config_x(dev_link_t *link)
 	    (link->io.BasePort1 < 0xffff)) {
 	    link->conf.ConfigIndex = parse.cftable_entry.index;
 	    i = CardServices(RequestIO, handle, &link->io);
-	    if (i != CS_IN_USE) break;
+	    if (i == CS_SUCCESS) break;
 	}
-	i = CardServices(GetNextTuple, handle, &tuple);
-    }
-    if (i != CS_SUCCESS) {
-	cs_error(handle, RequestIO, i);
-	goto failed;
+    next_entry:
+	CS_CHECK(GetNextTuple, handle, &tuple);
     }
     
     CS_CHECK(RequestIRQ, handle, &link->irq);
@@ -353,7 +364,6 @@ static void aha152x_config_x(dev_link_t *link)
     
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
-failed:
     aha152x_release((u_long)link);
     return;
     

@@ -2,7 +2,21 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.29 1998/01/07 04:44:34 (David Hinds)
+    rsrc_mgr.c 1.36 1998/05/10 12:06:44
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -49,6 +63,8 @@ static resource_entry_t mem_db = { 0, 0, &mem_db };
 /* IO port resource database */
 static resource_entry_t io_db = { 0, 0, &io_db };
 
+#ifdef CONFIG_ISA
+
 typedef struct irq_info_t {
     u_int			Attributes;
     int				time_share, dyn_share;
@@ -58,18 +74,21 @@ typedef struct irq_info_t {
 /* Table of IRQ assignments */
 static irq_info_t irq_table[16] = { { 0, 0, 0 }, /* etc */ };
 
+#endif
+
 /*====================================================================*/
 
 /* Parameters that can be set with 'insmod' */
 
 /* Should we probe resources for conflicts? */
+#ifdef CONFIG_ISA
 static int probe_io = 1;
 static int probe_mem = 1;
 static int mem_limit = 0x10000;
-
 MODULE_PARM(probe_io, "i");
 MODULE_PARM(probe_mem, "i");
 MODULE_PARM(mem_limit, "i");
+#endif
 
 /*======================================================================
 
@@ -221,6 +240,7 @@ static int sub_interval(resource_entry_t *map, u_long base, u_long num)
     
 ======================================================================*/
 
+#ifdef CONFIG_ISA
 static void do_io_probe(ioaddr_t base, ioaddr_t num)
 {
     
@@ -278,6 +298,7 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     
     printk(any ? "\n" : " clean.\n");
 }
+#endif
 
 /*======================================================================
 
@@ -286,6 +307,8 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     least mem_limit free space, we quit.
     
 ======================================================================*/
+
+#ifdef CONFIG_ISA
 
 #define STEP 8192
 
@@ -346,6 +369,7 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long))
 	is_valid = do_cksum;
     }
 }
+#endif
 
 /*======================================================================
 
@@ -386,7 +410,7 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, char *name)
     return -1;
 } /* find_io_region */
 
-int find_mem_region(u_long *base, u_long num, char *name)
+int find_mem_region(u_long *base, u_long num, char *name, int low)
 {
     u_long align;
     resource_entry_t *m;
@@ -400,12 +424,18 @@ int find_mem_region(u_long *base, u_long num, char *name)
     }
     
     for (align = 4096; align < num; align *= 2) ;
-    for (m = mem_db.next; m != &mem_db; m = m->next) {
-	for (*base = (m->base + align - 1) & (~(align-1));
-	     *base+align <= m->base+m->num;
-	     *base += align)
-	    if (register_mem_region(*base, num, name) == 0)
-		return 0;
+
+    while (1) {
+	for (m = mem_db.next; m != &mem_db; m = m->next) {
+	    /* first pass >1MB, second pass <1MB */
+	    if ((low != 0) ^ (m->base < 0x100000)) continue;
+	    for (*base = (m->base + align - 1) & (~(align-1));
+		 *base+align <= m->base+m->num; *base += align)
+		if (register_mem_region(*base, num, name) == 0)
+		    return 0;
+	}
+	if (low) break;
+	low++;
     }
     return -1;
 } /* find_mem_region */
@@ -417,6 +447,8 @@ int find_mem_region(u_long *base, u_long num, char *name)
     yet.  If the interrupt is available, we allocate it.
     
 ======================================================================*/
+
+#ifdef CONFIG_ISA
 
 static void fake_irq IRQ(int i, void *d, struct pt_regs *r) { }
 
@@ -473,7 +505,11 @@ int try_irq(u_int Attributes, int irq, int specific)
     return 0;
 } /* try_irq */
 
+#endif
+
 /*====================================================================*/
+
+#ifdef CONFIG_ISA
 
 void undo_irq(u_int Attributes, int irq)
 {
@@ -496,7 +532,9 @@ void undo_irq(u_int Attributes, int irq)
 	break;
     }
 }
-    
+
+#endif
+
 /*======================================================================
 
     The various adjust_* calls form the external interface to the
@@ -522,9 +560,10 @@ static int adjust_memory(adjust_t *adj)
     case REMOVE_MANAGED_RESOURCE:
 	sub_interval(&mem_db, base, num);
 	for (i = 0; i < sockets; i++) {
-	    socket_info_t *s = socket_table[i];
-	    release_mem_region(s->cis_mem.sys_start, 0x1000);
-	    s->cis_mem.sys_start = 0;
+	    release_cis_mem(socket_table[i]);
+#ifdef CONFIG_CARDBUS
+	    cb_release_cis_mem(socket_table[i]);
+#endif
 	}
 	break;
     default:
@@ -552,8 +591,10 @@ static int adjust_io(adjust_t *adj)
     case ADD_MANAGED_RESOURCE:
 	if (add_interval(&io_db, base, num) != 0)
 	    return CS_IN_USE;
+#ifdef CONFIG_ISA
 	if (probe_io)
 	    do_io_probe(base, num);
+#endif
 	break;
     case REMOVE_MANAGED_RESOURCE:
 	sub_interval(&io_db, base, num);
@@ -570,6 +611,7 @@ static int adjust_io(adjust_t *adj)
 
 static int adjust_irq(adjust_t *adj)
 {
+#ifdef CONFIG_ISA
     int irq;
     irq_info_t *info;
     
@@ -602,8 +644,8 @@ static int adjust_irq(adjust_t *adj)
 	return CS_UNSUPPORTED_FUNCTION;
 	break;
     }
-    
-    return 0;
+#endif
+    return CS_SUCCESS;
 } /* adjust_irq */
 
 /*====================================================================*/

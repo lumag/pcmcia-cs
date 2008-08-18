@@ -1,6 +1,20 @@
 #!/bin/sh
 #
-# Configure 1.62 1998/02/13 23:49:46 (David Hinds)
+# Configure 1.68 1998/05/10 12:25:55
+#
+# The contents of this file are subject to the Mozilla Public License
+# Version 1.0 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+# http://www.mozilla.org/MPL/
+#
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+# the License for the specific language governing rights and
+# limitations under the License.
+#
+# The initial developer of the original code is David A. Hinds
+# <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+# are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
 #
 #=======================================================================
 
@@ -60,7 +74,27 @@ write_bool() {
     fi
 }
 
-bool () {
+write_str () {
+    value=`eval echo '$'$1`
+    echo "$1"=\"$value\" >> $CONFIG
+    echo "$1=$value" >> $CONFIG_MK
+    echo "#define $1 \"$value\"" >> $CONFIG_H
+}
+
+write_num () {
+    value=`eval echo '$'$1`
+    if [ "$value" ] ; then
+	echo "$1=$value" >> $CONFIG
+	echo "$1=$value" >> $CONFIG_MK
+	echo "#define $1 $value" >> $CONFIG_H
+    else
+	echo "# $1 is not defined" >> $CONFIG
+	echo "# $1 is not defined" >> $CONFIG_MK
+	echo "#undef  $1" >> $CONFIG_H
+    fi
+}
+
+ask_bool () {
     default=`eval echo '$'$2`
     if [ "$default" = "" ] ; then default=n ; fi
     answer=""
@@ -73,21 +107,24 @@ bool () {
     write_bool $2
 }
 
-write_value () {
-    value=`eval echo '$'$1`
-    echo "$1"=\"$value\" >> $CONFIG
-    echo "$1=$value" >> $CONFIG_MK
-    echo "#define $1 \"$value\"" >> $CONFIG_H
-}
-
-prompt () {
-    export $2
+ask_str () {
     default=`eval echo '$'$2`
+    answer=""
     /bin/echo "$1 [$default]: \c"
     read answer
     if [ -z "$answer" ] ; then answer="$default" ; fi
     eval "$2"=\"$answer\"
-    write_value $2
+    write_str $2
+}
+
+ask_num () {
+    default=`eval echo '$'$2`
+    answer=""
+    /bin/echo "$1 [$default]: \c"
+    read answer
+    if [ -z "$answer" ] ; then answer="$default" ; fi
+    eval "$2"=\"$answer\"
+    write_num $2
 }
 
 #=======================================================================
@@ -99,7 +136,7 @@ echo "The default responses for each question are correct for most users."
 echo "Consult the PCMCIA-HOWTO for additional info about each option."
 echo ""
 
-prompt "Linux source directory" LINUX
+ask_str "Linux source directory" LINUX
 
 if [ ! -f $LINUX/Makefile ] ; then
     echo "Linux source tree $LINUX does not exist!"
@@ -108,19 +145,17 @@ if [ ! -f $LINUX/Makefile ] ; then
     exit 1
 fi
 
-prompt "Alternate target install directory" PREFIX
+ask_str "Alternate target install directory" PREFIX
 
-prompt "C compiler name" CC
+ask_str "C compiler name" CC
 
-prompt "Linker name" LD
+ask_str "Linker name" LD
 
-prompt "Compiler flags for debugging" PCDEBUG
+ask_str "Compiler flags for debugging" PCDEBUG
 
-bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
+ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
 
-bool "Include experimental 32-bit (CardBus) card support" CONFIG_CARDBUS
-
-#=======================================================================
+ask_bool "Include experimental 32-bit (CardBus) card support" CONFIG_CARDBUS
 
 echo ""
 echo "The PCMCIA drivers need to be compiled to match the kernel they"
@@ -140,9 +175,7 @@ while [ "$src" != 1 -a "$src" != 2 -a "$src" != 3 ] ; do
 done
 echo ""
 
-echo "" >> $CONFIG
-echo "" >> $CONFIG_MK
-echo "" >> $CONFIG_H
+#=======================================================================
 
 symcheck () {
     if $KSYMS | grep -q "$1" ; then
@@ -162,15 +195,10 @@ modcheck () {
 }
 
 configcheck () {
-    if grep -q "$1=y" $AUTOCONF ; then
+    value=`eval echo '$'$1`
+    if [ "$value" = "m" ] ; then
 	eval "$1=y"
-    else
-	if grep -q "$1=m" $AUTOCONF ; then
-	    eval "$1=y"
-	    INSTALL_DEPMOD=y
-	else
-	    eval "$1=n"
-	fi
+	INSTALL_DEPMOD=y
     fi
 }
 
@@ -185,9 +213,16 @@ printflag() {
     write_bool $2
 }
 
+printnum() {
+    value=`eval echo '$'$2`
+    /bin/echo "    $1 is $value"
+    write_num $2
+}
+
 printconfig () {
     echo "Kernel configuration options:"
     printflag "Symmetric multiprocessing support" CONFIG_SMP
+    printnum "Max physical memory in MB" CONFIG_MAX_MEMSIZE
     printflag "PCI BIOS support" CONFIG_PCI
     printflag "Advanced Power Management (APM) support" CONFIG_APM
     printflag "SCSI support" CONFIG_SCSI
@@ -199,6 +234,10 @@ printconfig () {
     printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
     printflag "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
 }
+
+echo "" >> $CONFIG
+echo "" >> $CONFIG_MK
+echo "" >> $CONFIG_H
 
 case $src in
     1)
@@ -214,6 +253,8 @@ case $src in
 	echo "CHECK=\"/proc/version\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < /proc/version`\"" >> $CONFIG
 	symcheck smp_invalidate_needed CONFIG_SMP
+	# No way to probe for this at the moment...
+	CONFIG_MAX_MEMSIZE=1024
 	symcheck pcibios CONFIG_PCI
 	symcheck apm_register_callback CONFIG_APM
 	symcheck scsi_register CONFIG_SCSI
@@ -255,40 +296,31 @@ case $src in
 	echo "/* Options from $AUTOCONF */" >> $CONFIG_H
 	echo "CHECK=\"$AUTOCONF\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < $AUTOCONF`\"" >> $CONFIG
+	. $AUTOCONF
 	if grep -q "^ *SMP *= *1" $LINUX/Makefile ; then
 	    CONFIG_SMP=y
-	else
-	    configcheck CONFIG_SMP
 	fi
-	configcheck CONFIG_PCI
-	configcheck CONFIG_APM
 	configcheck CONFIG_SCSI
 	configcheck CONFIG_SERIAL
-	configcheck CONFIG_INET
-	configcheck CONFIG_IPV6
-	configcheck CONFIG_IPV6_MODULE
-	configcheck CONFIG_NET_RADIO
-	configcheck CONFIG_MODVERSIONS
-	configcheck CONFIG_BLK_DEV_IDE_PCMCIA
 	configcheck CONFIG_TR
-	configcheck CONFIG_ALPHA_LCA
 	printconfig
 	;;
     3)
 	echo "# Configured manually" >> $CONFIG
 	echo "# Configured manually" >> $CONFIG_MK
 	echo "/* Configured manually */" >> $CONFIG_H
-	bool "Symmetric multiprocessing support" CONFIG_SMP
-	bool "PCI BIOS support" CONFIG_PCI
-	bool "Advanced Power Management (APM) support" CONFIG_APM
-	bool "SCSI support" CONFIG_SCSI
-	bool "TCP/IP networking" CONFIG_INET
-	bool " IPv6 protocol support" CONFIG_IPV6
-	bool " Radio network interface support" CONFIG_NET_RADIO
-	bool " Token Ring device support" CONFIG_TR
-	bool "Set version information for module symbols" CONFIG_MODVERSIONS
-	bool "Include PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
-	bool "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
+	ask_bool "Symmetric multiprocessing support" CONFIG_SMP
+	ask_num "Max physical memory in MB" CONFIG_MAX_MEMSIZE
+	ask_bool "PCI BIOS support" CONFIG_PCI
+	ask_bool "Advanced Power Management (APM) support" CONFIG_APM
+	ask_bool "SCSI support" CONFIG_SCSI
+	ask_bool "TCP/IP networking" CONFIG_INET
+	ask_bool " IPv6 protocol support" CONFIG_IPV6
+	ask_bool " Radio network interface support" CONFIG_NET_RADIO
+	ask_bool " Token Ring device support" CONFIG_TR
+	ask_bool "Set version information for module symbols" CONFIG_MODVERSIONS
+	ask_bool "Include PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
+	ask_bool "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
 	;;
 esac
 
@@ -297,6 +329,11 @@ if [ "$CONFIG_PCI" != "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
     echo "    To fix, re-run 'make config' and disable Cardbus support."
     exit 1
 fi
+
+ARCH=`uname -m`
+echo "ARCH=$ARCH" >> $CONFIG_MK
+if [ $ARCH = "ppc" ] ; then CONFIG_ISA=n ; else CONFIG_ISA=y ; fi
+write_bool CONFIG_ISA
 
 if [ $src != "1" -a "$CONFIG_MODVERSIONS" = "y" ] ; then
     MODVER="$LINUX/$MODVER"
@@ -412,8 +449,8 @@ case "$VERSION.$PATCHLEVEL" in
 esac
 
 UTS_RELEASE=$SRC_RELEASE
-write_value UTS_RELEASE
-write_value UTS_VERSION
+write_str UTS_RELEASE
+write_str UTS_VERSION
 echo "LINUX_VERSION_CODE=$VERSION_CODE" >> $CONFIG
 echo "LINUX_VERSION_CODE=$VERSION_CODE" >> $CONFIG_MK
 echo "#define LINUX_VERSION_CODE $VERSION_CODE" >> $CONFIG_H
@@ -434,11 +471,16 @@ else
     echo "#undef  HAS_WIRELESS_EXTENSIONS" >> $CONFIG_H
 fi
 
-if [ "$CONFIG_SCSI" = "y" -a "$CONFIG_MODVERSIONS" = "y" ] ; then
+if [ "$CONFIG_SCSI" = "y" ] ; then
     if grep -q "define MODULE" ${LINUX}/drivers/scsi/aha152x.c ; then
 	echo "# FIX_AHA152X is not defined" >> $CONFIG_MK
     else
 	echo "FIX_AHA152X=y" >> $CONFIG_MK
+    fi
+    if grep -q "define MODULE" ${LINUX}/drivers/scsi/aic7xxx.c ; then
+	echo "# FIX_AIC7XXX is not defined" >> $CONFIG_MK
+    else
+	echo "FIX_AIC7XXX=y" >> $CONFIG_MK
     fi
 fi
 
@@ -451,14 +493,6 @@ if [ "$CONFIG_SCSI" = "y" ] ; then
     fi
 fi
 
-#if grep -q PCMCIA ${LINUX}/drivers/cdrom/aztcd.c
-#    echo "Your kernel is recent enough for Aztec CD-ROM support."
-#    echo "DO_AZTCD=y" >> $CONFIG_MK
-#else
-#    echo "Aztec CD-ROM support requires a 1.3.72 or higher kernel."
-#    echo "# DO_AZTCD is not defined" >> $CONFIG_MK
-#fi
-
 if [ "$CONFIG_INET" = "y" ] ; then
     if grep -q PCMCIA ${LINUX}/drivers/net/ibmtr.c ; then
 	echo "DO_IBMTR=y" >> $CONFIG_MK
@@ -467,19 +501,6 @@ if [ "$CONFIG_INET" = "y" ] ; then
 	echo "# DO_IBMTR is not defined" >> $CONFIG_MK
     fi
 fi
-
-#if [ "$CONFIG_SCSI" = "y" ] ; then
-#    if grep -q NCR53C400 ${LINUX}/drivers/scsi/g_NCR5380.c ; then
-#	echo "Your kernel source tree has NCR 53c400 support."
-#	echo "HAS_NCR53C400_SUPPORT=y" >> $CONFIG
-#    else
-#	echo "Your kernel source tree does not have NCR 53c400 support."
-#	echo "    If you plan to use an Adaptec AHA-460 or Trantor T460 SCSI"
-#	echo "    adapter, you will need to apply the 53c400 patches."
-#	echo "# HAS_NCR53C400_SUPPORT is not defined" >> $CONFIG
-#    fi
-#    echo ""
-#fi
 
 #=======================================================================
 
@@ -506,8 +527,10 @@ case "$VERSION.$PATCHLEVEL" in
 2.1)
     if [ $SUBLEVEL -lt 18 ] ; then
 	NEED=2.0.0
-    else
+    elif [ $SUBLEVEL -lt 85 ] ; then
 	NEED=2.1.23
+    else
+	NEED=2.1.85
     fi
     ;;
 esac
@@ -545,12 +568,15 @@ fi
 echo ""
 
 if [ "$PREFIX" = "" ] ; then
-    if [ -d /etc/rc.d/init.d -o -d /etc/init.d ] ; then
+    if [ -d /etc/rc.d/init.d -o -d /etc/init.d -o -d /sbin/init.d ] ; then
 	echo "It looks like you have a System V init file setup."
 	SYSV_INIT=y
 	if [ -d /etc/rc.d/init.d ] ; then
 	    echo "RC_DIR=/etc/rc.d" >> $CONFIG
 	    echo "RC_DIR=/etc/rc.d" >> $CONFIG_MK
+	elif [ -d /sbin/init.d ] ; then
+	    echo "RC_DIR=/sbin" >> $CONFIG
+	    echo "RC_DIR=/sbin" >> $CONFIG_MK
 	else
 	    echo "RC_DIR=/etc" >> $CONFIG
 	    echo "RC_DIR=/etc" >> $CONFIG_MK
@@ -566,9 +592,9 @@ if [ "$PREFIX" = "" ] ; then
     fi
     write_bool SYSV_INIT
 else
-    bool "System V init script layout" SYSV_INIT
+    ask_bool "System V init script layout" SYSV_INIT
     if [ "$SYSV_INIT" = "y" ] ; then
-	prompt "Top-level directory for RC scripts" RC_DIR
+	ask_str "Top-level directory for RC scripts" RC_DIR
     fi
 fi
 write_bool INSTALL_DEPMOD

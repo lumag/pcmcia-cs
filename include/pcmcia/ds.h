@@ -1,11 +1,26 @@
 /*
- * ds.h 1.36 1998/02/03 06:17:19 (David Hinds)
+ * ds.h 1.41 1998/05/10 12:10:34
+ *
+ * The contents of this file are subject to the Mozilla Public License
+ * Version 1.0 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License
+ * at http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+ * the License for the specific language governing rights and
+ * limitations under the License. 
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+ * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
  */
 
 #ifndef _LINUX_DS_H
 #define _LINUX_DS_H
 
 #include <pcmcia/driver_ops.h>
+#include <pcmcia/bulkmem.h>
 
 typedef struct tuple_parse_t {
     tuple_t		tuple;
@@ -41,6 +56,7 @@ typedef union ds_ioctl_arg_t {
     region_info_t	region;
     bind_info_t		bind_info;
     mtd_info_t		mtd_info;
+    cisdump_t		cisdump;
 } ds_ioctl_arg_t;
 
 #define DS_GET_CARD_SERVICES_INFO	_IOR ('d', 1, servinfo_t)
@@ -60,6 +76,7 @@ typedef union ds_ioctl_arg_t {
 #define DS_INSERT_CARD			_IO  ('d', 15)
 #define DS_GET_FIRST_REGION		_IOWR('d', 16, region_info_t)
 #define DS_GET_NEXT_REGION		_IOWR('d', 17, region_info_t)
+#define DS_REPLACE_CIS			_IOWR('d', 18, cisdump_t)
 
 #define DS_BIND_REQUEST			_IOWR('d', 60, bind_info_t)
 #define DS_GET_DEVICE_INFO		_IOWR('d', 61, bind_info_t) 

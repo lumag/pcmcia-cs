@@ -1,5 +1,5 @@
 #
-# cardmgr/Makefile 1.59 1998/02/19 23:14:35 (David Hinds)
+# cardmgr/Makefile 1.62 1998/04/27 08:10:23 (David Hinds)
 #
 
 # Include site dependent options
@@ -19,8 +19,8 @@ HDRS = cardmgr.h
 TOOLS = cardmgr cardctl
 
 ifdef CONFIG_INET
-SRCS := ${SRCS} ifport.c
-TOOLS := ${TOOLS} ifport
+SRCS := ${SRCS} ifport.c ifuser.c
+TOOLS := ${TOOLS} ifport ifuser
 endif
 
 ifdef CONFIG_SCSI
@@ -40,7 +40,11 @@ CPPFLAGS := ${CPPFLAGS} -I/usr/X11R6/include -I/usr/X11/include \
 EXTRA := ${EXTRA} cardinfo
 endif
 
-all:	$(SRCS) $(HDRS) $(TOOLS) $(EXTRA) probe
+ifdef CONFIG_ISA
+PROBE = probe
+endif
+
+all:	$(SRCS) $(HDRS) $(TOOLS) $(EXTRA) $(PROBE)
 
 clean:
 	rm -f core core.* *.o *.s *.a *~ .depend .depfiles/*.d
@@ -64,11 +68,11 @@ cardinfo: cardinfo.c
 	    -L/usr/X11R6/lib -L/usr/X11/lib \
 	    -L/usr/local/lib -lforms -lX11 -lm
 
-install: $(TOOLS) $(EXTRA) probe
+install: $(TOOLS) $(EXTRA) $(PROBE)
 	mkdir -p $(PREFIX)/sbin
 	cp -f $(TOOLS) pcinitrd $(PREFIX)/sbin
 	chmod u+s $(PREFIX)/sbin/cardctl
-	if [ "$(PREFIX)" != "" ] ; then			\
+	if [ "$(PREFIX)" != "" -a -f probe ] ; then	\
 	    cp -f probe $(PREFIX)/sbin ;		\
 	fi
 	if [ -r cardinfo ] ; then			\

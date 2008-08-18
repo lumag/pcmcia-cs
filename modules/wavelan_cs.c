@@ -3407,8 +3407,7 @@ wv_pcmcia_config(dev_link_t *	link)
        * the handles in your private data structure, link->priv.
        */
       req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-      req.Base = NULL;
-      req.Size = 0x1000;
+      req.Base = 0; req.Size = 0x1000;
       req.AccessSpeed = mem_speed;
       link->win = (window_handle_t)link->handle;
       i = CardServices(RequestWindow, &link->win, &req);
@@ -3418,7 +3417,8 @@ wv_pcmcia_config(dev_link_t *	link)
 	  break;
 	}
 
-      dev->rmem_start = dev->mem_start = (u_long)req.Base;
+      dev->rmem_start = dev->mem_start =
+	  (u_long)ioremap(req.Base, 0x1000);
       dev->rmem_end = dev->mem_end = dev->mem_start + req.Size;
 
       mem.CardOffset = 0; mem.Page = 0;
@@ -3983,6 +3983,7 @@ wavelan_release(u_long	arg)	/* Address of the interface struct */
   link->dev = NULL;
 
   /* Don't bother checking to see if these succeed or not */
+  iounmap((u_char *)dev->mem_start);
   CardServices(ReleaseWindow, link->win);
   CardServices(ReleaseConfiguration, link->handle);
   CardServices(ReleaseIO, link->handle, &link->io);

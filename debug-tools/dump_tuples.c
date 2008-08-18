@@ -2,7 +2,21 @@
 
     PCMCIA card CIS dump
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    dump_tuples.c 1.29 1998/05/10 12:20:11
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -21,9 +35,6 @@
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
-
-static const char *version =
-"dump_tuples.c 1.25 1998/01/02 02:06:36 (David Hinds)\n";
 
 /*====================================================================*/
 
@@ -314,7 +325,7 @@ static void print_cftable_entry(cistpl_cftable_entry_t *entry)
     if (entry->irq.IRQInfo1) {
 	printf("  Interrupt ");
 	if (entry->irq.IRQInfo1 & IRQ_INFO2_VALID)
-	    printf("mask = 0x%#4.4x", entry->irq.IRQInfo2);
+	    printf("mask = 0x%04x", entry->irq.IRQInfo2);
 	else
 	    printf("%u", entry->irq.IRQInfo1 & IRQ_MASK);
 	if (entry->irq.IRQInfo1 & IRQ_LEVEL_ID) printf(" [level]");
@@ -723,9 +734,6 @@ int main(int argc, char *argv[])
 {
     int i, major, fd, ret;
     ds_ioctl_arg_t arg;
-
-    if ((argc > 1) && (strcmp(argv[1], "-v") == 0))
-	printf("%s", version);
 
     major = lookup_dev("pcmcia");
     if (major < 0) {

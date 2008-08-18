@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# rc.pcmcia 1.19 1997/09/05 04:51:00 (David Hinds)
+# rc.pcmcia 1.20 1998/04/26 23:32:06 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -86,7 +86,11 @@ for x in "1" ; do
 	PID=`cat /var/run/cardmgr.pid`
 	kill $PID
 	echo -n " cardmgr"
-	while kill -0 $PID 2>/dev/null ; do sleep 2 ; done
+	# Give cardmgr a few seconds to handle the signal
+	kill -0 $PID 2>/dev/null && sleep 2 && \
+	kill -0 $PID 2>/dev/null && sleep 2 && \
+	kill -0 $PID 2>/dev/null && sleep 2 && \
+	kill -0 $PID 2>/dev/null 
 	if fgrep -q "ds  " /proc/modules ; then
 	    echo -n " modules"
 	    /sbin/rmmod ds

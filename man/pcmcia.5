@@ -1,7 +1,7 @@
-.\" Copyright (c) 1998 David Hinds <dhinds@hyper.stanford.edu>
-.\" pcmcia.5 1.19 1998/01/13 15:48:26
+.\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+.\" pcmcia.5 1.22 1998/05/04 23:28:17
 .\"
-.TH PCMCIA 5 "1998/01/13 15:48:26" "Stanford University"
+.TH PCMCIA 5 "1998/05/04 23:28:17" "pcmcia-cs"
 .SH NAME
 /etc/pcmcia/config \- PCMCIA card configuration database
 
@@ -46,13 +46,13 @@ exclude irq 4, port 0x3f8-0x3ff
 .RE
 .fi
 .sp
-This says that Card Services can reserve ports in the range 0x300 to
+This says that Card Services can allocate ports in the range 0x300 to
 0x3ff, and memory in the range 0xd0000 to 0xdffff.  It should not use
 irq 4 or ports 0x3f8-0x3ff (even if they seem to be available).  And
 irq 3 should only be allocated if a client specifically asks for it.
 .PP
-Card Services will never reserve resources actually reserved by
-another device driver.  The
+Card Services will never allocate resources already allocated by
+another kernel device driver.  The
 .BR include / exclude / reserve
 mechanism just
 provides a way of controlling what resources it will try to use, to
@@ -97,12 +97,17 @@ module subdirectory.  The device is in the network class, so the
 script in the configuration directory will be used to start or stop
 the device.
 .PP
-Configuration scripts are used to stop and start devices.  They are
-also used to determine if a device is currently busy, to prepare a
-device for a system suspend, and to wake up a device after a resume.
-Cardmgr invokes a config script with several arguments: the action to
-be performed, the device name, and the major and minor device numbers,
-if applicable.
+It is also possible to specify default options for a particular kernel
+module, outside of a device driver declaration.  This is convenient
+for keeping local configuration options in a file separate from the
+main card configuration file.  For example:
+.sp
+.RS
+.nf
+module "pcnet_cs" opts "mem_speed=600"
+.RE
+.fi
+.sp
 
 .SH Card descriptions
 Card declarations map PCMCIA cards to their client drivers.  A card
@@ -183,6 +188,22 @@ either be a number, or one of the following predefined functions:
 .BR network_adapter ,
 and
 .BR aims_card .
+.PP
+Finally, the configuration file can specify that Card Services should
+use a replacement for the configuration information found on a card.
+This can be useful if a card's configuration information is
+particularly incomplete or inaccurate.  The new information is read
+from a file as in this example:
+.sp
+.RS
+.nf
+card "Evil broken card"
+  manfid 0x1234, 0x5678
+  cis "fixup.cis"
+  bind "serial_cs"
+.RE
+.fi
+.sp
 
 .SH Memory region definitions 
 Memory region definitions are used to associate a particular type of

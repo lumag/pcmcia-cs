@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
-  David Hinds, dhinds@hyper.stanford.edu
-  v1.38, 1998/02/04 17:00:58
+  David Hinds, dhinds@hyper.stanford.edu.
+  v2.6, 1998/05/10 12:50:14
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -78,6 +78,8 @@
 
   3.4.4.  ValidateCIS
 
+  3.4.5.  ReplaceCIS
+
   3.5.    Memory window control
 
   3.5.1.  RequestWindow
@@ -135,21 +137,25 @@
 
   4.1.7.  CISTPL_JEDEC_C, CISTPL_JEDEC_A
 
-  4.1.8.  CISTPL_CONFIG
+  4.1.8.  CISTPL_CONFIG, CISTPL_CONFIG_CB
 
-  4.1.9.  CISTPL_CFTABLE_ENTRY
+  4.1.9.  CISTPL_BAR
 
-  4.1.10. CISTPL_MANFID
+  4.1.10. CISTPL_CFTABLE_ENTRY
 
-  4.1.11. CISTPL_FUNCID
+  4.1.11. CISTPL_CFTABLE_ENTRY_CB
 
-  4.1.12. CISTPL_DEVICE_GEO
+  4.1.12. CISTPL_MANFID
 
-  4.1.13. CISTPL_VERS_2
+  4.1.13. CISTPL_FUNCID
 
-  4.1.14. CISTPL_ORG
+  4.1.14. CISTPL_DEVICE_GEO
 
-  4.2.    CIS configuration registers
+  4.1.15. CISTPL_VERS_2
+
+  4.1.16. CISTPL_ORG
+
+  4.2.    CIS configuration register definitions
 
   4.2.1.  Configuration Option Register
 
@@ -160,6 +166,8 @@
   4.2.4.  Socket and Copy Register
 
   4.2.5.  Extended Status Register
+
+  4.2.6.  IO Base and Size Registers
 
   5.      Card Services Event Handling
 
@@ -253,7 +261,6 @@
   It is responsible for keeping track of all PCMCIA client drivers, and
   for matching up drivers with physical sockets.  It is implemented in
   the ds module.
-
   This document describes the kernel interface to the Card Services and
   Driver Services modules, and the user interface to Driver Services.
   It is intended for use by PCMCIA device driver developers.  The Linux
@@ -276,7 +283,7 @@
   published work, please contact me to make sure you have the latest
   available version.
 
-  This document is provided ``as is'', with no explicit or implied
+  This document is provided ``AS IS'', with no express or implied
   warranties.  Use the information in this document at your own risk.
 
   11..22..  AAcckknnoowwlleeddggeemmeennttss
@@ -408,24 +415,24 @@
 
   The following flags can be specified in Attributes:
 
-     IINNFFOO__MMAASSTTEERR__CCLLIIEENNTT
+     INFO_MASTER_CLIENT
         For use only by the Driver Services client.  Among other things,
         specifies that this client should not be automatically unbound
         when a card is ejected from this socket.
 
-     IINNFFOO__IIOO__CCLLIIEENNTT
+     INFO_IO_CLIENT
         Specifies that this client is an IO card driver.
 
-     IINNFFOO__MMTTDD__CCLLIIEENNTT
+     INFO_MTD_CLIENT
         Specifies that this client is a Memory Technology Driver.
 
-     IINNFFOO__MMEEMM__CCLLIIEENNTT
+     INFO_MEM_CLIENT
         Specifies that this client is a memory card driver.
 
-     IINNFFOO__CCAARRDD__SSHHAARREE
+     INFO_CARD_SHARE
         Included for compatibility, has no effect.
 
-     IINNFFOO__CCAARRDD__EEXXCCLL
+     INFO_CARD_EXCL
         Included for compatibility, has no effect.
 
   EventMask specifies what events this client should be notified of.
@@ -442,7 +449,7 @@
 
   Return codes:
 
-     CCSS__OOUUTT__OOFF__RREESSOOUURRCCEE
+     CS_OUT_OF_RESOURCE
         An appropriate socket could not be found for this driver.
 
   33..11..22..  DDeerreeggiisstteerrCClliieenntt
@@ -456,10 +463,10 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__IINN__UUSSEE
+     CS_IN_USE
         The client still has allocated resources, such as IO port
         windows or an interrupt, or the socket configuration is locked.
 
@@ -469,17 +476,17 @@
 
   The eventmask_t structure is given by:
 
-       typedef struct eventmask_t {
-               u_int           Attributes;
-               u_int           EventMask;
-       } eventmask_t;
+  typedef struct eventmask_t {
+          u_int           Attributes;
+          u_int           EventMask;
+  } eventmask_t;
 
   SetEventMask updates the mask that determines which events this client
   will be notified of.
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
   33..11..44..  BBiinnddDDeevviiccee
@@ -510,7 +517,7 @@
 
   Return codes:
 
-     CCSS__BBAADD__SSOOCCKKEETT
+     CS_BAD_SOCKET
         The specified socket number is invalid.
 
   33..22..  SSoocckkeett ssttaattee ccoonnttrrooll
@@ -525,7 +532,7 @@
 
   33..22..11..  GGeettSSttaattuuss
 
-  int CardServices(GetStatus, client_handle_t client, status_t *status);
+       int CardServices(GetStatus, client_handle_t client, status_t *status);
 
   The status_t data structure is given by:
 
@@ -544,42 +551,49 @@
   if the socket is currently configured.  The following flags are
   defined in CardState:
 
-     CCSS__EEVVEENNTT__CCAARRDD__DDEETTEECCTT
+     CS_EVENT_CARD_DETECT
         Specifies that the socket is occupied.
 
-     CCSS__EEVVEENNTT__CCBB__DDEETTEECCTT
+     CS_EVENT_CB_DETECT
         Specifies that the socket is occupied by a CardBus device.
 
-     CCSS__EEVVEENNTT__WWRRIITTEE__PPRROOTTEECCTT
+     CS_EVENT_WRITE_PROTECT
         Specifies that the card is currently write protected.
 
-     CCSS__EEVVEENNTT__BBAATTTTEERRYY__LLOOWW
+     CS_EVENT_BATTERY_LOW
         Specifies that the card battery is low.
 
-     CCSS__EEVVEENNTT__BBAATTTTEERRYY__DDEEAADD
+     CS_EVENT_BATTERY_DEAD
         Specifies that the card battery is dead.
 
-     CCSS__EEVVEENNTT__RREEAADDYY__CCHHAANNGGEE
+     CS_EVENT_READY_CHANGE
         Specifies that the card is ready.
 
-     CCSS__EEVVEENNTT__PPMM__SSUUSSPPEENNDD
+     CS_EVENT_PM_SUSPEND
         Specifies that the socket is suspended.
 
-     CCSS__EEVVEENNTT__RREEQQUUEESSTT__AATTTTEENNTTIIOONN
+     CS_EVENT_REQUEST_ATTENTION
         Specifies that the request attention bit in the extended status
         register is set.
 
-     CCSS__EEVVEENNTT__CCAARRDD__IINNSSEERRTTIIOONN
+     CS_EVENT_CARD_INSERTION
         Specifies that a card insertion event is in progress.  An
         insertion event will be sent to the client when socket setup is
         complete.
+
+     CS_EVENT_3VCARD
+        Indicates that the card supports 3.3V operation.
+
+     CS_EVENT_XVCARD
+        Indicates that the card supports ``X.X''V operation.  The actual
+        voltage is currently undefined in the PCMCIA specification.
 
   SocketState is currently unused, but in theory, it should latch
   changes in the state of the fields in CardState.
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
   33..22..22..  RReesseettCCaarrdd
@@ -600,13 +614,13 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
 
-     CCSS__IINN__UUSSEE
+     CS_IN_USE
         This socket is currently being reset.
 
   33..22..33..  SSuussppeennddCCaarrdd
@@ -618,13 +632,13 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
 
-     CCSS__IINN__UUSSEE
+     CS_IN_USE
         This socket is already suspended.
 
   33..22..44..  RReessuummeeCCaarrdd
@@ -636,13 +650,13 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
 
-     CCSS__IINN__UUSSEE
+     CS_IN_USE
         This socket is not currently suspended.
 
   33..22..55..  EEjjeeccttCCaarrdd
@@ -655,28 +669,28 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
 
   33..22..66..  IInnsseerrttCCaarrdd
 
-       int CardServices(InsertCard, client_handle_t client);
+  int CardServices(InsertCard, client_handle_t client);
 
   Card Services sends insertion events to all clients of this socket
   (normally, only Driver Services).
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
 
-     CCSS__IINN__UUSSEE
+     CS_IN_USE
         The socket has already been configured.
 
   33..33..  IIOO ccaarrdd ccoonnffiigguurraattiioonn ccaallllss
@@ -741,7 +755,7 @@
 
   The following flags can be specified in Attributes1 and Attributes2:
 
-     IIOO__DDAATTAA__PPAATTHH__WWIIDDTTHH
+     IO_DATA_PATH_WIDTH
         This field may either be IO_DATA_PATH_WIDTH_16 for 16-bit
         access, or IO_DATA_PATH_WIDTH_8 for 8-bit access, or
         IO_DATA_PATH_WIDTH_AUTO to dynamically size the bus based on the
@@ -749,20 +763,20 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
 
-     CCSS__IINN__UUSSEE
+     CS_IN_USE
         This socket's IO windows have already been reserved.
 
-     CCSS__CCOONNFFIIGGUURRAATTIIOONN__LLOOCCKKEEDD
+     CS_CONFIGURATION_LOCKED
         This socket's configuration has been locked by a call to
         RequestConfiguration.
 
-     CCSS__BBAADD__AATTTTRRIIBBUUTTEE
+     CS_BAD_ATTRIBUTE
         An unsupported attribute flag was specified.
 
   33..33..22..  RReelleeaasseeIIOO
@@ -780,15 +794,15 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__CCOONNFFIIGGUURRAATTIIOONN__LLOOCCKKEEDD
+     CS_CONFIGURATION_LOCKED
         This socket's configuration has been locked by a call to
         RequestConfiguration.  The configuration should be released
         before calling ReleaseIO.
 
-     CCSS__BBAADD__AARRGGSS
+     CS_BAD_ARGS
         The parameters in req do not match the parameters passed to
         RequestIO.
 
@@ -828,43 +842,42 @@
   a client instead bypasses Card Services to install its own interrupt
   service routine, it should allocate the interrupt in shared mode if
   this client could be bound to a multifunction card.
-
   The following flags can be specified in Attributes:
 
-     IIRRQQ__FFOORRCCEEDD__PPUULLSSEE
+     IRQ_FORCED_PULSE
         Specifies that the interrupt should be configured for pulsed
         mode, rather than the default level mode.
 
-     IIRRQQ__TTYYPPEE__TTIIMMEE
+     IRQ_TYPE_TIME
         Specifies that this interrupt can be time-shared with other Card
         Services drivers.  Only one driver should enable the interrupt
         at any time.
 
-     IIRRQQ__FFIIRRSSTT__SSHHAARREEDD
+     IRQ_FIRST_SHARED
         In conjunction with IRQ_TYPE_TIME, this should be set by the
         first driver requesting a shared interrupt.
 
-     IIRRQQ__HHAANNDDLLEERR__PPRREESSEENNTT
+     IRQ_HANDLER_PRESENT
         Indicates that the Handler field points to an interrupt service
         routine that should be installed.
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
 
-     CCSS__IINN__UUSSEE
+     CS_IN_USE
         An interrupt has already been reserved for this socket, or the
         requested interrupt is unavailable.
 
-     CCSS__CCOONNFFIIGGUURRAATTIIOONN__LLOOCCKKEEDD
+     CS_CONFIGURATION_LOCKED
         This card function's configuration has been locked by a call to
         RequestConfiguration.
 
-     CCSS__BBAADD__AATTTTRRIIBBUUTTEE
+     CS_BAD_ATTRIBUTE
         An unsupported attribute flag was specified.
 
   33..33..44..  RReelleeaasseeIIRRQQ
@@ -878,15 +891,15 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__CCOONNFFIIGGUURRAATTIIOONN__LLOOCCKKEEDD
+     CS_CONFIGURATION_LOCKED
         This socket's configuration has been locked by a call to
         RequestConfiguration.  The configuration should be released
         before calling ReleaseIRQ.
 
-     CCSS__BBAADD__IIRRQQ
+     CS_BAD_IRQ
         The parameters in req do not match the parameters passed to
         RequestIRQ.
 
@@ -896,15 +909,15 @@
 
   The config_req_t structure is given by:
 
-  typedef struct config_req_t {
-          u_int           Attributes;
-          u_int           Vcc, Vpp1, Vpp2;
-          u_int           IntType;
-          caddr_t         ConfigBase;
-          u_char          Status, Pin, Copy, ExtStatus;
-          u_char          ConfigIndex;
-          u_int           Present;
-  } config_req_t;
+       typedef struct config_req_t {
+               u_int           Attributes;
+               u_int           Vcc, Vpp1, Vpp2;
+               u_int           IntType;
+               caddr_t         ConfigBase;
+               u_char          Status, Pin, Copy, ExtStatus;
+               u_char          ConfigIndex;
+               u_int           Present;
+       } config_req_t;
 
   RequestConfiguration is responsible for actually configuring a socket.
   This includes setting voltages, setting CIS configuration registers,
@@ -928,14 +941,14 @@
   The following flags can be specified in Attributes.  DMA and speaker
   control are not supported on all systems.
 
-     CCOONNFF__EENNAABBLLEE__IIRRQQ
+     CONF_ENABLE_IRQ
         Enable the IO interrupt reserved by a previous call to
         RequestIRQ.
 
-     CCOONNFF__EENNAABBLLEE__DDMMAA
+     CONF_ENABLE_DMA
         Enable DMA accesses for this socket.
 
-     CCOONNFF__EENNAABBLLEE__SSPPKKRR
+     CONF_ENABLE_SPKR
         Enable speaker output from this socket.
 
   The Present parameter is a bit map specifying which CIS configuration
@@ -943,46 +956,47 @@
   of the configuration registers in attribute memory.  The following
   registers can be specified:
 
-     PPRREESSEENNTT__OOPPTTIIOONN
+     PRESENT_OPTION
         Specifies that the Configuration Option Register is present.
         The COR register will be set using the ConfigIndex parameter.
 
-     PPRREESSEENNTT__SSTTAATTUUSS
+     PRESENT_STATUS
         Specifies that the Card Configuration and Status Register is
         present.  The CCSR will be initialized with the Status
         parameter.
 
-     PPRREESSEENNTT__PPIINN__RREEPPLLAACCEE
+     PRESENT_PIN_REPLACE
         Specifies that the Pin Replacement Register is present.  The PRR
         will be initialized with the Pin parameter.
 
-     PPRREESSEENNTT__CCOOPPYY
+     PRESENT_COPY
         Specifies that the Socket and Copy Register is present.  The SCR
         will be initialized with the Copy parameter.
-     PPRREESSEENNTT__EEXXTT__SSTTAATTUUSS
+
+     PRESENT_EXT_STATUS
         Specifies that the Extended Status Register is present.  The ESR
         will be initialized with the ExtStatus parameter.
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
 
-     CCSS__OOUUTT__OOFF__RREESSOOUURRCCEE
+     CS_OUT_OF_RESOURCE
         Card Services was unable to allocate a memory window to access
         the card's configuration registers.
 
-     CCSS__CCOONNFFIIGGUURRAATTIIOONN__LLOOCCKKEEDD
+     CS_CONFIGURATION_LOCKED
         This card's configuration has already been locked by another
         call to RequestConfiguration.
 
-     CCSS__BBAADD__VVCCCC
+     CS_BAD_VCC
         The requested Vcc voltage is not supported.
 
-     CCSS__BBAADD__VVPPPP
+     CS_BAD_VPP
         The requested Vpp1/Vpp2 voltage is not supported.
 
   33..33..66..  MMooddiiffyyCCoonnffiigguurraattiioonn
@@ -1001,19 +1015,19 @@
 
   The following flags can be specified in Attributes:
 
-     CCOONNFF__IIRRQQ__CCHHAANNGGEE__VVAALLIIDD
+     CONF_IRQ_CHANGE_VALID
         Indicates that the CONF_ENABLE_IRQ setting should be updated.
 
-     CCOONNFF__EENNAABBLLEE__IIRRQQ
+     CONF_ENABLE_IRQ
         Specifies that IO interrupts should be enabled for this socket.
 
-     CCOONNFF__VVCCCC__CCHHAANNGGEE__VVAALLIIDD
+     CONF_VCC_CHANGE_VALID
         Indicates that Vcc should be updated.
 
-     CCOONNFF__VVPPPP11__CCHHAANNGGEE__VVAALLIIDD
+     CONF_VPP1_CHANGE_VALID
         Indicates that Vpp1 should be updated.
 
-     CCOONNFF__VVPPPP22__CCHHAANNGGEE__VVAALLIIDD
+     CONF_VPP2_CHANGE_VALID
         Indicates that Vpp2 should be updated.
 
   Currently, Vpp1 and Vpp2 must always have the same value.  So, the two
@@ -1021,19 +1035,19 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
 
-     CCSS__CCOONNFFIIGGUURRAATTIIOONN__LLOOCCKKEEDD
+     CS_CONFIGURATION_LOCKED
         This actually means that this socket has nnoott been locked.
 
-     CCSS__BBAADD__VVCCCC
+     CS_BAD_VCC
         The requested Vcc voltage is not supported.
 
-     CCSS__BBAADD__VVPPPP
+     CS_BAD_VPP
         The requested Vpp1/Vpp2 voltage is not supported.
 
   33..33..77..  RReelleeaasseeCCoonnffiigguurraattiioonn
@@ -1046,33 +1060,33 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The window handle is invalid, or the socket is not configured.
 
   33..33..88..  GGeettCCoonnffiigguurraattiioonnIInnffoo
 
-       int CardServices(GetConfigurationInfo, client_handle_t client, config_info_t *config);
+  int CardServices(GetConfigurationInfo, client_handle_t client, config_info_t *config);
 
   The config_info_t structure is given by:
 
-  typedef struct config_info_t {
-          u_char          Function;
-          u_int           Attributes;
-          u_int           Vcc, Vpp1, Vpp2;
-          u_int           IntType;
-          caddr_t         ConfigBase;
-          u_char          Status, Pin, Copy, Option, ExtStatus;
-          u_int           Present;
-          u_int           AssignedIRQ;
-          u_int           IRQAttributes;
-          ioaddr_t        BasePort1;
-          ioaddr_t        NumPorts1;
-          u_int           Attributes1;
-          ioaddr_t        BasePort2;
-          ioaddr_t        NumPorts2;
-          u_int           Attributes2;
-          u_int           IOAddrLines;
-  } config_info_t;
+       typedef struct config_info_t {
+               u_char          Function;
+               u_int           Attributes;
+               u_int           Vcc, Vpp1, Vpp2;
+               u_int           IntType;
+               caddr_t         ConfigBase;
+               u_char          Status, Pin, Copy, Option, ExtStatus;
+               u_int           Present;
+               u_int           AssignedIRQ;
+               u_int           IRQAttributes;
+               ioaddr_t        BasePort1;
+               ioaddr_t        NumPorts1;
+               u_int           Attributes1;
+               ioaddr_t        BasePort2;
+               ioaddr_t        NumPorts2;
+               u_int           Attributes2;
+               u_int           IOAddrLines;
+       } config_info_t;
 
   GetConfigurationInfo returns the current socket configuration as it
   was set up by RequestIO, RequestIRQ, and RequestConfiguration.  It can
@@ -1084,13 +1098,13 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The window handle is invalid, or the socket is not configured.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
 
-     CCSS__CCOONNFFIIGGUURRAATTIIOONN__LLOOCCKKEEDD
+     CS_CONFIGURATION_LOCKED
         This actually means that the configuration has nnoott been locked.
 
   33..44..  CCaarrdd IInnffoorrmmaattiioonn SSttrruuccttuurree ((CCIISS)) ccaallllss
@@ -1107,15 +1121,16 @@
   The ValidateCIS call checks to see if a card has a reasonable CIS.
   The GetFirstTuple and GetNextTuple calls are used to step through CIS
   tuple lists.  GetTupleData extracts data bytes from a tuple.  And
-  ParseTuple interprets a limited number of particularly important tuple
-  types.
+  ParseTuple unpacks most tuple types into more easily used forms.
+  Finally, the ReplaceCIS call allows a client to provide Card Services
+  with a substitute for the CIS found on the card.
 
   33..44..11..  GGeettFFiirrssttTTuuppllee,, GGeettNNeexxttTTuuppllee
 
-  #include "cistpl.h"
+       #include "cistpl.h"
 
-  int CardServices(GetFirstTuple, client_handle_t client, tuple_t *tuple);
-  int CardServices(GetNextTuple, client_handle_t client, tuple_t *tuple);
+       int CardServices(GetFirstTuple, client_handle_t client, tuple_t *tuple);
+       int CardServices(GetNextTuple, client_handle_t client, tuple_t *tuple);
 
   The tuple_t data structure is given by:
 
@@ -1149,13 +1164,13 @@
 
   The following flags can be specified in Attributes:
 
-     TTUUPPLLEE__RREETTUURRNN__LLIINNKK
+     TUPLE_RETURN_LINK
         Indicates that link tuples (CISTPL_LONGLINK_A,
         CISTPL_LONGLINK_C, CISTPL_LONGLINK_MFC, CISTPL_NOLINK,
         CISTPL_LINKTARGET) should be returned.  Normally these tuples
         are processed silently.
 
-     TTUUPPLLEE__RREETTUURRNN__CCOOMMMMOONN
+     TUPLE_RETURN_COMMON
         Indicates that tuples in the ``common'' CIS section of a
         multifunction CIS should be returned.  In the absence of this
         flag, normally, Card Services will only return tuples specific
@@ -1163,14 +1178,14 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__OOUUTT__OOFF__RREESSOOUURRCCEE
+     CS_OUT_OF_RESOURCE
         Card Services was unable to set up a memory window to map the
         card's CIS.
 
-     CCSS__NNOO__MMOORREE__IITTEEMMSS
+     CS_NO_MORE_ITEMS
         There were no tuples matching DesiredTuple.
 
   33..44..22..  GGeettTTuupplleeDDaattaa
@@ -1187,14 +1202,14 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__OOUUTT__OOFF__RREESSOOUURRCCEE
+     CS_OUT_OF_RESOURCE
         Card Services was unable to set up a memory window to map the
         card's CIS.
 
-     CCSS__NNOO__MMOORREE__IITTEEMMSS
+     CS_NO_MORE_ITEMS
         The tuple does not contain any more data.  TuppleOffset is
         greater than or equal to the length of the tuple.
 
@@ -1230,11 +1245,11 @@
 
   Return codes:
 
-     CCSS__BBAADD__TTUUPPLLEE
+     CS_BAD_TUPLE
         An error was encounted during parsing of this tuple.  The tuple
         may be incomplete, or may be formatted incorrectly.
 
-     CCSS__UUNNSSUUPPPPOORRTTEEDD__FFUUNNCCTTIIOONN
+     CS_UNSUPPORTED_FUNCTION
         ParseTuple cannot parse the specified tuple type.
 
   33..44..44..  VVaalliiddaatteeCCIISS
@@ -1254,12 +1269,52 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__OOUUTT__OOFF__RREESSOOUURRCCEE
+     CS_OUT_OF_RESOURCE
         Card Services was unable to set up a memory window to map the
         card's CIS.
+
+  33..44..55..  RReeppllaacceeCCIISS
+
+       int CardServices(ReplaceCIS, client_handle_t client, cisdump_t *cisinfo);
+
+  The cisdump_t structure is given by:
+
+       typedef struct cisdump_t {
+               u_int           Length;
+               cisdata_t       Data[CISTPL_MAX_CIS_SIZE];
+       } cisinfo_t;
+
+  ReplaceCIS allows a client to pass Card Services a replacement for the
+  CIS found on a card.  Its intended application is for cards with
+  incomplete or inaccurate CIS information.  If a correct CIS can be
+  deduced from other information available for the card, this allows
+  that information to be provided to clients in a clean fashion.  The
+  alternative is to pollute client source code with fixes targeted for
+  each card with a CIS error.  The replacement CIS remains in effect
+  until the card is ejected, and all tuple-related services will use the
+  replacement instead of the card's actual CIS.
+
+  The Length field gives the number of bytes of CIS data in the Data
+  array.  The Data array can be considered to be just the even bytes of
+  a card's attribute memory.  It should contain all required features of
+  a normal CIS, including an initial CISTPL_DEVICE tuple and a final
+  CISTPL_END tuple.  Long links (including CISTPL_LONGLINK_MFC) may be
+  used: all target addresses are interpreted in the replacement CIS
+  space.  In general, a replacement CIS should also contain the same
+  basic identification tuples (CISTPL_MANFID, CISTPL_VERS_1) as the
+  original card.
+
+  Return codes:
+
+     CS_BAD_HANDLE
+        The client handle is invalid.
+
+     CS_OUT_OF_RESOURCE
+        Card Services was unable to allocate memory to hold the
+        replacement CIS.
 
   33..55..  MMeemmoorryy wwiinnddooww ccoonnttrrooll
 
@@ -1285,7 +1340,7 @@
 
        typedef struct win_req_t {
                u_int           Attributes;
-               caddr_t         Base;
+               u_long          Base;
                u_int           Size;
                u_int           AccessSpeed;
        } win_req_t;
@@ -1298,42 +1353,41 @@
 
   The following flags can be specified in Attributes:
 
-     WWIINN__MMEEMMOORRYY__TTYYPPEE
+     WIN_MEMORY_TYPE
         This field can be either WIN_MEMORY_TYPE_CM for common memory,
         or WIN_MEMORY_TYPE_AM for attribute memory.
 
-     WWIINN__DDAATTAA__WWIIDDTTHH
+     WIN_DATA_WIDTH
         Either WIN_DATA_WIDTH_16 for 16-bit accesses, or
         WIN_DATA_WIDTH_8 for 8-bit access.
 
-     WWIINN__EENNAABBLLEE
+     WIN_ENABLE
         If this is set, the window is turned on.
 
-     WWIINN__UUSSEE__WWAAIITT
+     WIN_USE_WAIT
         Specifies that the controller should observe the card's MWAIT
         signal.
 
-  Base specifies the base address of the window in system memory.  If
-  NULL, Card Services will set Base to the first available window
-  address.  Size specifies the window size in bytes.  AccessSpeed
+  Base specifies the base physical address of the window in system
+  memory.  If zero, Card Services will set Base to the first available
+  window address.  Size specifies the window size in bytes.  AccessSpeed
   specifies the memory access speed, in nanoseconds.
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__CCAARRDD
+     CS_NO_CARD
         The socket assigned to this client is currently vacant.
-
-     CCSS__BBAADD__AATTTTRRIIBBUUTTEE
+     CS_BAD_ATTRIBUTE
         An unsupported window attribute was requested.
 
-     CCSS__OOUUTT__OOFF__RREESSOOUURRCCEE
+     CS_OUT_OF_RESOURCE
         The maximum number of memory windows for this socket are already
         being used.
 
-     CCSS__IINN__UUSSEE
+     CS_IN_USE
         RequestWindow was unable to find a free window of system memory.
 
   33..55..22..  MMooddiiffyyWWiinnddooww
@@ -1351,22 +1405,22 @@
   previous call to RequestWindow.  The following attributes can be
   changed:
 
-     WWIINN__MMEEMMOORRYY__TTYYPPEE
+     WIN_MEMORY_TYPE
         This field can be either WIN_MEMORY_TYPE_CM for common memory,
         or WIN_MEMORY_TYPE_AM for attribute memory.
 
-     WWIINN__DDAATTAA__WWIIDDTTHH
+     WIN_DATA_WIDTH
         Either WIN_DATA_WIDTH_16 for 16-bit accesses, or
         WIN_DATA_WIDTH_8 for 8-bit access.
 
-     WWIINN__EENNAABBLLEE
+     WIN_ENABLE
         If this is set, the window is turned on.
 
   AccessSpeed gives the new memory access speed, in nanoseconds.
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The window handle is invalid.
 
   33..55..33..  MMaappMMeemmPPaaggee
@@ -1374,7 +1428,6 @@
        int CardServices(MapMemPage, window_handle_t, memreq_t *);
 
   The memreq_t structure is given by:
-
        typedef struct memreq_t {
                u_int           CardOffset;
                page_t          Page;
@@ -1387,10 +1440,10 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The window handle is invalid.
 
-     CCSS__BBAADD__PPAAGGEE
+     CS_BAD_PAGE
         The Page value was non-zero.
 
   33..55..44..  RReelleeaasseeWWiinnddooww
@@ -1402,7 +1455,7 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The window handle is invalid.
 
   33..66..  BBuullkk MMeemmoorryy SSeerrvviicceess
@@ -1420,18 +1473,18 @@
 
   The mtd_reg_t data structure is given by:
 
-       typedef union mtd_reg_t {
-               u_int           Attributes;
-               u_int           Offset;
-               u_long          MediaID;
-       } mtd_reg_t;
+  typedef union mtd_reg_t {
+          u_int           Attributes;
+          u_int           Offset;
+          u_long          MediaID;
+  } mtd_reg_t;
 
   RegisterMTD informs Card Services that this client MTD will handle
   requests for a specified memory region.  The Offset field specifies
   the starting address of the memory region.  The following fields are
   defined in Attributes:
 
-     RREEGGIIOONN__TTYYPPEE
+     REGION_TYPE
         Either REGION_TYPE_CM for common memory, or REGION_TYPE_AM for
         attribute memory.
 
@@ -1443,10 +1496,10 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__BBAADD__OOFFFFSSEETT
+     CS_BAD_OFFSET
         Either the offset does not match a valid memory region for this
         card, or another MTD has already registered for this region.
 
@@ -1457,16 +1510,16 @@
 
   The region_info_t data structure is given by:
 
-  typedef union region_info_t {
-          u_int           Attributes;
-          u_int           CardOffset;
-          u_int           RegionSize;
-          u_int           AccessSpeed;
-          u_int           BlockSize;
-          u_int           PartMultiple;
-          u_char          JedecMfr, JedecInfo;
-          memory_handle_t next;
-  } region_info_t;
+       typedef union region_info_t {
+               u_int           Attributes;
+               u_int           CardOffset;
+               u_int           RegionSize;
+               u_int           AccessSpeed;
+               u_int           BlockSize;
+               u_int           PartMultiple;
+               u_char          JedecMfr, JedecInfo;
+               memory_handle_t next;
+       } region_info_t;
 
   GetFirstRegion and GetNextRegion summarize the information in a card's
   CISTPL_DEVICE, CISTPL_JEDEC, and CISTPL_DEVICE_GEO tuples.  CardOffset
@@ -1479,7 +1532,7 @@
 
   The following fields are defined in Attributes:
 
-     RREEGGIIOONN__TTYYPPEE
+     REGION_TYPE
         Either REGION_TYPE_CM for common memory, or REGION_TYPE_AM for
         attribute memory.
 
@@ -1488,10 +1541,10 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__NNOO__MMOORREE__IITTEEMMSS
+     CS_NO_MORE_ITEMS
         No more memory regions are defined.
 
   33..66..33..  OOppeennMMeemmoorryy
@@ -1512,20 +1565,20 @@
 
   The following fields are defined in Attributes:
 
-     MMEEMMOORRYY__TTYYPPEE
+     MEMORY_TYPE
         Either MEMORY_TYPE_CM for common memory, or MEMORY_TYPE_AM for
         attribute memory.
 
-     MMEEMMOORRYY__EEXXCCLLUUSSIIVVEE
+     MEMORY_EXCLUSIVE
         Specifies that this client should have exclusive access to this
         memory region.
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The window handle is invalid.
 
-     CCSS__BBAADD__OOFFFFSSEETT
+     CS_BAD_OFFSET
         Either the offset does not specify a valid region, or the region
         does not have an associated MTD to service bulk memory requests.
 
@@ -1539,7 +1592,7 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The memory handle is invalid.
 
   33..66..55..  RReeaaddMMeemmoorryy,, WWrriitteeMMeemmoorryy
@@ -1565,28 +1618,27 @@
 
   The following fields are defined in Attributes:
 
-     MMEEMM__OOPP__BBUUFFFFEERR
+     MEM_OP_BUFFER
         Either MEM_OP_BUFFER_USER if the host buffer is in a user memory
         segment, or MEM_OP_BUFFER_KERNEL if the host buffer is in kernel
         memory.
 
-     MMEEMM__OOPP__DDIISSAABBLLEE__EERRAASSEE
+     MEM_OP_DISABLE_ERASE
         Specifies that a card area should not be erased before it is
         written.
-
-     MMEEMM__OOPP__VVEERRIIFFYY
+     MEM_OP_VERIFY
         Specifies verification of write operations.
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The window handle is invalid.
 
-     CCSS__BBAADD__OOFFFFSSEETT
+     CS_BAD_OFFSET
         The specified card offset is beyond the end of the memory
         region.
 
-     CCSS__BBAADD__SSIIZZEE
+     CS_BAD_SIZE
         The specified transfer size extends past the end of the memory
         region.
 
@@ -1608,45 +1660,45 @@
 
   The eraseq_entry_t structure is given by:
 
-  typedef struct eraseq_entry_t {
-          memory_handle_t Handle;
-          u_char          State;
-          u_int           Size;
-          u_int           Offset;
-          void            *Optional;
-  } eraseq_entry_t;
+       typedef struct eraseq_entry_t {
+               memory_handle_t Handle;
+               u_char          State;
+               u_int           Size;
+               u_int           Offset;
+               void            *Optional;
+       } eraseq_entry_t;
 
   In an erase queue entry, the Header field should be a memory handle
   returned by a previous call to OpenMemory.  The State field indicates
   the state of the erase request.  The following values are defined:
 
-     EERRAASSEE__QQUUEEUUEEDD
+     ERASE_QUEUED
         Set by the client to indicate that this is a new request.
 
-     EERRAASSEE__IIDDLLEE
+     ERASE_IDLE
         Set by the client to indicate that this entry is not active.
 
-     EERRAASSEE__PPAASSSSEEDD
+     ERASE_PASSED
         Set by the MTD to indicate successful completion.
 
-     EERRAASSEE__FFAAIILLEEDD
+     ERASE_FAILED
         Set by the MTD to indicate that the erase failed.
 
-     EERRAASSEE__MMEEDDIIAA__WWRRPPRROOTT
+     ERASE_MEDIA_WRPROT
         Indicates that the region is write protected.
 
-     EERRAASSEE__NNOOTT__EERRAASSAABBLLEE
+     ERASE_NOT_ERASABLE
         Indicates that this region does not support erase operations.
 
-     EERRAASSEE__BBAADD__OOFFFFSSEETT
+     ERASE_BAD_OFFSET
         Indicates that the erase does not start on an erase block
         boundary.
 
-     EERRAASSEE__BBAADD__SSIIZZEE
+     ERASE_BAD_SIZE
         Indicates that the requested erase size is not a multiple of the
         erase block size.
 
-     EERRAASSEE__BBAADD__SSOOCCKKEETT
+     ERASE_BAD_SOCKET
         Set by the MTD to indicate that there is no card present.
 
   Additionally, the macro ERASE_IN_PROGRESS() will return a true
@@ -1661,12 +1713,12 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
   33..66..77..  DDeerreeggiisstteerrEErraasseeQQuueeuuee
 
-  int CardServices(DeregisterEraseQueue, eraseq_handle_t handle);
+       int CardServices(DeregisterEraseQueue, eraseq_handle_t handle);
 
   DeregisterEraseQueue frees a queue previously registered by a call to
   RegisterEraseQueue.  If there are any pending requests in the
@@ -1674,10 +1726,10 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The erase queue handle is invalid.
 
-     CCSS__BBUUSSYY
+     CS_BUSY
         The erase queue has erase requests pending.
 
   33..66..88..  CChheecckkEErraasseeQQuueeuuee
@@ -1696,7 +1748,7 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The erase queue handle is invalid.
 
   33..77..  MMiisscceellllaanneeoouuss ccaallllss
@@ -1707,13 +1759,13 @@
 
   The servinfo_t structure is given by:
 
-  typedef struct servinfo_t {
-          char            Signature[2];
-          u_int           Count;
-          u_int           Revision;
-          u_int           CSLevel;
-          char            *VendorString;
-  } servinfo_t;
+       typedef struct servinfo_t {
+               char            Signature[2];
+               u_int           Count;
+               u_int           Revision;
+               u_int           CSLevel;
+               char            *VendorString;
+       } servinfo_t;
 
   GetCardServicesInfo returns revision information about this version of
   Card Services.  Signature is set to ``CS''.  Count is set to the
@@ -1746,10 +1798,10 @@
 
   The Action parameter can be one of the following:
 
-     CCSS__RREEAADD
+     CS_READ
         Read the specified configuration register and return Value.
 
-     CCSS__WWRRIITTEE
+     CS_WRITE
         Write Value to the specified configuration register.
 
   AccessConfigurationRegister either reads or writes the one-byte CIS
@@ -1759,39 +1811,39 @@
 
   The following values for Offset are defined in cistpl.h:
 
-     CCIISSRREEGG__CCOORR
+     CISREG_COR
         The Configuration Option Register.
 
-     CCIISSRREEGG__CCCCSSRR
+     CISREG_CCSR
         The Card Configuration and Status Register.
 
-     CCIISSRREEGG__PPRRRR
+     CISREG_PRR
         The Pin Replacement Register.
 
-     CCIISSRREEGG__SSCCRR
+     CISREG_SCR
         The Socket and Copy Register.
 
-     CCIISSRREEGG__EESSRR
+     CISREG_ESR
         The Extended Status Register.
 
-     CCIISSRREEGG__IIOOBBAASSEE00..CISREG_IOBASE3
+     CISREG_IOBASE0..CISREG_IOBASE3
         The I/O Base Registers.
 
-     CCIISSRREEGG__IIOOSSIIZZEE
+     CISREG_IOSIZE
         The I/O Size Register.
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__BBAADD__AARRGGSS
+     CS_BAD_ARGS
         The specified Action is not supported.
 
-     CCSS__CCOONNFFIIGGUURRAATTIIOONN__LLOOCCKKEEDD
+     CS_CONFIGURATION_LOCKED
         This actually means that the configuration has nnoott been locked.
 
-     CCSS__OOUUTT__OOFF__RREESSOOUURRCCEE
+     CS_OUT_OF_RESOURCE
         Card Services was unable to allocate a memory window to access
         the card's configuration registers.
 
@@ -1801,25 +1853,25 @@
 
   The adjust_t structure is given by:
 
-  typedef struct adjust_t {
-          u_int           Action;
-          u_int           Resource;
-          u_int           Attributes;
-          union {
-                  struct memory {
-                          caddr_t         Base;
-                          u_long          Size;
-                  } memory;
-                  struct io {
-                          ioaddr_t        BasePort;
-                          ioaddr_t        NumPorts;
-                          u_int           IOAddrLines;
-                  } io;
-                  struct irq {
-                          u_int           IRQ;
-                  } irq;
-          } resource;
-  } adjust_t;
+       typedef struct adjust_t {
+               u_int           Action;
+               u_int           Resource;
+               u_int           Attributes;
+               union {
+                       struct memory {
+                               caddr_t         Base;
+                               u_long          Size;
+                       } memory;
+                       struct io {
+                               ioaddr_t        BasePort;
+                               ioaddr_t        NumPorts;
+                               u_int           IOAddrLines;
+                       } io;
+                       struct irq {
+                               u_int           IRQ;
+                       } irq;
+               } resource;
+       } adjust_t;
 
   AdjustResourceInfo is used to tell Card Services what resources may or
   may not be allocated by PCMCIA devices.  The normal Linux resource
@@ -1829,32 +1881,31 @@
 
   The Action parameter can have the following values:
 
-     AADDDD__MMAANNAAGGEEDD__RREESSOOUURRCCEE
+     ADD_MANAGED_RESOURCE
         Place the specified resource under Card Services control, so
         that it may be allocated by PCMCIA devices.
 
-     RREEMMOOVVEE__MMAANNAAGGEEDD__RREESSOOUURRCCEE
+     REMOVE_MANAGED_RESOURCE
         Remove the specified resource from Card Services control.
-
   At initialization time, Card Services assumes that it can use all
   available interrupts, but IO ports and memory regions must be
   explicitly enabled with ADD_MANAGED_RESOURCE.
 
   The Resource parameter can have the following values:
 
-     RREESS__MMEEMMOORRYY__RRAANNGGEE
+     RES_MEMORY_RANGE
         Specifies a memory range resource, described by
         adj->resource.memory.
 
-     RREESS__IIOO__RRAANNGGEE
+     RES_IO_RANGE
         Specifies an IO port resource, described by adj->resource.io.
 
-     RREESS__IIRRQQ
+     RES_IRQ
         Specifies an interrupt resource, described by adj->resource.irq.
 
   The following flags may be specified in Attributes:
 
-     RREESS__RREESSEERRVVEEDD
+     RES_RESERVED
         Indicates that the resource should be reserved for PCMCIA
         devices that specifically request it.  The resource will not be
         allocated for a device that asks Card Services for any available
@@ -1862,15 +1913,16 @@
 
   Return codes:
 
-     CCSS__UUNNSSUUPPPPOORRTTEEDD__FFUUNNCCTTIIOONN
+     CS_UNSUPPORTED_FUNCTION
         The specified Action or Resource is not supported.
-     CCSS__BBAADD__BBAASSEE
+
+     CS_BAD_BASE
         The specified IO address is out of range.
 
-     CCSS__BBAADD__SSIIZZEE
+     CS_BAD_SIZE
         The specified memory or IO window size is out of range.
 
-     CCSS__IINN__UUSSEE
+     CS_IN_USE
         The specified interrupt is currently allocated by a Card
         Services client.
 
@@ -1905,7 +1957,8 @@
 
   The Card Services ParseTuple function interprets raw CIS tuple data
   from a call to GetTupleData and returns the tuple contents in a form
-  dependant on the tuple type.
+  dependant on the tuple type.  This section describes the parsed tuple
+  contents.
 
        #include "cistpl.h"
 
@@ -1924,9 +1977,9 @@
 
   The cistpl_longlink_t structure is given by:
 
-       typedef struct cistpl_longlink_t {
-               u_int           addr;
-       } cistpl_longlink_t;
+  typedef struct cistpl_longlink_t {
+          u_int           addr;
+  } cistpl_longlink_t;
 
   These tuples are pointers to additional chains of CIS tuples, either
   in attribute or common memory.  Each CIS tuple chain can have at most
@@ -1946,13 +1999,13 @@
 
   The cistpl_longlink_mfc_t structure is given by:
 
-  typedef struct cistpl_longlink_mfc_t {
-          int     nfn;
-          struct {
-                  u_char  space;
-                  u_int   addr;
-          } fn[CISTPL_MAX_FUNCTIONS;
-  } cistpl_longlink_mfc_t;
+       typedef struct cistpl_longlink_mfc_t {
+               int     nfn;
+               struct {
+                       u_char  space;
+                       u_int   addr;
+               } fn[CISTPL_MAX_FUNCTIONS;
+       } cistpl_longlink_mfc_t;
 
   This tuple identifies a multifunction card, and specifies long link
   pointers to CIS chains specific for each function.  The space field is
@@ -1981,36 +2034,36 @@
   are assumed to be ordered consecutively starting with address 0.  The
   following device types are defined:
 
-     CCIISSTTPPLL__DDTTYYPPEE__NNUULLLL
+     CISTPL_DTYPE_NULL
         Specifies that there is no device, or a ``hole'' in the card
         address space.
 
-     CCIISSTTPPLL__DDTTYYPPEE__RROOMM
+     CISTPL_DTYPE_ROM
         Masked ROM
 
-     CCIISSTTPPLL__DDTTYYPPEE__OOTTPPRROOMM
+     CISTPL_DTYPE_OTPROM
         One-type programmable ROM.
 
-     CCIISSTTPPLL__DDTTYYPPEE__EEPPRROOMM
+     CISTPL_DTYPE_EPROM
         UV erasable PROM.
 
-     CCIISSTTPPLL__DDTTYYPPEE__EEEEPPRROOMM
+     CISTPL_DTYPE_EEPROM
         Electrically erasable PROM.
 
-     CCIISSTTPPLL__DDTTYYPPEE__FFLLAASSHH
+     CISTPL_DTYPE_FLASH
         Flash EPROM.
 
-     CCIISSTTPPLL__DDTTYYPPEE__SSRRAAMM
+     CISTPL_DTYPE_SRAM
         Static or non-volatile RAM.
 
-     CCIISSTTPPLL__DDTTYYPPEE__DDRRAAMM
+     CISTPL_DTYPE_DRAM
         Dynamic or volatile RAM.
 
-     CCIISSTTPPLL__DDTTYYPPEE__FFUUNNCCSSPPEECC
+     CISTPL_DTYPE_FUNCSPEC
         Specifies a function-specific device, such as a memory-mapped IO
         device or buffer, as opposed to general purpose storage.
 
-     CCIISSTTPPLL__DDTTYYPPEE__EEXXTTEENNDD
+     CISTPL_DTYPE_EXTEND
         Specifies an extended device type.  This type is reserved for
         future use.
 
@@ -2049,13 +2102,13 @@
 
   The cistpl_jedec_t structure is given by:
 
-  typedef struct cistpl_jedec_t {
-          int             nid;
-          struct jedec_id {
-                  u_char  mfr;
-                  u_char  info;
-          } id[CISTPL_MAX_DEVICES];
-  } cistpl_jedec_t;
+       typedef struct cistpl_jedec_t {
+               int             nid;
+               struct jedec_id {
+                       u_char  mfr;
+                       u_char  info;
+               } id[CISTPL_MAX_DEVICES];
+       } cistpl_jedec_t;
 
   JEDEC identifiers describe the specific device type used to implement
   a region of PCMCIA memory.  The nid field specifies the number of
@@ -2063,7 +2116,7 @@
   correspondence between JEDEC identifiers and device descriptions in
   the corresponding CISTPL_DEVICE tuple.
 
-  44..11..88..  CCIISSTTPPLL__CCOONNFFIIGG
+  44..11..88..  CCIISSTTPPLL__CCOONNFFIIGG,, CCIISSTTPPLL__CCOONNFFIIGG__CCBB
 
   The cistpl_config_t structure is given by:
 
@@ -2078,11 +2131,46 @@
   configuration table entry.  The base field gives the offset of a
   card's configuration registers in attribute memory.  The rmask array
   is a series of bit masks indicating which configuration registers are
-  present.  Bit 0 of rmask0 is for the COR, bit 1 is for the CCSR, and
+  present.  Bit 0 of rmask[0] is for the COR, bit 1 is for the CCSR, and
   so on.  The subtuples field gives the number of bytes of subtuples
   following the normal tuple contents.
 
-  44..11..99..  CCIISSTTPPLL__CCFFTTAABBLLEE__EENNTTRRYY
+  For CISTPL_CONFIG_CB, rmask is undefined, and base points to the
+  CardBus status registers.
+
+  44..11..99..  CCIISSTTPPLL__BBAARR
+
+  The cistpl_bar_t structure is given by:
+
+       typedef struct cistpl_bar_t {
+               u_char          attr;
+               u_int           size;
+       } cistpl_long_t;
+
+  A CISTPL_BAR tuple describes the characteristics of an address space
+  region pointed to by a PCI base address register, for CardBus cards.
+
+  The following bit fields are defined in attr:
+
+     CISTPL_BAR_SPACE
+        Identifies the base address register, from 1 to 6.  A value of 7
+        describes the card's Extension ROM space.
+
+     CISTPL_BAR_SPACE_IO
+        If set, this address register maps IO space (as opposed to
+        memory space).
+
+     CISTPL_BAR_PREFETCH
+        If set, this region can be prefetched.  controller.
+
+     CISTPL_BAR_CACHEABLE
+        If set, this region is cacheable as well as prefetchable.
+
+     CISTPL_BAR_1MEG_MAP
+        If set, this region should only be mapped into the first 1MB of
+        the host's physical address space.
+
+  44..11..1100..  CCIISSTTPPLL__CCFFTTAABBLLEE__EENNTTRRYY
 
   The cistpl_cftable_entry_t structure is given by:
 
@@ -2104,34 +2192,34 @@
   card's Configuration Option Register selects this mode.  The following
   fields are defined in flags:
 
-     CCIISSTTPPLL__CCFFTTAABBLLEE__DDEEFFAAUULLTT
+     CISTPL_CFTABLE_DEFAULT
         Specifies that this is the default configuration table entry.
 
-     CCIISSTTPPLL__CCFFTTAABBLLEE__BBVVDDSS
+     CISTPL_CFTABLE_BVDS
         Specifies that this configuration implements the BVD1 and BVD2
         signals in the Pin Replacement Register.
 
-     CCIISSTTPPLL__CCFFTTAABBLLEE__WWPP
+     CISTPL_CFTABLE_WP
         Specifies that this configuration implements the write protect
         signal in the Pin Replacement Register.
 
-     CCIISSTTPPLL__CCFFTTAABBLLEE__RRDDYYBBSSYY
+     CISTPL_CFTABLE_RDYBSY
         Specifies that this configuration implements the Ready/Busy
         signal in the Pin Replacement Register.
 
-     CCIISSTTPPLL__CCFFTTAABBLLEE__MMWWAAIITT
+     CISTPL_CFTABLE_MWAIT
         Specifies that the WAIT signal should be observed during memory
         access cycles.
 
-     CCIISSTTPPLL__CCFFTTAABBLLEE__AAUUDDIIOO
+     CISTPL_CFTABLE_AUDIO
         Specifies that this configuration generates an audio signal that
         can be routed to the host system speaker.
 
-     CCIISSTTPPLL__CCFFTTAABBLLEE__RREEAADDOONNLLYY
+     CISTPL_CFTABLE_READONLY
         Specifies that the card has a memory region that is read-only in
         this configuration.
 
-     CCIISSTTPPLL__CCFFTTAABBLLEE__PPWWRRDDOOWWNN
+     CISTPL_CFTABLE_PWRDOWN
         Specifies that this configuration supports a power down mode,
         via the Card Configuration and Status Register.
 
@@ -2146,25 +2234,25 @@
   The present field is bit mapped and indicates which parameters are
   present for this power signal.  The following indices are defined:
 
-     CCIISSTTPPLL__PPOOWWEERR__VVNNOOMM
+     CISTPL_POWER_VNOM
         The nominal supply voltage.
 
-     CCIISSTTPPLL__PPOOWWEERR__VVMMIINN
+     CISTPL_POWER_VMIN
         The minimum supply voltage.
 
-     CCIISSTTPPLL__PPOOWWEERR__VVMMAAXX
+     CISTPL_POWER_VMAX
         The maximum supply voltage.
 
-     CCIISSTTPPLL__PPOOWWEERR__IISSTTAATTIICC
+     CISTPL_POWER_ISTATIC
         The continuous supply current required.
 
-     CCIISSTTPPLL__PPOOWWEERR__IIAAVVGG
+     CISTPL_POWER_IAVG
         The maximum current averaged over one second.
 
-     CCIISSTTPPLL__PPOOWWEERR__IIPPEEAAKK
+     CISTPL_POWER_IPEAK
         The maximum current averaged over 10 ms.
 
-     CCIISSTTPPLL__PPOOWWEERR__IIDDOOWWNN
+     CISTPL_POWER_IDOWN
         The current required in power down mode.
 
   Voltages are given in units of 10 microvolts.  Currents are given in
@@ -2196,14 +2284,14 @@
   by a base address, base, and a length in bytes, len.  The following
   bit fields are defined in flags:
 
-     CCIISSTTPPLL__IIOO__LLIINNEESS__MMAASSKK
+     CISTPL_IO_LINES_MASK
         The number of IO lines decoded by this card.
 
-     CCIISSTTPPLL__IIOO__88BBIITT
+     CISTPL_IO_8BIT
         Indicates that the card supports split 8-bit accesses to 16-bit
         IO registers.
 
-     CCIISSTTPPLL__IIOO__1166BBIITT
+     CISTPL_IO_16BIT
         Indicates that the card supports full 16-bit accesses to IO
         registers.
 
@@ -2216,26 +2304,26 @@
 
   The following bit fields are defined in IRQInfo1:
 
-     IIRRQQ__MMAASSKK
+     IRQ_MASK
         A specific interrupt number that this card should use.
 
-     IIRRQQ__NNMMII__IIDD, IRQ_IOCK_ID, IRQ_BERR_ID,
+     IRQ_NMI_ID, IRQ_IOCK_ID, IRQ_BERR_ID,
         IRQ_VEND_ID" When IRQ_INFO2_VALID is set, these indicate if a
         corresponding special interrupt signal may be assigned to this
         card.  The four flags are for the non-maskable, IO check, bus
         error, and vendor specific interrupts.
 
-     IIRRQQ__IINNFFOO22__VVAALLIIDD
+     IRQ_INFO2_VALID
         Indicates that IRQInfo2 contains a valid bit mask of allowed
         interrupt request numbers.
 
-     IIRRQQ__LLEEVVEELL__IIDD
+     IRQ_LEVEL_ID
         Indicates that the card supports level mode interrupts.
 
-     IIRRQQ__PPUULLSSEE__IIDD
+     IRQ_PULSE_ID
         Indicates that the card supports pulse mode interrupts.
 
-     IIRRQQ__SSHHAARREE__IIDD
+     IRQ_SHARE_ID
         Indicates that the card supports sharing interrupts.
 
   If IRQInfo1 is 0, then no interrupt information is available.
@@ -2247,7 +2335,7 @@
                struct {
                        u_int           len;
                        u_int           card_addr;
-                       caddr_t         host_addr;
+                       u_int           host_addr;
                } win[CISTPL_MEM_MAX_WIN;
        } cistpl_mem_t;
 
@@ -2257,7 +2345,30 @@
   len.  If the host address is 0, the position of the window is
   arbitrary.
 
-  44..11..1100..  CCIISSTTPPLL__MMAANNFFIIDD
+  44..11..1111..  CCIISSTTPPLL__CCFFTTAABBLLEE__EENNTTRRYY__CCBB
+
+  The cistpl_cftable_entry_cb_t structure is given by:
+
+       typedef struct cistpl_cftable_entry_cb_t {
+               u_char          index;
+               u_char          flags;
+               cistpl_power_t  vcc, vpp1, vpp2;
+               u_char          io;
+               cistpl_irq_t    irq;
+               u_char          mem;
+               u_char          subtuples;
+       } cistpl_cftable_entry_cb_t;
+
+  A CISTPL_CFTABLE_ENTRY_CB structure describes a complete operating
+  mode for a CardBus card.  Many fields are identical to corresponding
+  fields in CISTPL_CFTABLE_ENTRY.
+
+  The io and mem fields specify which base address registers need to be
+  initialized for this configuration.  Bits 1 through 6 correspond to
+  the six base address registers, and bit 7 indicates the expansion ROM
+  base register.
+
+  44..11..1122..  CCIISSTTPPLL__MMAANNFFIIDD
 
   The cistpl_manfid_t structure is given by:
 
@@ -2269,7 +2380,7 @@
   The manf field identifies the card manufacturer.  The card field is
   chosen by the vendor and should identify the card type and model.
 
-  44..11..1111..  CCIISSTTPPLL__FFUUNNCCIIDD
+  44..11..1133..  CCIISSTTPPLL__FFUUNNCCIIDD
 
   The cistpl_funcid_t structure is given by:
 
@@ -2284,61 +2395,61 @@
 
   The following functions are defined:
 
-     CCIISSTTPPLL__FFUUNNCCIIDD__MMUULLTTII
+     CISTPL_FUNCID_MULTI
         A multi-function card.
 
-     CCIISSTTPPLL__FFUUNNCCIIDD__MMEEMMOORRYY
+     CISTPL_FUNCID_MEMORY
         A simple memory device.
 
-     CCIISSTTPPLL__FFUUNNCCIIDD__SSEERRIIAALL
+     CISTPL_FUNCID_SERIAL
         A serial port or modem device.
 
-     CCIISSTTPPLL__FFUUNNCCIIDD__PPAARRAALLLLEELL
+     CISTPL_FUNCID_PARALLEL
         A parallel port device.
 
-     CCIISSTTPPLL__FFUUNNCCIIDD__FFIIXXEEDD
+     CISTPL_FUNCID_FIXED
         A fixed disk device.
 
-     CCIISSTTPPLL__FFUUNNCCIIDD__VVIIDDEEOO
+     CISTPL_FUNCID_VIDEO
         A video interface.
 
-     CCIISSTTPPLL__FFUUNNCCIIDD__NNEETTWWOORRKK
+     CISTPL_FUNCID_NETWORK
         A network adapter.
 
-     CCIISSTTPPLL__FFUUNNCCIIDD__AAIIMMSS
+     CISTPL_FUNCID_AIMS
         An auto-incrementing mass storage device.
 
   The following flags are defined in sysinit:
 
-     CCIISSTTPPLL__SSYYSSIINNIITT__PPOOSSTT
+     CISTPL_SYSINIT_POST
         Indicates that the system should attempt to configure this card
         during its power-on initialization.
 
-     CCIISSTTPPLL__SSYYSSIINNIITT__RROOMM
+     CISTPL_SYSINIT_ROM
         Indicates that the card contains a system expansion ROM that
         should be configured at boot time.
 
-  44..11..1122..  CCIISSTTPPLL__DDEEVVIICCEE__GGEEOO
+  44..11..1144..  CCIISSTTPPLL__DDEEVVIICCEE__GGEEOO
 
   The cistpl_device_geo_t structure is given by:
 
-  typedef struct cistpl_device_geo_t {
-          int             ngeo;
-          struct geo {
-                  u_char          buswidth;
-                  u_int           erase_block;
-                  u_int           read_block;
-                  u_int           write_block;
-                  u_int           partition;
-                  u_int           interleave;
-          } geo[CISTPL_MAX_DEVICES];
-  } cistpl_device_geo_t;
+       typedef struct cistpl_device_geo_t {
+               int             ngeo;
+               struct geo {
+                       u_char          buswidth;
+                       u_int           erase_block;
+                       u_int           read_block;
+                       u_int           write_block;
+                       u_int           partition;
+                       u_int           interleave;
+               } geo[CISTPL_MAX_DEVICES];
+       } cistpl_device_geo_t;
 
   The erase_block, read_block, and write_block sizes are in units of
   buswidth bytes times interleave.  The partition size is in units of
   erase_block.
 
-  44..11..1133..  CCIISSTTPPLL__VVEERRSS__22
+  44..11..1155..  CCIISSTTPPLL__VVEERRSS__22
 
   The cistpl_vers_2_t structure is given by:
 
@@ -2362,7 +2473,7 @@
   vendor string is given by vendor, and the offset of the product info
   string is in info.
 
-  44..11..1144..  CCIISSTTPPLL__OORRGG
+  44..11..1166..  CCIISSTTPPLL__OORRGG
 
   The cistpl_org_t structure is given by:
 
@@ -2373,18 +2484,18 @@
   This tuple describes the data organization of a memory partition.  The
   following values are defined for data_org:
 
-     CCIISSTTPPLL__OORRGG__FFSS
+     CISTPL_ORG_FS
         The partition contains a filesystem.
 
-     CCIISSTTPPLL__OORRGG__AAPPPPSSPPEECC
+     CISTPL_ORG_APPSPEC
         The partition is in an application specific format.
 
-     CCIISSTTPPLL__OORRGG__XXIIPP
+     CISTPL_ORG_XIP
         The partition follows the Execute-In-Place specification.
 
   The desc field gives a text description of the data organization.
 
-  44..22..  CCIISS ccoonnffiigguurraattiioonn rreeggiisstteerrss
+  44..22..  CCIISS ccoonnffiigguurraattiioonn rreeggiisstteerr ddeeffiinniittiioonnss
 
   The PCMCIA standard defines a few standard configuration registers
   located in a card's attribute memory space.  A card's CONFIG tuple
@@ -2401,15 +2512,15 @@
 
   The following bit fields are defined:
 
-     CCOORR__CCOONNFFIIGG__MMAASSKK
+     COR_CONFIG_MASK
         Specifies the configuration table index describing the card's
         current operating mode.
 
-     CCOORR__LLEEVVEELL__RREEQQ
+     COR_LEVEL_REQ
         Specifies that the card should generate level mode (edge-
         triggered) interrupts, the default.
 
-     CCOORR__SSOOFFTT__RREESSEETT
+     COR_SOFT_RESET
         Setting this bit performs a ``soft'' reset operation.  Drivers
         should use the ResetCard call to reset a card, rather than
         writing directly to this register.
@@ -2418,30 +2529,32 @@
 
   The following bit fields are defined:
 
-     CCCCSSRR__IINNTTRR__AACCKK
+     CCSR_INTR_ACK
         If this bit is set, then the CCSR_INTR_PENDING bit will remain
         set until it is explicitly cleared.
-     CCCCSSRR__IINNTTRR__PPEENNDDIINNGG
-        Signals that the card is currently asserting an interrupt
-        request.  This signal can be used to support interrupt sharing.
 
-     CCCCSSRR__PPOOWWEERR__DDOOWWNN
+     CCSR_INTR_PENDING
+        Signals that the card is currently asserting an interrupt
+        request.  This signal may be helpful for supporting interrupt
+        sharing.
+
+     CCSR_POWER_DOWN
         Setting this bit signals that the card should enter a power down
         state.
 
-     CCCCSSRR__AAUUDDIIOO__EENNAA
+     CCSR_AUDIO_ENA
         Specifies that the card's audio output should be enabled.
 
-     CCCCSSRR__IIOOIISS88
+     CCSR_IOIS8
         This is used by the host to indicate that it can only perform
         8-bit IO operations and that 16-bit accesses will be carried out
         as two 8-bit accesses.
 
-     CCCCSSRR__SSIIGGCCHHGG__EENNAA
+     CCSR_SIGCHG_ENA
         This indicates to the card that it should use the SIGCHG signal
         to indicate changes in the WP, READY, BVD1, and BVD2 signals.
 
-     CCCCSSRR__CCHHAANNGGEEDD
+     CCSR_CHANGED
         This bit signals to the host that one of the signals in the Pin
         Replacement Register has changed state.
 
@@ -2455,31 +2568,30 @@
 
   The following bit fields are defined:
 
-     PPRRRR__WWPP__SSTTAATTUUSS
+     PRR_WP_STATUS
         The current state of the write protect signal.
-
-     PPRRRR__RREEAADDYY__SSTTAATTUUSS
+     PRR_READY_STATUS
         The current state of the ready signal.
 
-     PPRRRR__BBVVDD22__SSTTAATTUUSS
+     PRR_BVD2_STATUS
         The current state of the battery warn signal.
 
-     PPRRRR__BBVVDD11__SSTTAATTUUSS
+     PRR_BVD1_STATUS
         The current state of the battery dead signal.
 
-     PPRRRR__WWPP__EEVVEENNTT
+     PRR_WP_EVENT
         Indicates that the write protect signal has changed state since
         the PRR register was last read.
 
-     PPRRRR__RREEAADDYY__EEVVEENNTT
+     PRR_READY_EVENT
         Indicates that the ready signal has changed state since the PRR
         register was last read.
 
-     PPRRRR__BBVVDD22__EEVVEENNTT
+     PRR_BVD2_EVENT
         Indicates that the battery warn signal has changed state since
         the PRR register was last read.
 
-     PPRRRR__BBVVDD11__EEVVEENNTT
+     PRR_BVD1_EVENT
         Indicates that the battery dead signal has changed state since
         the PRR register was last read.
 
@@ -2499,11 +2611,11 @@
 
   The following bit fields are defined:
 
-     SSCCRR__SSOOCCKKEETT__NNUUMM
+     SCR_SOCKET_NUM
         This should indicate the socket number in which the card is
         located.
 
-     SSCCRR__CCOOPPYY__NNUUMM
+     SCR_COPY_NUM
         If several identical cards are installed in a system, this field
         should be set to a unique number identifying which of the
         identical cards this is.
@@ -2512,12 +2624,22 @@
 
   The following bit fields are defined:
 
-     EESSRR__RREEQQ__AATTTTNN__EENNAA
+     ESR_REQ_ATTN_ENA
         When set, the CCSR_CHANGED bit will be set when the ESR_REQ_ATTN
         bit is set, possibly generating a status change interrupt.
 
-     EESSRR__RREEQQ__AATTTTNN
+     ESR_REQ_ATTN
         Signals a card event, such as an incoming call for a modem.
+  44..22..66..  IIOO BBaassee aanndd SSiizzee RReeggiisstteerrss
+
+  For multifunction cards, these registers are used to tell the card how
+  the host IO windows have been configured for each card function.
+  There are four IO Base registers, from CISREG_IOBASE_0 to
+  CISREG_IOBASE_3, for the low-order through high-order bytes of an IO
+  address up to 32 bits long.  The CISREG_IOSIZE register is supposed to
+  be written as the number of IO ports allocated, minus one.  For MFC-
+  compliant cards, Card Services will automatically set all of these
+  registers when RequestConfiguration is called.
 
   55..  CCaarrdd SSeerrvviicceess EEvveenntt HHaannddlliinngg
 
@@ -2569,67 +2691,66 @@
 
   55..22..  EEvveenntt ddeessccrriippttiioonnss
 
-     CCSS__EEVVEENNTT__CCAARRDD__IINNSSEERRTTIIOONN
+     CS_EVENT_CARD_INSERTION
         This event signals that a card has been inserted.  If a driver
         is bound to an already occupied socket, Card Services will send
         the driver an artificial insertion event.
 
-     CCSS__EEVVEENNTT__CCAARRDD__RREEMMOOVVAALL
+     CS_EVENT_CARD_REMOVAL
         This event signals that a card has been removed.  This event
         should be handled with minimum delay so that Card Services can
         notify all clients as quickly as possible.
 
-     CCSS__EEVVEENNTT__BBAATTTTEERRYY__LLOOWW
+     CS_EVENT_BATTERY_LOW
         This event signals a change of state of the ``battery low''
         signal.
 
-     CCSS__EEVVEENNTT__BBAATTTTEERRYY__DDEEAADD
+     CS_EVENT_BATTERY_DEAD
         This event signals a change of state of the ``battery dead''
         signal.
 
-     CCSS__EEVVEENNTT__RREEAADDYY__CCHHAANNGGEE
+     CS_EVENT_READY_CHANGE
         This event signals a change of state of the ``ready'' signal.
 
-     CCSS__EEVVEENNTT__WWRRIITTEE__PPRROOTTEECCTT
+     CS_EVENT_WRITE_PROTECT
         This event signals a change of state of the ``write protect''
         signal.
 
-     CCSS__EEVVEENNTT__RREEGGIISSTTRRAATTIIOONN__CCOOMMPPLLEETTEE
+     CS_EVENT_REGISTRATION_COMPLETE
         This event is sent to a driver after a successful call to
         RegisterClient.
 
-     CCSS__EEVVEENNTT__RREESSEETT__RREEQQUUEESSTT
+     CS_EVENT_RESET_REQUEST
         This event is sent when a client calls ResetCard.  An event
         handler can veto the reset operation by returning failure.
 
-     CCSS__EEVVEENNTT__RREESSEETT__PPHHYYSSIICCAALL
+     CS_EVENT_RESET_PHYSICAL
         This is sent to all clients just before a reset signal is sent
         to a card.
 
-     CCSS__EEVVEENNTT__CCAARRDD__RREESSEETT
+     CS_EVENT_CARD_RESET
         This event signals that a reset operation is finished.  The
         success or failure of the reset should be determined using
         GetStatus.
 
-     CCSS__EEVVEENNTT__RREESSEETT__CCOOMMPPLLEETTEE
+     CS_EVENT_RESET_COMPLETE
         This event is sent to a client that has called ResetCard to
         signal the end of reset processing.
 
-     CCSS__EEVVEENNTT__PPMM__SSUUSSPPEENNDD
+     CS_EVENT_PM_SUSPEND
         This event signals that Card Services has received either a user
         initiated or APM suspend request.  An event handler can veto the
         suspend by returning failure.
 
-     CCSS__EEVVEENNTT__PPMM__RREESSUUMMEE
+     CS_EVENT_PM_RESUME
         This signals that the system is back on line after a
         suspend/resume cycle.
-
-     CCSS__EEVVEENNTT__MMTTDD__RREEQQUUEESSTT
+     CS_EVENT_MTD_REQUEST
         This is used to initiate an MTD memory operation.  A description
         of the request is passed in the mtdrequest field of the callback
         arguments.  A host buffer address may be passed in buffer.
 
-     CCSS__EEVVEENNTT__EERRAASSEE__CCOOMMPPLLEETTEE
+     CS_EVENT_ERASE_COMPLETE
         This is used to signal a client that a queued erase operation
         has completed.  A pointer to the erase queue entry is returned
         in the info field of the callback arguments.
@@ -2676,45 +2797,46 @@
 
   The mtd_request_t structure is given by:
 
-       typedef struct mtd_request_t {
-               u_int           SrcCardOffset;
-               u_int           DestCardOffset;
-               u_int           TransferLength;
-               u_int           Function;
-               u_long          MediaID;
-               u_int           Status;
-               u_int           Timeout;
-       } mtd_request_t;
+  typedef struct mtd_request_t {
+          u_int           SrcCardOffset;
+          u_int           DestCardOffset;
+          u_int           TransferLength;
+          u_int           Function;
+          u_long          MediaID;
+          u_int           Status;
+          u_int           Timeout;
+  } mtd_request_t;
 
   The Function field is bit mapped and describes the action to be
   performed by this request:
 
-     MMTTDD__RREEQQ__AACCTTIIOONN
+     MTD_REQ_ACTION
         Either MTD_REQ_ERASE, MTD_REQ_READ, MTD_REQ_WRITE, or
         MTD_REQ_COPY.
 
-     MMTTDD__RREEQQ__NNOOEERRAASSEE
+     MTD_REQ_NOERASE
         For a write command that is sized and aligned on erase block
         boundaries, this specifies that no erase should be performed.
 
-     MMTTDD__RREEQQ__VVEERRIIFFYY
+     MTD_REQ_VERIFY
         Specifies that writes should be verified.
 
-     MMTTDD__RREEQQ__RREEAADDYY
+     MTD_REQ_READY
         Indicates that this request is a retry of a previously request
         that was delayed until the card asserted READY.
 
-     MMTTDD__RREEQQ__TTIIMMEEOOUUTT
+     MTD_REQ_TIMEOUT
         Indicates that this request is a retry of a previously request
         that was delayed by a timeout.
 
-     MMTTDD__RREEQQ__FFIIRRSSTT
+     MTD_REQ_FIRST
         Indicates that this request is the first in a series of
         requests.
 
-     MMTTDD__RREEQQ__LLAASSTT
+     MTD_REQ_LAST
         Indicates that this request is the last of a series of requests.
-     MMTTDD__RREEQQ__KKEERRNNEELL
+
+     MTD_REQ_KERNEL
         Indicates that the host buffer for a read or write command is
         located in kernel memory, as opposed to user memory.
 
@@ -2725,20 +2847,19 @@
   should return an error code of CS_BUSY, and set Status to one of the
   have the following values:
 
-     MMTTDD__WWAAIITTRREEQQ
+     MTD_WAITREQ
         Specifies that the request should be retried after another MTD
         request currently in progress completes.
 
-     MMTTDD__WWAAIITTTTIIMMEERR
+     MTD_WAITTIMER
         Specifies that the request should be continued after the time
         specified in the timeout field.
 
-     MMTTDD__WWAAIITTRRDDYY
+     MTD_WAITRDY
         Specifies that the request should be continued when the card
         signals READY, or when the time specified in Timeout elapses,
         whichever happens first.
-
-     MMTTDD__WWAAIITTPPOOWWEERR
+     MTD_WAITPOWER
         Specifies that the request should be retried after something
         happens that affects power availability to the socket.
 
@@ -2787,11 +2908,11 @@
 
   The following flags can be specified in Attributes:
 
-     WWIINN__MMEEMMOORRYY__TTYYPPEE
+     WIN_MEMORY_TYPE
         Either WIN_MEMORY_TYPE_CM for common memory, or
         WIN_MEMORY_TYPE_AM for attribute memory.
 
-     WWIINN__UUSSEE__WWAAIITT
+     WIN_USE_WAIT
         Specifies that the controller should observe the card's MWAIT
         signal.
 
@@ -2800,7 +2921,7 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The memory handle is invalid.
 
   66..22..33..  MMTTDDSSeettVVpppp
@@ -2817,19 +2938,19 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
-     CCSS__BBAADD__VVPPPP
+     CS_BAD_VPP
         The specified Vpp is not available, or Vpp1 does not equal Vpp2.
 
   66..22..44..  MMTTDDRRDDYYMMaasskk
 
        int MTDHelperEntry(MTDRDYMask, client_handle_t client, mtd_rdy_req_t *req);
 
-       typedef struct mtd_rdy_req_t {
-               u_int           Mask;
-       } mtd_rdy_req_t;
+  typedef struct mtd_rdy_req_t {
+          u_int           Mask;
+  } mtd_rdy_req_t;
 
   MTDRDYMask selects whether or not CS_EVENT_READY_CHANGE events will be
   enabled.  The client should already have indicated to Card Services
@@ -2839,7 +2960,7 @@
 
   Return codes:
 
-     CCSS__BBAADD__HHAANNDDLLEE
+     CS_BAD_HANDLE
         The client handle is invalid.
 
   77..  DDrriivveerr SSeerrvviicceess iinntteerrffaaccee
@@ -2861,31 +2982,32 @@
   Each client driver is identified by a unique 16-character tag that has
   the special type dev_info_t, defined in cs_types.h.  Each device
   instance is described by a dev_link_t structure.
+
   77..11..11..  TThhee ddeevv__lliinnkk__tt ssttrruuccttuurree
 
   The dev_node_t and dev_link_t data structures are given by:
 
-       #include "ds.h"
+  #include "ds.h"
 
-       typedef struct dev_node_t {
-               char                    dev_name[8];
-               u_char                  major, minor;
-               struct dev_node_t       *next;
-       }
+  typedef struct dev_node_t {
+          char                    dev_name[8];
+          u_char                  major, minor;
+          struct dev_node_t       *next;
+  }
 
-       typedef struct dev_link_t {
-               dev_node_t              *dev;
-               u_int                   state, open;
-               struct wait_queue       *pending
-               struct timer_list       release
-               client_handle_t         handle;
-               io_req_t                io;
-               irq_req_t               irq;
-               config_req_t            conf;
-               window_handle_t         win;
-               void                    *priv;
-               struct dev_link_t       *next;
-       } dev_link_t;
+  typedef struct dev_link_t {
+          dev_node_t              *dev;
+          u_int                   state, open;
+          struct wait_queue       *pending
+          struct timer_list       release
+          client_handle_t         handle;
+          io_req_t                io;
+          irq_req_t               irq;
+          config_req_t            conf;
+          window_handle_t         win;
+          void                    *priv;
+          struct dev_link_t       *next;
+  } dev_link_t;
 
   The dev field of the dev_link_t structure points to a linked list of
   dev_node_t structures.  In dev_node_t, the dev_name field should be
@@ -2898,31 +3020,31 @@
   In dev_link_t, the state field should be used to keep track of the
   current device state.  The following flags are defined:
 
-     DDEEVV__PPRREESSEENNTT
+     DEV_PRESENT
         Indicates that the card is present.  This bit should be set and
         cleared by the driver's event handler in response to card
         insertion and removal events.
 
-     DDEEVV__CCOONNFFIIGG
+     DEV_CONFIG
         Indicates that the card is configured for use.
 
-     DDEEVV__CCOONNFFIIGG__PPEENNDDIINNGG
+     DEV_CONFIG_PENDING
         Indicates that configuration is in progress.
 
-     DDEEVV__SSUUSSPPEENNDD
+     DEV_SUSPEND
         Indicates that the card is suspended.
 
-     DDEEVV__BBUUSSYY
+     DEV_BUSY
         Indicates that an IO operation is in progress.  This bit may be
         used as an interlock to prevent access conflicts.
 
-     DDEEVV__SSTTAALLEE__CCOONNFFIIGG
+     DEV_STALE_CONFIG
         For some drivers, when a running card is ejected, the socket
         should not be unconfigured until any devices corresponding to
         this card are closed.  This flag indicates that the socket
         should be unconfigured when the device is closed.
 
-     DDEEVV__SSTTAALLEE__LLIINNKK
+     DEV_STALE_LINK
         A driver instance should not be deleted until all its PCMCIA
         resources are released.  This flag indicates that this driver
         instance should be freed as soon as the socket is unconfigured.
@@ -2972,6 +3094,7 @@
   sharing with regular kernel PCI drivers, we provide a sort of ``super
   client'' for configuring CardBus cards.  This is implemented in the
   cb_enabler module.
+
   The cb_enabler module is somewhat similar in philosophy to the Driver
   Services layer for 16-bit cards.  CardBus client drivers register with
   it, and provide a few entry points for handling device setup and
@@ -3076,6 +3199,7 @@
   previous read().  If no events have been received, the call will block
   until the next event.  A select() call can be used to monitor several
   sockets for new events.
+
   The following events are monitored by Driver Services:
   CS_EVENT_CARD_INSERTION, CS_EVENT_CARD_REMOVAL,
   CS_EVENT_RESET_PHYSICAL, CS_EVENT_CARD_RESET, and
@@ -3103,64 +3227,68 @@
                region_info_t   region;
                bind_info_t     bind_info;
                mtd_info_t      mtd_info;
+               cisdump_t       cisdump;
        } ds_ioctl_arg_t;
 
   The following ioctl commands execute the corresponding Card Services
   function:
 
-     DDSS__GGEETT__CCAARRDD__SSEERRVVIICCEESS__IINNFFOO
+     DS_GET_CARD_SERVICES_INFO
         Calls CardServices(GetCardServicesInfo, ..., &arg->servinfo).
 
-     DDSS__AADDJJUUSSTT__RREESSOOUURRCCEE__IINNFFOO
+     DS_ADJUST_RESOURCE_INFO
         Calls CardServices(AdjustResourceInfo, ..., &arg->adjust).
 
-     DDSS__GGEETT__CCOONNFFIIGGUURRAATTIIOONN__IINNFFOO
+     DS_GET_CONFIGURATION_INFO
         Calls CardServices(GetConfigurationInfo, ..., &arg->config).
 
-     DDSS__GGEETT__FFIIRRSSTT__TTUUPPLLEE
+     DS_GET_FIRST_TUPLE
         Calls CardServices(GetFirstTuple, ..., &arg->tuple).
 
-     DDSS__GGEETT__NNEEXXTT__TTUUPPLLEE
+     DS_GET_NEXT_TUPLE
         Calls CardServices(GetNextTuple, ..., &arg->tuple).
 
-     DDSS__GGEETT__TTUUPPLLEE__DDAATTAA
+     DS_GET_TUPLE_DATA
         Calls CardServices(GetTupleData, ..., &arg->tuple_parse.tuple).
         The tuple data is returned in arg->tuple_parse.data.
 
-     DDSS__PPAARRSSEE__TTUUPPLLEE
+     DS_PARSE_TUPLE
         Calls CardServices(ParseTuple, ..., &arg->tuple_parse.tuple,
         &arg->tuple_parse.parse).
 
-     DDSS__RREESSEETT__CCAARRDD
+     DS_RESET_CARD
         Calls CardServices(ResetCard, ...).
 
-     DDSS__GGEETT__SSTTAATTUUSS
+     DS_GET_STATUS
         Calls CardServices(GetStatus, ..., &arg->status).
 
-     DDSS__AACCCCEESSSS__CCOONNFFIIGGUURRAATTIIOONN__RREEGGIISSTTEERR
+     DS_ACCESS_CONFIGURATION_REGISTER
         Calls CardServices(AccessConfigurationRegister, ...,
         &arg->conf_reg).
 
-     DDSS__VVAALLIIDDAATTEE__CCIISS
+     DS_VALIDATE_CIS
         Calls CardServices(ValidateCIS, ..., &arg->cisinfo).
 
-     DDSS__SSUUSSPPEENNDD__CCAARRDD
+     DS_SUSPEND_CARD
         Calls CardServices(SuspendCard, ...).
 
-     DDSS__RREESSUUMMEE__CCAARRDD
+     DS_RESUME_CARD
         Calls CardServices(ResumeCard, ...).
 
-     DDSS__EEJJEECCTT__CCAARRDD
+     DS_EJECT_CARD
         Calls CardServices(EjectCard, ...).
 
-     DDSS__IINNSSEERRTT__CCAARRDD
+     DS_INSERT_CARD
         Calls CardServices(InsertCard, ...).
 
-     DDSS__GGEETT__FFIIRRSSTT__RREEGGIIOONN
+     DS_GET_FIRST_REGION
         Calls CardServices(GetFirstRegion, ..., &arg->region).
 
-     DDSS__GGEETT__NNEEXXTT__RREEGGIIOONN
+     DS_GET_NEXT_REGION
         Calls CardServices(GetNextRegion, ..., &arg->region).
+
+     DS_REPLACE_CIS
+        Calls CardServices(ReplaceCIS, ..., &arg->cisdump).
 
   The following ioctl commands invoke special Driver Services functions.
   They act on bind_info_t structures:
@@ -3174,7 +3302,7 @@
                void                    *next;
        } bind_info_t;
 
-     DDSS__BBIINNDD__RREEQQUUEESSTT
+     DS_BIND_REQUEST
         This call connects a socket to a client driver.  The specified
         device ID dev_info is looked up in the list of registered
         drivers.  If this is a multifunction card, the function field
@@ -3184,11 +3312,11 @@
         entry point to create a device instance.  The new dev_link_t
         pointer is returned in instance.
 
-     DDSS__GGEETT__DDEEVVIICCEE__IINNFFOO
+     DS_GET_DEVICE_INFO
         This call retrieves the dev_name, major, and minor entries from
         the dev_link_t structure pointed to by instance.
 
-     DDSS__UUNNBBIINNDD__RREEQQUUEESSTT
+     DS_UNBIND_REQUEST
         This call calls the detach() function for the specified driver
         and instance, shutting down this device.
 
@@ -3207,8 +3335,12 @@
   88..  AAnnaattoommyy ooff aa CCaarrdd SSeerrvviicceess CClliieenntt DDrriivveerr
 
   Each release of the Linux PCMCIA package comes with a well-commented
-  ``skeleton'' client driver that should be used as a starting point for
-  writing a new driver.  Look for it in modules/skeleton.c.
+  ``dummy'' client driver that should be used as a starting point for
+  writing a new driver.  Look for it in modules/dummy_cs.c.  This is not
+  just a piece of sample code: it is written to function as a sort of
+  generic card enabler.  If bound to any PCMCIA IO card, it will read
+  the card's CIS and configure the card appropriately, assuming that the
+  card's CIS is complete and accurate.
 
   88..11..  MMoodduullee iinniittiiaalliizzaattiioonn aanndd cclleeaannuupp
 
@@ -3324,6 +3456,14 @@
   handling an IO interrupt.  Loops that check device status should have
   timeouts so they will eventually exit if a device never responds.
 
+  The dummy_cs driver may be useful for loading legacy drivers for
+  compatible PCMCIA devices.  After binding dummy_cs to a card, the
+  legacy driver module may be able to detect and communicate with the
+  device as if it were not PCMCIA.  This arrangement will generally not
+  support clean hot swapping or power management functions, however it
+  may be useful as a basis for later developing a more full-featured
+  client driver.
+
   99..  WWhheerree ttoo GGoo ffoorr MMoorree IInnffoorrmmaattiioonn
 
   The _L_i_n_u_x _K_e_r_n_e_l _H_a_c_k_e_r_s_' _G_u_i_d_e, written by Michael Johnson, is a good
@@ -3356,7 +3496,6 @@
   and descriptions of how to write client drivers.  It also includes the
   Linux PCMCIA Programmer's Guide, as an appendix.  It is published by
   Peer-to-Peer Communications, ISBN 1-57398-010-2.
-
   Larry Levine has written a more general introduction to PCMCIA called
   the _P_C_M_C_I_A _P_r_i_m_e_r, which should be on bookstore shelves in the summer
   of 1995.  It is published by M & T Books, ISBN 1-55828-437-0.

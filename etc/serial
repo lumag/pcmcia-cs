@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.22 1998/02/15 18:06:19 (David Hinds)
+# serial 1.24 1998/05/10 00:45:10 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -23,18 +23,23 @@ get_info $DEVICE
 ADDRESS="$SCHEME,$SOCKET,$INSTANCE"
 . $0.opts
 
-NR=`expr $MINOR - 64`
-DIALOUT=cua$NR
+# Newer kernels do not have "cua" devices
+if [ -c /dev/cua1 ] ; then
+    NR=`expr $MINOR - 64`
+    DIALOUT=cua$NR
+else
+    DIALOUT=$DEVICE
+fi
 
 case "$ACTION" in
 
 'start')
-    if [ ! -c /dev/${DEVICE} -o ! -c /dev/cua$NR ] ; then
+    if [ ! -c /dev/$DEVICE -o ! -c /dev/$DIALOUT ] ; then
 	cd /dev
-	./MAKEDEV ${DEVICE}
+	./MAKEDEV $DEVICE
     fi
     if [ "$LINK" != "" ] ; then
-	rm -f $LINK
+	mv -f $LINK $LINK.O
 	ln -s /dev/$DIALOUT $LINK
     fi
     if [ "$SERIAL_OPTS" != "" ] ; then
@@ -61,7 +66,7 @@ case "$ACTION" in
 	telinit q
     fi
     fuser -s -k /dev/$DEVICE /dev/$DIALOUT $LINK
-    rm -f $LINK
+    rm -f $LINK ; mv -f $LINK.O $LINK
     ;;
 
 'suspend')

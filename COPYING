@@ -1,33 +1,15 @@
-Copyright (c) 1998 David A. Hinds -- All Rights Reserved
+Copyright (c) 1998 David A. Hinds
 
-Use, redistribution, and modification of this code is permitted
-subject to the following conditions:
+Unless otherwise indicated, this code is distributed under version 1.0
+of the Mozilla Public License, included here in the LICENSE file.
 
-1.  Redistribution and modification of this code must preserve this
-    and all other copyright statements and attributions.
-
-2.  Modified versions of this code must be clearly identified as such.
-
-3.  Binary distributions must include this notice and disclaimer.
-
-4.  Advertising materials that refer to specific features of this
-    or a derived product must acknowledge the author.
-
-5.  The author's name may not be used to endorse or promote any
-    product derived from this software without written permission.
-
-6.  Incorporation into commercial products is permitted, but I would
-    like to be notified of such uses.
-
-This software is provided "as is", with no explicit or implied
-warranties.  
-
-Some of the client drivers (nmclan_cs.c, 3c589_cs.c, pcnet_cs.c,
-smc91c92_cs.c, fmvj18x_cs.c) contain code written by others, subject
-to more restrictive (GPL) licensing requirements.
-
-If you make improvements to this software, I'd appreciate if you would
-send me the details of what you've done.
+Some of the client drivers (nmclan_cs.c, 3c589_cs.c, 3c574_cs.c,
+3c575_cb.c, ibmtr_cs.c, pcnet_cs.c, smc91c92_cs.c, fmvj18x_cs.c,
+wavelan_cs.c, netwave_cs.c, xirc2ps_cs.c) contain code written by
+others, subject to more restrictive (GPL) licensing requirements.
 
 	-- David Hinds
+	   Stanford University Medical Center
+	   300 Pasteur Drive rm M322
+	   Stanford, CA  94305-5120
 	   dhinds@hyper.stanford.edu

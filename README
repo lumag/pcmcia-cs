@@ -1,9 +1,9 @@
-This version of Card Services requires a 1.2.8 or higher kernel.  The
-following 1.3.X kernels should work: 1.3.30, 1.3.37, and 1.3.39 to
-1.3.99.  Other 1.3.X kernels are untested and may be broken.  All
-pre-2.0, 2.0, and 2.1 kernels should work.
+This version of Card Services should work with all 2.0 and 2.1
+kernels.  Older kernels may work however their use is deprecated.
 
 The PCMCIA-HOWTO now includes all installation instructions.
+
+See the COPYING and LICENSE files for license information.
 
 	-- David Hinds
 	   dhinds@hyper.stanford.edu

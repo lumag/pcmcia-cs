@@ -2,7 +2,21 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    ide_cs.c 1.8 1998/05/10 12:06:44
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -36,7 +50,6 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"fixed_cs.c 1.20 1998/02/10 11:38:12 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -58,21 +71,21 @@ static const char ide_major[4] = {
     IDE0_MAJOR, IDE1_MAJOR, IDE2_MAJOR, IDE3_MAJOR
 };
 
-typedef struct fixed_info_t {
+typedef struct ide_info_t {
     int		ndev;
     dev_node_t	node;
     int		hd;
-} fixed_info_t;
+} ide_info_t;
 
-static void fixed_config(dev_link_t *link);
-static void fixed_release(u_long arg);
-static int fixed_event(event_t event, int priority,
-			event_callback_args_t *args);
+static void ide_config(dev_link_t *link);
+static void ide_release(u_long arg);
+static int ide_event(event_t event, int priority,
+		     event_callback_args_t *args);
 
-static dev_info_t dev_info = "fixed_cs";
+static dev_info_t dev_info = "ide_cs";
 
-static dev_link_t *fixed_attach(void);
-static void fixed_detach(dev_link_t *);
+static dev_link_t *ide_attach(void);
+static void ide_detach(dev_link_t *);
 
 static dev_link_t *dev_list = NULL;
 
@@ -86,24 +99,24 @@ static void cs_error(client_handle_t handle, int func, int ret)
 
 /*======================================================================
 
-    fixed_attach() creates an "instance" of the driver, allocating
+    ide_attach() creates an "instance" of the driver, allocating
     local data structures for one device.  The device is registered
     with Card Services.
 
 ======================================================================*/
 
-static dev_link_t *fixed_attach(void)
+static dev_link_t *ide_attach(void)
 {
     client_reg_t client_reg;
     dev_link_t *link;
     int i, ret;
     
-    DEBUG(0, "fixed_attach()\n");
+    DEBUG(0, "ide_attach()\n");
 
-    /* Create new fixed device */
+    /* Create new ide device */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
     memset(link, 0, sizeof(struct dev_link_t));
-    link->release.function = &fixed_release;
+    link->release.function = &ide_release;
     link->release.data = (u_long)link;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
@@ -118,8 +131,8 @@ static dev_link_t *fixed_attach(void)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
-    link->priv = kmalloc(sizeof(struct fixed_info_t), GFP_KERNEL);
-    memset(link->priv, 0, sizeof(struct fixed_info_t));
+    link->priv = kmalloc(sizeof(struct ide_info_t), GFP_KERNEL);
+    memset(link->priv, 0, sizeof(struct ide_info_t));
     
     /* Register with Card Services */
     link->next = dev_list;
@@ -130,18 +143,18 @@ static dev_link_t *fixed_attach(void)
 	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
 	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
 	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &fixed_event;
+    client_reg.event_handler = &ide_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = CardServices(RegisterClient, &link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
 	cs_error(link->handle, RegisterClient, ret);
-	fixed_detach(link);
+	ide_detach(link);
 	return NULL;
     }
     
     return link;
-} /* fixed_attach */
+} /* ide_attach */
 
 /*======================================================================
 
@@ -152,13 +165,13 @@ static dev_link_t *fixed_attach(void)
 
 ======================================================================*/
 
-static void fixed_detach(dev_link_t *link)
+static void ide_detach(dev_link_t *link)
 {
     dev_link_t **linkp;
     long flags;
     int ret;
 
-    DEBUG(0, "fixed_detach(0x%p)\n", link);
+    DEBUG(0, "ide_detach(0x%p)\n", link);
     
     /* Locate device structure */
     for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
@@ -175,7 +188,7 @@ static void fixed_detach(dev_link_t *link)
     restore_flags(flags);
     
     if (link->state & DEV_CONFIG)
-	fixed_release((u_long)link);
+	ide_release((u_long)link);
     
     if (link->handle) {
 	ret = CardServices(DeregisterClient, link->handle);
@@ -185,37 +198,42 @@ static void fixed_detach(dev_link_t *link)
     
     /* Unlink device structure, free bits */
     *linkp = link->next;
-    kfree_s(link->priv, sizeof(fixed_info_t));
+    kfree_s(link->priv, sizeof(ide_info_t));
     kfree_s(link, sizeof(struct dev_link_t));
     
-} /* fixed_detach */
+} /* ide_detach */
 
 /*======================================================================
 
-    fixed_config() is scheduled to run after a CARD_INSERTION event
+    ide_config() is scheduled to run after a CARD_INSERTION event
     is received, to configure the PCMCIA socket, and to make the
-    fixed device available to the system.
+    ide device available to the system.
 
 ======================================================================*/
 
 #define CS_CHECK(fn, args...) \
 while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 
-void fixed_config(dev_link_t *link)
+#define CFG_CHECK(fn, args...) \
+if (CardServices(fn, args) != 0) goto next_entry
+
+void ide_config(dev_link_t *link)
 {
     client_handle_t handle;
-    fixed_info_t *info;
+    ide_info_t *info;
     tuple_t tuple;
     u_short buf[128];
     cisparse_t parse;
+    config_info_t conf;
     cistpl_cftable_entry_t *cfg = &parse.cftable_entry;
-    int i, last_ret, last_fn, hd, io, ctl;
+    cistpl_cftable_entry_t dflt = { 0 };
+    int last_ret, last_fn, hd, io_base, ctl_base;
 
     sti();
     handle = link->handle;
     info = link->priv;
     
-    DEBUG(0, "fixed_config(0x%p)\n", link);
+    DEBUG(0, "ide_config(0x%p)\n", link);
     
     tuple.TupleData = (cisdata_t *)buf;
     tuple.TupleOffset = 0; tuple.TupleDataMax = 255;
@@ -230,45 +248,58 @@ void fixed_config(dev_link_t *link)
     /* Configure card */
     link->state |= DEV_CONFIG;
 
-    io = ctl = 0;
+    /* Not sure if this is right... look up the current Vcc */
+    CS_CHECK(GetConfigurationInfo, handle, &conf);
+    
+    io_base = ctl_base = 0;
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
-    i = CardServices(GetFirstTuple, handle, &tuple);
-    while (i == CS_SUCCESS) {
-	i = CardServices(GetTupleData, handle, &tuple);
-	if (i != CS_SUCCESS) break;
-	i = CardServices(ParseTuple, handle, &tuple, &parse);
-	if ((i == CS_SUCCESS) &&
-	    (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM)) &&
-	    (cfg->vpp1.param[CISTPL_POWER_VNOM] == 120))
-	    link->conf.Vpp1 = link->conf.Vpp2 = 120;
-	/* Sanity checks */
-	if ((i == CS_SUCCESS) && (cfg->io.nwin > 0)) {
+    CS_CHECK(GetFirstTuple, handle, &tuple);
+    while (1) {
+	CFG_CHECK(GetTupleData, handle, &tuple);
+	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
+
+	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM))
+	    link->conf.Vcc = cfg->vcc.param[CISTPL_POWER_VNOM]/10000;
+	else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM))
+	    link->conf.Vcc = dflt.vcc.param[CISTPL_POWER_VNOM]/10000;
+	if (link->conf.Vcc != conf.Vcc)
+	    goto next_entry;
+	
+	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
+	    link->conf.Vpp1 = link->conf.Vpp2 =
+		cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
+	else if (dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
+	    link->conf.Vpp1 = link->conf.Vpp2 =
+		dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
+	
+	if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
+	    cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
 	    link->conf.ConfigIndex = cfg->index;
-	    link->io.BasePort1 = cfg->io.win[0].base;
-	    if (cfg->io.nwin == 2) {
+	    link->io.BasePort1 = io->win[0].base;
+	    if (!(io->flags & CISTPL_IO_16BIT))
+		link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+	    if (io->nwin == 2) {
 		link->io.NumPorts1 = 8;
-		link->io.BasePort2 = cfg->io.win[1].base;
+		link->io.BasePort2 = io->win[1].base;
 		link->io.NumPorts2 = 1;
-		i = CardServices(RequestIO, link->handle, &link->io);
-		io = link->io.BasePort1;
-		ctl = link->io.BasePort2;
-	    }
-	    else if (cfg->io.nwin == 1) {
+		CFG_CHECK(RequestIO, link->handle, &link->io);
+		io_base = link->io.BasePort1;
+		ctl_base = link->io.BasePort2;
+	    } else if (io->nwin == 1) {
 		link->io.NumPorts1 = 16;
 		link->io.NumPorts2 = 0;
-		i = CardServices(RequestIO, link->handle, &link->io);
-		io = link->io.BasePort1;
-		ctl = link->io.BasePort1+0x0e;
-	    }
-	    else continue;
-	    if (i == CS_SUCCESS) break;
+		CFG_CHECK(RequestIO, link->handle, &link->io);
+		io_base = link->io.BasePort1;
+		ctl_base = link->io.BasePort1+0x0e;
+	    } else goto next_entry;
+	    /* If we've got this far, we're done */
+	    break;
 	}
-	i = CardServices(GetNextTuple, handle, &tuple);
-    }
-    if (i != CS_SUCCESS) {
-	cs_error(link->handle, RequestIO, i);
-	goto failed;
+	
+    next_entry:
+	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
+	CS_CHECK(GetNextTuple, handle, &tuple);
     }
     
     CS_CHECK(RequestIRQ, handle, &link->irq);
@@ -277,12 +308,12 @@ void fixed_config(dev_link_t *link)
     release_region(link->io.BasePort1, link->io.NumPorts1);
     if (link->io.NumPorts2)
 	release_region(link->io.BasePort2, link->io.NumPorts2);
-    hd = ide_register(io, ctl, link->irq.AssignedIRQ);
+    hd = ide_register(io_base, ctl_base, link->irq.AssignedIRQ);
     
     if (hd < 0) {
-	printk(KERN_NOTICE "fixed_cs: ide_register() at 0x%3x &"
-	       " 0x%3x, irq %u failed\n", io, ctl,
-		   link->irq.AssignedIRQ);
+	printk(KERN_NOTICE "ide_cs: ide_register() at 0x%3x & 0x%3x"
+	       ", irq %u failed\n", io_base, ctl_base,
+	       link->irq.AssignedIRQ);
 	goto failed;
     }
     
@@ -292,6 +323,9 @@ void fixed_config(dev_link_t *link)
     info->node.minor = 0;
     info->hd = hd;
     link->dev = &info->node;
+    printk(KERN_INFO "ide_cs: %s: Vcc = %d.%d, Vpp = %d.%d\n",
+	   info->node.dev_name, link->conf.Vcc/10, link->conf.Vcc%10,
+	   link->conf.Vpp1/10, link->conf.Vpp1%10);
 
     link->state &= ~DEV_CONFIG_PENDING;
     return;
@@ -299,26 +333,26 @@ void fixed_config(dev_link_t *link)
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
-    fixed_release((u_long)link);
+    ide_release((u_long)link);
 
-} /* fixed_config */
+} /* ide_config */
 
 /*======================================================================
 
-    After a card is removed, fixed_release() will unregister the net
+    After a card is removed, ide_release() will unregister the net
     device, and release the PCMCIA configuration.  If the device is
     still open, this will be postponed until it is closed.
     
 ======================================================================*/
 
-void fixed_release(u_long arg)
+void ide_release(u_long arg)
 {
     dev_link_t *link = (dev_link_t *)arg;
-    fixed_info_t *info = link->priv;
+    ide_info_t *info = link->priv;
     
     sti();
     
-    DEBUG(0, "fixed_release(0x%p)\n", link);
+    DEBUG(0, "ide_release(0x%p)\n", link);
 
     if (info->ndev)
 	ide_unregister(info->hd);
@@ -331,23 +365,23 @@ void fixed_release(u_long arg)
     
     link->state &= ~DEV_CONFIG;
 
-} /* fixed_release */
+} /* ide_release */
 
 /*======================================================================
 
     The card status event handler.  Mostly, this schedules other
     stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the fixed drivers from
+    also sets some flags to discourage the ide drivers from
     talking to the ports.
     
 ======================================================================*/
 
-int fixed_event(event_t event, int priority,
-		event_callback_args_t *args)
+int ide_event(event_t event, int priority,
+	      event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
 
-    DEBUG(1, "fixed_event(0x%06x)\n", event);
+    DEBUG(1, "ide_event(0x%06x)\n", event);
     
     switch (event) {
     case CS_EVENT_CARD_REMOVAL:
@@ -360,7 +394,7 @@ int fixed_event(event_t event, int priority,
 	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	fixed_config(link);
+	ide_config(link);
 	break;
     case CS_EVENT_PM_SUSPEND:
 	link->state |= DEV_SUSPEND;
@@ -378,7 +412,7 @@ int fixed_event(event_t event, int priority,
 	break;
     }
     return 0;
-} /* fixed_event */
+} /* ide_event */
 
 /*====================================================================*/
 
@@ -388,18 +422,18 @@ int init_module(void)
     DEBUG(0, "%s\n", version);
     CardServices(GetCardServicesInfo, &serv);
     if (serv.Revision != CS_RELEASE_CODE) {
-	printk(KERN_NOTICE "fixed_cs: Card Services release "
+	printk(KERN_NOTICE "ide_cs: Card Services release "
 	       "does not match!\n");
 	return -1;
     }
-    register_pcmcia_driver(&dev_info, &fixed_attach, &fixed_detach);
+    register_pcmcia_driver(&dev_info, &ide_attach, &ide_detach);
     return 0;
 }
 
 void cleanup_module(void)
 {
-    DEBUG(0, "fixed_cs: unloading\n");
+    DEBUG(0, "ide_cs: unloading\n");
     unregister_pcmcia_driver(&dev_info);
     while (dev_list != NULL)
-	fixed_detach(dev_list);
+	ide_detach(dev_list);
 }

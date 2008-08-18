@@ -2,7 +2,21 @@
 
     PCMCIA controller probe
 
-    Written by David Hinds, dhinds@allegro.stanford.edu
+    probe.c 1.31 1998/05/10 12:23:16
+
+    The contents of this file are subject to the Mozilla Public
+    License Version 1.0 (the "License"); you may not use this file
+    except in compliance with the License. You may obtain a copy of
+    the License at http://www.mozilla.org/MPL/
+
+    Software distributed under the License is distributed on an "AS
+    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    implied. See the License for the specific language governing
+    rights and limitations under the License.
+
+    The initial developer of the original code is David A. Hinds
+    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
+    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
     
 ======================================================================*/
 
@@ -26,9 +40,6 @@
 #include "vg468.h"
 #include "tcic.h"
 
-static const char *version =
-"probe.c 1.26 1998/02/15 22:08:42 (David Hinds)\n";
-
 static int i365_base = 0x03e0;
 
 typedef u_short ioaddr_t;
@@ -44,14 +55,32 @@ typedef struct {
 
 pci_id_t pci_id[] = {
     { "Cirrus Logic CL 6729", "Cirrus PD6729" },
+    { "Cirrus Logic PD 6832", "Cirrus PD6832" },
+    { "SMC 34C90", "SMC 34C90" },
+    { "Ricoh RL5C466", "Ricoh RL5C466" },
+    { "Texas Instruments PCI1130", "TI 1130" },
+    { "Texas Instruments PCI1131", "TI 1131" },
+    { "Texas Instruments PCI1031", "TI 1031" },
+    { "Texas Instruments PCI1220", "TI 1220" },
+    { "Texas Instruments PCI1250", "TI 1250A" },
+    { "O2 Micro 6729", "O2Micro OZ6729" },
+    { "O2 Micro 6730", "O2Micro OZ6730" },
+    { "O2 Micro 6832", "O2Micro OZ6832" },
+    { "Toshiba ToPIC95", "Toshiba ToPIC95" },
     { "Vendor id=119b. Device id=1221.", "Omega Micro 82C092G" },
     { "Vendor id=8086. Device id=1221.", "Intel 82092AA" },
     { "Vendor id=1180. Device id=466.",  "Ricoh RL5C466" },
     { "Vendor id=10b3. Device id=b106.", "SMC 34C90" },
     { "Vendor id=1013. Device id=1110.", "Cirrus PD6832" },
     { "Vendor id=104c. Device id=ac12.", "TI 1130" },
+    { "Vendor id=104c. Device id=ac13.", "TI 1031" },
     { "Vendor id=104c. Device id=ac15.", "TI 1131" },
-    { "Vendor id=1217. Device id=6832.", "O2Micro OZ6832" }
+    { "Vendor id=104c. Device id=ac16.", "TI 1250A" },
+    { "Vendor id=104c. Device id=ac17.", "TI 1220" },
+    { "Vendor id=1217. Device id=6729.", "O2Micro OZ6729" },
+    { "Vendor id=1217. Device id=673a.", "O2Micro OZ6730" },
+    { "Vendor id=1217. Device id=6832.", "O2Micro OZ6832" },
+    { "Vendor id=1179. Device id=060a.", "Toshiba ToPIC95" }
 };
 #define PCI_COUNT (sizeof(pci_id)/sizeof(pci_id_t))
 
@@ -364,8 +393,6 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "usage: %s [-t tcic_base] [-v] [-m]\n", argv[0]);
 	exit(EXIT_FAILURE);
     }
-
-    if (verbose) printf("%s", version);
 
 #ifdef CONFIG_PCI
     if (pci_probe(verbose, module) == 0)
