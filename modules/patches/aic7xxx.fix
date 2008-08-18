@@ -1,8 +1,8 @@
---- aic7xxx.c.orig	Sun Apr 19 12:24:01 1998
-+++ aic7xxx.c	Sun Apr 19 22:15:05 1998
-@@ -46,10 +46,18 @@
-  *  $Id: aic7xxx.c,v 4.0 1996/10/13 08:23:42 deang Exp $
-  *-M*************************************************************************/
+--- aic7xxx.c.orig	Thu May 21 23:18:42 1998
++++ aic7xxx.c	Fri May 22 10:27:53 1998
+@@ -163,10 +163,18 @@
+  *
+  *_M*************************************************************************/
  
 +#ifdef PCMCIA
 +#define MODULE
@@ -19,13 +19,12 @@
  #include <stdarg.h>
  #include <asm/io.h>
  #include <asm/irq.h>
-@@ -4776,7 +4784,8 @@
-       {PCI_VENDOR_ID_ADAPTEC, PCI_DEVICE_ID_ADAPTEC_7881, AIC_7881, AIC_788x},
-       {PCI_VENDOR_ID_ADAPTEC, PCI_DEVICE_ID_ADAPTEC_7882, AIC_7882, AIC_788x},
-       {PCI_VENDOR_ID_ADAPTEC, PCI_DEVICE_ID_ADAPTEC_7883, AIC_7883, AIC_788x},
--      {PCI_VENDOR_ID_ADAPTEC, PCI_DEVICE_ID_ADAPTEC_7884, AIC_7884, AIC_788x}
-+      {PCI_VENDOR_ID_ADAPTEC, PCI_DEVICE_ID_ADAPTEC_7884, AIC_7884, AIC_788x},
-+      {PCI_VENDOR_ID_ADAPTEC, 0x6075, AIC_7860, AIC_785x}
-     };
- 
-     int error;
+@@ -7238,6 +7246,8 @@
+       {PCI_VENDOR_ID_ADAPTEC, PCI_DEVICE_ID_ADAPTEC_7855, AHC_AIC7850,
+        AHC_PAGESCBS | AHC_USEDEFAULTS,                       6 },
+       {PCI_VENDOR_ID_ADAPTEC, PCI_DEVICE_ID_ADAPTEC_7860, AHC_AIC7860,
++       AHC_PAGESCBS | AHC_NEWEEPROM_FMT | AHC_BIOS_ENABLED,  7 },
++      {PCI_VENDOR_ID_ADAPTEC, 0x6075, AHC_AIC7860,
+        AHC_PAGESCBS | AHC_NEWEEPROM_FMT | AHC_BIOS_ENABLED,  7 },
+       {PCI_VENDOR_ID_ADAPTEC, PCI_DEVICE_ID_ADAPTEC_7861, AHC_294AU,
+        AHC_PAGESCBS | AHC_NEWEEPROM_FMT | AHC_BIOS_ENABLED,  8 },

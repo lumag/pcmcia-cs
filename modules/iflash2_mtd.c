@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2 and Series 100 Flash devices
 
-    iflash2_mtd.c 1.34 1998/05/10 12:06:44
+    iflash2_mtd.c 1.36 1998/05/21 11:34:03
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -59,6 +59,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
+"iflash2_mtd.c 1.36 1998/05/21 11:34:03 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -82,9 +83,6 @@ MODULE_PARM(retry_limit, "i");
 MODULE_PARM(max_tries, "i");
 
 /*====================================================================*/
-
-/* Size of the memory window: 8K */
-#define WINDOW_SIZE	0x2000
 
 static void flash_config(dev_link_t *link);
 static void flash_release(u_long arg);
@@ -111,6 +109,7 @@ typedef struct flash_region_t {
 
 typedef struct flash_dev_t {
     caddr_t		Base;
+    u_int		Size;
     u_int		vpp;
     int			vpp_usage;
     u_int		vpp_start;
@@ -489,9 +488,9 @@ static void flash_config(dev_link_t *link)
 
     DEBUG(0, "iflash2_mtd: flash_config(0x%p)\n", link);
 
-    /* Allocate a 4K memory window */
+    /* Allocate a small memory window */
     req.Attributes = WIN_DATA_WIDTH_16;
-    req.Base = 0; req.Size = WINDOW_SIZE;
+    req.Base = req.Size = 0;
     req.AccessSpeed = 0;
     link->win = (window_handle_t)link->handle;
     ret = MTDHelperEntry(MTDRequestWindow, &link->win, &req);
@@ -502,7 +501,8 @@ static void flash_config(dev_link_t *link)
 	return;
     }
     dev = link->priv;
-    dev->Base = ioremap(req.Base, WINDOW_SIZE);
+    dev->Base = ioremap(req.Base, req.Size);
+    dev->Size = req.Size;
 
     link->state |= DEV_CONFIG;
 
@@ -630,8 +630,8 @@ static int flash_read(dev_link_t *link, char *buf, mtd_request_t *req)
     } else
 	link->state |= DEV_BUSY;
 
-    mod.CardOffset = req->SrcCardOffset & ~(WINDOW_SIZE-1);
-    from = req->SrcCardOffset & (WINDOW_SIZE-1);
+    mod.CardOffset = req->SrcCardOffset & ~(dev->Size-1);
+    from = req->SrcCardOffset & (dev->Size-1);
     
     ret = CS_SUCCESS;
     time = jiffies;
@@ -639,7 +639,7 @@ static int flash_read(dev_link_t *link, char *buf, mtd_request_t *req)
 	
 	ret = MTDHelperEntry(MTDModifyWindow, link->win, &mod);
 	if (ret != CS_SUCCESS) goto done;
-	nb = (from+length > WINDOW_SIZE) ? WINDOW_SIZE-from : length;
+	nb = (from+length > dev->Size) ? dev->Size-from : length;
 
 	if (req->Function & MTD_REQ_KERNEL)
 	    copy_from_pc(buf, &dev->Base[from], nb);
@@ -648,7 +648,7 @@ static int flash_read(dev_link_t *link, char *buf, mtd_request_t *req)
 	
 	buf += nb;
 	from = 0;
-	mod.CardOffset += WINDOW_SIZE;
+	mod.CardOffset += dev->Size;
     }
     
 #ifdef PCMCIA_DEBUG
@@ -770,12 +770,12 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
     mod.AccessSpeed = region->AccessSpeed;
 
     time = jiffies;
-    mod.CardOffset = req->DestCardOffset & ~(WINDOW_SIZE-1);
-    from = req->DestCardOffset & (WINDOW_SIZE-1);
+    mod.CardOffset = req->DestCardOffset & ~(dev->Size-1);
+    from = req->DestCardOffset & (dev->Size-1);
     
     for (length = req->TransferLength ; length > 0; length -= nb) {
 
-	nb = (from+length > WINDOW_SIZE) ? WINDOW_SIZE-from : length;
+	nb = (from+length > dev->Size) ? dev->Size-from : length;
 	ret = MTDHelperEntry(MTDModifyWindow, link->win, &mod);
 	if (ret != CS_SUCCESS) goto done;
 
@@ -794,7 +794,7 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
 	
 	buf += nb;
 	from = 0;
-	mod.CardOffset += WINDOW_SIZE;
+	mod.CardOffset += dev->Size;
     }
 
 #ifdef PCMCIA_DEBUG

@@ -2,7 +2,7 @@
 
     Device driver for Databook TCIC-2 PCMCIA controller
 
-    tcic.c 1.88 1998/05/10 12:06:44
+    tcic.c 1.94 1998/05/22 23:14:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -38,6 +38,7 @@
 #include <linux/malloc.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
+#include <linux/delay.h>
 
 #include <pcmcia/version.h>
 #include <pcmcia/ss.h>
@@ -49,6 +50,7 @@
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
+"tcic.c 1.94 1998/05/22 23:14:55 (David Hinds)";
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 #else
 #define DEBUG(n, args...)
@@ -119,6 +121,8 @@ static socket_info_t socket_table[2];
 
 static socket_cap_t tcic_cap = {
     0x4cf8,	/* irq 14, 11, 10, 7, 6, 5, 4, 3 */
+    0x1000,	/* 4K memory windows */
+    0, 0	/* No PCI or CardBus support */
 };
 
 /*====================================================================*/
@@ -212,18 +216,6 @@ static int to_ns(int cycles)
 
 /*====================================================================*/
 
-static void busy_loop(u_int len)
-{
-    u_long flags, timeout = jiffies + len;
-    save_flags(flags);
-    sti();
-    while (timeout >= jiffies)
-	;
-    restore_flags(flags);
-} /* busy_loop */
-
-/*====================================================================*/
-
 static volatile u_int irq_hits;
 
 static void irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
@@ -235,10 +227,10 @@ static u_int try_irq(int irq)
 {
     u_short cfg;
 
+    irq_hits = 0;
     if (REQUEST_IRQ(irq, irq_count, 0, "irq scan", NULL) != 0)
 	return -1;
-    irq_hits = 0;
-    busy_loop(HZ/50);
+    mdelay(10);
     if (irq_hits) {
 	FREE_IRQ(irq, NULL);
 	return -1;
@@ -250,7 +242,7 @@ static u_int try_irq(int irq)
     tcic_setb(TCIC_IENA, TCIC_IENA_ERR | TCIC_IENA_CFG_HIGH);
     tcic_setb(TCIC_ICSR, TCIC_ICSR_ERR | TCIC_ICSR_JAM);
 
-    busy_loop(HZ/50);
+    udelay(1000);
     FREE_IRQ(irq, NULL);
 
     /* Turn off interrupts */
@@ -458,17 +450,14 @@ int tcic_init(void)
 	poll_interval = HZ;
     
     if (poll_interval == 0) {
-	if (cs_irq == 0) {
-	    for (i = 15; i > 0; i--)
-		if ((i != 12) && (mask & (1 << i)) &&
-		    (REQUEST_IRQ(i, tcic_interrupt, 0, "tcic", NULL) == 0))
-		    break;
-	    cs_irq = i;
-	} else {
-	    if (REQUEST_IRQ(cs_irq, tcic_interrupt, 0, "tcic", NULL) == 0)
-		cs_irq = 0;
-	}
-	if (cs_irq == 0) poll_interval = 100;
+	/* Avoid irq 12 unless it is explicitly requested */
+	u_int cs_mask = mask & ((cs_irq) ? (1<<cs_irq) : ~(1<<12));
+	for (i = 15; i > 0; i--)
+	    if ((cs_mask & (1 << i)) &&
+		(REQUEST_IRQ(i, tcic_interrupt, 0, "tcic", NULL) == 0))
+		break;
+	cs_irq = i;
+	if (cs_irq == 0) poll_interval = HZ;
     }
     
     if (tcic_cap.irq_mask & (1 << 11))
@@ -764,7 +753,7 @@ static int tcic_set_socket(u_short lsock, socket_state_t *state)
   
 /*====================================================================*/
 
-static int tcic_get_io_map(u_short lsock, struct pcmcia_io_map *io)
+static int tcic_get_io_map(u_short lsock, struct pccard_io_map *io)
 {
     u_short psock = socket_table[lsock].psock;
     u_short base, ioctl;
@@ -802,7 +791,7 @@ static int tcic_get_io_map(u_short lsock, struct pcmcia_io_map *io)
 
 /*====================================================================*/
 
-static int tcic_set_io_map(u_short lsock, struct pcmcia_io_map *io)
+static int tcic_set_io_map(u_short lsock, struct pccard_io_map *io)
 {
     u_short psock = socket_table[lsock].psock;
     u_int addr;
@@ -837,7 +826,7 @@ static int tcic_set_io_map(u_short lsock, struct pcmcia_io_map *io)
 
 /*====================================================================*/
 
-static int tcic_get_mem_map(u_short lsock, struct pcmcia_mem_map *mem)
+static int tcic_get_mem_map(u_short lsock, struct pccard_mem_map *mem)
 {
     u_short psock = socket_table[lsock].psock;
     u_short addr, ctl;
@@ -882,7 +871,7 @@ static int tcic_get_mem_map(u_short lsock, struct pcmcia_mem_map *mem)
 
 /*====================================================================*/
   
-static int tcic_set_mem_map(u_short lsock, struct pcmcia_mem_map *mem)
+static int tcic_set_mem_map(u_short lsock, struct pccard_mem_map *mem)
 {
     u_short psock = socket_table[lsock].psock;
     u_short addr, ctl;
@@ -946,7 +935,7 @@ static int tcic_service(u_int lsock, u_int cmd, void *arg)
 {
     int err;
 
-    DEBUG(2, "tcic_ioctl(%d, %d, 0x%p)\n", lsock, cmd, arg);
+    DEBUG(2, "tcic_service(%d, %d, 0x%p)\n", lsock, cmd, arg);
 
     if (cmd < NFUNC)
 	err = service_table[cmd](lsock, arg);
@@ -954,7 +943,7 @@ static int tcic_service(u_int lsock, u_int cmd, void *arg)
 	err = -EINVAL;
 
     return err;
-} /* tcic_ioctl */
+} /* tcic_service */
 
 /*====================================================================*/
 

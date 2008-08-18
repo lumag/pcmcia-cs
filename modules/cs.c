@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.177 1998/05/10 12:06:44
+    cs.c 1.182 1998/05/24 18:41:29
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -33,6 +33,7 @@
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
+#include <linux/proc_fs.h>
 #include <asm/system.h>
 
 #define IN_CARD_SERVICES
@@ -55,7 +56,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.177 1998/05/10 12:06:44 (David Hinds)";
+"cs.c 1.182 1998/05/24 18:41:29 (David Hinds)";
 #endif
 
 static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
@@ -141,6 +142,10 @@ static socket_state_t dead_socket = {
 /* Table of sockets */
 socket_t sockets = 0;
 socket_info_t *socket_table[MAX_SOCK];
+
+#ifdef CONFIG_PROC_FS
+struct proc_dir_entry *proc_pccard = NULL;
+#endif
 
 /*====================================================================*/
 
@@ -242,9 +247,10 @@ static const lookup_t service_table[] = {
 static void init_socket(socket_info_t *s)
 {
     int i;
-    pcmcia_io_map io = { 0, 0, 0, 0, 1 };
-    pcmcia_mem_map mem = { 0, 0, 0, 0, 0x1000, 0 };
+    pccard_io_map io = { 0, 0, 0, 0, 1 };
+    pccard_mem_map mem = { 0, 0, 0, 0, 0, 0 };
 
+    mem.sys_stop = s->cap.map_size;
     s->socket = dead_socket;
     s->ss_entry(s->sock, SS_SetSocket, &s->socket);
     for (i = 0; i < 2; i++) {
@@ -259,7 +265,7 @@ static void init_socket(socket_info_t *s)
 
 /*======================================================================
 
-    Low-level PCMCIA interface drivers need to register with Card
+    Low-level PC Card interface drivers need to register with Card
     Services using these calls.
     
 ======================================================================*/
@@ -302,6 +308,14 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 
 	init_socket(s);
 	ss_entry(ns, SS_InquireSocket, &s->cap);
+#ifdef CONFIG_PROC_FS
+	{
+	    char name[3];
+	    sprintf(name, "%02d", i);
+	    s->proc = create_proc_entry(name, S_IFDIR, proc_pccard);
+	    ss_entry(ns, SS_ProcSetup, s->proc);
+	}
+#endif
     }
     
     return 0;
@@ -313,10 +327,21 @@ void unregister_ss_entry(ss_entry_t ss_entry)
 {
     int i, j;
     socket_info_t *s;
+    client_t *client;
     
     for (i = 0; i < sockets; i++) {
 	s = socket_table[i];
 	if (s->ss_entry == ss_entry) {
+#ifdef CONFIG_PROC_FS
+	    char name[3];
+	    sprintf(name, "%02d", i);
+	    remove_proc_entry(name, proc_pccard);
+#endif
+	    while (s->clients) {
+		client = s->clients;
+		s->clients = s->clients->next;
+		kfree_s(client, sizeof(*client));
+	    }
 	    init_socket(s);
 	    s->ss_entry = NULL;
 	    release_cis_mem(s);
@@ -360,6 +385,7 @@ static int send_event(socket_info_t *s, event_t event, int priority);
 static void shutdown_socket(u_long i)
 {
     socket_info_t *s = socket_table[i];
+    client_t **c;
     
     sti();
     DEBUG(1, "cs: shutdown_socket(%ld)\n", i);
@@ -378,6 +404,15 @@ static void shutdown_socket(u_long i)
     if (s->config) {
 	kfree(s->config);
 	s->config = NULL;
+    }
+    for (c = &s->clients; *c; ) {
+	if ((*c)->state & CLIENT_UNBOUND) {
+	    client_t *d = *c;
+	    *c = (*c)->next;
+	    kfree_s(d, sizeof(*d));
+	} else {
+	    c = &((*c)->next);
+	}
     }
     free_regions(&s->a_region);
     free_regions(&s->c_region);
@@ -523,9 +558,7 @@ static void do_shutdown(socket_info_t *s)
 	if (!(client->Attributes & INFO_MASTER_CLIENT))
 	    client->state |= CLIENT_STALE;
     if (s->state & (SOCKET_SETUP_PENDING|SOCKET_RESET_PENDING)) {
-#ifdef PCMCIA_DEBUG
-	printk(KERN_DEBUG "cs: flushing pending setup\n");
-#endif
+	DEBUG(0, "cs: flushing pending setup\n");
 	del_timer(&s->setup);
 	s->state &= ~EVENT_MASK;
     }
@@ -539,7 +572,8 @@ static void parse_events(void *info, u_int events)
     socket_info_t *s = info;
     if (events & SS_DETECT) {
 	int status;
-	cli();
+	u_long flags;
+	spin_lock_irqsave(&s->lock, flags);
 	if ((s->state & SOCKET_PRESENT) &&
 	    !(s->state & SOCKET_SUSPEND))
 	    do_shutdown(s);
@@ -557,7 +591,7 @@ static void parse_events(void *info, u_int events)
 		s->setup.expires = RUN_AT(setup_delay);
 	    add_timer(&s->setup);
 	}
-	sti();
+	spin_unlock_irqrestore(&s->lock, flags);
     } else if ((s->state & SOCKET_PRESENT) &&
 	       (s->state & SOCKET_SUSPEND))
 	do_shutdown(s);
@@ -578,7 +612,7 @@ static void parse_events(void *info, u_int events)
 
     Another event handler, for power management events.
 
-    This does not comply with the latest PCMCIA spec for handling
+    This does not comply with the latest PC Card spec for handling
     power management events.
     
 ======================================================================*/
@@ -753,24 +787,10 @@ static int bind_device(bind_req_t *req)
 {
     client_t *client;
     socket_info_t *s;
-    ss_callback_t call;
-    int status;
 
     if (CHECK_SOCKET(req->Socket))
 	return CS_BAD_SOCKET;
     s = SOCKET(req);
-
-    MOD_INC_USE_COUNT;
-    if (s->clients == NULL) {
-	call.handler = &parse_events;
-	call.info = s;
-	s->ss_entry(req->Socket, SS_RegisterCallback, &call);
-	s->ss_entry(req->Socket, SS_GetStatus, &status);
-	if (status & SS_DETECT) {
-	    s->state |= SOCKET_SETUP_PENDING;
-	    setup_socket(req->Socket);
-	}
-    }
 
     client = (client_t *)kmalloc(sizeof(client_t), GFP_KERNEL);
     memset(client, '\0', sizeof(client_t));
@@ -806,12 +826,12 @@ static int bind_mtd(mtd_bind_t *req)
     if (CHECK_SOCKET(req->Socket))
 	return CS_BAD_SOCKET;
     s = SOCKET(req);
-
+    
     if (req->Attributes & REGION_TYPE_AM)
 	region = s->a_region;
     else
 	region = s->c_region;
-
+    
     while (region) {
 	if (region->info.CardOffset == req->CardOffset) break;
 	region = region->info.next;
@@ -855,23 +875,28 @@ static int deregister_client(client_handle_t handle)
     }
     
     sn = handle->Socket; s = socket_table[sn];
-    save_flags(flags);
-    cli();
-    client = &s->clients;
-    while ((*client) && ((*client) != handle))
-	client = &(*client)->next;
-    if (*client == NULL)
-	return CS_BAD_HANDLE;
-    *client = handle->next;
-    handle->client_magic = 0;
-    kfree_s(handle, sizeof(struct client_t));
+
+    if (handle->state & CLIENT_STALE) {
+	spin_lock_irqsave(&s->lock, flags);
+	client = &s->clients;
+	while ((*client) && ((*client) != handle))
+	    client = &(*client)->next;
+	if (*client == NULL)
+	    return CS_BAD_HANDLE;
+	*client = handle->next;
+	handle->client_magic = 0;
+	kfree_s(handle, sizeof(struct client_t));
+	spin_unlock_irqrestore(&s->lock, flags);
+    } else {
+	handle->state = CLIENT_UNBOUND;
+	handle->mtd_count = 0;
+	handle->event_handler = NULL;
+    }
 
     MOD_DEC_USE_COUNT;
-    if (s->clients == NULL) {
+    if (--s->real_clients == 0)
 	s->ss_entry(sn, SS_RegisterCallback, NULL);
-    }
     
-    restore_flags(flags);
     return CS_SUCCESS;
 } /* deregister_client */
 
@@ -1198,10 +1223,24 @@ static int register_client(client_handle_t *handle, client_reg_t *req)
 	}
 	if (client != NULL) break;
     }
-    s = socket_table[ns];
-    
     if (client == NULL)
 	return CS_OUT_OF_RESOURCE;
+
+    MOD_INC_USE_COUNT;
+    s = socket_table[ns];
+    if (++s->real_clients == 1) {
+	ss_callback_t call;
+	int status;
+	call.handler = &parse_events;
+	call.info = s;
+	s->ss_entry(ns, SS_RegisterCallback, &call);
+	s->ss_entry(ns, SS_GetStatus, &status);
+	if (status & SS_DETECT) {
+	    s->state |= SOCKET_SETUP_PENDING;
+	    setup_socket(ns);
+	}
+    }
+
     *handle = client;
     client->state &= ~CLIENT_UNBOUND;
     client->Socket = ns;
@@ -1248,7 +1287,7 @@ static int register_client(client_handle_t *handle, client_reg_t *req)
 static int release_configuration(client_handle_t handle,
 				 socket_t *Socket)
 {
-    pcmcia_io_map io;
+    pccard_io_map io;
     socket_info_t *s;
     int i;
     
@@ -1408,7 +1447,7 @@ static int request_configuration(client_handle_t handle,
     u_int base;
     socket_info_t *s;
     config_t *c;
-    pcmcia_io_map iomap;
+    pccard_io_map iomap;
     
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
@@ -1669,8 +1708,6 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
     Request_window() establishes a mapping between card memory space
     and system memory space.
 
-    Hmmm, maybe we should check the return value from the ioctl.
-    
 ======================================================================*/
 
 static int request_window(client_handle_t *handle, win_req_t *req)
@@ -1692,6 +1729,10 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     if (w == MAX_WIN)
 	return CS_OUT_OF_RESOURCE;
 
+    /* Window size defaults to smallest available */
+    if (req->Size == 0)
+	req->Size = s->cap.map_size;
+    
     /* Allocate system memory window */
     win = &s->win[w];
     win->magic = WINDOW_MAGIC;
@@ -1702,12 +1743,12 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->size = req->Size;
     if (find_mem_region(&win->base, win->size,
 			(char *)(*handle)->dev_info,
-			(s->cap.cardbus != 0)))
+			(s->cap.cardbus == 0)))
 	return CS_IN_USE;
     req->Base = win->base;
     (*handle)->state |= CLIENT_WIN_REQ(w);
 
-    /* Configure the PCMCIA controller */
+    /* Configure the socket controller */
     win->ctl.map = w+1;
     win->ctl.flags = 0;
     win->ctl.speed = req->AccessSpeed;
@@ -1722,7 +1763,8 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->ctl.sys_start = req->Base;
     win->ctl.sys_stop = req->Base + req->Size-1;
     win->ctl.card_start = 0;
-    s->ss_entry(s->sock, SS_SetMemMap, &win->ctl);
+    if (s->ss_entry(s->sock, SS_SetMemMap, &win->ctl) != 0)
+	return CS_BAD_ARGS;
     s->state |= SOCKET_WIN_REQ(w);
 
     /* Return window handle */
@@ -1838,10 +1880,10 @@ static int eject_card(client_handle_t handle, client_req_t *req)
     if (ret != 0)
 	return ret;
 
-    save_flags(flags);
-    cli();
+    spin_lock_irqsave(&s->lock, flags);
     do_shutdown(s);
-    restore_flags(flags);
+    spin_unlock_irqrestore(&s->lock, flags);
+    
     return CS_SUCCESS;
     
 } /* eject_card */
@@ -1860,11 +1902,10 @@ static int insert_card(client_handle_t handle, client_req_t *req)
 
     DEBUG(1, "cs: user insert request on socket %d\n", i);
 
-    save_flags(flags);
-    cli();
+    spin_lock_irqsave(&s->lock, flags);
     if (!(s->state & SOCKET_SETUP_PENDING)) {
 	s->state |= SOCKET_SETUP_PENDING;
-	restore_flags(flags);
+	spin_unlock_irqrestore(&s->lock, flags);
 	s->ss_entry(i, SS_GetStatus, &status);
 	if (status & SS_DETECT)
 	    setup_socket(i);
@@ -1873,7 +1914,7 @@ static int insert_card(client_handle_t handle, client_req_t *req)
 	    return CS_NO_CARD;
 	}
     } else
-	restore_flags(flags);
+	spin_unlock_irqrestore(&s->lock, flags);
 
     return CS_SUCCESS;
 } /* insert_card */
@@ -2061,12 +2102,24 @@ int init_module(void)
     apm_register_callback(&handle_apm_event);
 #endif
     register_symtab(&cs_symtab);
+#ifdef CONFIG_PROC_FS
+    proc_pccard = create_proc_entry("pccard", S_IFDIR, proc_bus);
+    {
+	struct proc_dir_entry *ent;
+	ent = create_proc_entry("memory", 0, proc_pccard);
+	ent->read_proc = proc_read_mem;
+    }
+#endif
     return 0;
 }
 
 void cleanup_module(void)
 {
     printk(KERN_INFO "unloading PCMCIA Card Services\n");
+#ifdef CONFIG_PROC_FS
+    remove_proc_entry("memory", proc_pccard);
+    remove_proc_entry("pccard", proc_bus);
+#endif
 #ifdef CONFIG_APM
     apm_unregister_callback(&handle_apm_event);
 #endif

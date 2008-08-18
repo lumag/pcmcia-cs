@@ -1,4 +1,4 @@
-/* [xirc2ps_cs.c wk 14.04.97] (1.26 1998/04/08 08:50:32)
+/* [xirc2ps_cs.c wk 14.04.97] (1.29 1998/04/27 19:20:19)
  * Xircom Creditcard Ethernet Adapter IIps driver
  *
  * This driver works for the CE2, CEM28, CEM33, CE3 and CEM56 cards.
@@ -42,7 +42,43 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ *
+ *
+ * ALTERNATIVELY, this driver may be distributed under the terms of
+ * the following license, in which case the provisions of this license
+ * are required INSTEAD OF the GNU General Public License.  (This clause
+ * is necessary due to a potential bad interaction between the GPL and
+ * the restrictions contained in a BSD-style copyright.)
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, and the entire permission notice in its entirety,
+ *    including the disclaimer of warranties.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+
+/* Enable the bug fix for CEM56 to use modem and ethernet simultaneously */
+#define CEM56_FIX
 
 #if !defined(PCMCIA_DEBUG) && 0
   #define PCMCIA_DEBUG 4
@@ -86,6 +122,7 @@
 #endif
 #ifndef MANFID_COMPAQ
   #define MANFID_COMPAQ 	   0x0138
+  #define MANFID_COMPAQ2	   0x0183  /* is this correct? */
 #endif
 #ifndef MANFID_INTEL
   #define MANFID_INTEL		   0x0089
@@ -219,7 +256,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #endif
 static char *version =
-"xirc2ps_cs.c 1.26 1998/04/08 08:50:32 (Werner Koch)";
+"xirc2ps_cs.c 1.29 1998/04/27 19:20:19 (dd9jn+kvh)";
 	    /* !--- CVS revision */
 #define KDBG_XIRC KERN_DEBUG   "xirc2ps_cs: "
 #define KERR_XIRC KERN_ERR     "xirc2ps_cs: "
@@ -363,7 +400,7 @@ typedef struct local_info_t {
     int mohawk;  /* a CE3 type card */
     int dingo;	 /* a CEM56 type card */
     int modem;	 /* is a multi function card (i.e with a modem) */
-    caddr_t dingo_ccr; /* only use for CEM56 cards */
+    caddr_t dingo_ccr; /* only used for CEM56 cards */
     int suspended;
     unsigned last_ptr_value; /* last packets transmitted value */
     const char *manf_str;
@@ -943,6 +980,7 @@ xirc2ps_config(dev_link_t * link)
 	#endif
 	break;
       case MANFID_COMPAQ:
+      case MANFID_COMPAQ2:
 	local->manf_str = "Compaq";
 	#ifdef PCMCIA_DEBUG
 	  if(pc_debug)
@@ -1086,6 +1124,9 @@ xirc2ps_config(dev_link_t * link)
 		    }
 		}
 	    }
+	    /* if special option:
+	     * try to configure as Ethernet only.
+	     * .... */
 	}
 	printk(KNOT_XIRC "no ports available\n");
     }
@@ -1127,10 +1168,13 @@ xirc2ps_config(dev_link_t * link)
     }
 
     if( local->dingo ) {
+      #ifdef CEM56_FIX
 	conf_reg_t reg;
+      #endif
 	win_req_t req;
 	memreq_t mem;
 
+      #ifdef CEM56_FIX
 	/* Reset the modem's BAR to the correct value
 	 * This is necessary because in the RequestConfiguration call,
 	 * the base address of the ethernet port (BasePort1) is written
@@ -1139,25 +1183,25 @@ xirc2ps_config(dev_link_t * link)
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_IOBASE_0;
 	reg.Value = link->io.BasePort2 & 0xff;
-	if( (err = CardServices(AccessConfigurationRegister,
-				link->handle, &reg )) ) {
+	if( (err = CardServices(AccessConfigurationRegister, link->handle,
+							     &reg )) ) {
 	    cs_error(link->handle, AccessConfigurationRegister, err);
 	    goto config_error;
 	}
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_IOBASE_1;
 	reg.Value = (link->io.BasePort2 >> 8) & 0xff;
-	if( (err = CardServices(AccessConfigurationRegister,
-				link->handle, &reg )) ) {
+	if( (err = CardServices(AccessConfigurationRegister, link->handle,
+							      &reg )) ) {
 	    cs_error(link->handle, AccessConfigurationRegister, err);
 	    goto config_error;
 	}
-	
+     #endif
+
 	/* There is no config entry for the Ethernet part which
 	 * is at 0x0800. So we allocate a window into the attribute
 	 * memory and write direct to the CIS registers
 	 */
-
 	req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
 	req.Base = 0;
 	req.Size = 0x1000; /* 4k window */
@@ -1294,11 +1338,12 @@ xirc2ps_release( u_long arg)
     }
 
     if( link->dev )
-	unregister_netdev(dev);
+       unregister_netdev(dev);
     link->dev = NULL;
     if( link->win ) {
 	local_info_t *local = dev->priv;
-	iounmap(local->dingo_ccr-0x800);
+	if( local->dingo )
+	    iounmap( local->dingo_ccr - 0x0800 );
 	CardServices(ReleaseWindow, link->win );
     }
     CardServices(ReleaseConfiguration, link->handle);
@@ -1411,9 +1456,8 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 				  * -- on a laptop?
 				  */
 
-
     if( !dev->start )
-	return;
+       return;
 
     if( dev->interrupt ) {
 	printk(KERR_XIRC "re-entering isr on irq %d (dev=%p)\n", irq, dev);
@@ -1695,8 +1739,9 @@ do_start_xmit(struct sk_buff *skb, struct device *dev)
 	dev_tint(dev);
 	return 0;
     }
+
     if( skb->len <= 0 ) {
-    	DEV_KFREE_SKB (skb);
+	DEV_KFREE_SKB (skb);
       #ifdef PCMCIA_DEBUG
 	if( pc_debug )
 	    printk(KDBG_XIRC "zero length packet dropped by tx\n");
@@ -1704,7 +1749,7 @@ do_start_xmit(struct sk_buff *skb, struct device *dev)
 	return 0;
     }
 #endif
-    
+
     if( test_and_set_bit(0, (void*)&dev->tbusy ) ) {
 	printk(KWRN_XIRC "transmitter access conflict\n");
 	DEV_KFREE_SKB (skb);
@@ -1926,7 +1971,6 @@ do_open(struct device *dev)
     lp->suspended = 0;
     do_reset(dev,1);
 
-
     return 0;
 }
 
@@ -2130,6 +2174,8 @@ do_reset(struct device *dev, int full)
     else			      /* Coax: Not-Collision and Activity */
 	PutByte(XIRCREG2_LED, 0x3a );
 
+    if (local->dingo)
+	PutByte( 0x0b, 0x04 ); /* 100 Mbit LED */
 
     /* enable receiver and put the mac online */
     if( full ) {

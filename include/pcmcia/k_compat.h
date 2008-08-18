@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.50 1998/05/10 12:10:34
+ * k_compat.h 1.53 1998/05/22 22:40:53
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -240,6 +240,17 @@ char kernel_version[] = UTS_RELEASE;
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,93))
 #include <linux/bios32.h>
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,1,90))
+#define spin_lock_irqsave(l,f) do { save_flags(f); cli(); } while (0)
+#define spin_unlock_irqrestore(l,f) do { restore_flags(f); } while (0)
+#else
+#include <asm/spinlock.h>
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,1,104))
+#define mdelay(x) { int i; for (i=0;i<x;i++) udelay(1000); }
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

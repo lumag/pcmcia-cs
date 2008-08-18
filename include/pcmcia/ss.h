@@ -1,5 +1,5 @@
 /*
- * ss.h 1.14 1998/05/10 12:11:00
+ * ss.h 1.16 1998/05/24 18:42:01
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -44,6 +44,7 @@ typedef struct ss_callback_t {
 /* for InquireSocket */
 typedef struct socket_cap_t {
     u_int	irq_mask;
+    u_int	map_size;
     u_char	pci_irq;
     u_char	cardbus;
 } socket_cap_t;
@@ -77,20 +78,20 @@ typedef struct socket_state_t {
 /* Use this just for bridge windows */
 #define MAP_IOSPACE	0x20
 
-typedef struct pcmcia_io_map {
+typedef struct pccard_io_map {
     u_char	map;
     u_char	flags;
     u_short	speed;
     u_short	start, stop;
-} pcmcia_io_map;
+} pccard_io_map;
 
-typedef struct pcmcia_mem_map {
+typedef struct pccard_mem_map {
     u_char	map;
     u_char	flags;
     u_short	speed;
     u_long	sys_start, sys_stop;
     u_int	card_start;
-} pcmcia_mem_map;
+} pccard_mem_map;
 
 typedef struct cb_bridge_map {
     u_char	map;
@@ -101,9 +102,8 @@ typedef struct cb_bridge_map {
 enum ss_service {
     SS_RegisterCallback, SS_InquireSocket,
     SS_GetStatus, SS_GetSocket, SS_SetSocket,
-    SS_GetIOMap, SS_SetIOMap,
-    SS_GetMemMap, SS_SetMemMap,
-    SS_GetBridge, SS_SetBridge
+    SS_GetIOMap, SS_SetIOMap, SS_GetMemMap, SS_SetMemMap,
+    SS_GetBridge, SS_SetBridge, SS_ProcSetup
 };
 
 #endif /* _LINUX_SS_H */

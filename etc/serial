@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.24 1998/05/10 00:45:10 (David Hinds)
+# serial 1.26 1998/05/22 09:05:50 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -39,7 +39,7 @@ case "$ACTION" in
 	./MAKEDEV $DEVICE
     fi
     if [ "$LINK" != "" ] ; then
-	mv -f $LINK $LINK.O
+	mv -f $LINK $LINK.O 2>/dev/null
 	ln -s /dev/$DIALOUT $LINK
     fi
     if [ "$SERIAL_OPTS" != "" ] ; then
@@ -66,7 +66,7 @@ case "$ACTION" in
 	telinit q
     fi
     fuser -s -k /dev/$DEVICE /dev/$DIALOUT $LINK
-    rm -f $LINK ; mv -f $LINK.O $LINK
+    rm -f $LINK ; mv -f $LINK.O $LINK 2>/dev/null
     ;;
 
 'suspend')

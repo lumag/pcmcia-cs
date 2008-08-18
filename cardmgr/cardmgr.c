@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.105 1998/05/10 12:12:59
+    cardmgr.c 1.107 1998/05/11 23:17:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -1167,8 +1167,12 @@ int main(int argc, char *argv[])
     fd_set fds;
 
     errflg = 0;
-    while ((optch = getopt(argc, argv, "qdvofc:m:p:s:")) != -1) {
+    while ((optch = getopt(argc, argv, "Vqdvofc:m:p:s:")) != -1) {
 	switch (optch) {
+	case 'V':
+	    fprintf(stderr, "cardmgr version " CS_RELEASE "\n");
+	    return 0;
+	    break;
 	case 'q':
 	    be_quiet = 1; break;
 	case 'd':
@@ -1192,7 +1196,7 @@ int main(int argc, char *argv[])
 	}
     }
     if (errflg || (optind < argc)) {
-	fprintf(stderr, "usage: %s [-q] [-v] [-d] [-o] [-f] "
+	fprintf(stderr, "usage: %s [-V] [-q] [-v] [-d] [-o] [-f] "
 		"[-c configpath] [-m modpath]\n               "
 		"[-p pidfile] [-s stabfile]\n", argv[0]);
 	exit(EXIT_FAILURE);

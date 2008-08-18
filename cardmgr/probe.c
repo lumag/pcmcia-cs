@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.31 1998/05/10 12:23:16
+    probe.c 1.32 1998/05/22 23:15:21
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -49,76 +49,84 @@ typedef u_short ioaddr_t;
 #ifdef CONFIG_PCI
 
 typedef struct {
+    u_short	vendor, device;
     char	*tag;
     char	*name;
 } pci_id_t;
 
 pci_id_t pci_id[] = {
-    { "Cirrus Logic CL 6729", "Cirrus PD6729" },
-    { "Cirrus Logic PD 6832", "Cirrus PD6832" },
-    { "SMC 34C90", "SMC 34C90" },
-    { "Ricoh RL5C466", "Ricoh RL5C466" },
-    { "Texas Instruments PCI1130", "TI 1130" },
-    { "Texas Instruments PCI1131", "TI 1131" },
-    { "Texas Instruments PCI1031", "TI 1031" },
-    { "Texas Instruments PCI1220", "TI 1220" },
-    { "Texas Instruments PCI1250", "TI 1250A" },
-    { "O2 Micro 6729", "O2Micro OZ6729" },
-    { "O2 Micro 6730", "O2Micro OZ6730" },
-    { "O2 Micro 6832", "O2Micro OZ6832" },
-    { "Toshiba ToPIC95", "Toshiba ToPIC95" },
-    { "Vendor id=119b. Device id=1221.", "Omega Micro 82C092G" },
-    { "Vendor id=8086. Device id=1221.", "Intel 82092AA" },
-    { "Vendor id=1180. Device id=466.",  "Ricoh RL5C466" },
-    { "Vendor id=10b3. Device id=b106.", "SMC 34C90" },
-    { "Vendor id=1013. Device id=1110.", "Cirrus PD6832" },
-    { "Vendor id=104c. Device id=ac12.", "TI 1130" },
-    { "Vendor id=104c. Device id=ac13.", "TI 1031" },
-    { "Vendor id=104c. Device id=ac15.", "TI 1131" },
-    { "Vendor id=104c. Device id=ac16.", "TI 1250A" },
-    { "Vendor id=104c. Device id=ac17.", "TI 1220" },
-    { "Vendor id=1217. Device id=6729.", "O2Micro OZ6729" },
-    { "Vendor id=1217. Device id=673a.", "O2Micro OZ6730" },
-    { "Vendor id=1217. Device id=6832.", "O2Micro OZ6832" },
-    { "Vendor id=1179. Device id=060a.", "Toshiba ToPIC95" }
+    { 0x1013, 0x6729, "Cirrus Logic CL 6729", "Cirrus PD6729" },
+    { 0x1013, 0x1110, "Cirrus Logic PD 6832", "Cirrus PD6832" },
+    { 0x10b3, 0xb106, "SMC 34C90", "SMC 34C90" },
+    { 0x1180, 0x0466, "Ricoh RL5C466", "Ricoh RL5C466" },
+    { 0x104c, 0xac12, "Texas Instruments PCI1130", "TI 1130" },
+    { 0x104c, 0xac13, "Texas Instruments PCI1031", "TI 1031" },
+    { 0x104c, 0xac15, "Texas Instruments PCI1131", "TI 1131" },
+    { 0x104c, 0xac16, "Texas Instruments PCI1250", "TI 1250A" },
+    { 0x104c, 0xac17, "Texas Instruments PCI1220", "TI 1220" },
+    { 0x1217, 0x6729, "O2 Micro 6729", "O2Micro OZ6729" },
+    { 0x1217, 0x673a, "O2 Micro 6730", "O2Micro OZ6730" },
+    { 0x1217, 0x6832, "O2 Micro 6832", "O2Micro OZ6832" },
+    { 0x1179, 0x060a, "Toshiba ToPIC95", "Toshiba ToPIC95" },
+    { 0x119b, 0x1221, NULL, "Omega Micro 82C092G" },
+    { 0x8086, 0x1221, NULL, "Intel 82092AA" }
 };
 #define PCI_COUNT (sizeof(pci_id)/sizeof(pci_id_t))
 
 static int pci_probe(int verbose, int module)
 {
-    char buf[4096], *name = NULL;
-    int sock = 0, fd, nb, i;
+    char s[256], *t, *name = NULL;
+    u_int device, vendor, i;
+    FILE *f;
     
     if (!module)
 	printf("PCI bridge probe: ");
 
-    fd = open("/proc/pci", O_RDONLY);
-    if (fd != -1) {
-	nb = read(fd, buf, 4096);
-	buf[nb] = '\0';
-	for (i = 0; i < PCI_COUNT; i++)
-	    if (strstr(buf, pci_id[i].tag) != NULL)
+    if ((f = fopen("/proc/bus/pci/devices", "r")) != NULL) {
+	while (fgets(s, 256, f) != NULL) {
+	    u_int n = strtoul(s+5, NULL, 16);
+	    vendor = (n >> 16); device = (n & 0xffff);
+	    for (i = 0; i < PCI_COUNT; i++)
+		if ((vendor == pci_id[i].vendor) &&
+		    (device == pci_id[i].device)) break;
+	    if (i < PCI_COUNT) {
+		name = pci_id[i].name;
 		break;
-	if (i != PCI_COUNT) {
-	    name = pci_id[i].name;
-	    sock = 2;
-	} else {
-	    char *s = strstr(buf, "CardBus bridge");
-	    if (s != NULL) {
-		name = s + 16;
-		s = strchr(s, '(');
-		s[-1] = '\0';
-		sock = 2;
 	    }
 	}
-	close(fd);
+    } else if ((f = fopen("/proc/pci", "r")) != NULL) {
+	while (fgets(s, 256, f) != NULL) {
+	    t = strstr(s, "Device id=");
+	    if (t) {
+		device = strtoul(s+10, NULL, 16);
+		t = strstr(s, "Vendor id=");
+		vendor = strtoul(t+10, NULL, 16);
+		for (i = 0; i < PCI_COUNT; i++)
+		    if ((vendor == pci_id[i].vendor) &&
+			(device == pci_id[i].device)) break;
+	    } else
+		for (i = 0; i < PCI_COUNT; i++)
+		    if (strstr(s, pci_id[i].tag) != NULL) break;
+	    if (i != PCI_COUNT) {
+		name = pci_id[i].name;
+		break;
+	    } else {
+		t = strstr(s, "CardBus bridge");
+		if (t != NULL) {
+		    name = t + 16;
+		    t = strchr(s, '(');
+		    t[-1] = '\0';
+		    break;
+		}
+	    }
+	}
     }
     
-    if (sock != 0) {
+    if (name) {
 	if (module)
 	    printf("i82365\n");
 	else
-	    printf("%s found, %d sockets.\n", name, sock);
+	    printf("%s found, 2 sockets.\n", name);
 	return 0;
     } else {
 	if (!module)

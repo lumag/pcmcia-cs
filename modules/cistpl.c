@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.49 1998/05/10 12:06:44
+    cistpl.c 1.51 1998/05/24 18:41:29
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -65,9 +65,6 @@ static const u_int exponent[] = {
 /* Upper limit on reasonable # of tuples */
 #define MAX_TUPLES		200
 
-/* Size of the CIS memory window */
-#define CIS_WINDOW_SIZE		0x1000
-
 /*======================================================================
 
     Low-level functions to read and write CIS memory.  I think the
@@ -78,7 +75,7 @@ static const u_int exponent[] = {
 void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 		  u_int len, void *ptr)
 {
-    pcmcia_mem_map *mem = &s->cis_mem;
+    pccard_mem_map *mem = &s->cis_mem;
     u_char *sys;
     u_int inc = 1;
     
@@ -89,8 +86,8 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
     }
     mem->flags &= ~MAP_ATTRIB;
     if (attr) { mem->flags |= MAP_ATTRIB; inc++; addr *= 2; }
-    sys = s->cis_virt + (addr & (CIS_WINDOW_SIZE-1));
-    mem->card_start = addr & ~(CIS_WINDOW_SIZE-1);
+    sys = s->cis_virt + (addr & (s->cap.map_size-1));
+    mem->card_start = addr & ~(s->cap.map_size-1);
 
     for (; len > 0; sys = s->cis_virt) {
 	s->ss_entry(s->sock, SS_SetMemMap, mem);
@@ -98,17 +95,17 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 	      readb(sys), readb(sys+inc), readb(sys+2*inc),
 	      readb(sys+3*inc), readb(sys+4*inc));
 	for ( ; len > 0; len--, ptr++, sys += inc) {
-	    if (sys == s->cis_virt+CIS_WINDOW_SIZE) break;
+	    if (sys == s->cis_virt+s->cap.map_size) break;
 	    *(u_char *)ptr = readb(sys);
 	}
-	mem->card_start += CIS_WINDOW_SIZE;
+	mem->card_start += s->cap.map_size;
     }
 }
 
 void write_cis_mem(socket_info_t *s, int attr, u_int addr,
 		   u_int len, void *ptr)
 {
-    pcmcia_mem_map *mem = &s->cis_mem;
+    pccard_mem_map *mem = &s->cis_mem;
     u_char *sys;
     int inc = 1;
     
@@ -116,16 +113,16 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
     if (setup_cis_mem(s) != 0) return;
     mem->flags &= ~MAP_ATTRIB;
     if (attr) { mem->flags |= MAP_ATTRIB; inc++; addr *= 2; }
-    sys = s->cis_virt + (addr & (CIS_WINDOW_SIZE-1));
-    mem->card_start = addr & ~(CIS_WINDOW_SIZE-1);
+    sys = s->cis_virt + (addr & (s->cap.map_size-1));
+    mem->card_start = addr & ~(s->cap.map_size-1);
     
     for (; len > 0; sys = s->cis_virt) {
 	s->ss_entry(s->sock, SS_SetMemMap, mem);
 	for ( ; len > 0; len--, ptr++, sys += inc) {
-	    if (sys == s->cis_virt+CIS_WINDOW_SIZE) break;
+	    if (sys == s->cis_virt+s->cap.map_size) break;
 	    writeb(*(u_char *)ptr, sys);
 	}
-	mem->card_start += CIS_WINDOW_SIZE;
+	mem->card_start += s->cap.map_size;
     }
 }
 
@@ -147,16 +144,16 @@ static int cis_readable(u_long base)
     cisinfo_t info1, info2;
     int ret;
     vs->cis_mem.sys_start = base;
-    vs->cis_mem.sys_stop = base+CIS_WINDOW_SIZE-1;
-    vs->cis_virt = ioremap(base, CIS_WINDOW_SIZE);
+    vs->cis_mem.sys_stop = base+vs->cap.map_size-1;
+    vs->cis_virt = ioremap(base, vs->cap.map_size);
     ret = validate_cis(vs->clients, &info1);
     /* invalidate mapping and CIS cache */
     iounmap(vs->cis_virt); vs->cis_used = 0;
     if ((ret != 0) || (info1.Chains == 0))
 	return 0;
-    vs->cis_mem.sys_start = base+CIS_WINDOW_SIZE;
-    vs->cis_mem.sys_stop = base+2*CIS_WINDOW_SIZE-1;
-    vs->cis_virt = ioremap(base+CIS_WINDOW_SIZE, CIS_WINDOW_SIZE);
+    vs->cis_mem.sys_start = base+vs->cap.map_size;
+    vs->cis_mem.sys_stop = base+2*vs->cap.map_size-1;
+    vs->cis_virt = ioremap(base+vs->cap.map_size, vs->cap.map_size);
     ret = validate_cis(vs->clients, &info2);
     iounmap(vs->cis_virt); vs->cis_used = 0;
     return ((ret == 0) && (info1.Chains == info2.Chains));
@@ -167,13 +164,13 @@ static int checksum(u_long base)
 {
     int i, a;
     vs->cis_mem.sys_start = base;
-    vs->cis_mem.sys_stop = base+CIS_WINDOW_SIZE-1;
-    vs->cis_virt = ioremap(base, CIS_WINDOW_SIZE);
+    vs->cis_mem.sys_stop = base+vs->cap.map_size-1;
+    vs->cis_virt = ioremap(base, vs->cap.map_size);
     vs->cis_mem.card_start = 0;
     vs->cis_mem.flags = MAP_ACTIVE;
     vs->ss_entry(vs->sock, SS_SetMemMap, &vs->cis_mem);
     /* Don't bother checking every word... */
-    for (i = a = 0; i < CIS_WINDOW_SIZE; i += 56)
+    for (i = a = 0; i < vs->cap.map_size; i += 56)
 	a += (int)readl(vs->cis_virt+i);
     iounmap(vs->cis_virt);
     return a;
@@ -181,7 +178,7 @@ static int checksum(u_long base)
 
 static int checksum_match(u_long base)
 {
-    return (checksum(base) == checksum(base+CIS_WINDOW_SIZE));
+    return (checksum(base) == checksum(base+vs->cap.map_size));
 }
 
 #endif
@@ -197,11 +194,11 @@ int setup_cis_mem(socket_info_t *s)
 	}
 #endif
 	if (find_mem_region(&s->cis_mem.sys_start,
-			    CIS_WINDOW_SIZE, "card services",
-			    (s->cap.cardbus != 0)) != 0)
+			    s->cap.map_size, "card services",
+			    (s->cap.cardbus == 0)) != 0)
 	    return CS_OUT_OF_RESOURCE;
-	s->cis_mem.sys_stop = s->cis_mem.sys_start+CIS_WINDOW_SIZE-1;
-	s->cis_virt = ioremap(s->cis_mem.sys_start, CIS_WINDOW_SIZE);
+	s->cis_mem.sys_stop = s->cis_mem.sys_start+s->cap.map_size-1;
+	s->cis_virt = ioremap(s->cis_mem.sys_start, s->cap.map_size);
     }
     return 0;
 }
@@ -209,7 +206,7 @@ int setup_cis_mem(socket_info_t *s)
 void release_cis_mem(socket_info_t *s)
 {
     if (s->cis_mem.sys_start != 0) {
-	release_mem_region(s->cis_mem.sys_start, CIS_WINDOW_SIZE);
+	release_mem_region(s->cis_mem.sys_start, s->cap.map_size);
 	iounmap(s->cis_virt);
 	s->cis_mem.sys_start = 0;
     }

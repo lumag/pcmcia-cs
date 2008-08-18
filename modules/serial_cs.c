@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.96 1998/05/10 12:06:44
+    serial_cs.c 1.98 1998/05/21 11:34:01
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -48,6 +48,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
+"serial_cs.c 1.98 1998/05/21 11:34:01 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -81,6 +82,7 @@ static multi_id_t multi_id[] = {
     { MANFID_IBM, PRODID_IBM_HOME_AND_AWAY, 1 },
     { MANFID_3COM, PRODID_3COM_3C562, 1 },
     { MANFID_3COM, PRODID_3COM_3CXEM556, 1 },
+    { MANFID_OMEGA, PRODID_OMEGA_QSP_100, 4 },
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D1, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_QUAD_RS232, 4 },

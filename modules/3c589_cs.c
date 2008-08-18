@@ -106,7 +106,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.104 1998/04/19 11:51:03 (David Hinds)";
+"3c589_cs.c 1.106 1998/05/21 11:33:58 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

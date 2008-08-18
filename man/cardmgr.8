@@ -1,11 +1,12 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" cardmgr.8 1.28 1998/05/04 23:27:47
+.\" cardmgr.8 1.29 1998/05/11 23:10:40
 .\"
-.TH CARDMGR 8 "1998/05/04 23:27:47" "pcmcia-cs"
+.TH CARDMGR 8 "1998/05/11 23:10:40" "pcmcia-cs"
 .SH NAME
 cardmgr \- PCMCIA device manager
 .SH SYNOPSIS
 .B cardmgr
+.RB [ -V ]
 .RB [ -q ]
 .RB [ -d ]
 .RB [ -o ]
@@ -66,6 +67,9 @@ If the
 environment variable is set, its contents will be parsed after the
 main card configuration file is read.
 .SH OPTIONS
+.TP
+.B \-V
+Show version information and exit.
 .TP
 .B \-q
 Quiet mode: don't beep when cards are inserted.

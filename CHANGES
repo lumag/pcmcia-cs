@@ -1,3 +1,19 @@
+Version 3.0.3
+-- Minor updates to HOWTO, config file, xirc2ps_cs driver.
+-- Removed apparently broken 3V/5V detection for Cirrus controllers.
+-- Fixed procfs bug in Configure script.
+
+Version 3.0.2
+-- Updated CardBus support for 2.1.90 and later kernels.
+-- Renamed 'dump_tuples' as 'dump_cis'.
+-- Added SMP spinlock support.
+-- Added '-V' option to cardmgr and cardctl to just show version info.
+-- Added low-level support for socket controllers with unusual memory
+   mapping capabilities, and updated memory card drivers to use it.
+-- Started terminology switch-over from "PCMCIA" to "PC Card".
+-- Fixed cs_irq handling bug in i82365 module.
+-- Fixed bad bug in memory window allocation logic.
+
 Version 3.0.1
 -- Adopted Mozilla Public License for all core components, and cleaned
    up various copyrights and attributions.

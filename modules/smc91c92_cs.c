@@ -459,16 +459,6 @@ static int get_tuple(int fn, client_handle_t handle, tuple_t *tuple,
     
 ======================================================================*/
 
-static void busy_loop(u_long len)
-{
-    u_long timeout = jiffies + len;
-    u_long flags;
-    save_flags(flags);
-    sti();
-    while (timeout >= jiffies) ;
-    restore_flags(flags);
-}
-
 static int mhz_3288_power(dev_link_t *link)
 {
     struct device *dev = link->priv;
@@ -481,7 +471,7 @@ static int mhz_3288_power(dev_link_t *link)
     readb(lp->base+MEGAHERTZ_ISR);
 
     /* Pause 200ms... */
-    busy_loop(HZ/5);
+    mdelay(200);
     
     /* Now read and write the COR... */
     tmp = readb(lp->base + link->conf.ConfigBase + CISREG_COR);
@@ -625,7 +615,7 @@ static void mot_config(dev_link_t *link)
     writeb(MOT_NORMAL,           lp->base + MOT_LAN + CISREG_COR);
 
     /* Wait for things to settle down */
-    busy_loop(HZ/10);
+    mdelay(100);
 }
 
 static int mot_setup(dev_link_t *link) {
@@ -643,7 +633,7 @@ static int mot_setup(dev_link_t *link) {
 	outw((CTL_RELOAD | CTL_EE_SELECT), ioaddr + CONTROL);
 
 	for (loop = 0; loop < 100; loop++) {
-	    busy_loop(HZ/100);
+	    mdelay(10);
 	    wait = ((CTL_RELOAD | CTL_STORE) & inw(ioaddr + CONTROL));
 	    if (wait == 0) break;
 	}
@@ -793,7 +783,7 @@ static int check_sig(dev_link_t *link)
     if (inw(ioaddr + BANK_SELECT) >> 8 != 0x33) {
 	/* Try powering up the chip */
 	outw(0, ioaddr + CONTROL);
-	busy_loop(HZ/18);
+	mdelay(55);
     }
     /* Check Base Address Register to make sure bus width is OK */
     s = inw(ioaddr + BASE_ADDR);

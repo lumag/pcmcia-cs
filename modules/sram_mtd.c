@@ -2,7 +2,7 @@
 
     A simple MTD for accessing static RAM
 
-    sram_mtd.c 1.29 1998/05/10 12:06:44
+    sram_mtd.c 1.31 1998/05/21 11:34:04
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -49,14 +49,12 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
+"sram_mtd.c 1.31 1998/05/21 11:34:04 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
 
 /*====================================================================*/
-
-/* Size of the memory window: 4K */
-#define WINDOW_SIZE	0x1000
 
 static void sram_config(dev_link_t *link);
 static void sram_release(u_long arg);
@@ -68,6 +66,7 @@ static void sram_detach(dev_link_t *);
 
 typedef struct sram_dev_t {
     caddr_t		Base;
+    u_int		Size;
     int			nregion;
     region_info_t	region[2*CISTPL_MAX_DEVICES];
 } sram_dev_t;
@@ -205,9 +204,9 @@ static void sram_config(dev_link_t *link)
 
     DEBUG(0, "sram_config(0x%p)\n", link);
 
-    /* Allocate a 4K memory window */
+    /* Allocate a small memory window */
     req.Attributes = WIN_DATA_WIDTH_16;
-    req.Base = 0; req.Size = WINDOW_SIZE;
+    req.Base = req.Size = 0;
     req.AccessSpeed = 0;
     link->win = (window_handle_t)link->handle;
     ret = MTDHelperEntry(MTDRequestWindow, &link->win, &req);
@@ -222,7 +221,8 @@ static void sram_config(dev_link_t *link)
 
     /* Grab info for all the memory regions we can access */
     dev = link->priv;
-    dev->Base = ioremap(req.Base, WINDOW_SIZE);
+    dev->Base = ioremap(req.Base, req.Size);
+    dev->Size = req.Size;
     i = 0;
     for (attr = 0; attr < 2; attr++) {
 	region.Attributes = attr ? REGION_TYPE_AM : REGION_TYPE_CM;
@@ -294,15 +294,15 @@ static int sram_read(dev_link_t *link, char *buf, mtd_request_t *req)
 	mod.Attributes = WIN_MEMORY_TYPE_CM;
     mod.AccessSpeed = region->AccessSpeed;
 
-    mod.CardOffset = req->SrcCardOffset & ~(WINDOW_SIZE-1);
-    from = req->SrcCardOffset & (WINDOW_SIZE-1);
+    mod.CardOffset = req->SrcCardOffset & ~(dev->Size-1);
+    from = req->SrcCardOffset & (dev->Size-1);
     for (length = req->TransferLength; length > 0; length -= nb) {
 	ret = MTDHelperEntry(MTDModifyWindow, link->win, &mod);
 	if (ret != CS_SUCCESS) {
 	    cs_error(link->handle, MapMemPage, ret);
 	    return ret;
 	}
-	nb = (from+length > WINDOW_SIZE) ? WINDOW_SIZE-from : length;
+	nb = (from+length > dev->Size) ? dev->Size-from : length;
 	
 	if (req->Function & MTD_REQ_KERNEL)
 	    copy_from_pc(buf, &dev->Base[from], nb);
@@ -311,7 +311,7 @@ static int sram_read(dev_link_t *link, char *buf, mtd_request_t *req)
 	buf += nb;
 	
 	from = 0;
-	mod.CardOffset += WINDOW_SIZE;
+	mod.CardOffset += dev->Size;
     }
     return CS_SUCCESS;
 } /* sram_read */
@@ -346,15 +346,15 @@ static int sram_write(dev_link_t *link, char *buf, mtd_request_t *req)
 	mod.Attributes = WIN_MEMORY_TYPE_CM;
     mod.AccessSpeed = region->AccessSpeed;
     
-    mod.CardOffset = req->DestCardOffset & ~(WINDOW_SIZE-1);
-    from = req->DestCardOffset & (WINDOW_SIZE-1);
+    mod.CardOffset = req->DestCardOffset & ~(dev->Size-1);
+    from = req->DestCardOffset & (dev->Size-1);
     for (length = req->TransferLength ; length > 0; length -= nb) {
 	ret = MTDHelperEntry(MTDModifyWindow, link->win, &mod);
 	if (ret != CS_SUCCESS) {
 	    cs_error(link->handle, MapMemPage, ret);
 	    return ret;
 	}
-	nb = (from+length > WINDOW_SIZE) ? WINDOW_SIZE-from : length;
+	nb = (from+length > dev->Size) ? dev->Size-from : length;
 
 	if (req->Function & MTD_REQ_KERNEL)
 	    copy_to_pc(dev->Base+from, buf, nb);
@@ -363,7 +363,7 @@ static int sram_write(dev_link_t *link, char *buf, mtd_request_t *req)
 	buf += nb;
 	
 	from = 0;
-	mod.CardOffset += WINDOW_SIZE;
+	mod.CardOffset += dev->Size;
     }
     return CS_SUCCESS;
 } /* sram_write */

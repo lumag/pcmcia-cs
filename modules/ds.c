@@ -1,8 +1,8 @@
 /*======================================================================
 
-    PCMCIA Driver Services
+    PC Card Driver Services
     
-    ds.c 1.81 1998/05/10 12:06:44
+    ds.c 1.82 1998/05/14 00:27:28
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -52,7 +52,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.81 1998/05/10 12:06:44 (David Hinds)";
+"ds.c 1.82 1998/05/14 00:27:28 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -158,8 +158,8 @@ static struct symbol_table ds_symtab = {
 #undef X
 #define X(sym) { (void *)&sym, SYMBOL_NAME_STR(sym) }
 #endif
-    X(register_pcmcia_driver),
-    X(unregister_pcmcia_driver),
+    X(register_pccard_driver),
+    X(unregister_pccard_driver),
     X(bind_request),
     X(bind_mtd),
 #include <linux/symtab_end.h>
@@ -168,8 +168,8 @@ static struct symbol_table ds_symtab = {
 #else
 
 #define register_symtab(n)
-EXPORT_SYMBOL(register_pcmcia_driver);
-EXPORT_SYMBOL(unregister_pcmcia_driver);
+EXPORT_SYMBOL(register_pccard_driver);
+EXPORT_SYMBOL(unregister_pccard_driver);
 EXPORT_SYMBOL(bind_request);
 EXPORT_SYMBOL(bind_mtd);
 
@@ -185,18 +185,18 @@ static void cs_error(client_handle_t handle, int func, int ret)
 
 /*======================================================================
 
-    Register_pcmcia_driver() and unregister_pcmcia_driver() are used
-    tell Driver Services that a PCMCIA client driver is available to
+    Register_pccard_driver() and unregister_pccard_driver() are used
+    tell Driver Services that a PC Card client driver is available to
     be bound to sockets.
     
 ======================================================================*/
 
-int register_pcmcia_driver(dev_info_t *dev_info,
+int register_pccard_driver(dev_info_t *dev_info,
 			   dev_link_t *(*attach)(void),
 			   void (*detach)(dev_link_t *))
 {
     driver_info_t *driver;
-    DEBUG(0, "ds: register_pcmcia_driver('%s')\n", (char *)dev_info);
+    DEBUG(0, "ds: register_pccard_driver('%s')\n", (char *)dev_info);
     for (driver = root_driver; driver; driver = driver->next)
 	if (strcmp((char *)dev_info, (char *)driver->dev_info) == 0)
 	    break;
@@ -211,14 +211,14 @@ int register_pcmcia_driver(dev_info_t *dev_info,
     driver->use_count = 0;
     root_driver = driver;
     return 0;
-} /* register_pcmcia_driver */
+} /* register_pccard_driver */
 
 /*====================================================================*/
 
-int unregister_pcmcia_driver(dev_info_t *dev_info)
+int unregister_pccard_driver(dev_info_t *dev_info)
 {
     driver_info_t *target, **driver = &root_driver;
-    DEBUG(0, "ds: unregister_pcmcia_driver('%s')\n",
+    DEBUG(0, "ds: unregister_pccard_driver('%s')\n",
 	  (char *)dev_info);
     while ((*driver) && ((*driver)->dev_info != dev_info))
 	driver = &(*driver)->next;
@@ -236,7 +236,7 @@ int unregister_pcmcia_driver(dev_info_t *dev_info)
     }
     MOD_DEC_USE_COUNT;
     return 0;
-} /* unregister_pcmcia_driver */
+} /* unregister_pccard_driver */
 
 /*======================================================================
 
@@ -514,7 +514,7 @@ static int unbind_request(int i, bind_info_t *bind_info)
 
 /*======================================================================
 
-    The user-mode PCMCIA device interface
+    The user-mode PC Card device interface
 
 ======================================================================*/
 

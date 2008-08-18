@@ -1,5 +1,5 @@
 #
-# debug-tools/Makefile 1.23 1998/04/02 08:26:15 (David Hinds)
+# debug-tools/Makefile 1.24 1998/05/14 09:17:57 (David Hinds)
 #
 
 # Include site dependent options
@@ -14,9 +14,9 @@ CPPFLAGS = -I../include -I../modules
 COFLAGS = -kv
 YFLAGS = -d
 
-SRCS = dump_tuples.c dump_cisreg.c pack_cis.c
+SRCS = dump_cis.c dump_cisreg.c pack_cis.c
 HDRS = pack_cis.h
-TOOLS = dump_tuples dump_cisreg pack_cis
+TOOLS = dump_cis dump_cisreg pack_cis
 
 ifdef CONFIG_ISA
 SRCS := $(SRCS) dump_tcic.c dump_i365.c
@@ -25,7 +25,7 @@ endif
 
 all:	$(SRCS) $(HDRS) $(TOOLS)
 
-dump_tuples: dump_tuples.o
+dump_cis: dump_cis.o
 
 dump_i365: dump_i365.o
 

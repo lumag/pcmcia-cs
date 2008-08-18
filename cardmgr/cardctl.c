@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.29 1998/05/10 12:22:54
+    cardctl.c 1.31 1998/05/11 23:17:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -33,6 +33,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 
+#include <pcmcia/version.h>
 #include <pcmcia/config.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -459,7 +460,7 @@ void usage(char *name)
     fprintf(stderr, "usage: %s command [socket #]\n", name);
     fprintf(stderr, "    or %s [-c configpath] [-f scheme]"
 	    " [-s stab] scheme [name]\n", name);
-    fprintf(stderr, "  commands:");
+    fprintf(stderr, "    commands:");
     for (i = 0; i < NCMD; i++)
 	fprintf(stderr, " %s", cmdname[i]);
     fprintf(stderr, "\n");
@@ -477,8 +478,12 @@ int main(int argc, char *argv[])
     extern char *optarg;
 
     errflg = 0;
-    while ((optch = getopt(argc, argv, "c:f:s:")) != -1) {
+    while ((optch = getopt(argc, argv, "Vc:f:s:")) != -1) {
 	switch (optch) {
+	case 'V':
+	    fprintf(stderr, "cardctl version " CS_RELEASE "\n");
+	    return 0;
+	    break;
 	case 'c':
 	    configpath = strdup(optarg); break;
 	case 'f':
@@ -561,7 +566,5 @@ int main(int argc, char *argv[])
     }
     if (ret != 0)
 	exit(EXIT_FAILURE);
-    else
-	exit(EXIT_SUCCESS);
     return 0;
 }

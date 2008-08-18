@@ -40,6 +40,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
+"ibmtr_cs.c 1.23 1998/05/21 11:33:59 (David Hinds)";
 "ibmtr_cs.c 1.10 1996/01/06 05:19:00 (Steve Kipisz)";
 #else
 #define DEBUG(n, args...)

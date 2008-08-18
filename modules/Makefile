@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.87 1998/04/20 22:23:22
+# Makefile 1.89 1998/05/24 22:18:12
 #
 
 # Include site dependent options and kernel configuration
@@ -125,7 +125,7 @@ qlogic_cs.o: qlogic_cs.c qlogic.o
 
 aha152x.o: $(LINUX)/drivers/scsi/aha152x.c ../include/linux/config.h
 ifdef FIX_AHA152X
-	patch $< patches/aha152x.fix -o aha152x.c
+	patch -s $< patches/aha152x.fix -o aha152x.c
 	$(CC) -c $(XFLAGS) -I$(LINUX)/drivers/scsi \
 		-DPCMCIA -D__NO_VERSION__ aha152x.c
 	rm aha152x.c
@@ -155,7 +155,9 @@ $(LINUX)/drivers/scsi/aic7xxx_seq.h:
 
 aic7xxx.o: $(LINUX)/drivers/scsi/aic7xxx.c $(LINUX)/drivers/scsi/aic7xxx_seq.h
 ifdef FIX_AIC7XXX
-	patch $< patches/aic7xxx.fix -o aic7xxx.c
+	patch -s $< patches/aic7xxx.old -o aic7xxx.c 2>/dev/null || \
+		( rm -f aic7xxx.c aic7xxx.c.rej aic7xxx.c.orig && \
+		patch -s $< patches/aic7xxx.fix -o aic7xxx.c )
 	$(CC) -c $(XFLAGS) -I$(LINUX)/drivers/scsi \
 		-DPCMCIA -D__NO_VERSION__ aic7xxx.c
 	rm aic7xxx.c

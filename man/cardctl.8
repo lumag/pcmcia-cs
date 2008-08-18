@@ -1,11 +1,12 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" cardctl.8 1.10 1998/05/04 23:27:45
+.\" cardctl.8 1.11 1998/05/11 23:10:40
 .\"
-.TH CARDCTL 8 "1998/05/04 23:27:45" "pcmcia-cs"
+.TH CARDCTL 8 "1998/05/11 23:10:40" "pcmcia-cs"
 .SH NAME
 cardctl \- PCMCIA card control utility
 .SH SYNOPSIS
 .B cardctl
+.RB [ -V ]
 .I command
 .RI [ socket ]
 .br
@@ -72,6 +73,9 @@ name is given,
 will unconfigure all PCMCIA devices, and reconfigure for the new
 scheme.
 .SH OPTIONS
+.TP
+.B \-V
+Show version information and exit.
 .TP
 .BI "\-c " config
 Look for the card configuration database and card configuration

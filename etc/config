@@ -1,5 +1,5 @@
 #
-# config.sample 1.77 1998/04/25 20:53:33 (David Hinds)
+# config.sample 1.79 1998/05/27 23:23:50 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -73,6 +73,9 @@ device "3c575_cb"
 device "apa1480_cb"
   class "scsi" module "cb_enabler", "apa1480_cb"
 
+device "tulip_cb"
+  class "network" module "cb_enabler", "tulip_cb"
+
 #
 # Ethernet adapter definitions
 #
@@ -104,8 +107,16 @@ card "Allied Telesis Ethernet"
   version "Allied Telesis,K.K", "Ethernet LAN Card"
   bind "pcnet_cs"
 
+card "AmbiCom AMB8002 Ethernet"
+  version "AmbiCom Inc", "AMB8002", "Ethernet Combo"
+  bind "pcnet_cs"
+
 card "Asante FriendlyNet Ethernet"
   version "ASANTE", "FriendlyNet PC Card"
+  bind "pcnet_cs"
+
+card "Billionton LNT-10TB"
+  version "Billionton", "LNT-10TB"
   bind "pcnet_cs"
 
 card "CeLAN Ethernet"
@@ -264,6 +275,10 @@ card "KingMax Technology Ethernet"
   version "KingMax Technology Inc.", "EN10-T2", "PCMCIA Ethernet Card"
   bind "pcnet_cs"
 
+card "KingMax Technology Ethernet"
+  version "KingMax Technology Inc.", "*", "Ethernet Card"
+  bind "pcnet_cs"
+
 card "Kingston KNE-PCM/x Ethernet"
   version "Kingston Technology Corp.", "EtheRx PC Card Ethernet Adapter"
   bind "pcnet_cs"
@@ -382,6 +397,10 @@ card "RATOC Ethernet"
 
 card "Relia RE2408T Ethernet"
   version "PCMCIA LAN", "Ethernet"
+  bind "pcnet_cs"
+
+card "Reliasys 2400A Ethernet"
+  version "=RELIA==", "Ethernet"
   bind "pcnet_cs"
 
 card "RPTI EP400 Ethernet"
@@ -510,8 +529,12 @@ card "Megahertz V.34 Modem"
   version "MEGAHERTZ", "*", "V.34 PCMCIA MODEM"
   bind "serial_cs"
 
+card "MultiTech MultiModem"
+  version "Multi-Tech", "MT1432LT"
+  bind "serial_cs"
+
 card "MultiTech V.34 Modem"
-  version "Multi-Tech", "MT2834LT", "FAX MODEM "
+  version "Multi-Tech", "MT2834LT"
   bind "serial_cs"
 
 card "Toshiba T144PF Modem"
@@ -538,17 +561,20 @@ card "IOTech Dual RS-232"
   version "IOTech Inc ", "PCMCIA Dual RS-232 Serial Port Card"
   bind "serial_cs"
 
+card "Omega Engineering QSP-100"
+  manfid 0x0137, 0x0025
+  bind "serial_cs"
+
 card "Quatech Dual RS-232"
   version "Quatech Inc", "PCMCIA Dual RS-232 Serial Port Card"
   bind "serial_cs"
 
 card "Quatech Quad RS-232"
-  version "Quatech Inc", "PCMCIA Quad RS-232 Serial Port Card"
+  manfid 0x0137, 0x001b
   bind "serial_cs"
 
 card "Socket Communications Dual RS-232"
-  version "Socket Communications Inc",
-    "Dual Serial Port Adapter Revision E"
+  manfid 0x0104, 0x0006
   bind "serial_cs"
 
 #
@@ -894,6 +920,10 @@ card "3Com 3c575-TX Fast EtherLink XL"
 card "Adaptec APA-1480 SCSI Host Adapter"
   manfid 0x012f, 0xcb01
   bind "apa1480_cb"
+
+card "Linksys EtherFast 10/100"
+  manfid 0x0149, 0xc2ab
+  bind "tulip_cb"
 
 # Include local configuration settings
 source ./config.opts

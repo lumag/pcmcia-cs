@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.47 1998/05/10 12:06:44
+    memory_cs.c 1.49 1998/05/21 11:34:00
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -75,6 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
+"memory_cs.c 1.49 1998/05/21 11:34:00 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -109,9 +110,6 @@ MODULE_PARM(mem_speed, "i");
 /* Size of the PCMCIA address space: 26 bits = 64 MB */
 #define HIGH_ADDR	0x4000000
 
-/* Size of the direct-access memory window: 4K */
-#define WINDOW_SIZE	0x1000
-
 static void memory_config(dev_link_t *link);
 static void memory_release(u_long arg);
 static int memory_event(event_t event, int priority,
@@ -131,7 +129,8 @@ typedef struct direct_dev_t {		/* For direct access */
     int			flags;
     int			open;
     caddr_t		Base;
-    u_long		size;
+    u_int		Size;
+    u_long		cardsize;
 } direct_dev_t;
 
 typedef struct memory_dev_t {
@@ -362,7 +361,7 @@ static void get_size(dev_link_t *link, direct_dev_t *direct)
 	writeb(buf[t], direct->Base);
     }
 
-    direct->size = (t > 15) ? (1<<t) : 0;
+    direct->cardsize = (t > 15) ? (1<<t) : 0;
 } /* get_size */
 
 static void print_size(u_long sz)
@@ -405,20 +404,21 @@ static void memory_config(dev_link_t *link)
     
     dev = (memory_dev_t *)link->priv;
 
-    /* Allocate a 4K memory window for direct access */
+    /* Allocate a small memory window for direct access */
     if (word_width)
 	req.Attributes = WIN_DATA_WIDTH_16;
     else
 	req.Attributes = WIN_DATA_WIDTH_8;
-    req.Base = 0; req.Size = WINDOW_SIZE;
+    req.Base = req.Size = 0;
     req.AccessSpeed = mem_speed;
     link->win = (window_handle_t)link->handle;
     CS_CHECK(RequestWindow, &link->win, &req);
     /* Get write protect status */
     CS_CHECK(GetStatus, link->handle, &status);
     
-    dev->direct.Base = ioremap(req.Base, WINDOW_SIZE);
-    dev->direct.size = 0;
+    dev->direct.Base = ioremap(req.Base, req.Size);
+    dev->direct.Size = req.Size;
+    dev->direct.cardsize = 0;
 
     for (attr = 0; attr < 2; attr++) {
 	nr[attr] = 0;
@@ -446,11 +446,11 @@ static void memory_config(dev_link_t *link)
 	     == CS_SUCCESS) && (cisinfo.Chains == 0)) {
 	    get_size(link, &dev->direct);
 	    printk(" anonymous: ");
-	    if (dev->direct.size == 0) {
-		dev->direct.size = HIGH_ADDR;
+	    if (dev->direct.cardsize == 0) {
+		dev->direct.cardsize = HIGH_ADDR;
 		printk("unknown size");
 	    } else {
-		print_size(dev->direct.size);
+		print_size(dev->direct.cardsize);
 	    }
 	} else {
 	    printk(" no regions found.");
@@ -590,7 +590,7 @@ static int memory_open(struct inode *inode, struct file *file)
     
     dev = (memory_dev_t *)link->priv;
 
-    if (IS_DIRECT(minor) || (dev->direct.size > 0)) {
+    if (IS_DIRECT(minor) || (dev->direct.cardsize > 0)) {
 	if ((file->f_mode & 2) && (dev->direct.flags & MEM_WRPROT))
 	    return -EROFS;
 	dev->direct.open++;
@@ -630,7 +630,7 @@ static FS_RELEASE_T memory_close(struct inode *inode,
 
     link = dev_table[DEVICE_NR(minor)];
     dev = (memory_dev_t *)link->priv;
-    if (IS_DIRECT(minor) || (dev->direct.size > 0)) {
+    if (IS_DIRECT(minor) || (dev->direct.cardsize > 0)) {
 	dev->direct.open--;
     } else {
 	minor_dev = &dev->minor[REGION_NR(minor)];
@@ -668,6 +668,7 @@ static FS_SIZE_T direct_read FOPS(struct inode *inode,
     int minor = MINOR(F_INODE(file)->i_rdev);
     dev_link_t *link;
     memory_dev_t *dev;
+    direct_dev_t *direct;
     U_FS_SIZE_T size, pos, read, from, nb;
     int ret;
     modwin_t mod;
@@ -681,12 +682,13 @@ static FS_SIZE_T direct_read FOPS(struct inode *inode,
     if (!DEV_OK(link))
 	return -ENODEV;
     dev = (memory_dev_t *)link->priv;
-
+    direct = &dev->direct;
+    
     /* Boundary checks */
     if (count < 0)
 	return -EINVAL;
     pos = FPOS;
-    size = (IS_DIRECT(minor)) ? HIGH_ADDR : dev->direct.size;
+    size = (IS_DIRECT(minor)) ? HIGH_ADDR : direct->cardsize;
     if (pos >= size)
 	return 0;
     if (count > size - pos)
@@ -701,20 +703,20 @@ static FS_SIZE_T direct_read FOPS(struct inode *inode,
 	return -EIO;
     }
     
-    mem.CardOffset = pos & ~(WINDOW_SIZE-1);
+    mem.CardOffset = pos & ~(direct->Size-1);
     mem.Page = 0;
-    from = pos & (WINDOW_SIZE-1);
+    from = pos & (direct->Size-1);
     for (read = 0; count > 0; count -= nb, read += nb) {
 	ret = CardServices(MapMemPage, link->win, &mem);
 	if (ret != CS_SUCCESS) {
 	    cs_error(link->handle, MapMemPage, ret);
 	    return -EIO;
 	}
-	nb = (from+count > WINDOW_SIZE) ? WINDOW_SIZE-from : count;
-	copy_pc_to_user(buf, dev->direct.Base+from, nb);
+	nb = (from+count > direct->Size) ? direct->Size-from : count;
+	copy_pc_to_user(buf, direct->Base+from, nb);
 	buf += nb;
         from = 0;
-	mem.CardOffset += WINDOW_SIZE;
+	mem.CardOffset += direct->Size;
     }
 
     FPOS += read;
@@ -808,6 +810,7 @@ static FS_SIZE_T direct_write FOPS(struct inode *inode,
     int minor = MINOR(F_INODE(file)->i_rdev);
     dev_link_t *link;
     memory_dev_t *dev;
+    direct_dev_t *direct;
     U_FS_SIZE_T size, pos, wrote, to, nb;
     int ret;
     modwin_t mod;
@@ -822,15 +825,16 @@ static FS_SIZE_T direct_write FOPS(struct inode *inode,
 	return -ENODEV;
     
     dev = (memory_dev_t *)link->priv;
+    direct = &dev->direct;
     
     /* Check for write protect */
-    if (dev->direct.flags & MEM_WRPROT)
+    if (direct->flags & MEM_WRPROT)
 	return -EROFS;
 
     /* Boundary checks */
     if (count < 0)
 	return -EINVAL;
-    size = (IS_DIRECT(minor)) ? HIGH_ADDR : dev->direct.size;
+    size = (IS_DIRECT(minor)) ? HIGH_ADDR : direct->cardsize;
     pos = FPOS;
     if (pos >= size)
         return -ENOSPC;
@@ -846,20 +850,20 @@ static FS_SIZE_T direct_write FOPS(struct inode *inode,
 	return -EIO;
     }
     
-    mem.CardOffset = pos & ~(WINDOW_SIZE-1);
+    mem.CardOffset = pos & ~(direct->Size-1);
     mem.Page = 0;
-    to = pos & (WINDOW_SIZE-1);
+    to = pos & (direct->Size-1);
     for (wrote = 0; count > 0; count -= nb, wrote += nb) {
 	ret = CardServices(MapMemPage, link->win, &mem);
 	if (ret != CS_SUCCESS) {
 	    cs_error(link->handle, MapMemPage, ret);
 	    return -EIO;
 	}
-	nb = (to+count > WINDOW_SIZE) ? WINDOW_SIZE-to : count;
-	copy_user_to_pc(dev->direct.Base+to, buf, nb);
+	nb = (to+count > direct->Size) ? direct->Size-to : count;
+	copy_user_to_pc(direct->Base+to, buf, nb);
 	buf += nb;
         to = 0;
-	mem.CardOffset += WINDOW_SIZE;
+	mem.CardOffset += direct->Size;
     }
 
     FPOS += wrote;
@@ -936,7 +940,7 @@ static int memory_ioctl(struct inode *inode, struct file *file,
     switch (cmd) {
     case BLKGETSIZE:
 	if (!IS_DIRECT(minor))
-	    put_user(dev->direct.size/SECTOR_SIZE, (long *)arg);
+	    put_user(dev->direct.cardsize/SECTOR_SIZE, (long *)arg);
 	else
 	    put_user(minor_dev->region.RegionSize/SECTOR_SIZE,
 		     (long *)arg);
@@ -979,14 +983,16 @@ static void do_direct_request(dev_link_t *link)
     int addr, len, from, nb, ret;
     char *buf;
     memory_dev_t *dev;
+    direct_dev_t *direct;
     modwin_t mod;
     memreq_t mem;
     
     dev = (memory_dev_t *)link->priv;
+    direct = &dev->direct;
     
     addr = CURRENT->sector * SECTOR_SIZE;
     len = CURRENT->current_nr_sectors * SECTOR_SIZE;
-    if ((addr + len) > dev->direct.size) {
+    if ((addr + len) > direct->cardsize) {
 	end_request(0);
 	return;
     }
@@ -1002,20 +1008,20 @@ static void do_direct_request(dev_link_t *link)
 
     buf = CURRENT->buffer;
     mem.Page = 0;
-    mem.CardOffset = addr & ~(WINDOW_SIZE-1);
-    from = addr & (WINDOW_SIZE-1);
+    mem.CardOffset = addr & ~(direct->Size-1);
+    from = addr & (direct->Size-1);
     ret = 0;
     
     if ((CURRENT->cmd == READ) || (CURRENT->cmd == WRITE))
 	for ( ; len > 0; len -= nb, buf += nb, from = 0) {
 	    ret = CardServices(MapMemPage, link->win, &mem);
 	    if (ret != CS_SUCCESS) break;
-	    nb = (from+len > WINDOW_SIZE) ? WINDOW_SIZE-from : len;
+	    nb = (from+len > direct->Size) ? direct->Size-from : len;
 	    if (CURRENT->cmd == READ)
-		copy_from_pc(buf, &dev->direct.Base[from], nb);
+		copy_from_pc(buf, &direct->Base[from], nb);
 	    else
-		copy_to_pc(&dev->direct.Base[from], buf, nb);
-	    mem.CardOffset += WINDOW_SIZE;
+		copy_to_pc(&direct->Base[from], buf, nb);
+	    mem.CardOffset += direct->Size;
 	}
     else panic("pcmem_cs: unknown block command!\n");
     
@@ -1044,7 +1050,7 @@ static void do_memory_request(void)
 	link = dev_table[DEVICE_NR(minor)];
 	dev = (memory_dev_t *)link->priv;
 
-	if (IS_DIRECT(minor) || (dev->direct.size > 0)) {
+	if (IS_DIRECT(minor) || (dev->direct.cardsize > 0)) {
 	    do_direct_request(link);
 	    continue;
 	}

@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.22 1998/05/10 11:59:46
+ * cs_internal.h 1.27 1998/05/24 18:40:55
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -75,7 +75,7 @@ typedef struct window_t {
     struct socket_info_t *sock;
     u_long		base;
     u_long		size;
-    pcmcia_mem_map	ctl;
+    pccard_mem_map	ctl;
 } window_t;
 
 #define REGION_MAGIC	0xE3C9
@@ -117,44 +117,52 @@ typedef struct config_t {
 #define MAX_CIS_DATA	512
 
 typedef struct socket_info_t {
-    ss_entry_t		ss_entry;
-    u_int		sock;
-    socket_state_t	socket;
-    socket_cap_t	cap;
-    u_int		state;
-    u_short		functions;
-    u_short		lock_count;
-    client_handle_t	clients;
-    client_handle_t	reset_handle;
-    struct timer_list	setup, shutdown;
-    u_long		unreset_timeout;
-    pcmcia_mem_map	cis_mem;
-    u_char		*cis_virt;
-    config_t		*config;
+#ifdef __SMP__
+    spinlock_t			lock;
+#endif
+    ss_entry_t			ss_entry;
+    u_int			sock;
+    socket_state_t		socket;
+    socket_cap_t		cap;
+    u_int			state;
+    u_short			functions;
+    u_short			lock_count;
+    client_handle_t		clients;
+    u_int			real_clients;
+    client_handle_t		reset_handle;
+    struct timer_list		setup, shutdown;
+    u_long			unreset_timeout;
+    pccard_mem_map		cis_mem;
+    u_char			*cis_virt;
+    config_t			*config;
 #ifdef CONFIG_CARDBUS
-    u_int		cb_cis_space;
-    cb_bridge_map	cb_cis_map;
-    u_char		*cb_cis_virt;
-    struct cb_config_t	*cb_config;
+    u_int			cb_cis_space;
+    cb_bridge_map		cb_cis_map;
+    u_char			*cb_cis_virt;
+    struct cb_config_t		*cb_config;
+    struct pci_bus		*pci_bus;
 #endif
     struct {
-	u_int		AssignedIRQ;
-	u_int		Config;
+	u_int			AssignedIRQ;
+	u_int			Config;
     } irq;
-    io_window_t		io[MAX_IO_WIN];
-    window_t		win[MAX_WIN];
-    region_t		*c_region, *a_region;
-    struct wait_queue	*mtd_ready;
-    erase_busy_t	erase_busy;
-    int			cis_used;
+    io_window_t			io[MAX_IO_WIN];
+    window_t			win[MAX_WIN];
+    region_t			*c_region, *a_region;
+    struct wait_queue		*mtd_ready;
+    erase_busy_t		erase_busy;
+    int				cis_used;
     struct {
-	u_int		addr;
-	u_short		len;
-	u_short		attr;
-    }			cis_table[MAX_CIS_TABLE];
-    char		cis_cache[MAX_CIS_DATA];
-    u_int		fake_cis_len;
-    char		*fake_cis;
+	u_int			addr;
+	u_short			len;
+	u_short			attr;
+    }				cis_table[MAX_CIS_TABLE];
+    char			cis_cache[MAX_CIS_DATA];
+    u_int			fake_cis_len;
+    char			*fake_cis;
+#ifdef CONFIG_PROC_FS
+    struct proc_dir_entry	*proc;
+#endif
 } socket_info_t;
 
 /* Flags in config state */
@@ -201,7 +209,7 @@ void read_cb_mem(socket_info_t *s, u_char fn, int space,
 int cb_setup_cis_mem(socket_info_t *s, int space);
 void cb_release_cis_mem(socket_info_t *s);
 
-/* Stuff in cistpl.c */
+/* In cistpl.c */
 void read_cis_mem(socket_info_t *s, int attr,
 		  u_int addr, u_int len, void *ptr);
 void write_cis_mem(socket_info_t *s, int attr,
@@ -232,9 +240,24 @@ int read_memory(memory_handle_t handle, mem_op_t *req, caddr_t buf);
 int write_memory(memory_handle_t handle, mem_op_t *req, caddr_t buf);
 int copy_memory(memory_handle_t handle, copy_op_t *req);
 
+/* In rsrc_mgr */
+void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long));
+int find_io_region(ioaddr_t *base, ioaddr_t num, char *name);
+int find_mem_region(u_long *base, u_long num, char *name, int low);
+int try_irq(u_int Attributes, int irq, int specific);
+void undo_irq(u_int Attributes, int irq);
+int adjust_resource_info(client_handle_t handle, adjust_t *adj);
+void release_resource_db(void);
+int proc_read_mem(char *buf, char **start, off_t pos,
+		  int count, int *eof, void *data);
+
 #define MAX_SOCK 8
 extern socket_t sockets;
 extern socket_info_t *socket_table[MAX_SOCK];
+
+#ifdef CONFIG_PROC_FS
+extern struct proc_dir_entry *proc_pccard;
+#endif
 
 #ifdef PCMCIA_DEBUG
 extern int pc_debug;

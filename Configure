@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.68 1998/05/10 12:25:55
+# Configure 1.71 1998/05/27 22:20:18
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -233,6 +233,7 @@ printconfig () {
     printflag "Module version checking" CONFIG_MODVERSIONS
     printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
     printflag "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
+    printflag "/proc/bus support" CONFIG_PROC_FS
 }
 
 echo "" >> $CONFIG
@@ -278,6 +279,7 @@ case $src in
 	symcheck ide_register CONFIG_BLK_DEV_IDE_PCMCIA
 	symcheck tr_setup CONFIG_TR
 	symcheck hwrpb CONFIG_ALPHA_LCA
+	symcheck proc_bus CONFIG_PROC_FS
 	echo "Extracting kernel symbol versions..."
 	$KSYMS | sed -ne 's/.* \(.*\)_R\([0-9a-f]*\)/\1 \2/p' | \
 	    awk '{ printf "#define %s\t%s_R%s\n", $1, $1, $2 }' \
@@ -303,6 +305,7 @@ case $src in
 	configcheck CONFIG_SCSI
 	configcheck CONFIG_SERIAL
 	configcheck CONFIG_TR
+	CONFIG_PROC_FS=n
 	printconfig
 	;;
     3)
@@ -547,7 +550,7 @@ fi
 # Is the boot setup OK?
 
 if [ "$PREFIX" = "" ] ; then
-    if [ -r /etc/lilo.conf -a -r /boot/map ] ; then
+    if [ -f /etc/lilo.conf -a -f /boot/map ] ; then
 	if [ /vmlinuz -nt /boot/map ] ; then
 	    echo "Your boot map file is older than /vmlinuz. "\
 		 "If you installed /vmlinuz"

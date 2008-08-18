@@ -1,8 +1,8 @@
 /*======================================================================
 
-    PCMCIA card CIS dump
+    PC Card CIS dump utility
 
-    dump_tuples.c 1.29 1998/05/10 12:20:11
+    dump_cis.c 1.29 1998/05/14 09:17:46
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file

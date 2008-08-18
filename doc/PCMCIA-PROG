@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.6, 1998/05/10 12:50:14
+  v2.7, 1998/05/24 19:11:18
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -18,11 +18,11 @@
 
   1.2.    Acknowledgements
 
-  2.      Basic PCMCIA Concepts
+  2.      Basic Concepts
 
-  2.1.    The PCMCIA socket interface
+  2.1.    The socket interface
 
-  2.2.    The PCMCIA socket controller
+  2.2.    The socket controller
 
   3.      Card Services subfunction descriptions
 
@@ -197,9 +197,9 @@
 
   7.1.1.  The dev_link_t structure
 
-  7.1.2.  register_pcmcia_driver
+  7.1.2.  register_pccard_driver
 
-  7.1.3.  unregister_pcmcia_driver
+  7.1.3.  unregister_pccard_driver
 
   7.2.    The CardBus client interface
 
@@ -209,7 +209,7 @@
 
   7.2.3.  The driver_operations entry points
 
-  7.3.    Interface to user mode PCMCIA utilities
+  7.3.    Interface to user mode utilities
 
   7.3.1.  Card Services event notifications
 
@@ -223,11 +223,11 @@
 
   8.3.    The *_config() and *_release() functions
 
-  8.4.    The PCMCIA event handler
+  8.4.    The client event handler
 
   8.5.    Locking and synchronization issues
 
-  8.6.    Using existing Linux drivers to access PCMCIA devices
+  8.6.    Using existing Linux drivers to access PC Card devices
 
   9.      Where to Go for More Information
   ______________________________________________________________________
@@ -238,32 +238,32 @@
   lowest level are the socket drivers.  Next is the Card Services
   module.  Drivers for specific cards are layered on top of Card
   Services.  One special Card Services client, called Driver Services,
-  provides a link betweek user level PCMCIA utility programs and the
-  kernel PCMCIA facilities.
+  provides a link betweek user level utility programs and the kernel
+  facilities.
 
   The socket driver layer is loosely based on the Socket Services API.
   There are two socket driver modules.  The tcic module supports the
-  Databook TCIC-2 family of PCMCIA controllers.  The i82365 module
+  Databook TCIC-2 family of host controllers.  The i82365 module
   supports the Intel i82365sl family and various Intel-compatible
   controllers, including Cirrus, VLSI, Ricoh, and Vadem chips.  In
   addition, the i82365 module implements support for CardBus controllers
   that follow the ``Yenta'' register-level specification.
 
-  Card Services is the largest single component of the PCMCIA package.
-  It provides an API somewhat similar to DOS Card Services, adapted to a
+  Card Services is the largest single component of the package.  It
+  provides an API somewhat similar to DOS Card Services, adapted to a
   Unix environment.  The Linux implementation was based in part on the
-  Solaris PCMCIA interface specification.  It is implemented in the
-  pcmcia_core module.  Most version 2.1 features are implemented, with
-  some PC Card 95 features.
+  Solaris interface specification.  It is implemented in the pcmcia_core
+  module.  Most version 2.1 features are implemented, with some PC Card
+  95 features.
 
   The Driver Services layer implements a user mode pseudo-device for
-  accessing some Card Services functions from PCMCIA utility programs.
-  It is responsible for keeping track of all PCMCIA client drivers, and
-  for matching up drivers with physical sockets.  It is implemented in
-  the ds module.
+  accessing some Card Services functions from utility programs.  It is
+  responsible for keeping track of all client drivers, and for matching
+  up drivers with physical sockets.  It is implemented in the ds module.
+
   This document describes the kernel interface to the Card Services and
   Driver Services modules, and the user interface to Driver Services.
-  It is intended for use by PCMCIA device driver developers.  The Linux
+  It is intended for use by client device driver developers.  The Linux
   PCMCIA-HOWTO describes how to install and use Linux PCMCIA support.
   It is available from hyper.stanford.edu in /pub/pcmcia.
 
@@ -289,29 +289,28 @@
   11..22..  AAcckknnoowwlleeddggeemmeennttss
 
   I'd like to thank all the Linux users who have helped test and debug
-  this PCMCIA software, and who have helped with driver development.  I
-  should also thank Linus Torvalds, Donald Becker, Alan Cox, and Bjorn
-  Ekwall for Linux kernel development help.  I'm especially grateful to
-  Michael Bender for many helpful discussions about the Solaris PCMCIA
-  implementation.
+  this software, and who have helped with driver development.  I should
+  also thank Linus Torvalds, Donald Becker, Alan Cox, and Bjorn Ekwall
+  for Linux kernel development help.  I'm especially grateful to Michael
+  Bender for many helpful discussions about the Solaris implementation.
 
-  22..  BBaassiicc PPCCMMCCIIAA CCoonncceeppttss
+  22..  BBaassiicc CCoonncceeppttss
 
-  22..11..  TThhee PPCCMMCCIIAA ssoocckkeett iinntteerrffaaccee
+  22..11..  TThhee ssoocckkeett iinntteerrffaaccee
 
-  The PCMCIA card bus has two basic operating modes: ``memory-only'' and
+  The PC Card bus has two basic operating modes: ``memory-only'' and
   ``memory and IO''.  The first mode was defined by the original Version
   1.0 specification and only supports simple memory cards.  The second
   mode, defined in Version 2.0, redefines a few of the memory card
   control signals to support IO port addressing and IO interrupt
   signalling.
 
-  PCMCIA cards have two memory spaces: ``attribute memory'' and ``common
-  memory''.  The PCMCIA interface can address up to 16MB of each type of
-  memory.  Attribute memory is typically used for holding descriptive
+  PC Card devices have two memory spaces: ``attribute memory'' and
+  ``common memory''.  The interface can address up to 16MB of each type
+  of memory.  Attribute memory is typically used for holding descriptive
   information and configuration registers.  Common memory may include
   the bulk storage of a memory card, or device buffers in the case of IO
-  cards.  All cards that are compliant with the version 2.0 PCMCIA
+  cards.  All cards that are compliant with the version 2.0 PC Card
   specification should have a Card Information Structure (or ``CIS'') in
   attribute memory, which describes the card and how it should be
   configured.
@@ -319,7 +318,6 @@
   Separate control signals allow cards to signal their operating status
   to the host.  These signals include card detect, ready/busy, write
   protect, battery low, and battery dead.
-
   The ``memory and IO'' interface mode allows cards to address up to 64K
   of IO ports.  It also allows cards to signal IO interrupts, and routes
   one card output to the host system's speaker.  In this mode, several
@@ -328,17 +326,18 @@
   signals can instead be read from a special configuration register in
   attribute memory, the ``Pin Replacement Register''.
 
-  22..22..  TThhee PPCCMMCCIIAA ssoocckkeett ccoonnttrroolllleerr
+  22..22..  TThhee ssoocckkeett ccoonnttrroolllleerr
 
-  The PCMCIA controller serves as a bridge between PCMCIA cards and the
-  system bus.  There are several varieties of controllers, but all share
-  the same basic functionality.  The Socket Services software layer
-  takes care of all the details of how to program the PCMCIA controller.
+  The socket controller serves as a bridge between PC Card devices and
+  the system bus.  There are several varieties of controllers, but all
+  share the same basic functionality.  The Socket Services software
+  layer takes care of all the details of how to program the host
+  controller.
 
-  The PCMCIA controller has the job of mapping windows of addresses in
+  The socket controller has the job of mapping windows of addresses in
   the host memory and IO spaces to windows of addresses in card space.
-  All controllers support at least four independent memory windows and
-  two IO windows per socket.
+  All supported controllers support at least four independent memory
+  windows and two IO windows per socket.
 
   Each memory window is defined by a base address in the host address
   space, a base address in the card address space, and a window size.
@@ -355,14 +354,14 @@
   alignment or size restrictions; an IO window can start and end on any
   byte boundary in the 64K IO address space.
 
-  The PCMCIA card bus defines a single interrupt signal from the card to
-  the controller.  The controller then has the responsibility of
-  steering this interrupt to an appropriate interrupt request (``irq'')
-  line.  All controllers support steering card IO interrupts to
-  essentially any free interrupt line.  Because steering happens in the
-  controller, the card itself is unaware of which interrupt it uses.
+  The PC Card bus defines a single interrupt signal from the card to the
+  controller.  The controller then has the responsibility of steering
+  this interrupt to an appropriate interrupt request (``irq'') line.
+  All controllers support steering card IO interrupts to essentially any
+  free interrupt line.  Because steering happens in the controller, the
+  card itself is unaware of which interrupt it uses.
 
-  All PCMCIA controllers can generate interrupts in response to card
+  All PC Card controllers can generate interrupts in response to card
   status changes.  These interrupts are distinct from the IO interrupts
   generated by an IO card, and use a separate interrupt line.  Signals
   that can generate interrupts include card detect, ready/busy, write
@@ -586,7 +585,7 @@
 
      CS_EVENT_XVCARD
         Indicates that the card supports ``X.X''V operation.  The actual
-        voltage is currently undefined in the PCMCIA specification.
+        voltage is currently undefined in the specification.
 
   SocketState is currently unused, but in theory, it should latch
   changes in the state of the fields in CardState.
@@ -733,8 +732,8 @@
   if it is zero, Card Services will find an available window and set
   BasePort1 to this address.  If NumPorts2 is non-zero, a second IO port
   window will also be reserved.  IOAddrLines specifies the number of
-  address lines that are actually decoded by the PCMCIA card; this is
-  not currently used.
+  address lines that are actually decoded by the card; this is not
+  currently used.
 
   With multifunction cards, this call will allocate IO ports for each
   card function in such a way that all a card's ports can be mapped by
@@ -820,15 +819,15 @@
                void            *Instance
        } irq_req_t;
 
-  RequestIRQ reserves an interrupt line for use by a PCMCIA card.  The
-  IRQInfo1 and IRQInfo2 fields correspond to the interrupt description
-  bytes in a CFTABLE_ENTRY tuple.  If IRQ_INFO2_VALID is set in
-  IRQInfo1, then IRQInfo2 is a bit-mapped mask of allowed interrupt
-  values.  Each bit corresponds to one interrupt line: bit 0 = irq 0,
-  bit 1 = irq 1, etc.  So, a mask of 0x1100 would mean that interrupts
-  12 and 8 could be used.  If IRQ_INFO2_VALID is not set, IRQInfo1 is
-  just the desired interrupt number.  If the call is successful, the
-  reserved interrupt is returned in AssignedIRQ.
+  RequestIRQ reserves an interrupt line for use by a card.  The IRQInfo1
+  and IRQInfo2 fields correspond to the interrupt description bytes in a
+  CFTABLE_ENTRY tuple.  If IRQ_INFO2_VALID is set in IRQInfo1, then
+  IRQInfo2 is a bit-mapped mask of allowed interrupt values.  Each bit
+  corresponds to one interrupt line: bit 0 = irq 0, bit 1 = irq 1, etc.
+  So, a mask of 0x1100 would mean that interrupts 12 and 8 could be
+  used.  If IRQ_INFO2_VALID is not set, IRQInfo1 is just the desired
+  interrupt number.  If the call is successful, the reserved interrupt
+  is returned in AssignedIRQ.
 
   If the IRQ_HANDLER_PRESENT flag is set, then this call also specifies
   an interrupt handler to be installed when the interrupt is enabled.
@@ -1110,7 +1109,7 @@
   33..44..  CCaarrdd IInnffoorrmmaattiioonn SSttrruuccttuurree ((CCIISS)) ccaallllss
 
   The definition of the Card Information Structure (CIS) is the darkest
-  chapter of the PCMCIA standard.  All version 2 PCMCIA cards should
+  chapter of the PC Card standard.  All version 2 compliant cards should
   have a CIS, which describes the card and how it should be configured.
   The CIS is a linked list of ``tuples'' in the card's attribute memory
   space.  Each tuple consists of an identification code, a length byte,
@@ -1319,11 +1318,11 @@
   33..55..  MMeemmoorryy wwiinnddooww ccoonnttrrooll
 
   Each socket can have up to four active memory windows, mapping
-  portions of PCMCIA memory into the host system address space.  A
-  PCMCIA device can address at most 16MB of both common and attribute
-  memory.  Windows should typically be sized to a power of two, and be
-  aligned on a boundary that is a multiple of the window size in both
-  the host and card address spaces.
+  portions of card memory into the host system address space.  A PC Card
+  device can address at most 16MB of both common and attribute memory.
+  Windows should typically be sized to a power of two, and be aligned on
+  a boundary that is a multiple of the window size in both the host and
+  card address spaces.
 
   A memory window is initialized by a call to RequestWindow.  Some
   window attributes can be modified using ModifyWindow.  The segment of
@@ -1370,8 +1369,10 @@
 
   Base specifies the base physical address of the window in system
   memory.  If zero, Card Services will set Base to the first available
-  window address.  Size specifies the window size in bytes.  AccessSpeed
-  specifies the memory access speed, in nanoseconds.
+  window address.  Size specifies the window size in bytes.  If zero,
+  Card Services will set Size to the smallest window size supported by
+  the host controller.  AccessSpeed specifies the memory access speed,
+  in nanoseconds.
 
   Return codes:
 
@@ -1380,6 +1381,7 @@
 
      CS_NO_CARD
         The socket assigned to this client is currently vacant.
+
      CS_BAD_ATTRIBUTE
         An unsupported window attribute was requested.
 
@@ -1428,6 +1430,7 @@
        int CardServices(MapMemPage, window_handle_t, memreq_t *);
 
   The memreq_t structure is given by:
+
        typedef struct memreq_t {
                u_int           CardOffset;
                page_t          Page;
@@ -1473,11 +1476,11 @@
 
   The mtd_reg_t data structure is given by:
 
-  typedef union mtd_reg_t {
-          u_int           Attributes;
-          u_int           Offset;
-          u_long          MediaID;
-  } mtd_reg_t;
+       typedef union mtd_reg_t {
+               u_int           Attributes;
+               u_int           Offset;
+               u_long          MediaID;
+       } mtd_reg_t;
 
   RegisterMTD informs Card Services that this client MTD will handle
   requests for a specified memory region.  The Offset field specifies
@@ -1626,6 +1629,7 @@
      MEM_OP_DISABLE_ERASE
         Specifies that a card area should not be erased before it is
         written.
+
      MEM_OP_VERIFY
         Specifies verification of write operations.
 
@@ -1731,7 +1735,6 @@
 
      CS_BUSY
         The erase queue has erase requests pending.
-
   33..66..88..  CChheecckkEErraasseeQQuueeuuee
 
        int CardServices(CheckEraseQueue, eraseq_handle_t handle);
@@ -1771,7 +1774,7 @@
   Card Services.  Signature is set to ``CS''.  Count is set to the
   number of sockets currently configured.  Revision is set to the
   revision level of the Card Services package, and CSLevel is set to the
-  level of compliance with the PCMCIA standard.  These are encoded as
+  level of compliance with the PC Card standard.  These are encoded as
   BCD numbers.  VendorString is set to point to an RCS identification
   string.
 
@@ -1874,7 +1877,7 @@
        } adjust_t;
 
   AdjustResourceInfo is used to tell Card Services what resources may or
-  may not be allocated by PCMCIA devices.  The normal Linux resource
+  may not be allocated by PC Card devices.  The normal Linux resource
   management systems (the *_region calls for IO ports, interrupt
   allocation) are respected by Card Services, but this call gives the
   user another level of control.
@@ -1883,7 +1886,7 @@
 
      ADD_MANAGED_RESOURCE
         Place the specified resource under Card Services control, so
-        that it may be allocated by PCMCIA devices.
+        that it may be allocated by PC Card devices.
 
      REMOVE_MANAGED_RESOURCE
         Remove the specified resource from Card Services control.
@@ -1906,7 +1909,7 @@
   The following flags may be specified in Attributes:
 
      RES_RESERVED
-        Indicates that the resource should be reserved for PCMCIA
+        Indicates that the resource should be reserved for PC Card
         devices that specifically request it.  The resource will not be
         allocated for a device that asks Card Services for any available
         location.  This is not implemented yet.
@@ -2111,10 +2114,10 @@
        } cistpl_jedec_t;
 
   JEDEC identifiers describe the specific device type used to implement
-  a region of PCMCIA memory.  The nid field specifies the number of
-  JEDEC identifiers in the tuple.  There should be a one-to-one
-  correspondence between JEDEC identifiers and device descriptions in
-  the corresponding CISTPL_DEVICE tuple.
+  a region of card memory.  The nid field specifies the number of JEDEC
+  identifiers in the tuple.  There should be a one-to-one correspondence
+  between JEDEC identifiers and device descriptions in the corresponding
+  CISTPL_DEVICE tuple.
 
   44..11..88..  CCIISSTTPPLL__CCOONNFFIIGG,, CCIISSTTPPLL__CCOONNFFIIGG__CCBB
 
@@ -2497,7 +2500,7 @@
 
   44..22..  CCIISS ccoonnffiigguurraattiioonn rreeggiisstteerr ddeeffiinniittiioonnss
 
-  The PCMCIA standard defines a few standard configuration registers
+  The PC Card standard defines a few standard configuration registers
   located in a card's attribute memory space.  A card's CONFIG tuple
   specifies which of these registers are implemented.  Programs using
   these definitions should include:
@@ -2605,7 +2608,7 @@
   share the same range of IO ports, to emulate an ISA bus card that
   would control several devices.  For example, an ISA hard drive
   controller might control several drives, selectable by writing a drive
-  number to an IO port.  For several PCMCIA drives to emulate this
+  number to an IO port.  For several card drives to emulate this
   controller interface, each needs to ``know'' which drive it is, so
   that it can identify which IO operations are intended for it.
 
@@ -2873,9 +2876,9 @@
   safely made from the MTD event handler.  The MTD helper functions
   provide a limited set of special services that may be needed by an MTD
   but would be tricky to implement using the normal Card Services calls.
-  In the Linux PCMCIA implementation, most CS calls can be safely made
-  from an MTD event handler, but the MTD helper interface is included
-  for compatibility.
+  In the Linux implementation, most CS calls can be safely made from an
+  MTD event handler, but the MTD helper interface is included for
+  compatibility.
 
        #include "cs_types.h"
        #include "cs.h"
@@ -2968,16 +2971,16 @@
   Driver Services provides a link between Card Services client drivers
   and user mode utilities like the cardmgr daemon.  It is a sort of Card
   Services ``super-client''.  Driver Services uses the BindDevice
-  function to link other client drivers with their corresponding PCMCIA
-  cards.  Unlike other clients, Driver Services remains permanently
-  bound to all sockets as cards are inserted and removed.
+  function to link other client drivers with their corresponding cards.
+  Unlike other clients, Driver Services remains permanently bound to all
+  sockets as cards are inserted and removed.
 
   77..11..  IInntteerrffaaccee ttoo ootthheerr cclliieenntt ddrriivveerrss
 
   Driver Services keeps track of all client drivers that are installed
   and ready to attach to a socket.  Client drivers need to have entry
   points for creating and deleting device ``instances'', where one
-  device instance is everything needed to manage one PCMCIA card.
+  device instance is everything needed to manage one physical card.
 
   Each client driver is identified by a unique 16-character tag that has
   the special type dev_info_t, defined in cs_types.h.  Each device
@@ -3045,9 +3048,9 @@
         should be unconfigured when the device is closed.
 
      DEV_STALE_LINK
-        A driver instance should not be deleted until all its PCMCIA
-        resources are released.  This flag indicates that this driver
-        instance should be freed as soon as the socket is unconfigured.
+        A driver instance should not be deleted until all its resources
+        are released.  This flag indicates that this driver instance
+        should be freed as soon as the socket is unconfigured.
 
   The open field is a usage count for this device.  The device should
   only be freed when the open count is zero.  The pending field can be
@@ -3059,29 +3062,29 @@
   eject by resetting the DEV_PRESENT bit in the device state, then
   scheduling the shutdown processing to run at a later time.
 
-  The handle, io, irq, conf, and win fields comprise all the normal
-  PCMCIA data structures needed to configure an ordinary PCMCIA IO card.
+  The handle, io, irq, conf, and win fields comprise all the normal data
+  structures needed to configure an ordinary PC Card IO device
 
   The priv field can be used for any sort of private data structure
   needed to manage the device.  The next field can be used to build
   linked lists of dev_link_t structures, for drivers that can handle
   multiple instances.
 
-  77..11..22..  rreeggiisstteerr__ppccmmcciiaa__ddrriivveerr
+  77..11..22..  rreeggiisstteerr__ppccccaarrdd__ddrriivveerr
 
-       int register_pcmcia_driver(dev_info_t *dev_info,
+       int register_pccard_driver(dev_info_t *dev_info,
                                   dev_link_t *(*attach)(void),
                                   void (*detach)(dev_link_t *));
 
-  register_pcmcia_driver informs Driver Services that a client driver is
+  register_pccard_driver informs Driver Services that a client driver is
   present and ready to be bound to sockets.  When Driver Services
   receives a DS_BIND_REQUEST ioctl that matches this driver's dev_info
   string, it will call the driver's attach() entry point.  When it gets
   a DS_UNBIND_REQUEST ioctl, it will call detach().
 
-  77..11..33..  uunnrreeggiisstteerr__ppccmmcciiaa__ddrriivveerr
+  77..11..33..  uunnrreeggiisstteerr__ppccccaarrdd__ddrriivveerr
 
-       int unregister_pcmcia_driver(dev_info_t *dev_info);
+       int unregister_pccard_driver(dev_info_t *dev_info);
 
   This informs Driver Services that it should no longer bind sockets to
   the specified client driver.
@@ -3177,11 +3180,11 @@
   subsequent IO to the specified device, but may preserve internal data
   structures until the kernel device is actually closed.
 
-  77..33..  IInntteerrffaaccee ttoo uusseerr mmooddee PPCCMMCCIIAA uuttiilliittiieess
+  77..33..  IInntteerrffaaccee ttoo uusseerr mmooddee uuttiilliittiieess
 
   Driver Services creates a pseudo-device for communicating with user
-  mode PCMCIA utilities.  The major number of the device is chosen
-  dynamically, and PCMCIA utilities should read /proc/devices to
+  mode PC Card utilities.  The major number of the device is chosen
+  dynamically, and PC Card utilities should read /proc/devices to
   determine it.  Minor device numbers correspond to socket numbers,
   starting with 0.
 
@@ -3194,7 +3197,7 @@
   77..33..11..  CCaarrdd SSeerrvviicceess eevveenntt nnoottiiffiiccaattiioonnss
 
   Driver Services implements read() and select() functions for event
-  notification.  Reading from a pcmcia device returns an unsigned long
+  notification.  Reading from a PC Card device returns an unsigned long
   value containing all the events received by Driver Services since the
   previous read().  If no events have been received, the call will block
   until the next event.  A select() call can be used to monitor several
@@ -3334,11 +3337,11 @@
 
   88..  AAnnaattoommyy ooff aa CCaarrdd SSeerrvviicceess CClliieenntt DDrriivveerr
 
-  Each release of the Linux PCMCIA package comes with a well-commented
-  ``dummy'' client driver that should be used as a starting point for
-  writing a new driver.  Look for it in modules/dummy_cs.c.  This is not
-  just a piece of sample code: it is written to function as a sort of
-  generic card enabler.  If bound to any PCMCIA IO card, it will read
+  Each release of the Linux Card Services package comes with a well-
+  commented ``dummy'' client driver that should be used as a starting
+  point for writing a new driver.  Look for it in modules/dummy_cs.c.
+  This is not just a piece of sample code: it is written to function as
+  a sort of generic card enabler.  If bound to an IO card, it will read
   the card's CIS and configure the card appropriately, assuming that the
   card's CIS is complete and accurate.
 
@@ -3346,10 +3349,10 @@
 
   All loadable modules must supply init_module() and cleanup_module()
   functions, which are invoked by the module support code when the
-  module is installed and removed.  A PCMCIA client driver's init
-  function should register the driver with Driver Services, via the
-  register_pcmcia_driver() call.  The cleanup function should use
-  unregister_pcmcia_driver() to unregister with Driver Services.
+  module is installed and removed.  A client driver's init function
+  should register the driver with Driver Services, via the
+  register_pccard_driver() call.  The cleanup function should use
+  unregister_pccard_driver() to unregister with Driver Services.
   Depending on the driver, the cleanup function may also need to free
   any device structures that still exist at shutdown time.
 
@@ -3357,7 +3360,7 @@
 
   The *_attach() entry point is responsible for creating an ``instance''
   of the driver, setting up any data structures needed to manage one
-  PCMCIA card.  The *_attach() function should allocate and initialize a
+  card.  The *_attach() function should allocate and initialize a
   dev_link_t structure, and call RegisterClient to establish a link with
   Card Services.  It returns a pointer to the new dev_link_t structure,
   or NULL if the new instance could not be created.
@@ -3397,7 +3400,7 @@
   cannot sleep, and should not call other kernel functions that might
   block.
 
-  88..44..  TThhee PPCCMMCCIIAA eevveenntt hhaannddlleerr
+  88..44..  TThhee cclliieenntt eevveenntt hhaannddlleerr
 
   The *_event() entry point is called from Card Services to notify a
   driver of card status change events.
@@ -3417,9 +3420,9 @@
 
   All loadable modules have a ``use count'' that is used by the system
   to determine when it is safe to unload a module.  The convention in
-  the PCMCIA client drivers is to increment the use count when a device
-  is opened, and to decrement the count when a device is closed.  So, a
-  driver can be unloaded whenever all associated devices are closed.  in
+  client drivers is to increment the use count when a device is opened,
+  and to decrement the count when a device is closed.  So, a driver can
+  be unloaded whenever all associated devices are closed.  in
   particular, a driver can be unloaded even if it is still bound to a
   socket, and the module cleanup code needs to be able to appropriately
   free any such resources that are still allocated.  This should always
@@ -3434,16 +3437,16 @@
   the DEV_STALE_LINK flag should be set to signal that the instance
   should be detached when the *_release() function is called.
 
-  88..66..  UUssiinngg eexxiissttiinngg LLiinnuuxx ddrriivveerrss ttoo aacccceessss PPCCMMCCIIAA ddeevviicceess
+  88..66..  UUssiinngg eexxiissttiinngg LLiinnuuxx ddrriivveerrss ttoo aacccceessss PPCC CCaarrdd ddeevviicceess
 
-  Many of the current PCMCIA client drivers use existing Linux driver
-  code to perform device IO operations.  The Card Services client module
-  handles card configuration and responds to card status change events,
-  but delegates device IO to a compatible driver for a conventional ISA
-  bus card.  In some cases, a conventional driver can be used without
-  modification.  However, to fully support PCMCIA features like hot
+  Many of the current client drivers use existing Linux driver code to
+  perform device IO operations.  The Card Services client module handles
+  card configuration and responds to card status change events, but
+  delegates device IO to a compatible driver for a conventional ISA bus
+  card.  In some cases, a conventional driver can be used without
+  modification.  However, to fully support PC Card features like hot
   swapping and power management, there needs to be some communication
-  between the PCMCIA client code and the device IO code.
+  between the PC Card client code and the device IO code.
 
   Most Linux drivers expect to probe for devices at boot time, and are
   not designed to handle adding and removing devices.  One side-effect
@@ -3457,11 +3460,11 @@
   timeouts so they will eventually exit if a device never responds.
 
   The dummy_cs driver may be useful for loading legacy drivers for
-  compatible PCMCIA devices.  After binding dummy_cs to a card, the
+  compatible PC Card devices.  After binding dummy_cs to a card, the
   legacy driver module may be able to detect and communicate with the
-  device as if it were not PCMCIA.  This arrangement will generally not
-  support clean hot swapping or power management functions, however it
-  may be useful as a basis for later developing a more full-featured
+  device as if it were not a PC Card.  This arrangement will generally
+  not support clean hot swapping or power management functions, however
+  it may be useful as a basis for later developing a more full-featured
   client driver.
 
   99..  WWhheerree ttoo GGoo ffoorr MMoorree IInnffoorrmmaattiioonn
@@ -3471,10 +3474,9 @@
   is available from the usual Linux FTP sites, and is included in many
   compilations of Linux documentation.
 
-  The genuine PCMCIA standard is only available for a steep price from
-  the PCMCIA association itself.  The new PC Card 95 standard is
-  supposed to cost $399, but old copies of the 2.1 standard may still be
-  available at a deep discount.
+  The genuine PC Card standard is only available from the PCMCIA
+  association itself, and costs a significant amount of money.  To
+  contact PCMCIA:
 
        Personal Computer Memory Card International Association
        1030 East Duane Avenue, Suite G
@@ -3492,16 +3494,17 @@
        (408) 749-0130, (408) 749-1323 FAX
 
   The _P_C_M_C_I_A _S_o_f_t_w_a_r_e _D_e_v_e_l_o_p_e_r_'_s _H_a_n_d_b_o_o_k by Dana Beatty, Steven
-  Kipisz, and Brian Moore includes an overview of the PCMCIA standard,
+  Kipisz, and Brian Moore includes an overview of the PC Card standard,
   and descriptions of how to write client drivers.  It also includes the
   Linux PCMCIA Programmer's Guide, as an appendix.  It is published by
   Peer-to-Peer Communications, ISBN 1-57398-010-2.
+
   Larry Levine has written a more general introduction to PCMCIA called
   the _P_C_M_C_I_A _P_r_i_m_e_r, which should be on bookstore shelves in the summer
   of 1995.  It is published by M & T Books, ISBN 1-55828-437-0.
 
-  Programming information for various PCMCIA controllers is available
-  from the corresponding chip vendors.  Generally, data sheets are
-  either available on line or can be ordered from each company's web
+  Programming information for various PC Card host controllers is
+  available from the corresponding chip vendors.  Generally, data sheets
+  are either available on line or can be ordered from each company's web
   site.
 

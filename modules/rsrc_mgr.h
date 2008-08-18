@@ -1,5 +1,5 @@
 /*
- * rsrc_mgr.h 1.11 1998/05/10 11:59:46
+ * rsrc_mgr.h 1.13 1998/05/24 18:40:55
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -25,16 +25,9 @@ int check_mem_region(u_long base, u_long num);
 int register_mem_region(u_long base, u_long num, char *name);
 int release_mem_region(u_long base, u_long num);
 
-void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long));
-
-int find_io_region(ioaddr_t *base, ioaddr_t num, char *name);
-int find_mem_region(u_long *base, u_long num, char *name, int low);
-int try_irq(u_int Attributes, int irq, int specific);
-void undo_irq(u_int Attributes, int irq);
-
-int adjust_resource_info(client_handle_t handle, adjust_t *adj);
-
-void release_resource_db(void);
+int check_io_region(u_long base, u_long num);
+int register_io_region(u_long base, u_long num, char *name);
+int release_io_region(u_long base, u_long num);
 
 #endif /* __KERNEL__ */
 

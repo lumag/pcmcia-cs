@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.36 1998/05/10 12:06:44
+    rsrc_mgr.c 1.39 1998/05/24 18:41:29
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -43,41 +43,6 @@
 
 /*====================================================================*/
 
-typedef struct memory_entry_t {
-    u_long			base, num;
-    char			*name;
-    struct memory_entry_t	*next;
-} memory_entry_t;
-
-/* An ordered linked list of allocated memory blocks */
-static memory_entry_t memlist = { 0, 0, NULL, NULL };
-
-typedef struct resource_entry_t {
-    u_long			base, num;
-    struct resource_entry_t	*next;
-} resource_entry_t;
-
-/* Memory resource database */
-static resource_entry_t mem_db = { 0, 0, &mem_db };
-
-/* IO port resource database */
-static resource_entry_t io_db = { 0, 0, &io_db };
-
-#ifdef CONFIG_ISA
-
-typedef struct irq_info_t {
-    u_int			Attributes;
-    int				time_share, dyn_share;
-    struct socket_info_t	*Socket;
-} irq_info_t;
-
-/* Table of IRQ assignments */
-static irq_info_t irq_table[16] = { { 0, 0, 0 }, /* etc */ };
-
-#endif
-
-/*====================================================================*/
-
 /* Parameters that can be set with 'insmod' */
 
 /* Should we probe resources for conflicts? */
@@ -92,20 +57,69 @@ MODULE_PARM(mem_limit, "i");
 
 /*======================================================================
 
-    These functions manage the database of allocated memory blocks.
+    The resource_entry_t structures are used to track resources used
+    by PC Card drivers.  The resource_map_t structures are used to
+    track what resources are available for allocation.
+
+======================================================================*/
+
+typedef struct resource_entry_t {
+    u_long			base, num;
+    char			*name;
+    struct resource_entry_t	*next;
+} resource_entry_t;
+
+/* An ordered linked list of allocated memory blocks */
+static resource_entry_t mem_list = { 0, 0, NULL, NULL };
+
+#if 0
+/* An ordered linked list of allocated IO blocks */
+static resource_entry_t io_list = { 0, 0, NULL, NULL };
+#endif
+
+typedef struct resource_map_t {
+    u_long			base, num;
+    struct resource_map_t	*next;
+} resource_map_t;
+
+/* Memory resource database */
+static resource_map_t mem_db = { 0, 0, &mem_db };
+
+/* IO port resource database */
+static resource_map_t io_db = { 0, 0, &io_db };
+
+#ifdef CONFIG_ISA
+
+typedef struct irq_info_t {
+    u_int			Attributes;
+    int				time_share, dyn_share;
+    struct socket_info_t	*Socket;
+} irq_info_t;
+
+/* Table of IRQ assignments */
+static irq_info_t irq_table[16] = { { 0, 0, 0 }, /* etc */ };
+
+#endif
+
+#ifdef __SMP__
+static spinlock_t rsrc_lock = SPIN_LOCK_UNLOCKED;
+#endif
+
+/*======================================================================
+
+    These functions manage the databases of allocated resources
     
 ======================================================================*/
 
-static memory_entry_t *find_gap(memory_entry_t *root,
-				memory_entry_t *entry)
+static resource_entry_t *find_gap(resource_entry_t *root,
+				  resource_entry_t *entry)
 {
     u_long flags;
-    memory_entry_t *p;
+    resource_entry_t *p;
     
     if (entry->base > entry->base+entry->num-1)
 	return NULL;
-    save_flags(flags);
-    cli();
+    spin_lock_irqsave(&rsrc_lock, flags);
     for (p = root; ; p = p->next) {
 	if ((p != root) && (p->base+p->num-1 >= entry->base)) {
 	    p = NULL;
@@ -115,62 +129,110 @@ static memory_entry_t *find_gap(memory_entry_t *root,
 	    (p->next->base > entry->base+entry->num-1))
 	    break;
     }
-    restore_flags(flags);
+    spin_unlock_irqrestore(&rsrc_lock, flags);
     return p;
 }
 
-int check_mem_region(u_long base, u_long num)
+static int check_resource(resource_entry_t *list,
+			  u_long base, u_long num)
 {
-    memory_entry_t entry;
+    resource_entry_t entry;
     entry.base = base;
     entry.num = num;
-    return (find_gap(&memlist, &entry) == NULL) ? -EBUSY : 0;
+    return (find_gap(list, &entry) == NULL) ? -EBUSY : 0;
 }
 
-int register_mem_region(u_long base, u_long num, char *name)
+static int register_resource(resource_entry_t *list,
+			     u_long base, u_long num, char *name)
 {
     u_long flags;
-    memory_entry_t *p, *entry;
+    resource_entry_t *p, *entry;
 
-    entry = kmalloc(sizeof(memory_entry_t), GFP_ATOMIC);
+    entry = kmalloc(sizeof(resource_entry_t), GFP_ATOMIC);
     entry->base = base;
     entry->num = num;
     entry->name = name;
 
-    save_flags(flags);
-    cli();
-    p = find_gap(&memlist, entry);
+    spin_lock_irqsave(&rsrc_lock, flags);
+    p = find_gap(list, entry);
     if (p == NULL) {
-	restore_flags(flags);
-	kfree_s(entry, sizeof(memory_entry_t));
+	spin_unlock_irqrestore(&rsrc_lock, flags);
+	kfree_s(entry, sizeof(resource_entry_t));
 	return -EBUSY;
     }
     entry->next = p->next;
     p->next = entry;
-    restore_flags(flags);
+    spin_unlock_irqrestore(&rsrc_lock, flags);
     return 0;
 }
 
-int release_mem_region(u_long base, u_long num)
+static int release_resource(resource_entry_t *list,
+			    u_long base, u_long num)
 {
     u_long flags;
-    memory_entry_t *p, *q;
+    resource_entry_t *p, *q;
 
-    save_flags(flags);
-    cli();
-    for (p = &memlist; ; p = q) {
+    spin_lock_irqsave(&rsrc_lock, flags);
+    for (p = list; ; p = q) {
 	q = p->next;
 	if (q == NULL) break;
 	if ((q->base == base) && (q->num == num)) {
 	    p->next = q->next;
-	    kfree_s(q, sizeof(memory_entry_t));
-	    restore_flags(flags);
+	    kfree_s(q, sizeof(resource_entry_t));
+	    spin_unlock_irqrestore(&rsrc_lock, flags);
 	    return 0;
 	}
     }
-    restore_flags(flags);
+    spin_unlock_irqrestore(&rsrc_lock, flags);
     return -EINVAL;
 }
+
+int check_mem_region(u_long base, u_long num)
+{
+    return check_resource(&mem_list, base, num);
+}
+int register_mem_region(u_long base, u_long num, char *name)
+{
+    return register_resource(&mem_list, base, num, name);
+}
+int release_mem_region(u_long base, u_long num)
+{
+    return release_resource(&mem_list, base, num);
+}
+
+#if 0
+int check_io_region(u_long base, u_long num)
+{
+    return check_resource(&io_list, base, num);
+}
+int register_io_region(u_long base, u_long num, char *name)
+{
+    return register_resource(&io_list, base, num, name);
+}
+int release_io_region(u_long base, u_long num)
+{
+    return release_resource(&io_list, base, num);
+}
+#endif
+
+/*====================================================================*/
+
+#ifdef CONFIG_PROC_FS
+int proc_read_mem(char *buf, char **start, off_t pos,
+		  int count, int *eof, void *data)
+{
+    resource_entry_t *r;
+    u_long flags;
+    char *p = buf;
+    
+    spin_lock_irqsave(&rsrc_lock, flags);
+    for (r = mem_list.next; r; r = r->next)
+	p += sprintf(p, "%08lx-%08lx : %s\n", r->base,
+		     r->base+r->num-1, r->name);
+    spin_unlock_irqrestore(&rsrc_lock, flags);
+    return (p - buf);
+}
+#endif
 
 /*======================================================================
 
@@ -178,9 +240,9 @@ int release_mem_region(u_long base, u_long num)
     
 ======================================================================*/
 
-static int add_interval(resource_entry_t *map, u_long base, u_long num)
+static int add_interval(resource_map_t *map, u_long base, u_long num)
 {
-    resource_entry_t *p, *q;
+    resource_map_t *p, *q;
 
     for (p = map; ; p = p->next) {
 	if ((p != map) && (p->base+p->num-1 >= base))
@@ -188,7 +250,7 @@ static int add_interval(resource_entry_t *map, u_long base, u_long num)
 	if ((p->next == map) || (p->next->base > base+num-1))
 	    break;
     }
-    q = kmalloc(sizeof(resource_entry_t), GFP_KERNEL);
+    q = kmalloc(sizeof(resource_map_t), GFP_KERNEL);
     q->base = base; q->num = num;
     q->next = p->next; p->next = q;
     return 0;
@@ -196,9 +258,9 @@ static int add_interval(resource_entry_t *map, u_long base, u_long num)
 
 /*====================================================================*/
 
-static int sub_interval(resource_entry_t *map, u_long base, u_long num)
+static int sub_interval(resource_map_t *map, u_long base, u_long num)
 {
-    resource_entry_t *p, *q;
+    resource_map_t *p, *q;
 
     for (p = map; ; p = q) {
 	q = p->next;
@@ -209,7 +271,7 @@ static int sub_interval(resource_entry_t *map, u_long base, u_long num)
 		if (q->base+q->num <= base+num) {
 		    /* Delete whole block */
 		    p->next = q->next;
-		    kfree_s(q, sizeof(resource_entry_t));
+		    kfree_s(q, sizeof(resource_map_t));
 		    /* don't advance the pointer yet */
 		    q = p;
 		} else {
@@ -222,7 +284,7 @@ static int sub_interval(resource_entry_t *map, u_long base, u_long num)
 		q->num = base - q->base;
 	    } else {
 		/* Split the block into two pieces */
-		p = kmalloc(sizeof(resource_entry_t), GFP_KERNEL);
+		p = kmalloc(sizeof(resource_map_t), GFP_KERNEL);
 		p->base = base+num;
 		p->num = q->base+q->num - p->base;
 		q->num = base - q->base;
@@ -328,7 +390,7 @@ static int do_mem_probe(u_long base, u_long num, int pass,
 	if (i != j) {
 	    if (!bad) printk(" excluding");
 	    printk(" %#05lx-%#05lx", i, j-1);
-	    register_mem_region(i, j-i, "reserved");
+	    sub_interval(&mem_db, i, j-i);
 	    bad += j-i;
 	}
     }
@@ -338,7 +400,7 @@ static int do_mem_probe(u_long base, u_long num, int pass,
 
 void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long))
 {
-    resource_entry_t *m;
+    resource_map_t *m;
     static u_char order[] = { 0xd0, 0xe0, 0xc0, 0xf0 };
     u_long b, ok = 0;
     int i, pass;
@@ -358,8 +420,8 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long))
 	    for (i = 0; i < 4; i++) {
 		b = order[i] << 12;
 		if ((b >= m->base) && (b+0x10000 <= m->base+m->num)) {
-		    if (ok >= mem_limit)
-			register_mem_region(b, 0x10000, "skipped");
+		    if (ok >= mem_limit)	
+			sub_interval(&mem_db, b, 0x10000);
 		    else
 			ok += do_mem_probe(b, 0x10000, pass, is_valid);
 		}
@@ -381,7 +443,7 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long))
 int find_io_region(ioaddr_t *base, ioaddr_t num, char *name)
 {
     ioaddr_t align;
-    resource_entry_t *m;
+    resource_map_t *m;
     
     if (*base != 0) {
 	for (m = io_db.next; m != &io_db; m = m->next) {
@@ -413,7 +475,7 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, char *name)
 int find_mem_region(u_long *base, u_long num, char *name, int low)
 {
     u_long align;
-    resource_entry_t *m;
+    resource_map_t *m;
     
     if (*base != 0) {
 	for (m = mem_db.next; m != &mem_db; m = m->next) {
@@ -673,14 +735,14 @@ int adjust_resource_info(client_handle_t handle, adjust_t *adj)
 
 void release_resource_db(void)
 {
-    resource_entry_t *p, *q;
+    resource_map_t *p, *q;
     
     for (p = mem_db.next; p != &mem_db; p = q) {
 	q = p->next;
-	kfree_s(p, sizeof(resource_entry_t));
+	kfree_s(p, sizeof(resource_map_t));
     }
     for (p = io_db.next; p != &io_db; p = q) {
 	q = p->next;
-	kfree_s(p, sizeof(resource_entry_t));
+	kfree_s(p, sizeof(resource_map_t));
     }
 }

@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.22 1998/05/10 12:06:44
+    cardbus.c 1.27 1998/05/26 23:26:33
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -37,8 +37,10 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 
+#ifndef PCMCIA_DEBUG
 #define PCMCIA_DEBUG 2
-static int pc_debug = 2;
+#endif
+static int pc_debug = PCMCIA_DEBUG;
 
 #define IN_CARD_SERVICES
 #include <pcmcia/version.h>
@@ -79,9 +81,16 @@ static int pc_debug = 2;
 #define PCDATA_INDICATOR	0x0014
 
 typedef struct cb_config_t {
-    u_char		irq;
-    u_int		base[7];
     u_int		size[7];
+#if (LINUX_VERSION_CODE < VERSION(2,1,90))
+    struct {
+	unsigned int	irq;
+	unsigned long	base_address[6];
+	unsigned long	rom_address;
+    } dev;
+#else
+    struct pci_dev	dev;
+#endif
 } cb_config_t;
 
 /* There are three classes of bridge maps: IO ports,
@@ -167,8 +176,9 @@ int cb_setup_cis_mem(socket_info_t *s, int space)
     DEBUG(1, "cs: cb_setup_cis_mem(space %d)\n", space);
     /* If socket is configured, then use existing memory mapping */
     if (s->lock_count) {
-	s->cb_cis_virt = ioremap(s->cb_config[0].base[space-1],
-				 s->cb_config[0].size[space-1] & ~3);
+	s->cb_cis_virt =
+	    ioremap(s->cb_config[0].dev.base_address[space-1],
+		    s->cb_config[0].size[space-1] & ~3);
 	s->cb_cis_space = space;
 	return CS_SUCCESS;
     }
@@ -181,7 +191,7 @@ int cb_setup_cis_mem(socket_info_t *s, int space)
     sz = FIND_FIRST_BIT(sz);
     if (find_mem_region(&base, sz, "cb_enabler", 0) != 0) {
 	printk(KERN_NOTICE "cs: could not allocate %dK memory for"
-	       " CardBus socket %d", sz/1024, s->sock);
+	       " CardBus socket %d\n", sz/1024, s->sock);
 	return CS_OUT_OF_RESOURCE;
     }
     s->cb_cis_virt = ioremap(base, sz);
@@ -273,11 +283,11 @@ void cb_enable(socket_info_t *s)
     /* Set up base address registers */
     for (i = 0; i < s->functions; i++) {
 	for (j = 0; j < 6; j++) {
-	    if (c[i].base[j] != 0)
-		pci_writel(bus, i, CB_BAR(j), c[i].base[j]);
+	    if (c[i].dev.base_address[j] != 0)
+		pci_writel(bus, i, CB_BAR(j), c[i].dev.base_address[j]);
 	}
-	if (c[i].base[6] != 0)
-	    pci_writel(bus, i, CB_ROM_BASE, c[i].base[6] | 1);
+	if (c[i].dev.rom_address != 0)
+	    pci_writel(bus, i, CB_ROM_BASE, c[i].dev.rom_address | 1);
     }
 
     /* Set up PCI interrupt and command registers */
@@ -291,7 +301,15 @@ void cb_enable(socket_info_t *s)
 	s->socket.io_irq = s->irq.AssignedIRQ;
 	s->ss_entry(s->sock, SS_SetSocket, &s->socket);
     }
-    
+
+#if (LINUX_VERSION_CODE >= VERSION(2,1,90))
+    /* Link into PCI device chain */
+    c[s->functions-1].dev.next = pci_devices;
+    pci_devices = &c[0].dev;
+#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
+    /* pci_proc_attach_device(&c[0].dev); */
+#endif
+#endif
 }
 
 /*======================================================================
@@ -307,7 +325,23 @@ void cb_disable(socket_info_t *s)
 {
     u_char i;
     cb_bridge_map m = { 0, 0, 0, 0xffff };
-
+#if (LINUX_VERSION_CODE >= VERSION(2,1,90))
+    struct pci_dev **p, *q;
+    cb_config_t *c = s->cb_config;
+    
+    /* Unlink from PCI device chain */
+#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
+    /* pci_proc_detach_device(&c[0].dev); */
+#endif
+    for (p = &pci_devices; *p; p = &((*p)->next))
+	if (*p == &c[0].dev) break;
+    for (q = *p; q; q = q->next)
+	if (q != &c[s->functions-1].dev) break;
+    if (p && q) {
+	*p = q->next;
+    }
+#endif
+    
     DEBUG(1, "cs: cb_disable(bus %d)\n", s->cap.cardbus);
     
     /* Turn off bridge windows */
@@ -361,6 +395,24 @@ int cb_config(socket_info_t *s)
     c = kmalloc(fn * sizeof(struct cb_config_t), GFP_KERNEL);
     memset(c, fn * sizeof(struct cb_config_t), 0);
     s->cb_config = c;
+
+#if (LINUX_VERSION_CODE >= VERSION(2,1,90))
+    s->pci_bus = kmalloc(sizeof(struct pci_bus), GFP_KERNEL);
+    memset(s->pci_bus, sizeof(struct pci_bus), 0);
+    s->pci_bus->number = bus;
+    for (i = 0; i < fn; i++) {
+	c[i].dev.bus = s->pci_bus;
+	if (i < fn-1) {
+	    c[i].dev.sibling = c[i].dev.next = &c[i+1].dev;
+	}
+	c[i].dev.devfn = i;
+	c[i].dev.vendor = vend; c[i].dev.device = dev;
+	pci_readl(bus, i, PCI_CLASS_REVISION, &c[i].dev.class);
+	c[i].dev.class >>= 8;
+	pci_readb(bus, i, PCI_HEADER_TYPE, &j);
+	c[i].dev.hdr_type = j;	
+    }
+#endif
     
     /* Determine IO and memory space needs */
     num[B_IO] = num[B_M1] = num[B_M2] = 0;
@@ -397,7 +449,7 @@ int cb_config(socket_info_t *s)
     if (num[B_IO]) {
 	if (find_io_region(&s->io[0].BasePort, num[B_IO], name) != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %d IO ports for"
-		   " CardBus socket %d", num[B_IO], s->sock);
+		   " CardBus socket %d\n", num[B_IO], s->sock);
 	    goto failed;
 	}
 	base[B_IO] = s->io[0].BasePort + num[B_IO];
@@ -407,7 +459,7 @@ int cb_config(socket_info_t *s)
     if (num[B_M1]) {
 	if (find_mem_region(&s->win[0].base, num[B_M1], name, 0) != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %dK memory for"
-		   " CardBus socket %d", num[B_M1]/1024, s->sock);
+		   " CardBus socket %d\n", num[B_M1]/1024, s->sock);
 	    goto failed;
 	}
 	base[B_M1] = s->win[0].base + num[B_M1];
@@ -417,7 +469,7 @@ int cb_config(socket_info_t *s)
     if (num[B_M2]) {
 	if (find_mem_region(&s->win[1].base, num[B_M2], name, 0) != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %dK memory for"
-		   " CardBus socket %d", num[B_M2]/1024, s->sock);
+		   " CardBus socket %d\n", num[B_M2]/1024, s->sock);
 	    goto failed;
 	}
 	base[B_M2] = s->win[1].base + num[B_M2];
@@ -441,7 +493,7 @@ int cb_config(socket_info_t *s)
 			DEBUG(1, " fn %d rom: %s base 0x%x, sz 0x%x\n",
 			      i, (m) ? "mem" : "io", base[m], sz);
 		    }
-		    c[i].base[j] = base[m];
+		    c[i].dev.base_address[j] = base[m];
 		}
 	    }
 	}
@@ -470,7 +522,7 @@ int cb_config(socket_info_t *s)
 	    s->irq.AssignedIRQ = irq;
 	}
     }
-    c[0].irq = irq;
+    c[0].dev.irq = irq;
     
     return CS_SUCCESS;
 
@@ -501,9 +553,14 @@ void cb_release(socket_info_t *s)
 	release_region(s->io[0].BasePort, s->io[0].NumPorts);
     s->io[0].NumPorts = 0;
 #ifdef CONFIG_ISA
-    if (s->cb_config[0].irq != s->cap.pci_irq)
-	undo_irq(IRQ_TYPE_EXCLUSIVE, s->cb_config[0].irq);
+    if ((s->irq.AssignedIRQ != 0) &&
+	(s->irq.AssignedIRQ != s->cap.pci_irq))
+	undo_irq(IRQ_TYPE_EXCLUSIVE, s->irq.AssignedIRQ);
 #endif
     kfree(s->cb_config);
     s->cb_config = NULL;
+#if (LINUX_VERSION_CODE >= VERSION(2,1,90))
+    kfree(s->pci_bus);
+    s->pci_bus = NULL;
+#endif
 }

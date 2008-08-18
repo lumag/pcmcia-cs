@@ -1,5 +1,5 @@
 /*
- * ds.h 1.41 1998/05/10 12:10:34
+ * ds.h 1.42 1998/05/14 00:13:03
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -113,11 +113,14 @@ typedef struct dev_link_t {
 #define DEV_OK(l) \
     ((l) && ((l->state & ~DEV_BUSY) == (DEV_CONFIG|DEV_PRESENT)))
 
-int register_pcmcia_driver(dev_info_t *dev_info,
+int register_pccard_driver(dev_info_t *dev_info,
 			   dev_link_t *(*attach)(void),
 			   void (*detach)(dev_link_t *));
 
-int unregister_pcmcia_driver(dev_info_t *dev_info);
+int unregister_pccard_driver(dev_info_t *dev_info);
+
+#define register_pcmcia_driver register_pccard_driver
+#define unregister_pcmcia_driver unregister_pccard_driver
 
 int bind_request(int i, bind_info_t *bind_info);
 int bind_mtd(int i, mtd_info_t *mtd_info);
