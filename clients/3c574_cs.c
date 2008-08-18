@@ -127,7 +127,7 @@ INT_MODULE_PARM(auto_polarity, 1);
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c574_cs.c 1.66 2002/02/17 23:30:20 Donald Becker/David Hinds, becker@scyld.com.\n";
+"3c574_cs.c 1.67 2002/05/04 05:51:22 Donald Becker/David Hinds, becker@scyld.com.\n";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -468,7 +468,6 @@ static void tc574_config(dev_link_t *link)
 	ioaddr = dev->base_addr;
 	copy_dev_name(lp->node, dev);
 	link->dev = &lp->node;
-	link->state &= ~DEV_CONFIG_PENDING;
 
 	/* The 3c574 normally uses an EEPROM for configuration info, including
 	   the hardware address.  The future products may include a modem chip
@@ -558,12 +557,14 @@ static void tc574_config(dev_link_t *link)
 		}
 	}
 
+	link->state &= ~DEV_CONFIG_PENDING;
 	return;
 
 cs_failed:
 	cs_error(link->handle, last_fn, last_ret);
 failed:
 	tc574_release((u_long)link);
+	link->state &= ~DEV_CONFIG_PENDING;
 	return;
 
 } /* tc574_config */

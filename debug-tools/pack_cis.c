@@ -3,7 +3,7 @@
     A utility to convert a plain text description of a Card
     Information Structure into its packed binary representation.
 
-    pack_cis.c 1.18 2001/08/24 12:16:45
+    pack_cis.c 1.19 2002/04/21 01:55:43
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,8 +81,7 @@ static int pack_power(cistpl_power_t *pwr, u_char *b)
 		if (mantissa[m] == tmp) break;
 	    if (m == 16) { tmp *= 10; e--; }
 	    x = 0;
-	}
-	if (tmp >= 100) {
+	} else {
 	    e++;
 	    x = (tmp/10) - ((tmp/10) % 10);
 	    for (m = 0; m < 16; m++)

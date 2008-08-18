@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" ifport.8 1.9 2000/06/12 21:24:48
+.\" ifport.8 1.10 2002/05/06 05:31:51
 .\"
-.TH IFPORT 8 "2000/06/12 21:24:48" "pcmcia-cs"
+.TH IFPORT 8 "2002/05/06 05:31:51" "pcmcia-cs"
 
 .SH NAME
 ifport \- select the transceiver type for a network interface
@@ -14,10 +14,10 @@ ifport \- select the transceiver type for a network interface
 .SH DESCRIPTION
 .B Ifport
 sets the transceiver type for the specified network interface, for
-drivers that support multiple transceiver types.  If a type is not
-specified on the command line, then the current type is displayed.
-The type can be specified either numerically or by keyword.  The five
-standard transceiver types
+drivers that support multiple independent transceivers.  If a type is
+not  specified on the command line, then the current type is
+displayed.  The type can be specified either numerically or by
+keyword.  The five standard transceiver types
 .RB ( auto ,
 .BR 10baseT ,
 .BR 10base2 ,
@@ -35,25 +35,24 @@ prior to configuring the interface with
 to ensure that the new setting takes effect immediately.
 .PP
 This utility only works with a limited set of 16-bit PC Card drivers:
-.BR 3c589_cs ,
-.BR nmclan_cs ,
-.BR pcnet_cs ,
-.BR smc91c92_cs ,
-and
-.BR xirc2ps_cs .
-If invoked for other drivers,
-.B ifport
-may report bogus transceiver
-settings, or report ``Operation not supported''.
+\fB3c589_cs\fR, \fBnmclan_cs\fR, \fBpcnet_cs\fR, \fBsmc91c92_cs\fR,
+and \fBxirc2ps_cs\fR.  It also only works for certain cards that
+require manual transceiver selection.  If invoked for other drivers,
+\fBifport\fR may report bogus transceiver settings, or report
+``Operation not supported''.  Most modern 10/100baseT cards use a
+``Media Independent Interface'' (MII) chip that automatically selects
+between 10baseT and 100baseT modes; this sort of transceiver can be
+manipulated using the \fBmii-tool\fR(8) command.
 
 .SH DIAGNOSTICS
 .TP
 .B ioctl: Operation not supported
 Indicates that this network device does not support manual transceiver
 selection.  There may be only one transceiver option, or the device
-may always autodetect the appropriate transceiver.
+may autodetect the appropriate transceiver.  Or the card may have an
+MII interface.
 
 .SH AUTHOR
 David Hinds \- dahinds@users.sourceforge.net
 .SH "SEE ALSO"
-ifconfig(8).
+ifconfig(8), mii-tool(8).

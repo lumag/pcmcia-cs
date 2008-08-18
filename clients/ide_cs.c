@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.35 2002/02/17 23:30:23
+    ide_cs.c 1.38 2002/05/04 05:52:04
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -57,6 +57,7 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
+#include <pcmcia/ciscode.h>
 
 /*====================================================================*/
 
@@ -77,7 +78,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.35 2002/02/17 23:30:23 (David Hinds)";
+"ide_cs.c 1.38 2002/05/04 05:52:04 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -240,7 +241,7 @@ void ide_config(dev_link_t *link)
     config_info_t conf;
     cistpl_cftable_entry_t *cfg = &parse.cftable_entry;
     cistpl_cftable_entry_t dflt = { 0 };
-    int i, pass, last_ret, last_fn, hd, io_base, ctl_base;
+    int i, pass, last_ret, last_fn, hd, io_base, ctl_base, is_kme;
 
     DEBUG(0, "ide_config(0x%p)\n", link);
     
@@ -253,7 +254,14 @@ void ide_config(dev_link_t *link)
     CS_CHECK(ParseTuple, handle, &tuple, &parse);
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
-    
+
+    tuple.DesiredTuple = CISTPL_MANFID;
+    CS_CHECK(GetFirstTuple, handle, &tuple);
+    CS_CHECK(GetTupleData, handle, &tuple);
+    CS_CHECK(ParseTuple, handle, &tuple, &parse);
+    is_kme = ((parse.manfid.manf == MANFID_KME) &&
+	      (parse.manfid.card == PRODID_KME_KXLC005));
+
     /* Configure card */
     link->state |= DEV_CONFIG;
 
@@ -297,7 +305,7 @@ void ide_config(dev_link_t *link)
 	    if (io->nwin == 2) {
 		link->io.NumPorts1 = 8;
 		link->io.BasePort2 = io->win[1].base;
-		link->io.NumPorts2 = 1;
+		link->io.NumPorts2 = (is_kme) ? 2 : 1;
 		CFG_CHECK(RequestIO, link->handle, &link->io);
 		io_base = link->io.BasePort1;
 		ctl_base = link->io.BasePort2;
@@ -333,6 +341,9 @@ void ide_config(dev_link_t *link)
 
     /* disable drive interrupts during IDE probe */
     outb(0x02, ctl_base);
+
+    /* special setup for KXLC005 card */
+    if (is_kme) outb(0x81, ctl_base+1);
 
     /* retry registration in case device is still spinning up */
     for (hd = -1, i = 0; i < 10; i++) {
@@ -375,6 +386,7 @@ cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
     ide_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
 
 } /* ide_config */
 
@@ -395,6 +407,12 @@ void ide_release(u_long arg)
 
     if (info->ndev) {
 	ide_unregister(info->hd);
+	/* deal with brain dead IDE resource management */
+	request_region(link->io.BasePort1, link->io.NumPorts1,
+		       info->node.dev_name);
+	if (link->io.NumPorts2)
+	    request_region(link->io.BasePort2, link->io.NumPorts2,
+			   info->node.dev_name);
 	MOD_DEC_USE_COUNT;
     }
     info->ndev = 0;

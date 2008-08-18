@@ -1,3 +1,32 @@
+[09-Jun-02] Version 3.1.34
+-- Minor Configure script updates.
+-- Improved config file error reporting for cardmgr.
+-- Some documentation updates; more are needed.
+-- Added support for KME KXLC005 CD-ROM adapter card.
+-- Added 'buggy_uart' module parameter to serial_cs driver.
+-- Updated orinoco_cs driver to version 0.11b.
+-- Added support for TDK GlobalNetworker 3410/3412 cards, from Komuro.
+-- Removed unhelpful version checking in cardmgr, cardinfo.
+-- Fixed AccessConfigurationRegister to not panic if no card is
+   present, from Pavel Roskin.
+-- Fixes for test_network, test_setup scripts.
+-- Fixed error in CardBus bridge enumeration in ti113x.h.
+-- Fixed PCMCIA startup script to favor modprobe; solves problems with
+   recent Mandrake releases that have compressed kernel modules.
+-- Fixed bug with premature file cleanup in cardmgr when using "-f"
+   (delayed fork) option.
+-- Fixed 3c575_cb duplex autonegotiation bug.
+-- Fixed misplaced spinlock initialization in 3c575_cb, from Piotr
+   Kasprzyk.
+-- Fixed CardBus shutdown problem with i82365 module affecting ToPIC
+   bridges, from Piotr Kasprzyk.
+-- Fixed broken client module builds on RH7.2 with kernel PCMCIA on.
+-- Fixed serial_cs driver to handle Oxford Semiconductor OXCF950 based
+   Bluetooth cards, from Fabrizio Gennari.
+-- Fixed ioaddr_t to be u_int on arm platform, from Pavel Roskin
+-- Fixed rc.pcmcia to allow more time for cardmgr to shut down, from 
+   Philippe Troin.
+
 [03-Mar-02] Version 3.1.33
 -- Fixed dumb, serious bug in o2micro.h that broke i82365 module.
 

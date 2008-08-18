@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.347 2002/02/26 04:50:28
+    i82365.c 1.350 2002/05/12 18:19:38
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -141,7 +141,7 @@ INT_MODULE_PARM(pci_int, 1);		/* PCI IO card irqs? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.347 2002/02/26 04:50:28 (David Hinds)";
+"i82365.c 1.350 2002/05/12 18:19:38 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -870,7 +870,6 @@ static void topic_set_state(socket_info_t *s)
 {
     topic_state_t *p = &s->state.topic;
     u_int state;
-    pci_writeb(s, TOPIC_SLOT_CONTROL, p->slot);
     pci_writeb(s, TOPIC_SLOT_CONTROL, p->slot);
     pci_writeb(s, TOPIC_CARD_CONTROL, p->ccr);
     pci_writeb(s, TOPIC_CARD_DETECT, p->cdr);
@@ -2261,8 +2260,8 @@ static int cb_set_bridge(socket_info_t *s, struct cb_bridge_map *m)
 	pci_writel(s, CB_MEM_BASE(map), m->start);
 	pci_writel(s, CB_MEM_LIMIT(map), m->stop);
     } else {
-	pci_writel(s, CB_MEM_BASE(map), 0);
 	pci_writel(s, CB_MEM_LIMIT(map), 0);
+	pci_writel(s, CB_MEM_BASE(map), 0);
     }
     return 0;
 }
@@ -2463,6 +2462,12 @@ static int __init init_i82365(void)
 	return -EINVAL;
     }
     DEBUG(0, "%s\n", version);
+
+    if (pcic[IS_UNK_CARDBUS].flags != (IS_CARDBUS|IS_UNKNOWN)) {
+	printk(KERN_NOTICE "i82365: bad pcic_id enumeration!\n");
+	return -EINVAL;
+    }
+
     printk(KERN_INFO "Intel ISA/PCI/CardBus PCIC probe:\n");
     sockets = 0;
 

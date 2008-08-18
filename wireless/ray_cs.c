@@ -319,7 +319,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.31 2002/02/17 23:30:12 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.32 2002/05/07 05:13:36 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -621,18 +621,19 @@ static void ray_config(dev_link_t *link)
     local->card_status = CARD_AWAITING_PARAM;
     clear_interrupt(local); /* Clear any interrupt from the card */
 
-    link->state &= ~DEV_CONFIG_PENDING;
     printk(KERN_INFO "%s: RayLink, irq %d, hw_addr ",
        dev->name, dev->irq);
     for (i = 0; i < 6; i++)
     printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
 
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
 
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 config_failed:
     ray_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
 } /* ray_config */
 /*===========================================================================*/
 static int ray_init(struct net_device *dev)

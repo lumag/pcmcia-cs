@@ -2,7 +2,7 @@
 
     Utility to look up information about SCSI devices
 
-    scsi_info.c 1.17 2001/08/24 12:19:20
+    scsi_info.c 1.18 2002/05/22 05:04:19
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,11 +39,6 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <dirent.h>
-
-#include <linux/version.h>
-#include <linux/config.h>
-
-#include <linux/major.h>
 #include <scsi/scsi.h>
 
 /*====================================================================*/

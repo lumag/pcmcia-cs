@@ -3011,8 +3011,6 @@ next_entry:
 		printk(", mem 0x%06lx-0x%06lx", req.Base, req.Base+req.Size-1);
 	printk("\n");
 
-	link->state &= ~DEV_CONFIG_PENDING;
-
 	// Make netdevice's name (if not ethX) and remember the device
 	// Not very efficient here, this should go somewhere into dev_list,
 	// but it works for now (taken from register_netdevice in kernel)
@@ -3034,6 +3032,7 @@ next_entry:
 	{
 		printk(KERN_WARNING "%s: register_netdev() failed!\n", dev_info);
 		wvlan_release((u_long)link);
+		link->state &= ~DEV_CONFIG_PENDING;
 		return 0;
 	}
 	printk(KERN_INFO "%s: Registered netdevice %s\n", dev_info, dev->name);
@@ -3043,12 +3042,14 @@ next_entry:
 
 	// Success!
 	DEBUG(DEBUG_CALLTRACE, "<- wvlan_config()\n");
+	link->state &= ~DEV_CONFIG_PENDING;
 	return 1;
 
 cs_failed:
 	cs_error(link->handle, last_fn, last_ret);
 	wvlan_release((u_long)link);
 	DEBUG(DEBUG_CALLTRACE, "<- wvlan_config()\n");
+	link->state &= ~DEV_CONFIG_PENDING;
 	return 0;
 }
 

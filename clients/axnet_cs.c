@@ -11,7 +11,7 @@
 
     Copyright (C) 2001 David A. Hinds -- dahinds@users.sourceforge.net
 
-    axnet_cs.c 1.26 2002/02/17 23:30:21
+    axnet_cs.c 1.27 2002/05/04 05:51:12
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -86,7 +86,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"axnet_cs.c 1.26 2002/02/17 23:30:21 (David Hinds)";
+"axnet_cs.c 1.27 2002/05/04 05:51:12 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -484,7 +484,6 @@ static void axnet_config(dev_link_t *link)
 
     copy_dev_name(info->node, dev);
     link->dev = &info->node;
-    link->state &= ~DEV_CONFIG_PENDING;
 
     if (inb(dev->base_addr + AXNET_TEST) != 0)
 	info->flags |= IS_AX88790;
@@ -524,12 +523,14 @@ static void axnet_config(dev_link_t *link)
 	printk(KERN_NOTICE "  No MII transceivers found!\n");
     }
 
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
 
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
     axnet_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
 } /* axnet_config */
 
@@ -588,7 +589,7 @@ static int axnet_event(event_t event, int priority,
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	axnet_config(link);
 	break;
     case CS_EVENT_PM_SUSPEND:

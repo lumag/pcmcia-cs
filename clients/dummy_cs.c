@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.33 2002/02/17 23:30:21
+    dummy_cs.c 1.34 2002/05/04 05:49:12
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -90,7 +90,7 @@ INT_MODULE_PARM(irq_mask, 0xdeb8);
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"dummy_cs.c 1.33 2002/02/17 23:30:21 (David Hinds)";
+"dummy_cs.c 1.34 2002/05/04 05:49:12 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -529,6 +529,7 @@ static void dummy_config(dev_link_t *link)
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
     dummy_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
 
 } /* dummy_config */
 

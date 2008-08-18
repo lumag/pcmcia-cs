@@ -1,14 +1,13 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" cardmgr.8 1.40 2001/07/19 23:41:34
+.\" cardmgr.8 1.41 2002/05/25 05:19:16
 .\"
-.TH CARDMGR 8 "2001/07/19 23:41:34" "pcmcia-cs"
+.TH CARDMGR 8 "2002/05/25 05:19:16" "pcmcia-cs"
 .SH NAME
 cardmgr \- PCMCIA device manager
 .SH SYNOPSIS
 .B cardmgr
 .RB [ -V ]
 .RB [ -q ]
-.RB [ -d ]
 .RB [ -o ]
 .RB [ -f ]
 .RB [ -v ]
@@ -60,12 +59,6 @@ Quiet mode: don't beep when cards are inserted.
 .B \-v
 Verbose mode: generates more informational messages during normal
 operation.  Configuration scripts are executed with VERBOSE=y.
-.TP
-.B \-d
-Follow module dependencies when loading driver modules, by defaulting
-to use \fBmodprobe\fR instead of \fBinsmod\fR.  Normally,
-\fBcardmgr\fR will try using \fBmodprobe\fR only after an unsuccessful
-attempt with \fBinsmod\fR. 
 .TP
 .B \-f
 Foreground: do not fork and run as a daemon until after configuring

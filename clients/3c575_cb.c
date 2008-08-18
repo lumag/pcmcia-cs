@@ -674,7 +674,7 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 
 	dev = init_etherdev(dev, 0);
 
-	printk(KERN_INFO "%s: 3Com %s at 0x%lx, ",
+	printk(KERN_INFO "%s: 3Com %s at 0x%lx,",
 		   dev->name, pci_tbl[chip_idx].name, ioaddr);
 
 	/* Make certain elements e.g. descriptor lists are aligned. */
@@ -691,6 +691,7 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 
 	dev->priv = vp = (void *)(((long)priv_mem + PRIV_ALIGN) & ~PRIV_ALIGN);
 	memset(vp, 0, sizeof(*vp));
+	vp->lock = SPIN_LOCK_UNLOCKED;
 	vp->priv_addr = priv_mem;
 
 	vp->next_module = root_vortex_dev;
@@ -758,9 +759,9 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 		outb(dev->dev_addr[i], ioaddr + i);
 
 #ifdef __sparc__
-	printk(", IRQ %s\n", __irq_itoa(dev->irq));
+	printk(", irq %s\n", __irq_itoa(dev->irq));
 #else
-	printk(", IRQ %d\n", dev->irq);
+	printk(", irq %d\n", dev->irq);
 	/* Tell them about an invalid IRQ. */
 	if (vortex_debug && (dev->irq <= 0))
 		printk(KERN_WARNING " *** Warning: IRQ %d is unlikely to work! ***\n",
@@ -780,8 +781,9 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 								  &fn_st_addr);
 		if (fn_st_addr)
 			vp->cb_fn_base = ioremap(fn_st_addr & ~3, 128);
-		printk(KERN_INFO "%s: CardBus functions mapped %8.8x->%p.\n",
-			   dev->name, fn_st_addr, vp->cb_fn_base);
+		if (vortex_debug > 1)
+			printk(KERN_DEBUG "%s: CardBus functions mapped %8.8x->%p.\n",
+				   dev->name, fn_st_addr, vp->cb_fn_base);
 	}
 
 	/* Extract our information from the EEPROM data. */
@@ -835,8 +837,9 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 			mii_status = mdio_read(ioaddr, phyx, 1);
 			if (mii_status  &&  mii_status != 0xffff) {
 				vp->phys[phy_idx++] = phyx;
-				printk(KERN_INFO "  MII transceiver found at address %d,"
-					   " status %4x.\n", phyx, mii_status);
+				if (vortex_debug > 1)
+					printk(KERN_DEBUG "  MII transceiver found at address %d,"
+						   " status %4x.\n", phyx, mii_status);
 				if ((mii_status & 0x0040) == 0)
 					mii_preamble_required++;
 			}
@@ -860,8 +863,9 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 
 	if (vp->capabilities & CapBusMaster) {
 		vp->full_bus_master_tx = 1;
-		printk(KERN_INFO"  Enabling bus-master transmits and %s receives.\n",
-			   (vp->info2 & 1) ? "early" : "whole-frame" );
+		if (vortex_debug > 1)
+			printk(KERN_DEBUG "  Enabling bus-master transmits and %s "
+				   "receives.\n", (vp->info2 & 1) ? "early" : "whole-frame" );
 		vp->full_bus_master_rx = (vp->info2 & 1) ? 1 : 2;
 	}
 
@@ -905,7 +909,6 @@ vortex_up(struct net_device *dev)
 
 	acpi_wake(vp->pci_bus, vp->pci_devfn);
 
-	vp->lock = SPIN_LOCK_UNLOCKED;
 	activate_xcvr(dev);
 
 	/* Before initializing select the active media port. */
@@ -1039,11 +1042,14 @@ static void set_media_type(struct net_device *dev)
 		/* Read BMSR (reg1) only to clear old status. */
 		mii_reg1 = mdio_read(ioaddr, vp->phys[0], 1);
 		mii_reg5 = mdio_read(ioaddr, vp->phys[0], 5);
-		if (mii_reg5 == 0xffff  ||  mii_reg5 == 0x0000)
+		if (mii_reg5 == 0xffff  ||  mii_reg5 == 0x0000) {
 			;					/* No MII device or no link partner report */
-		else if ((mii_reg5 & 0x0100) != 0	/* 100baseTx-FD */
-				 || (mii_reg5 & 0x00C0) == 0x0040) /* 10T-FD, but not 100-HD */
-			vp->full_duplex = 1;
+		} else {
+			mii_reg5 &= vp->advertising;
+			if ((mii_reg5 & 0x0100) ||	/* 100baseTx-FD */
+				(mii_reg5 & 0x00C0) == 0x0040) /* 10T-FD, but not 100-HD */
+				vp->full_duplex = 1;
+		}
 		if (vortex_debug > 1)
 			printk(KERN_INFO "%s: MII #%d status %4.4x, link partner capability %4.4x,"
 				   " setting %s-duplex.\n", dev->name, vp->phys[0],
@@ -1210,7 +1216,9 @@ static void vortex_timer(unsigned long data)
 		if (mii_status & 0x0004) {
 			int mii_reg5 = mdio_read(ioaddr, vp->phys[0], 5);
 			if (! vp->medialock  &&  mii_reg5 != 0xffff) {
-				int duplex = (mii_reg5&0x0100) ||
+				int duplex;
+				mii_reg5 &= vp->advertising;
+				duplex = (mii_reg5&0x0100) ||
 					(mii_reg5 & 0x01C0) == 0x0040;
 				if (vp->full_duplex != duplex) {
 					vp->full_duplex = duplex;

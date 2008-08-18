@@ -4,7 +4,8 @@
 # if that isn't desired.
 
 is_true $PUMP || is_true $BOOTP || is_true $DHCP || \
-if [ ! "$IPADDR" -a -f /etc/network/interfaces ] ; then
+[ -x /proc/sys/kernel/hotplug ] || \
+if [ -z "$IPADDR" -a -f /etc/network/interfaces ] ; then
     INFO="Debian network setup"
     start_fn () {
 	log /sbin/ifup $1

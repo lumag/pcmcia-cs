@@ -2,7 +2,7 @@
 
     Utility to look up information about IDE devices
 
-    ide_info.c 1.13 2001/08/24 12:19:19
+    ide_info.c 1.14 2002/05/22 05:04:19
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -41,7 +41,7 @@
 #include <sys/ioctl.h>
 #include <dirent.h>
 
-#include <linux/major.h>
+#include <linux/types.h>
 #include <linux/hdreg.h>
 
 #if (__BYTE_ORDER == _BIG_ENDIAN)

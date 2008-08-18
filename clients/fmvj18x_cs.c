@@ -1,5 +1,5 @@
 /*======================================================================
-    fmvj18x_cs.c 2.7 2001/11/24
+    fmvj18x_cs.c 2.8 2002/03/23
 
     A fmvj18x (and its compatibles) PCMCIA client driver
 
@@ -76,7 +76,7 @@ INT_MODULE_PARM(sram_config, 0);
 #ifdef PCMCIA_DEBUG
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version = "fmvj18x_cs.c 2.7 2001/11/24";
+static char *version = "fmvj18x_cs.c 2.8 2002/03/23";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -87,6 +87,7 @@ static char *version = "fmvj18x_cs.c 2.7 2001/11/24";
  */
 static void fmvj18x_config(dev_link_t *link);
 static int fmvj18x_get_hwinfo(dev_link_t *link, u_char *node_id);
+static int fmvj18x_setup_mfc(dev_link_t *link);
 static void fmvj18x_release(u_long arg);
 static int fmvj18x_event(event_t event, int priority,
 			  event_callback_args_t *args);
@@ -107,6 +108,9 @@ static struct net_device_stats *fjn_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static void fjn_tx_timeout(struct net_device *dev);
 
+static int mfc_try_io_port(dev_link_t *link);
+static int ungermann_try_io_port(dev_link_t *link);
+
 static dev_info_t dev_info = "fmvj18x_cs";
 static dev_link_t *dev_list = NULL;
 
@@ -118,6 +122,8 @@ typedef enum { MBH10302, MBH10304, TDK, CONTEC, LA501, UNGERMANN,
 } cardtype_t;
 
 #define MANFID_UNGERMANN 0x02c0
+
+#define PRODID_TDK_GN3410    0x4815 /* TDK Global Networker 3410 */
 
 /*
     driver specific data structure
@@ -383,6 +389,45 @@ static void fmvj18x_detach(dev_link_t *link)
 #define CS_CHECK(fn, args...) \
 while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 
+static int mfc_try_io_port(dev_link_t *link)
+{
+    int i, ret;
+    static ioaddr_t serial_base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
+
+    for (i = 0; i < 5; i++) {
+	link->io.BasePort2 = serial_base[i];
+	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
+	if (link->io.BasePort2 == 0) {
+	    link->io.NumPorts2 = 0;
+	    printk(KERN_NOTICE "fmvj18x_cs: out of resource for serial\n");
+	}
+	ret = CardServices(RequestIO, link->handle, &link->io);
+	if (ret == CS_SUCCESS) return ret;
+    }
+    return ret;
+}
+
+static int ungermann_try_io_port(dev_link_t *link)
+{
+    int ret;
+    ioaddr_t ioaddr;
+    /*
+	Ungermann-Bass Access/CARD accepts 0x300,0x320,0x340,0x360
+	0x380,0x3c0 only for ioport.
+    */
+    for (ioaddr = 0x300; ioaddr < 0x3e0; ioaddr += 0x20) {
+	link->io.BasePort1 = ioaddr;
+	ret = CardServices(RequestIO, link->handle, &link->io);
+	if (ret == CS_SUCCESS) {
+	    /* calculate ConfigIndex value */
+	    link->conf.ConfigIndex = 
+		((link->io.BasePort1 & 0x0f0) >> 3) | 0x22;
+	    return ret;
+	}
+    }
+    return ret;	/* RequestIO failed */
+}
+
 static void fmvj18x_config(dev_link_t *link)
 {
     client_handle_t handle = link->handle;
@@ -396,7 +441,7 @@ static void fmvj18x_config(dev_link_t *link)
     cardtype_t cardtype;
     char *card_name = "unknown";
     u_char *node_id;
-    
+
     DEBUG(0, "fmvj18x_config(0x%p)\n", link);
 
     /*
@@ -416,6 +461,8 @@ static void fmvj18x_config(dev_link_t *link)
 
     link->conf.ConfigBase = parse.config.base; 
     link->conf.Present = parse.config.rmask[0];
+    link->io.BasePort2 = 0;
+    link->io.NumPorts2 = 0;
 
     tuple.DesiredTuple = CISTPL_FUNCE;
     tuple.TupleOffset = 0;
@@ -439,6 +486,11 @@ static void fmvj18x_config(dev_link_t *link)
 		CardServices(GetStatus, handle, &status);
 		if (status.CardState & CS_EVENT_3VCARD)
 		    link->conf.Vcc = 33; /* inserted in 3.3V slot */
+	    } else if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410) {
+		/* MultiFunction Card */
+		link->conf.ConfigBase = 0x800; 
+		link->conf.ConfigIndex = 0x47;
+		link->io.NumPorts2 = 8;
 	    }
 	    break;
 	case MANFID_CONTEC:
@@ -476,31 +528,22 @@ static void fmvj18x_config(dev_link_t *link)
 	    break;
 	case MANFID_UNGERMANN:
 	    cardtype = UNGERMANN;
-	    /*
-	       Ungermann-Bass Access/CARD accepts 0x300,0x320,0x340,0x360
-	       0x380,0x3c0 only for ioport.
-	    */
-	    for (link->io.BasePort1 = 0x300; link->io.BasePort1 < 0x3e0;
-		link->io.BasePort1 += 0x20) {
-		ret = CardServices(RequestIO, link->handle, &link->io);
-		if (ret == CS_SUCCESS) {
-		/* calculate ConfigIndex value */
-		link->conf.ConfigIndex = 
-		    ((link->io.BasePort1 & 0x0f0) >> 3) | 0x22;
-		goto req_irq;
-		}
-	    }
-	    /* if ioport allocation is failed, goto failed */
-	    printk(KERN_NOTICE "fmvj18x_cs: register_netdev() failed\n");
-	    goto failed;
+	    break;
 	default:
 	    cardtype = MBH10302;
 	    link->conf.ConfigIndex = 1;
 	}
     }
 
-    CS_CHECK(RequestIO, link->handle, &link->io);
-req_irq:
+    if (link->io.NumPorts2 != 0) {
+	ret = mfc_try_io_port(link);
+	if (ret != CS_SUCCESS) goto cs_failed;
+    } else if (cardtype == UNGERMANN) {
+	ret = ungermann_try_io_port(link);
+	if (ret != CS_SUCCESS) goto cs_failed;
+    } else { 
+	CS_CHECK(RequestIO, link->handle, &link->io);
+    }
     CS_CHECK(RequestIRQ, link->handle, &link->irq);
     CS_CHECK(RequestConfiguration, link->handle, &link->conf);
     dev->irq = link->irq.AssignedIRQ;
@@ -509,6 +552,9 @@ req_irq:
 	printk(KERN_NOTICE "fmvj18x_cs: register_netdev() failed\n");
 	goto failed;
     }
+
+    if (link->io.BasePort2 != 0)
+	fmvj18x_setup_mfc(link);
 
     ioaddr = dev->base_addr;
 
@@ -519,10 +565,10 @@ req_irq:
 	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
 
     /* Power On chip and select bank 0 */
-    if(cardtype == UNGERMANN)
-	outb(BANK_0U, ioaddr + CONFIG_1);
-    else
+    if(cardtype == MBH10302)
 	outb(BANK_0, ioaddr + CONFIG_1);
+    else
+	outb(BANK_0U, ioaddr + CONFIG_1);
     
     /* Set hardware address */
     switch (cardtype) {
@@ -587,7 +633,6 @@ req_irq:
 
     copy_dev_name(lp->node, dev);
     link->dev = &lp->node;
-    link->state &= ~DEV_CONFIG_PENDING;
 
     lp->cardtype = cardtype;
     /* print current configuration */
@@ -597,6 +642,7 @@ req_irq:
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
 
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
     
 cs_failed:
@@ -604,6 +650,7 @@ cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
     fmvj18x_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
 
 } /* fmvj18x_config */
 /*====================================================================*/
@@ -660,6 +707,51 @@ static int fmvj18x_get_hwinfo(dev_link_t *link, u_char *node_id)
     return (i != 0x200) ? 0 : -1;
 
 } /* fmvj18x_get_hwinfo */
+/*====================================================================*/
+
+static int fmvj18x_setup_mfc(dev_link_t *link)
+{
+    win_req_t req;
+    memreq_t mem;
+    u_char *base;
+    int i, j;
+    local_info_t *lp = link->priv;
+    struct net_device *dev = &lp->dev;
+    ioaddr_t ioaddr;
+
+    /* Allocate a small memory window */
+    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    req.Base = 0; req.Size = 0;
+    req.AccessSpeed = 0;
+    link->win = (window_handle_t)link->handle;
+    i = CardServices(RequestWindow, &link->win, &req);
+    if (i != CS_SUCCESS) {
+	cs_error(link->handle, RequestWindow, i);
+	return -1;
+    }
+
+    base = ioremap(req.Base, req.Size);
+    mem.Page = 0;
+    mem.CardOffset = 0;
+    CardServices(MapMemPage, link->win, &mem);
+
+    ioaddr = dev->base_addr;
+    writeb(0x47, base+0x800);	/* Config Option Register of LAN */
+    writeb(0x0, base+0x802);	/* Config and Status Register */
+
+    writeb(ioaddr & 0xff, base+0x80a);		/* I/O Base(Low) of LAN */
+    writeb((ioaddr >> 8) & 0xff, base+0x80c);	/* I/O Base(High) of LAN */
+   
+    writeb(0x45, base+0x820);	/* Config Option Register of Modem */
+    writeb(0x8, base+0x822);	/* Config and Status Register */
+
+    iounmap(base);
+    j = CardServices(ReleaseWindow, link->win);
+    if (j != CS_SUCCESS)
+	cs_error(link->handle, ReleaseWindow, j);
+    return 0;
+
+}
 /*====================================================================*/
 
 static void fmvj18x_release(u_long arg)
@@ -939,10 +1031,10 @@ static void fjn_reset(struct net_device *dev)
 	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
 
     /* Power On chip and select bank 0 */
-    if( lp->cardtype == UNGERMANN)
-	outb(BANK_0U, ioaddr + CONFIG_1);
-    else
+    if( lp->cardtype == MBH10302)
 	outb(BANK_0, ioaddr + CONFIG_1);
+    else
+	outb(BANK_0U, ioaddr + CONFIG_1);
 
     /* Set Tx modes */
     outb(D_TX_MODE, ioaddr + TX_MODE);
@@ -954,20 +1046,20 @@ static void fjn_reset(struct net_device *dev)
         outb(dev->dev_addr[i], ioaddr + NODE_ID + i);
 
     /* Switch to bank 1 */
-    if ( lp->cardtype == UNGERMANN )
-	outb(BANK_1U, ioaddr + CONFIG_1);
-    else
+    if ( lp->cardtype == MBH10302 )
 	outb(BANK_1, ioaddr + CONFIG_1);
+    else
+	outb(BANK_1U, ioaddr + CONFIG_1);
 
     /* set the multicast table to accept none. */
     for (i = 0; i < 6; i++) 
         outb(0x00, ioaddr + MAR_ADR + i);
 
     /* Switch to bank 2 (runtime mode) */
-    if ( lp->cardtype == UNGERMANN )
-	outb(BANK_2U, ioaddr + CONFIG_1);
-    else
+    if ( lp->cardtype == MBH10302 )
 	outb(BANK_2, ioaddr + CONFIG_1);
+    else
+	outb(BANK_2U, ioaddr + CONFIG_1);
 
     /* set 16col ctrl bits */
     if( lp->cardtype == TDK || lp->cardtype == CONTEC) 

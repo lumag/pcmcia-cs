@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.29 2001/08/24 12:15:34
+ * ti113x.h 1.31 2002/05/12 18:19:47
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -202,9 +202,10 @@ typedef struct ti113x_state_t {
 } ti113x_state_t;
 
 #define TI_PCIC_ID \
-    IS_TI1130, IS_TI1131, IS_TI1250A, IS_TI1220, IS_TI1221,	\
-    IS_TI1210, IS_TI1251A, IS_TI1251B, IS_TI1450, IS_TI1225,	\
-    IS_TI1211, IS_TI1420, IS_TI1031, IS_TI1410, IS_TI4450, IS_TI4451
+    IS_TI1130, IS_TI1131, IS_TI1031, IS_TI1210, IS_TI1211,	\
+    IS_TI1220, IS_TI1221, IS_TI1225, IS_TI1250A, IS_TI1251A,	\
+    IS_TI1251B, IS_TI1410, IS_TI1420, IS_TI1450, IS_TI1451,	\
+    IS_TI4410, IS_TI4450, IS_TI4451
 
 #define TI_PCIC_INFO \
     { "TI 1130",  IS_TI|IS_CARDBUS, ID(TI, 1130) }, \

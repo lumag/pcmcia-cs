@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_config.l 1.40 2001/08/24 12:21:25
+ * lex_config.l 1.41 2002/05/16 05:51:04
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -62,7 +62,7 @@ str	\"([^"]|\\.)*\"
 
 %%
 
-source		BEGIN(src);
+source		BEGIN(src); return SOURCE;
 <src>[ \t]*	/* skip */ ;
 <src>[^ \t\n]+	do_source(yytext); BEGIN(INITIAL);
 <<EOF>>		if (do_eof()) yyterminate();

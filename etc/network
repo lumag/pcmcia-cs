@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.84 2001/12/01 01:17:50 (David Hinds)
+# network 1.85 2002/05/12 18:07:31 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -42,7 +42,6 @@ else
 fi
 INFO=$O_INFO
 
-match () { case $1 in $2) return 0; ;; *) return 1; ;; esac ; }
 bootp_setup ()
 {
     if match `uname -r` "2.[2-9].*" ; then

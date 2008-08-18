@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.204 2002/02/23 03:54:40
+# Configure 1.208 2002/05/26 17:36:37
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -232,7 +232,13 @@ echo "The default responses for each question are correct for most users."
 echo "Consult the PCMCIA-HOWTO for additional info about each option."
 echo ""
 
-ask_str "Linux source directory" LINUX
+ask_str "Linux kernel source directory" LINUX
+
+match () { case "$1" in $2) return 0; ;; *) return 1;; esac ; }
+if ! match "$LINUX" "/*" ; then
+    echo "$LINUX is not an absolute path!"
+    fail
+fi
 
 if [ ! -f $LINUX/kernel/Makefile ] ; then
     echo "Linux source tree '$LINUX' is incomplete or missing!"
@@ -368,17 +374,13 @@ else
 fi
 
 ask_str "Module install directory" MODDIR
-case "$MODDIR" in
-/lib/modules/*)
-    ;;
-[yY])
-    echo "Selected directory '$MODDIR' is bogus!"
-    fail
-    ;;
-*)
+if ! match "$MODDIR" "/lib/modules/*" ; then
+    if match "$MODDIR" "[yY]" ; then
+	echo "Selected directory '$MODDIR' is bogus!"
+	fail
+    fi
     echo "WARNING: '$MODDIR' is an unusual target.  Be careful!"
-    ;;
-esac
+fi
 
 echo ""
 
@@ -605,13 +607,7 @@ case $CONF_SRC in
 	echo "CHECK=\"$AUTOCONF\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < $AUTOCONF`\"" >> $CONFIG
 	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
-	if [ $VERSION_CODE -lt `version 2 3 37` ] ; then
-	    if grep "^CONFIG_PCMCIA=y" $AUTOCONF >/dev/null ; then
-		CONFIG_PCMCIA=y
-	    fi
-	else
-	    configcheck PCMCIA
-	fi
+	configcheck PCMCIA
 	if grep "^ *SMP *= *1" $LINUX/Makefile >/dev/null ; then
 	    CONFIG_SMP=y
 	else
@@ -684,12 +680,12 @@ if [ "$CONFIG_PCI" != "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
     fail
 fi
 
-#if [ $VERSION_CODE -ge `version 2 3 37` -a "$CONFIG_PCMCIA" != "y" ] ; then
-#    echo "2.3.37 and later kernels require that PCMCIA be configured in the"
-#    echo "    kernel source tree.  To fix, reconfigure and rebuild your"
-#    echo "    kernel with PCMCIA enabled."
-#    fail
-#fi
+if [ $VERSION_CODE -ge `version 2 5 0` -a "$CONFIG_PCMCIA" != "y" ] ; then
+    echo "2.5.0 and later kernels require that PCMCIA be configured in the"
+    echo "    kernel source tree.  To fix, reconfigure and rebuild your"
+    echo "    kernel with PCMCIA enabled."
+    fail
+fi
 
 if [ ! -r $LINUX/include/asm ] ; then
     cd $LINUX/include ; ln -s asm-$ARCH asm 2>/dev/null
@@ -917,7 +913,7 @@ echo ""
 HAS_FORMS=n
 if [ -r /usr/include/X11/Xlib.h -o \
      -r /usr/X11R6/include/X11/Xlib.h ] ; then
-    echo "X Windows include files found."
+    echo "X Window System include files found."
     for f in /usr/{X11/,X11R6/,local/,}lib/libforms.{so,a} ; do
 	if [ -r $f ] ; then break ; fi
     done
@@ -935,13 +931,13 @@ if [ -r /usr/include/X11/Xlib.h -o \
 	echo "Forms library not installed."
     fi
 else
-    echo "X Windows include files not installed."
+    echo "X Window System include files not installed."
 fi
 
 if [ "$HAS_FORMS" != "y" ] ; then
-    echo "    If you wish to build the 'cardinfo' control panel, you" \
-	 "need the Forms"
-    echo "    library and the X Windows include files.  See the HOWTO" \
+    echo "    If you wish to build the 'cardinfo' control panel, you need" \
+	 "the Forms"
+    echo "    library and the X Window System include files.  See the HOWTO" \
 	 "for details."
     HAS_FORMS=n
 fi
@@ -980,3 +976,9 @@ touch .prereq.ok
 echo ""
 echo "Configuration successful."
 echo ""
+
+if [ "$CONFIG_PCMCIA" = "y" ] ; then
+    echo "Your kernel is configured with PCMCIA driver support.  Therefore,"
+    echo "'make all' will compile the PCMCIA utilities but not the drivers."
+    echo ""
+fi

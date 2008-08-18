@@ -2,7 +2,7 @@
 
     X Windows PCMCIA device control program
 
-    cardinfo.c 1.37 2001/11/14 01:24:36
+    cardinfo.c 1.38 2002/04/10 02:12:33
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -433,7 +433,6 @@ static void do_update(FL_OBJECT *obj, long data)
 int main(int argc, char *argv[])
 {
     int i, ret, y, major;
-    servinfo_t serv;
     char name[12];
     FL_FORM *form;
     FL_OBJECT *obj;
@@ -467,14 +466,6 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
-    if (ioctl(st[0].fd, DS_GET_CARD_SERVICES_INFO, &serv) == 0) {
-	if (serv.Revision != CS_RELEASE_CODE)
-	    fprintf(stderr, "Card Services release does not match!\n");
-    } else {
-	fprintf(stderr, "could not get CS revision info!\n");
-	exit(EXIT_FAILURE);
-    }
-    
     /* Switch back to real user privileges, to be safe */
 #ifndef UNSAFE_TOOLS
     setuid(getuid());

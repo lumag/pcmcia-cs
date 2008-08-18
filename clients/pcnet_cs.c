@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.147 2002/03/02 21:37:36
+    pcnet_cs.c 1.148 2002/05/04 05:48:52
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -76,7 +76,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.147 2002/03/02 21:37:36 (David Hinds)";
+"pcnet_cs.c 1.148 2002/05/04 05:48:52 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -766,7 +766,6 @@ static void pcnet_config(dev_link_t *link)
 
     copy_dev_name(info->node, dev);
     link->dev = &info->node;
-    link->state &= ~DEV_CONFIG_PENDING;
 
     if (info->flags & (IS_DL10019|IS_DL10022)) {
 	u_char id = inb(dev->base_addr + 0x1a);
@@ -788,12 +787,14 @@ static void pcnet_config(dev_link_t *link)
     printk(" hw_addr ");
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
 
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
     pcnet_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
 } /* pcnet_config */
 
@@ -857,7 +858,7 @@ static int pcnet_event(event_t event, int priority,
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	pcnet_config(link);
 	break;
     case CS_EVENT_PM_SUSPEND:

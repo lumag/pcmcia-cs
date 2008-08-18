@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.130 2002/02/17 23:30:24
+    serial_cs.c 1.134 2002/05/04 05:48:53
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -72,14 +72,17 @@ INT_MODULE_PARM(irq_mask, 0xdeb8);
 static int irq_list[4] = { -1 };
 MODULE_PARM(irq_list, "1-4i");
 
-/* Enable the speaker? */
-INT_MODULE_PARM(do_sound, 1);
+INT_MODULE_PARM(do_sound, 1);		/* Enable the speaker? */
+
+#ifdef ASYNC_BUGGY_UART
+INT_MODULE_PARM(buggy_uart, 0);		/* Skip strict UART tests? */
+#endif
 
 #ifdef PCMCIA_DEBUG
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.130 2002/02/17 23:30:24 (David Hinds)";
+"serial_cs.c 1.134 2002/05/04 05:48:53 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -250,6 +253,10 @@ static int setup_serial(serial_info_t *info, ioaddr_t port, int irq)
     serial.port = port;
     serial.irq = irq;
     serial.flags = ASYNC_SKIP_TEST | ASYNC_SHARE_IRQ;
+#ifdef ASYNC_BUGGY_UART
+    if (buggy_uart)
+	serial.flags |= ASYNC_BUGGY_UART;
+#endif
     line = register_serial(&serial);
     if (line < 0) {
 	printk(KERN_NOTICE "serial_cs: register_serial() at 0x%04lx,"
@@ -461,6 +468,19 @@ static int multi_config(dev_link_t *link)
 	return -1;
     }
     
+    /* The Oxford Semiconductor OXCF950 cards are in fact single-port:
+       8 registers are for the UART, the others are extra registers */
+    if (info->manfid == MANFID_OXSEMI) {
+	if (cf->index == 1 || cf->index == 3) {
+	    setup_serial(info, base2, link->irq.AssignedIRQ);
+	    outb(12,link->io.BasePort1+1);
+	} else {
+	    setup_serial(info, link->io.BasePort1, link->irq.AssignedIRQ);
+	    outb(12,base2+1);
+	}
+	return 0;
+    }
+
     setup_serial(info, link->io.BasePort1, link->irq.AssignedIRQ);
     /* The Nokia cards are not really multiport cards */
     if (info->manfid == MANFID_NOKIA)
@@ -568,6 +588,7 @@ cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
     serial_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
 
 } /* serial_config */
 

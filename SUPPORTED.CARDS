@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2002/02/26 04:56:58
+		Last updated: 2002/05/25 05:09:42
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -83,6 +83,7 @@ Ethernet cards:
 	Digital EtherWORKS Turbo Ethernet
 	D-Link DE-650, DE-660, DE-660CT, DE-660+
 	DynaLink L10C, L10BC Ethernet
+	EagleTec ET-LE10BT, ET-LE10BT2
 	Edimax Technology Ethernet Combo
 	EFA InfoExpress 205, 207 Combo
 	Eiger Labs EPX-ET10T2 Combo
@@ -184,8 +185,10 @@ Fast Ethernet (10/100baseT) adapters:
 	AmbiCom AMB8110
 	Billionton LNA-100B
 	Buffalo LPC3-CLX, LPC4-TX
-	Edimax EP-4101
 	CNet CNF301
+	Corega FEther PCC-TXD
+	EagleTec ET-LE100BT2
+	Edimax EP-4101
 	FEP501 Fast Ethernet
 	KingMax Fast Ethernet
 	Linksys NP100 Network Everywhere v2
@@ -196,6 +199,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Repotec RP-1638
 	Surecom EP-427X
 	Topcom Xplorer 2700
+	W-Linx FE1500
 
 	[pcnet_cs driver] [x86,ppc,axp]
 	Abocom LinkMate FE1000, FE1500
@@ -205,7 +209,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Apollo Fast Ethernet
 	Ark Sky Link Express PA2600
 	COMPU-SHACK FASTline 10/100
-	Corega FastEther PCC-TX, FEther PCC-TXF, FEther PCC-TXD
+	Corega FastEther PCC-TX, FEther PCC-TXF
 	CyQ've ELA-110E 10/100
 	Digicom Palladio
 	D-Link DFE-650, DFE-670-TXD, DRP-16TX
@@ -340,6 +344,7 @@ Wireless network adapters:
 	Avaya World Card
 	Cabletron/Enterasys RoamAbout 802.11 DS
 	Compaq HNW-100
+	EagleTec ET-WL300NE-CC
 	ELSA AirLancer MC-11
 	Ericsson WLAN Card C11
 	HP F2136B
@@ -348,6 +353,7 @@ Wireless network adapters:
 	Lucent Orinoco WaveLAN/IEEE 802.11(b)
 	Melco WLI-PCM-L11, WLI-PCM-L11G
 	NCR WaveLAN/IEEE 802.11
+	Netgear MA401RA
 	PLANEX GeoWave/GW-CF110
 	Proxim Harmony 802.11b
 	Samsung 11Mbps WLAN
@@ -483,12 +489,15 @@ SCSI adapters:
 
 IEEE 1394 (FireWire) cards:
 
+	[ These only work for a limited range of 2.2 and 2.4 kernel
+	versions, due to kernel driver API drift.  With recent 2.4.*
+	kernels, use the hot plug PCI IEEE1394 drivers (and the kernel
+	PCMCIA support) instead. ]
+
 	[pcilynx_cb driver] [x86,ppc]
-	[requires kernel ieee1394 patches, experimental!]
 	Newer Technology FireWire 2 Go
 
 	[ohci1394_cb driver] [x86,ppc]
-	[requires kernel ieee1394 patches, experimental!]
 	Belkin F5U512
 	Cherri IEEE-1394
 	Evergreen Technologies fireLINE CardBus Kit
@@ -506,6 +515,9 @@ Multifunction ethernet/modem cards:
 	[3c574_cs driver] [x86,ppc]
 	3Com Megahertz 3CCFEM556B
 
+	[fmvj18x_cs driver] [x86,ppc]
+	TDK Global Networker 3410/3412
+
 	[pcnet_cs driver] [x86,axp]
 	Accton EN2218, UE2218
 	ActionTec ComNet 33.6
@@ -514,6 +526,7 @@ Multifunction ethernet/modem cards:
 	Billionton LM5LT-10B
 	Dayna Communicard
 	D-Link DME-336T, DMF-560TX, DMF-560TXD
+	Dynalink L1433 VQC 33.6K
 	Grey Cell GCS3400
 	GVC LAN modem
 	IBM Home and Away
@@ -614,6 +627,7 @@ ATA/IDE CD-ROM and DVD adapters:
 	Microtech International MicroCD
 	Microtech Mii Zip 100
 	NOVAC NV-CD410, DVD Powerstation
+	Panasonic KXL-807A
 	Sony PCGA-CD5, PCGA-CD51, CRX50A CD-ROM
 	Sony CRX75A			[ 16-bit mode only! ]
 	TEAC IDE Card/II

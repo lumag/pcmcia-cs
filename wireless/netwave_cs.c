@@ -921,7 +921,6 @@ static void netwave_pcmcia_config(dev_link_t *link) {
 
     copy_dev_name(priv->node, dev);
     link->dev = &priv->node;
-    link->state &= ~DEV_CONFIG_PENDING;
 
     /* Reset card before reading physical address */
     netwave_doreset(dev->base_addr, ramBase);
@@ -941,12 +940,14 @@ static void netwave_pcmcia_config(dev_link_t *link) {
     printk(KERN_DEBUG "Netwave_reset: revision %04x %04x\n", 
 	   get_uint16(ramBase + NETWAVE_EREG_ARW),
 	   get_uint16(ramBase + NETWAVE_EREG_ARW+2));
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
 
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
     netwave_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
 } /* netwave_pcmcia_config */
 
 /*

@@ -73,4 +73,19 @@
 #define copy_dev_name(node, dev) strcpy((node).dev_name, (dev)->name)
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,3))
+static inline struct net_device *alloc_etherdev(int sz)
+{
+    struct net_device *dev;
+    sz += sizeof(*dev) + 31;
+    if (!(dev = kmalloc(sz, GFP_KERNEL)))
+	return NULL;
+    memset(dev, 0, sz);
+    if (sz)
+	dev->priv = (void *)(((long)dev + sizeof(*dev) + 31) & ~31);
+    ether_setup(dev);
+    return dev;
+}
+#endif
+
 #endif /* _COMPAT_NETDEVICE_H */

@@ -1,5 +1,5 @@
 #
-# shared 1.28 2001/08/23 00:43:17 (David Hinds)
+# shared 1.30 2002/05/12 18:07:26 (David Hinds)
 #
 
 usage ()
@@ -21,6 +21,8 @@ do_fuser ()
 }
 
 do_eval () { eval $* ; }
+
+match () { case $1 in $2) return 0; ;; *) return 1; ;; esac ; }
 
 log ()
 {
@@ -145,7 +147,7 @@ grep_stab ()
     # this should be cheaper than invoking "grep"
     local CLASS DEV
     while read SOCKET CLASS DRIVER INSTANCE DEV MAJOR MINOR ; do
-	if [ "$1" = "$DEV" ] ; then return 0 ; fi
+	if [ "$SOCKET" != "Socket" -a "$1" = "$DEV" ] ; then return 0 ; fi
     done
     return 1
 }

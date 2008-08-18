@@ -1,5 +1,5 @@
 /*
- * cs_types.h 1.19 2001/08/24 12:16:12
+ * cs_types.h 1.20 2002/04/17 02:52:39
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -38,8 +38,13 @@
 #endif
 #endif
 
-typedef u_short	socket_t;
+#ifdef __arm__
+typedef u_int	ioaddr_t;
+#else
 typedef u_short	ioaddr_t;
+#endif
+
+typedef u_short	socket_t;
 typedef u_int	event_t;
 typedef u_char	cisdata_t;
 typedef u_short	page_t;

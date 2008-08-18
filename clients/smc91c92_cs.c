@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.115 2002/02/17 23:30:24
+    smc91c92_cs.c 1.117 2002/05/04 05:51:22
     
     This driver contains code written by Donald Becker
     (becker@scyld.com), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -998,13 +998,11 @@ static void smc91c92_config(dev_link_t *link)
     
     if (i != 0) {
 	printk(KERN_NOTICE "smc91c92_cs: Unable to find hardware address.\n");
-	link->state &= ~DEV_CONFIG_PENDING;
 	goto config_undo;
     }
 
     copy_dev_name(smc->node, dev);
     link->dev = &smc->node;
-    link->state &= ~DEV_CONFIG_PENDING;
     smc->duplex = 0;
     smc->rx_ovrn = 0;
 
@@ -1066,12 +1064,14 @@ static void smc91c92_config(dev_link_t *link)
 	SMC_SELECT_BANK(0);
     }
 
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
     
 config_undo:
     unregister_netdev(dev);
 config_failed:			/* CS_EXIT_TEST() calls jump to here... */
     smc91c92_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
     
 } /* smc91c92_config */
 
@@ -1137,7 +1137,7 @@ static int smc91c92_event(event_t event, int priority,
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	smc91c92_config(link);
 	break;
     case CS_EVENT_PM_SUSPEND:

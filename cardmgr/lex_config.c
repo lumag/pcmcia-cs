@@ -9,6 +9,7 @@
 #define YY_FLEX_MINOR_VERSION 5
 
 #include <stdio.h>
+#include <unistd.h>
 
 
 /* cfront 1.2 defines "c_plusplus" instead of "__cplusplus" */
@@ -22,7 +23,6 @@
 #ifdef __cplusplus
 
 #include <stdlib.h>
-#include <unistd.h>
 
 /* Use prototypes in function declarations. */
 #define YY_USE_PROTOS
@@ -517,7 +517,7 @@ char *yytext;
 
 #line 5 "lex_config.l"
 /*
- * lex_config.l 1.40 2001/08/24 12:21:25
+ * lex_config.l 1.41 2002/05/16 05:51:04
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -806,7 +806,7 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 YY_RULE_SETUP
 #line 65 "lex_config.l"
-BEGIN(src);
+BEGIN(src); return SOURCE;
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
@@ -1594,11 +1594,6 @@ YY_BUFFER_STATE b;
 	}
 
 
-#ifndef YY_ALWAYS_INTERACTIVE
-#ifndef YY_NEVER_INTERACTIVE
-extern int isatty YY_PROTO(( int ));
-#endif
-#endif
 
 #ifdef YY_USE_PROTOS
 void yy_init_buffer( YY_BUFFER_STATE b, FILE *file )

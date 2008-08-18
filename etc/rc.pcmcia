@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.39 2001/10/04 12:30:05 (David Hinds)
+# rc.pcmcia 1.41 2002/05/11 17:41:41 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -75,7 +75,7 @@ for x in "1" ; do
     case "$action" in
 
     start)
-	echo -n "Starting PCMCIA services:"
+	echo -n "Starting PCMCIA services: "
 	if [ -d /var/lib/pcmcia ] ; then
 	    SC=/var/lib/pcmcia/scheme
 	    RUN=/var/lib/pcmcia
@@ -94,53 +94,53 @@ for x in "1" ; do
 		PC=/lib/modules/`uname -r`/pcmcia
 	    fi
 	    KD=/lib/modules/`uname -r`/kernel/drivers/pcmcia
-	    if [ -d $PC ] ; then
-		echo -n " modules"
+	    if [ -x /sbin/modprobe ] ; then
+		/sbin/modprobe pcmcia_core $CORE_OPTS
+		if ! /sbin/modprobe $PCIC $PCIC_OPTS ; then
+		    /sbin/modprobe yenta_socket 2>/dev/null &&
+		    echo "using yenta_socket instead of $PCIC"
+		fi
+		/sbin/modprobe ds
+	    elif [ -d $PC ] ; then
 		/sbin/insmod $PC/pcmcia_core.o $CORE_OPTS
 		/sbin/insmod $PC/$PCIC.o $PCIC_OPTS
 		/sbin/insmod $PC/ds.o
-	    elif [ -d $KD ] ; then
-		/sbin/modprobe pcmcia_core
-		/sbin/modprobe $PCIC
-		/sbin/modprobe ds
 	    else
-		echo " module directory $PC not found."
+		echo "module directory $PC not found."
 		break
 	    fi
 	fi
 	if [ -s /var/run/cardmgr.pid ] && \
 	    kill -0 `cat /var/run/cardmgr.pid` 2>/dev/null ; then
-	    echo " cardmgr is already running."
+	    echo "cardmgr is already running."
 	else
 	    if [ -r $RUN/stab ] ; then
 		cat $RUN/stab | cleanup
 	    fi
-	    echo " cardmgr."
 	    /sbin/cardmgr $CARDMGR_OPTS
 	fi
+	echo "done."
 	touch /var/lock/subsys/pcmcia 2>/dev/null
 	;;
 
     stop)
-	echo -n "Shutting down PCMCIA services:"
+	echo -n "Shutting down PCMCIA services: "
 	if [ -s /var/run/cardmgr.pid ] ; then
 	    PID=`cat /var/run/cardmgr.pid`
 	    kill $PID
-	    echo -n " cardmgr"
 	    # Give cardmgr a few seconds to handle the signal
-	    kill -0 $PID 2>/dev/null && sleep 2 && \
-	    kill -0 $PID 2>/dev/null && sleep 2 && \
-	    kill -0 $PID 2>/dev/null && sleep 2 && \
-	    kill -0 $PID 2>/dev/null
+	    for N in 1 2 3 4 5 1 2 3 4 5 1 2 3 4 5 ; do
+		kill -0 $PID 2>/dev/null || break
+		sleep 2
+	    done
 	fi
 	killall -q "CardBus Watcher"
 	if grep -q "ds  " /proc/modules ; then
-	    echo -n " modules"
 	    /sbin/rmmod ds
 	    /sbin/rmmod $PCIC
 	    /sbin/rmmod pcmcia_core
 	fi
-	echo "."
+	echo "done."
 	rm -f /var/lock/subsys/pcmcia
 	EXITCODE=0
 	;;

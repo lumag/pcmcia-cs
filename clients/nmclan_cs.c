@@ -821,6 +821,7 @@ cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
     nmclan_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
 
 } /* nmclan_config */

@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.279 2001/10/13 00:08:28
+    cs.c 1.281 2002/06/09 20:48:10
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -135,7 +135,7 @@ INT_MODULE_PARM(do_pnp, 1);
 #ifdef PCMCIA_DEBUG
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 static const char *version =
-"cs.c 1.279 2001/10/13 00:08:28 (David Hinds)";
+"cs.c 1.281 2002/06/09 20:48:10 (David Hinds)";
 #endif
 
 /*====================================================================*/
@@ -826,6 +826,8 @@ static int access_configuration_register(client_handle_t handle,
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
     s = SOCKET(handle);
+    if (!(s->state & SOCKET_PRESENT))
+	return CS_NO_CARD;
     if (handle->Function == BIND_FN_ALL) {
 	if (reg->Function >= s->functions)
 	    return CS_BAD_ARGS;
@@ -1609,7 +1611,7 @@ static int request_configuration(client_handle_t handle,
 
     /* Do power control.  We don't allow changes in Vcc. */
     if (s->socket.Vcc != req->Vcc)
-	return CS_BAD_VCC;
+	printk(KERN_DEBUG "cs: ignoring requested Vcc\n");
     if (req->Vpp1 != req->Vpp2)
 	return CS_BAD_VPP;
     s->socket.Vpp = req->Vpp1;

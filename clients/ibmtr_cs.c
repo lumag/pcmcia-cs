@@ -414,7 +414,6 @@ static void ibmtr_config(dev_link_t *link)
     }
 
     link->dev = &info->node;
-    link->state &= ~DEV_CONFIG_PENDING;
 
     printk(KERN_INFO "%s: port %#3lx, irq %d,",
            dev->name, dev->base_addr, dev->irq);
@@ -424,12 +423,14 @@ static void ibmtr_config(dev_link_t *link)
     for (i = 0; i < TR_ALEN; i++)
         printk("%02X", dev->dev_addr[i]);
     printk("\n");
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
 
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
     ibmtr_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
 } /* ibmtr_config */
 
 /*======================================================================
@@ -503,7 +504,7 @@ static int ibmtr_event(event_t event, int priority,
         }
         break;
     case CS_EVENT_CARD_INSERTION:
-        link->state |= DEV_PRESENT;
+        link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	ibmtr_config(link);
 	break;
     case CS_EVENT_PM_SUSPEND:

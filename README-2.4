@@ -119,33 +119,24 @@ Answers to some common questions:
 
 Q: Are these two versions of PCMCIA both going to continue with active
    development?
-A: The way I see things now, the kernel PCMCIA subsystem will probably
-   be too unstable for widespread deployment, at least in the early
-   days of 2.4.  So the standalone package will probably be widely
-   used for some time yet.  However, the kernel PCMCIA subsystem
-   should eventually stabilize and be the focus of new development.
-   I expect that development for the standalone kernel modules will
-   shift away from adding functionality, towards mainly bug fixes.
+A: The kernel PCMCIA subsystem should be the focus for ongoing
+   development.  The standalone pcmcia-cs drivers are still being
+   maintained but the focus has shifted from adding functionality,
+   towards mainly bug fixes.
 
 Q: Which should I use / which is better?  The kernel PCMCIA, or the
    standalone PCMCIA?
-A: It really depends.  The client drivers should generally behave the
-   same.  Some of the internals of the kernel PCMCIA system are very
-   different and less mature than the standalone drivers.  Some legacy
-   hardware is currently only supported by the standalone drivers.  At
-   this point, I'd recommend using the kernel drivers if you have a
-   specific need or if you are interested in helping test and debug.
-   If you mainly just want something that works, then the standalone
-   subsystem is probably a better bet at the moment.
+A: It rarely matters.  The client drivers should generally behave the
+   same.  At this point, most current distributions use the kernel
+   PCMCIA subsystem, and I recommend sticking with that unless you
+   have a particular need that is only met by the standalone drivers.
 
 Q: What should I do as a driver developer?
-A: Again it really depends.  I will probably be really picky about
-   including significant new functionality in the standalone PCMCIA
-   package; I expect that the kernel PCMCIA package will stabilize and
-   take over perhaps in the 2.5 kernel timeframe.  It might make the
-   most sense to develop contributed drivers for the standalone
-   package first because it is a stable platform; and then port to
-   2.4.
+A: I will be really picky about including any significant new
+   functionality in the standalone PCMCIA package.  In some cases it
+   might still make sense to develop contributed drivers for the
+   standalone package first because it is a stable platform; and then
+   port to 2.4.
 
 Q: I'm using the kernel PCMCIA subsystem but want to use a driver that
    isn't included in the kernel yet.  Why can't I compile that driver
@@ -154,8 +145,8 @@ A: The Makefiles are set up to discourage this, mainly to prevent
    people from trying combinations that don't make sense.  Things in
    the "modules" directory of the standalone package will not work
    with the kernel PCMCIA subsystem.  However, you can build client
-   drivers by doing a "make" in either the "clients" or "wireless"
-   subdirectories.
+   drivers by doing a "make install" in either the "clients" or
+   "wireless" subdirectories.
 
 Q: Who is maintaining the kernel PCMCIA subsystem?
 A: I am not playing as central a role in maintaining the kernel

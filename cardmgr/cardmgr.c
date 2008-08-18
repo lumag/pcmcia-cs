@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.171 2002/02/17 18:47:07
+    cardmgr.c 1.174 2002/06/01 16:33:58
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -963,7 +963,9 @@ static void do_insert(int sn)
 	if (ret != 0) {
 	    syslog(LOG_INFO, "get dev info on socket %d failed: %m",
 		   sn);
-	    if (errno == EAGAIN)
+	    if ((errno == EAGAIN) &&
+		(strcmp(dev[i]->module[dev[i]->modules-1],
+			(char *)bind->dev_info) != 0))
 		syslog(LOG_INFO, "wrong module '%s' for device '%s'?",
 		       dev[i]->module[dev[i]->modules-1],
 		       (char *)bind->dev_info);
@@ -1263,7 +1265,6 @@ static void handle_signal(void)
 static int init_sockets(void)
 {
     int fd, i;
-    servinfo_t serv;
 
     major = lookup_dev("pcmcia");
     if (major < 0) {
@@ -1291,13 +1292,6 @@ static int init_sockets(void)
     } else
 	syslog(LOG_INFO, "watching %d sockets", sockets);
 
-    if (ioctl(socket[0].fd, DS_GET_CARD_SERVICES_INFO, &serv) == 0) {
-	if (serv.Revision != CS_RELEASE_CODE)
-	    syslog(LOG_INFO, "Card Services release does not match");
-    } else {
-	syslog(LOG_ERR, "could not get CS revision info!");
-	return -1;
-    }
     adjust_resources();
     return 0;
 }
@@ -1317,6 +1311,7 @@ int main(int argc, char *argv[])
     } else {
 	stabfile = "/var/run/stab";
     }
+    do_modprobe = (access("/sbin/modprobe", X_OK) == 0);
 
     errflg = 0;
     while ((optch = getopt(argc, argv, "Vqdvofc:m:p:s:")) != -1) {
@@ -1336,7 +1331,7 @@ int main(int argc, char *argv[])
 	case 'c':
 	    configpath = strdup(optarg); break;
 	case 'd':
-	    do_modprobe = 1; break;
+	    /* deprecated: do nothing */ break;
 	case 'm':
 	    modpath = strdup(optarg); break;
 	case 'p':
@@ -1348,7 +1343,7 @@ int main(int argc, char *argv[])
 	}
     }
     if (errflg || (optind < argc)) {
-	fprintf(stderr, "usage: %s [-V] [-q] [-v] [-d] [-o] [-f] "
+	fprintf(stderr, "usage: %s [-V] [-q] [-v] [-o] [-f] "
 		"[-c configpath] [-m modpath]\n               "
 		"[-p pidfile] [-s stabfile]\n", argv[0]);
 	exit(EXIT_FAILURE);
@@ -1390,7 +1385,7 @@ int main(int argc, char *argv[])
     if (!delay_fork && !one_pass)
 	fork_now();
     openlog("cardmgr", LOG_PID|LOG_CONS, LOG_DAEMON);
-    syslog(LOG_INFO, "starting, version is " CS_RELEASE);
+    syslog(LOG_INFO, "starting, version is " CS_PKG_RELEASE);
 
     /* If we've gotten this far, then clean up pid and stab at exit */
     atexit(&done);
@@ -1478,8 +1473,11 @@ int main(int argc, char *argv[])
 	if (one_pass)
 	    exit(EXIT_SUCCESS);
 	if (delay_fork) {
+	    atexit(NULL);
 	    fork_now();
+	    atexit(&done);
 	    write_pid();
+	    delay_fork = 0;
 	}
 	
     } /* repeat */

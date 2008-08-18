@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.84 2002/02/17 23:30:23
+    memory_cs.c 1.86 2002/05/09 15:40:48
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -100,7 +100,7 @@ INT_MODULE_PARM(force_size, 0);		/* force SRAM card size? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.84 2002/02/17 23:30:23 (David Hinds)";
+"memory_cs.c 1.86 2002/05/09 15:40:48 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -432,11 +432,11 @@ static void memory_config(dev_link_t *link)
     dev->node.major = major_dev;
     dev->node.minor = MINOR_NR(nd, 0, 0, 0);
     link->dev = &dev->node;
-    link->state &= ~DEV_CONFIG_PENDING;
 
 #ifdef CISTPL_FORMAT_MEM
     /* This is a hack, not a complete solution */
     {
+	cisinfo_t info;
 	tuple_t tuple;
 	cisparse_t parse;
 	u_char buf[64];
@@ -445,8 +445,10 @@ static void memory_config(dev_link_t *link)
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
 	tuple.DesiredTuple = CISTPL_FORMAT;
-	if (CardServices(GetFirstTuple, link->handle, &tuple)
-	    == CS_SUCCESS) {
+	if ((CardServices(ValidateCIS, &info) == CS_SUCCESS) &&
+	    (info.Chains > 0) &&
+	    (CardServices(GetFirstTuple, link->handle, &tuple)
+	     == CS_SUCCESS)) {
 	    CS_CHECK(GetTupleData, link->handle, &tuple);
 	    CS_CHECK(ParseTuple, link->handle, &tuple, &parse);
 	    dev->direct.offset = dev->minor[0].offset =
@@ -486,12 +488,13 @@ static void memory_config(dev_link_t *link)
 	}
     }
     printk("\n");
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
 
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
     memory_release((u_long)link);
-    return;
+    link->state &= ~DEV_CONFIG_PENDING;
 } /* memory_config */
 
 /*======================================================================

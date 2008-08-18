@@ -1,3 +1,7 @@
+#ifndef YYERRCODE
+#define YYERRCODE 256
+#endif
+
 #define DEVICE 257
 #define CARD 258
 #define ANONYMOUS 259
@@ -26,6 +30,7 @@
 #define MEMORY 282
 #define STRING 283
 #define NUMBER 284
+#define SOURCE 285
 typedef union {
     char *str;
     u_long num;

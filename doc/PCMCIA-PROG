@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dahinds@users.sourceforge.net.
-  v2.30, 29 May 2001
+  v2.31, 04 May 2002
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -188,11 +188,11 @@
   Driver Services modules, and the user interface to Driver Services.
   It is intended for use by client device driver developers.  The Linux
   PCMCIA-HOWTO describes how to install and use Linux PCMCIA support.
-  It is available from projects.sourceforge.net in /pub/pcmcia-cs.
+  It is available from  <http://pcmcia-cs.sourceforge.net>.
 
   11..11..  CCooppyyrriigghhtt nnoottiiccee aanndd ddiissccllaaiimmeerr
 
-  Copyright (c) 1996, 1997 David A. Hinds
+  Copyright (c) 1996-2002 David A. Hinds
 
   This document may be reproduced or distributed in any form without my
   prior permission.  Modified versions of this document, including

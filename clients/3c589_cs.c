@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    3c589_cs.c 1.163 2002/02/17 23:30:20
+    3c589_cs.c 1.164 2002/05/04 05:51:22
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -137,7 +137,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.163 2002/02/17 23:30:20 (David Hinds)";
+"3c589_cs.c 1.164 2002/05/04 05:51:22 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -413,7 +413,6 @@ static void tc589_config(dev_link_t *link)
 
     copy_dev_name(lp->node, dev);
     link->dev = &lp->node;
-    link->state &= ~DEV_CONFIG_PENDING;
     
     /* The address and resource configuration register aren't loaded from
        the EEPROM and *must* be set to 0 and IRQ3 for the PCMCIA version. */
@@ -434,12 +433,14 @@ static void tc589_config(dev_link_t *link)
     printk(KERN_INFO "  %dK FIFO split %s Rx:Tx, %s xcvr\n",
 	   (i & 7) ? 32 : 8, ram_split[(i >> 16) & 3],
 	   if_names[dev->if_port]);
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
 
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
 failed:
     tc589_release((u_long)link);
+    link->state &= ~DEV_CONFIG_PENDING;
     return;
     
 } /* tc589_config */

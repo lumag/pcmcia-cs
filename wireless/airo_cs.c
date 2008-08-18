@@ -533,6 +533,7 @@ static void airo_config(dev_link_t *link)
  cs_failed:
 	cs_error(link->handle, last_fn, last_ret);
 	airo_release((u_long)link);
+	link->state &= ~DEV_CONFIG_PENDING;
 	
 } /* airo_config */
 

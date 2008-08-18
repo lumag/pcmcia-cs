@@ -16,14 +16,15 @@ sub info
     return $info if ($info =~ /Card Services/);
 }
 
-print "Current kernel: ", `uname -rv`;
+print "\nCurrent kernel: ", `uname -rv`, "\n";
 $rel = `uname -r`;
 $rel =~ s/\s//g;
-$core = "/lib/modules/$rel/pcmcia/pcmcia_core.o";
+$core = `/sbin/modprobe -l pcmcia_core.o`;
+$core =~ s/\n.*//;
 if (-f $core) {
-    print "Module info from $core:\n", indent(info($core));
+    print "Using $core:\n", indent(info($core));
 } else {
-    print "$core not found.\n";
+    print "pcmcia_core.o not found.\n";
     print "  The PCMCIA modules are not installed for this kernel!\n"
 }
 
@@ -32,7 +33,7 @@ foreach $f ("/etc/sysconfig/pcmcia", "/etc/pcmcia.conf",
     $conf = $f if (-f $f);
 }
 if ($conf) {
-    print "\nStartup options from $conf:\n";
+    print "\nStartup options (from $conf):\n";
     if ($conf eq "/etc/rc.config") {
 	$opts = `grep PCMCIA $conf`;
     } elsif ($conf eq "/etc/rc.pcmcia") {
@@ -44,8 +45,7 @@ if ($conf) {
 }
 
 print "\nChecking current syslog files in /var/log:\n";
-foreach $f (split(/\s+/, `/bin/ls -lt \`find /var/log -type f\``)) {
-    next if (($f !~ /var/) || ($f =~ /\.\d+$/));
+foreach $f (split(/\s+/, `/bin/ls -t \`find /var/log -type f\``)) {
     next if (system("head $f | grep -q syslogd") != 0);
     $kernel = $f if (system("grep -q 'Card Services' $f") == 0);
     $daemon = $f if (system("grep -q cardmgr $f") == 0);
@@ -72,8 +72,9 @@ if ($kernel || $daemon) {
 
 open(IN, "dmesg |");
 while (<IN>) {
-    @k = () if (/Card Services/);
-    if (/PCMCIA|^PCI routing| PCIC |^cs:| TCIC-2|Yenta/) {
+    @k = () if (/Card Services/ && !/unloading/);
+    if (/Card Services|^PCI routing| PCIC |^cs:|^ds:| TCIC-2/ ||
+	/Yenta|Socket/) {
 	push(@k, "  $_");
 	while (<IN>) {
 	    last if (!/^  /);
@@ -84,7 +85,7 @@ while (<IN>) {
 }
 close(IN);
 if (@k) {
-    print "\nKernel startup messages:\n";
+    print "\nKernel startup messages (from 'dmesg'):\n";
     print @k;
 }
 
@@ -93,8 +94,11 @@ $devices = `cat /proc/devices`;
 $lsmod = `/sbin/lsmod`;
 if ($lsmod !~ /\bpcmcia_core\b/) {
     print "  No PCMCIA modules are loaded.\n";
+    if ($devices =~ /pcmcia/) {
+	print "  PCMCIA support is linked into the kernel.\n";
+    }
 } elsif (($lsmod !~ /\bi82365\b/) && ($lsmod !~ /\btcic\b/) &&
-	 ($lsmod !~ /\byenta_socket\b/)) {
+	 ($lsmod !~ /\bi82092\b/) && ($lsmod !~ /\byenta_socket\b/)) {
     print "  No socket drivers are loaded.\n";
 } elsif ($lsmod !~ /\bds\b/) {
     print "  The 'ds' module is not loaded.\n";
@@ -130,7 +134,7 @@ foreach $f ("/var/state/pcmcia/stab", "/var/lib/pcmcia/stab",
     }
 }
 if ($stab) {
-    print "\nCurrent socket status from $stab:\n";
+    print "\nCurrent socket status (from $stab):\n";
     $stat = `cat $stab`;
     print indent($stat);
 } else {

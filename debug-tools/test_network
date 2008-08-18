@@ -43,9 +43,6 @@ sub checkout
     $ip = cvt_addr($ipaddr);
     $bc = cvt_addr($bcast);
     $nm = cvt_addr($netmask);
-    if ((($bc | $nm) != 0xffffffff) || (($ip & $nm) != ($bc & $nm))) {
-	print "  The broadcast address and netmask are inconsistent!\n";
-    }
 
     if ($conf !~ /Mask/) {
 	print "  The interface is not configured!\n";
@@ -53,7 +50,11 @@ sub checkout
 	print "  The interface is not running!\n";
     } else {
 	print "  The interface is configured and running.\n";
+	if ((($bc | $nm) != 0xffffffff) || (($ip & $nm) != ($bc & $nm))) {
+	    print "  The broadcast address and netmask are inconsistent!\n";
+	}
     }
+    return if ($conf !~ /RUNNING/);
 
     $irq = $1 if ($conf =~ /Interrupt:(\d+)/);
     @rx = split(/ [a-zA-Z ]+:/, $1) if ($conf =~ /RX(.*)\n/);
@@ -64,18 +65,16 @@ sub checkout
     $rx_any = $rx[0]+$rx[1]+$rx[2]+$rx[3]+$rx[4];
     $tx_any = $tx[0]+$rx[1]+$rx[2]+$rx[3]+$rx[4];
 
-    if ($conf =~ /RUNNING/) {
-	if ($rx_ok && $tx_ok) {
-	    print "  RX and TX traffic both look ok.\n";
-	} elsif ($rx_ok) {
-	    print "  RX looks ok, but there seems to be a TX problem.\n";
-	} elsif ($tx_ok) {
-	    print "  TX looks ok, but there seems to be an RX problem.\n";
-	} elsif ($rx_err+$tx_err > 1) {
-	    print "  RX and TX traffic both look bad.\n";
-	} else {
-	    print "  There hasn't been any traffic on this interface!\n";
-	}
+    if ($rx_ok && $tx_ok) {
+	print "  RX and TX traffic both look ok.\n";
+    } elsif ($rx_ok) {
+	print "  RX looks ok, but there seems to be a TX problem.\n";
+    } elsif ($tx_ok) {
+	print "  TX looks ok, but there seems to be an RX problem.\n";
+    } elsif ($rx_err+$tx_err > 1) {
+	print "  RX and TX traffic both look bad.\n";
+    } else {
+	print "  There hasn't been any traffic on this interface!\n";
     }
 
     $addr = ""; $dflt = "";

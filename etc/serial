@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.40 2001/08/23 03:40:04 (David Hinds)
+# serial 1.41 2002/05/12 18:07:29 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -43,7 +43,7 @@ case "$ACTION" in
     fi
     if [ -n "$LINK" ] ; then
 	if [ -L $LINK ] ; then rm $LINK ; fi
-	if uname -r | grep -q '^2\.[2345]' ; then
+	if match `uname -r` "2.[2345].*" ; then
 	    ln -s /dev/$DEVICE $LINK
 	else
 	    ln -s /dev/$CALLOUT $LINK

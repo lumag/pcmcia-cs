@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.199 2002/02/26 04:56:57 (David Hinds)
+# config 1.202 2002/05/25 05:09:42 (David Hinds)
 #
 
 # config.opts is now included at the very end.  In general, it is a
@@ -813,10 +813,14 @@ card "Corega PCC-TX Fast Ethernet"
 card "Corega FEther PCC-TXD"
   version "corega K.K.", "corega FEther PCC-TXD"
   #manfid 0x1234, 0x5678
-  bind "pcnet_cs"
+  bind "axnet_cs"
 
 card "Corega FEther PCC-TXF"
   version "corega", "FEther PCC-TXF"
+  bind "pcnet_cs"
+
+card "CyQ've ELA-110E 10/100M LAN Card"
+  version "CyQ've", "ELA-110E 10/100M LAN Card"
   bind "pcnet_cs"
 
 card "Digicom Palladio 10/100"
@@ -1107,6 +1111,10 @@ card "NCR WaveLAN Adapter"
 
 card "NCR WaveLAN/IEEE Adapter"
   version "NCR", "WaveLAN/IEEE"
+  bind "orinoco_cs"
+
+card "Netgear MA401RA Wireless Adapter"
+  version "NETGEAR MA401RA Wireless PC", "Card"
   bind "orinoco_cs"
 
 card "PLANEX GeoWave/GW-CF110"
@@ -1735,7 +1743,7 @@ card "Socket ES-1000 Ethernet/RS-232"
  
 card "TDK Global Networker Ethernet/Modem"
   version "TDK", "GlobalNetworker 3410/3412"
-  bind "serial_cs"
+  bind "fmvj18x_cs","serial_cs"
 
 card "TDK 3000/3400/5670 Fast Ethernet/Modem"
   manfid 0x0143, 0x3341
@@ -1850,6 +1858,11 @@ card "IO DATA CBIDE"
 
 card "IO DATA CBIDE2"
   version "IO DATA", "CBIDE2      "
+  bind "ide_cs"
+
+card "KME KXLC005 CD-ROM"
+  #version "KME", "KXLC005"
+  manfid 0x0032, 0x0704
   bind "ide_cs"
 
 card "MCD601p CD-ROM"

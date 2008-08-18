@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.73 2002/02/17 23:30:22
+    ftl_cs.c 1.74 2002/05/04 05:53:34
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -97,7 +97,7 @@ INT_MODULE_PARM(shuffle_freq, 50);
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.73 2002/02/17 23:30:22 (David Hinds)";
+"ftl_cs.c 1.74 2002/05/04 05:53:34 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -394,8 +394,6 @@ static void ftl_config(dev_link_t *link)
     }
     *tail = NULL;
     
-    link->state &= ~DEV_CONFIG_PENDING;
-    
     if (nr == 0)
 	printk(KERN_NOTICE "ftl_cs: no regions found!\n");
     else {
@@ -409,6 +407,7 @@ static void ftl_config(dev_link_t *link)
 	}
 	printk("\n");
     }
+    link->state &= ~DEV_CONFIG_PENDING;
     
 } /* ftl_config */
 
