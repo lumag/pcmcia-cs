@@ -62,7 +62,7 @@ There are two drivers for Xircom CardBus cards:
 
 Hot plug PCI drivers are not managed by cardmgr; they are managed by
 the "hotplug" subsystem.  See http://linux-hotplug.sourceforge.net for
-information about this new facility.  When cardmgr sees a card that is
+information about this facility.  When cardmgr sees a card that is
 owned by a hot plug PCI driver, it will ignore that card.  There will
 be one beep when these cards are inserted/ejected, but they will be
 identified only as a "CardBus hotplug device" in the log files.
@@ -89,21 +89,20 @@ Q: Are these two versions of PCMCIA both going to continue with active
 A: The kernel PCMCIA subsystem should be the focus for ongoing
    development.  The standalone pcmcia-cs drivers are still being
    maintained but the focus has shifted from adding functionality,
-   towards mainly bug fixes.
+   towards just bug fixes.
 
 Q: Which should I use / which is better?  The kernel PCMCIA, or the
    standalone PCMCIA?
-A: It rarely matters.  The client drivers should generally behave the
-   same.  At this point, most current distributions use the kernel
-   PCMCIA subsystem, and I recommend sticking with that unless you
-   have a particular need that is only met by the standalone drivers.
+A: The client drivers should generally behave the same.  At this
+   point, most current distributions use the kernel PCMCIA subsystem,
+   and I recommend sticking with that unless you have a particular
+   need that is only met by the standalone drivers.
 
 Q: What should I do as a driver developer?
 A: I will not be including any significant new functionality in the
    standalone PCMCIA package.  In some cases it might still make sense
-   to develop contributed drivers for the standalone package first
-   because it is a stable platform and compatible with 2.2; and then 
-   port to 2.4.
+   to develop contributed drivers for the standalone package first if
+   backwards compatibility with 2.2 kernels is useful.
 
 Q: I'm using the kernel PCMCIA subsystem but want to use a driver that
    isn't included in the kernel yet.  Why can't I compile that driver
@@ -116,15 +115,15 @@ A: The Makefiles are set up to discourage this, mainly to prevent
    "wireless" subdirectories after a normal "make config".
 
 Q: Who is maintaining the kernel PCMCIA subsystem?
-A: I am not playing as central a role in maintaining the kernel
-   modules as I have with the standalone package.  I have periodically
-   updated some of the core modules and client drivers with fixes from
-   the standalone package.  Linus Torvalds wrote the yenta_socket
-   driver more or less from scratch and he has been maintaining that
-   bit.  Jeff Garzik has been working on the hot plug PCI adaptations
-   for the tulip_cb, 3c575_cb, and epic_cb drivers.
+A: I am not playing a central role in maintaining the kernel modules
+   as I have with the standalone package.  I have periodically updated
+   some of the core modules and client drivers with fixes from the
+   standalone package.  Linus Torvalds wrote the yenta_socket driver
+   more or less from scratch and he has been maintaining that bit.
+   Jeff Garzik has been working on the hot plug PCI adaptations for
+   the tulip_cb, 3c575_cb, and epic_cb drivers.
 
-Q: What about 2.5 and beyond?
+Q: What about 2.5, 2.6, and beyond?
 A: The PCMCIA subsystem in 2.5 has been extensively rewritten, thanks
    to the work of Russell King, Dominik Brodowski, and others.  There
    is a mailing list devoted to discussion of new PCMCIA development

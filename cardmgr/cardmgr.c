@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.184 2003/06/17 05:19:33
+    cardmgr.c 1.185 2003/11/27 22:00:14
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -341,11 +341,11 @@ static int get_tuple(int ns, cisdata_t code, ds_ioctl_arg_t *arg)
 	return -1;
     arg->tuple.TupleOffset = 0;
     if (ioctl(s->fd, DS_GET_TUPLE_DATA, arg) != 0) {
-	syslog(LOG_INFO, "error reading CIS data on socket %d: %m", ns);
+	syslog(LOG_NOTICE, "error reading CIS data on socket %d: %m", ns);
 	return -1;
     }
     if (ioctl(s->fd, DS_PARSE_TUPLE, arg) != 0) {
-	syslog(LOG_INFO, "error parsing CIS on socket %d: %m", ns);
+	syslog(LOG_NOTICE, "error parsing CIS on socket %d: %m", ns);
 	return -1;
     }
     return 0;
@@ -522,7 +522,7 @@ static card_info_t *lookup_card(int ns)
 
     if (!blank_card || (status.CardState & CS_EVENT_CB_DETECT) ||
 	s->manfid.manf || s->manfid.card || s->prodid.ns || pci_id.vendor) {
-	syslog(LOG_INFO, "unsupported card in socket %d", ns);
+	syslog(LOG_NOTICE, "unsupported card in socket %d", ns);
 	if (one_pass) return NULL;
 	beep(BEEP_TIME, BEEP_ERR);
 	log_card_info(s, &pci_id);
@@ -638,25 +638,28 @@ static void free_config(void)
 
 static int execute(char *msg, char *cmd)
 {
-    int ret;
+    int ret, first = 1;
     FILE *f;
     char line[256];
 
-    syslog(LOG_INFO, "executing: '%s'", cmd);
+    if (verbose) syslog(LOG_INFO, "executing: '%s'", cmd);
     strcat(cmd, " 2>&1");
     f = popen(cmd, "r");
     while (fgets(line, 255, f)) {
+	if (first && !verbose)
+	    syslog(LOG_INFO, "executing: '%s'", cmd);
 	line[strlen(line)-1] = '\0';
 	syslog(LOG_INFO, "+ %s", line);
+	first = 0;
     }
     ret = pclose(f);
     if (WIFEXITED(ret)) {
 	if (WEXITSTATUS(ret))
-	    syslog(LOG_INFO, "%s exited with status %d",
+	    syslog(LOG_NOTICE, "%s exited with status %d",
 		   msg, WEXITSTATUS(ret));
 	return WEXITSTATUS(ret);
     } else
-	syslog(LOG_INFO, "%s exited on signal %d",
+	syslog(LOG_NOTICE, "%s exited on signal %d",
 	       msg, WTERMSIG(ret));
     return -1;
 }
@@ -740,7 +743,7 @@ static int try_insmod(char *mod, char *opts)
     else
 	sprintf(cmd+7, "%s/pcmcia/%s.o", modpath, mod);
     if (access(cmd+7, R_OK) != 0) {
-	syslog(LOG_INFO, "module %s not available", cmd+7);
+	syslog(LOG_NOTICE, "module %s not available", cmd+7);
 	free(cmd);
 	return -1;
     }
@@ -894,7 +897,7 @@ static void bind_mtd(int sn)
 		mtd_info.Attributes = region.Attributes;
 		mtd_info.CardOffset = region.CardOffset;
 		if (ioctl(s->fd, DS_BIND_MTD, &mtd_info) != 0) {
-		    syslog(LOG_INFO,
+		    syslog(LOG_ERR,
 			   "bind MTD '%s' to region at 0x%x failed: %m",
 			   (char *)mtd_info.dev_info, region.CardOffset);
 		}
@@ -909,7 +912,7 @@ static void bind_mtd(int sn)
 	strcpy(bind.dev_info, s->mtd[i]->module);
 	bind.function = 0;
 	if (ioctl(s->fd, DS_BIND_REQUEST, &bind) != 0)
-	    syslog(LOG_INFO, "bind MTD '%s' to socket %d failed: %m",
+	    syslog(LOG_ERR, "bind MTD '%s' to socket %d failed: %m",
 		   (char *)bind.dev_info, sn);
     }
 }
@@ -983,10 +986,10 @@ static void do_insert(int sn)
 	    bind->function = card->dev_fn[i];
 	if (ioctl(s->fd, DS_BIND_REQUEST, bind) != 0) {
 	    if (errno == EBUSY) {
-		syslog(LOG_INFO, "'%s' already bound to socket %d",
+		syslog(LOG_NOTICE, "'%s' already bound to socket %d",
 		       (char *)bind->dev_info, sn);
 	    } else {
-		syslog(LOG_INFO, "bind '%s' to socket %d failed: %m",
+		syslog(LOG_ERR, "bind '%s' to socket %d failed: %m",
 		       (char *)bind->dev_info, sn);
 		beep(BEEP_TIME, BEEP_ERR);
 		write_stab();
@@ -1001,12 +1004,12 @@ static void do_insert(int sn)
 	    usleep(100000);
 	}
 	if (ret != 0) {
-	    syslog(LOG_INFO, "get dev info on socket %d failed: %m",
+	    syslog(LOG_ERR, "get dev info on socket %d failed: %m",
 		   sn);
 	    if ((errno == EAGAIN) &&
 		(strcmp(dev[i]->module[dev[i]->modules-1],
 			(char *)bind->dev_info) != 0))
-		syslog(LOG_INFO, "wrong module '%s' for device '%s'?",
+		syslog(LOG_ERR, "wrong module '%s' for device '%s'?",
 		       dev[i]->module[dev[i]->modules-1],
 		       (char *)bind->dev_info);
 	    ioctl(s->fd, DS_UNBIND_REQUEST, bind);
@@ -1089,7 +1092,7 @@ static void do_remove(int sn)
     for (i = 0; i < card->bindings; i++) {
 	if (s->bind[i]) {
 	    if (ioctl(s->fd, DS_UNBIND_REQUEST, s->bind[i]) != 0)
-		syslog(LOG_INFO, "unbind '%s' from socket %d failed: %m",
+		syslog(LOG_NOTICE, "unbind '%s' from socket %d failed: %m",
 		       (char *)s->bind[i]->dev_info, sn);
 	    while (s->bind[i]) {
 		bind = s->bind[i];
@@ -1103,7 +1106,7 @@ static void do_remove(int sn)
 	strcpy(b.dev_info, s->mtd[i]->module);
 	b.function = 0;
 	if (ioctl(s->fd, DS_UNBIND_REQUEST, &b) != 0)
-	    syslog(LOG_INFO, "unbind MTD '%s' from socket %d failed: %m",
+	    syslog(LOG_NOTICE, "unbind MTD '%s' from socket %d failed: %m",
 		   s->mtd[i]->module, sn);
     }
 
@@ -1233,7 +1236,7 @@ static void adjust_resources(void)
 		sprintf(tmp, "irq %u", al->adj.resource.irq.IRQ);
 		break;
 	    }
-	    syslog(LOG_INFO, "could not adjust resource: %s: %m", tmp);
+	    syslog(LOG_WARNING, "could not adjust resource: %s: %m", tmp);
 	}
     }
 }
@@ -1267,7 +1270,7 @@ static void catch_signal(int sig)
 {
     caught_signal = sig;
     if (signal(sig, catch_signal) == SIG_ERR)
-	syslog(LOG_INFO, "signal(%d): %m", sig);
+	syslog(LOG_NOTICE, "signal(%d): %m", sig);
 }
 
 static void handle_signal(void)
@@ -1408,7 +1411,7 @@ int main(int argc, char *argv[])
 	}
     }
     if (access(modpath, X_OK) != 0)
-	syslog(LOG_INFO, "cannot access %s: %m", modpath);
+	syslog(LOG_NOTICE, "cannot access %s: %m", modpath);
     /* We default to using modprobe if it is available */
     do_modprobe |= (access("/sbin/modprobe", X_OK) == 0);
     
@@ -1422,7 +1425,7 @@ int main(int argc, char *argv[])
     if (!delay_fork && !one_pass)
 	fork_now();
     openlog("cardmgr", LOG_PID|LOG_CONS, LOG_DAEMON);
-    syslog(LOG_INFO, "starting, version is " CS_PKG_RELEASE);
+    if (verbose) syslog(LOG_INFO, "starting, version is " CS_PKG_RELEASE);
 
     /* If we've gotten this far, then clean up pid and stab at exit */
     atexit(&done);

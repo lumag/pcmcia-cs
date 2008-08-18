@@ -1,7 +1,7 @@
 #
 # Copyright (C) 2000 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.123 2002/12/21 08:22:48
+# Makefile 1.124 2003/11/09 07:02:52
 #
 
 # Include site dependent options and kernel configuration
@@ -60,6 +60,10 @@ install: install-modules
 include ../rules.mk
 
 endif
+
+pnp.o: pnp_stub.o pnp_proc.o pnp_bios.o
+	$(LD) -r -o $@ pnp_stub.o pnp_proc.o pnp_bios.o
+	chmod -x $@
 
 clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d

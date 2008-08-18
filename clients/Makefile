@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.143 2003/02/10 06:35:09
+# Makefile 1.144 2003/09/15 05:14:09
 #
 
 # Include site dependent options and kernel configuration
@@ -22,8 +22,8 @@ I_EXTRA =
 
 ifndef CONFIG_PCMCIA
 ifdef CONFIG_CARDBUS
-SRCS    += memory_cb.c serial_cb.c
-MODULES += memory_cb.o serial_cb.o
+SRCS    += memory_cb.c serial_cb.c dummy_cb.c
+MODULES += memory_cb.o serial_cb.o dummy_cb.o
 ifdef CONFIG_INET
 SRCS    += 3c575_cb.c tulip_cb.c epic_cb.c eepro100_cb.c
 MODULES += 3c575_cb.o tulip_cb.o epic_cb.o eepro100_cb.o

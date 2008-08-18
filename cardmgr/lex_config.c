@@ -517,7 +517,7 @@ char *yytext;
 
 #line 5 "lex_config.l"
 /*
- * lex_config.l 1.49 2002/10/07 16:39:21
+ * lex_config.l 1.50 2003/11/27 22:01:29
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -1975,7 +1975,7 @@ static int get_glob(void)
 	s->file = fopen(fn, "r");
 	if (s->file == NULL) {
 	    if (strpbrk(fn, "?*[") == NULL)
-		syslog(LOG_INFO, "could not open '%s': %m", fn);
+		syslog(LOG_ERR, "could not open '%s': %m", fn);
 	    s->fileno++;
 	} else {
 	    current_lineno = 1;
@@ -1994,7 +1994,7 @@ static void do_source(char *fn)
     struct source_stack *s = &source_stack[source_stack_ptr];
 
     if (source_stack_ptr >= MAX_SOURCE_DEPTH) {
-	syslog(LOG_INFO, "source depth limit exceeded");
+	syslog(LOG_ERR, "source depth limit exceeded");
 	return;
     }
 #ifdef HAS_WORDEXP
@@ -2048,7 +2048,7 @@ int parse_configfile(char *fn)
     
     f = fopen(fn, "r");
     if (!f) {
-	syslog(LOG_INFO, "could not open '%s': %m", fn);
+	syslog(LOG_ERR, "could not open '%s': %m", fn);
 	return -1;
     }
     current_lineno = 1;

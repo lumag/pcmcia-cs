@@ -1,5 +1,5 @@
 #
-# config.in 1.18 2001/02/09 04:03:37 (David Hinds)
+# config.in 1.19 2003/10/29 18:40:51 (David Hinds)
 #
 LINUX=/usr/src/linux
 PREFIX=
@@ -15,4 +15,5 @@ UNSAFE_TOOLS=n
 CONFIG_CARDBUS=y
 CONFIG_PNP=n
 USE_PM=y
+USE_X11=y
 CONF_SRC=1

@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2003/08/27 06:25:37
+		Last updated: 2003/11/24 17:55:46
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -65,7 +65,7 @@ Ethernet cards:
 	AST 1082 Ethernet
 	Atelco ethernet
 	Belkin F5D5020
-	Billionton LNT-10TB, LNT-10TN
+	Billionton LNT-10TB, LNT-10TN, CFLA
 	Buffalo LPC2-CLT, LPC3-CLT, LPC-CF-CLT
 	CADMUS Micro LNT-10T2C
 	California Access LAN Adapter
@@ -199,6 +199,7 @@ Fast Ethernet (10/100baseT) adapters:
 	New Media LiveWire 10/100
 	Planex FNW-3700-T
 	Repotec RP-1638
+	SinglePoint Fast Ethernet
 	Surecom EP-427X
 	Topcom Xplorer 2700
 	W-Linx FE1500
@@ -361,6 +362,7 @@ Wireless network adapters:
 	Addtron AWP-100
 	Ambicom WL1100 PC
 	ARtem Onair ComCard STD & EMB versions, 128- & 64-bit
+	ASUS SpaceLink WL-100
 	Avaya World Card
 	Belkin F5D6020
 	Buffallo WLI-PCM-S11
@@ -380,7 +382,7 @@ Wireless network adapters:
 	IBM High Rate Wireless LAN
 	Intel PRO/Wireless 2011
 	LA4111 Spectrum24 Wireless LAN
-	Linksys WPC11 Instant Wireless
+	Linksys WPC11 Instant Wireless [ NOT the CardBus v4 card ]
 	Linksys WCF12 Wireless CompactFlash
 	Lucent Orinoco WaveLAN/IEEE 802.11(b)
 	Melco WLI-PCM-L11, WLI-PCM-L11G
@@ -636,6 +638,7 @@ ATA/IDE Interface Cards:
 	Apricorn ATA card, EZ-GIG transfer kit
 	Archos Zip100 MiniDrive
 	Argosy PnPIDE card, HD530 HardDisk
+	ATronics IDEal Porter
 	Microtech International XpressDock
 	DataStor Technology PCMCIA ATA/ATAPI Card
 	Creo DNBoy
@@ -699,12 +702,12 @@ their own web sites.
 	[daqcard700_cs]
 	National Instruments DAQcard700
 	  ftp://fsmlabs.com/pub/rtlinux/
-	  (Steve Rosenbluth <stever@la.creatureshop.henson.com>)
+	  (Steve Rosenbluth <stever8@charter.net>)
 
 	[das16s driver]
 	Computer Boards PCM-DAS16s/16 ADC
 	  ftp://fsmlabs.com/pub/rtlinux/
-	  (Steve Rosenbluth <stever@la.creatureshop.henson.com>)
+	  (Steve Rosenbluth <stever8@charter.net>)
 
 	[elsa_cs driver]
 	Elsa MicroLink ISDN adapter
@@ -733,6 +736,11 @@ their own web sites.
 	IO Data CBSC-II in 16-bit mode
 	  http://www.workbit.co.jp/workbit/products/nscsi-3.html
 	  (Yokota Hiroshi <yokota@netlab.is.tsukuba.ac.jp>)
+
+	[pcdio48 driver]
+	Measurement Computing PC-DIO-CARD48
+	  http://sourceforge.net/projects/pcdio48-linux
+	  (Phillip Bruce <di77ihd@yahoo.com>)
 
 	[sedl_cs driver]
 	Sedlbauer Speed Star ISDN adapter

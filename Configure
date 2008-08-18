@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.232 2003/08/13 06:26:23
+# Configure 1.235 2003/12/01 06:48:05
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -78,8 +78,8 @@ usage () {
     echo "    [--moddir=dir] [--arch={i386|alpha|arm|ppc] [--ucc=path]"
     echo "    [--kcc=path] [--ld=path] [--uflags=flags] [--kflags=flags]"
     echo "    [--debug=flags] [--{no}trust] [--{no}cardbus] [--{no}pnp]"
-    echo "    [--{no}apm] [--force] [--current] [--srctree] [--sysv]"
-    echo "    [--bsd] [--rcdir=dir] [--extraver=ver]"
+    echo "    [--{no}apm] [--{no}x11] [--force] [--current] [--srctree]"
+    echo "    [--sysv|--bsd] [--rcdir=dir] [--extraver=ver]"
     echo ""
     echo "  -n, --noprompt     non-interactive mode: no prompting"
     echo "  --kernel=DIR       use kernel source tree at DIR"
@@ -96,6 +96,7 @@ usage () {
     echo "  --{no}cardbus      disable or enable CardBus card support"
     echo "  --{no}pnp          disable or enable PnP BIOS support"
     echo "  --{no}apm          disable or enable power management support"
+    echo "  --{no}x11          disable or enable building X11 based tools"
     echo "  --force            ignore presence of 2.4 kernel drivers"
     echo "  --current          read configuration of current kernel"
     echo "  --srctree          read kernel configuration from source tree"
@@ -128,6 +129,8 @@ while [ $# -gt 0 ] ; do
     --nopnp)		CONFIG_PNP_BIOS=n	;;
     --apm)		USE_PM=y		;;
     --noapm)		USE_PM=n		;;
+    --x11)		USE_X11=y		;;
+    --nox11)		USE_X11=n		;;
     --force)		FORCE=y			;;
     --current)		CONF_SRC=1		;;
     --srctree)		CONF_SRC=2		;;
@@ -526,6 +529,9 @@ printconfig () {
     printflag "Symmetric multiprocessing support" CONFIG_SMP
     if [ "$CONFIG_SMP" = "y" ] ; then
 	echo "#define __SMP__ 1" >> $CONFIG_H
+	if [ -n "$CONFIG_NR_CPUS" ] ; then
+	    write_int CONFIG_NR_CPUS
+	fi
     fi
     printflag "Preemptive kernel support" CONFIG_PREEMPT
     printflag "High memory support" CONFIG_HIGHMEM
@@ -663,14 +669,34 @@ case $CONF_SRC in
 	    >> $MODVER
 	echo "#endif" >> $MODVER
 	if [ "$NEED_HZ" = "y" ] ; then
-	    echo "#include <linux/module.h>" > tmp.c
-	    echo "#include <linux/sched.h>" >> tmp.c
-	    echo "int init_module(void)" >> tmp.c
-	    echo '{printk("<7>jif=%lu\n",jiffies);return-1;}' >> tmp.c
+	    cat <<-EOF > tmp.c
+		#include <linux/module.h>
+	 	#include <linux/sched.h>
+		int init_module(void)
+		{printk("<7>jif=%lu\n",jiffies); return -1;}
+		EOF
 	    $KCC -DMODULE -D__KERNEL__ -Iinclude -I$LINUX/include -c tmp.c
 	    /sbin/insmod tmp.o >/dev/null 2>&1
 	    TICKS=`dmesg | sed -ne 's/^jif=//p' | tail -1`
 	    CONFIG_HZ=`awk '{printf "%.0f",'$TICKS'/$1}' /proc/uptime`
+	fi
+	if [ $VERSION_CODE -gt `version 2 4 21` -a \
+	     "$CONFIG_SMP" = "y" ] ; then
+	    cat <<-EOF > tmp.c
+		#include <linux/module.h>
+		#include <linux/sched.h>
+		static u32 n; MODULE_PARM(n, "i");
+		#define E(x,n) x[2*n*sizeof(long)/sizeof(u32)]
+		int init_module(void)
+		{ u32 i, *x = &current->cap_effective;
+		for (i = 1; i <= 32; i++)
+		if (E(x,i)==n) {printk("<7>cpus=%d\n", i);break;}
+		return -1;}
+		EOF
+	    $KCC -DMODULE -D__KERNEL__ -Iinclude -I$LINUX/include -c tmp.c
+	    EFF=`sed -ne 's/^CapEff:.0*//p' /proc/$$/status`
+	    /sbin/insmod tmp.o n=0x$EFF >/dev/null 2>&1
+	    CONFIG_NR_CPUS=`dmesg | sed -ne 's/^cpus=//p' | tail -1`
 	fi
 	;;
     2|3)
@@ -689,6 +715,7 @@ case $CONF_SRC in
 	configcheck PCMCIA
 	if qgrep "^ *SMP *= *1" $LINUX/Makefile ; then
 	    CONFIG_SMP=y
+	    eval `grep "^CONFIG_NR_CPUS=" $AUTOCONF`
 	else
 	    configcheck SMP
 	fi
@@ -804,7 +831,8 @@ if [ $VERSION_CODE -ge `version 2 3 40` ] ; then
     write_bool CONFIG_UID16
 fi
 
-if [ $CONF_SRC != 1 -a "$CONFIG_MODVERSIONS" = "y" ] ; then
+if [ $CONF_SRC != 1 -a "$CONFIG_MODVERSIONS" = "y" -a \
+     $VERSION_CODE -lt `version 2 6 0` ] ; then
     MODVER="$LINUX/$MODVER"
     if [ ! -r $MODVER ] ; then
 	echo "$MODVER does not exist!"
@@ -984,6 +1012,8 @@ fi
 
 # Optional stuff
 
+if [ "$USE_X11" = "y" ] ; then
+
 HAS_FORMS=n
 echo "#include <forms.h>" > tmp.c
 echo "int main(void) { void *x = &fl_initialize; return 0; }" >> tmp.c
@@ -1018,10 +1048,23 @@ echo "int main(void) { void *x = &gtk_init; return 0; }" >> tmp.c
 if $UCC $UFLAGS `gtk-config --cflags 2>/dev/null` tmp.c \
     `gtk-config --libs 2>/dev/null` 2>/dev/null ; then
     HAS_GTK=y
+    GTK_CFLAGS=`gtk-config --cflags`
+    GTK_LIBS=`gtk-config --libs`
+elif $UCC $UFLAGS `pkg-config --cflags gtk+-2.0 2>/dev/null` tmp.c \
+    `pkg-config --libs gtk+-2.0 2>/dev/null` 2>/dev/null ; then
+    HAS_GTK=y
+    GTK_CFLAGS=`pkg-config --cflags gtk+-2.0`
+    GTK_LIBS=`pkg-config --libs gtk+-2.0`
 else
     echo "The GTK+ library is not available."
 fi
 write_bool HAS_GTK
+if [ "$HAS_GTK" = "y" ] ; then
+    write_str GTK_CFLAGS
+    write_str GTK_LIBS
+fi
+
+fi
 
 HAS_WORDEXP=n
 echo "#include <wordexp.h>" > tmp.c

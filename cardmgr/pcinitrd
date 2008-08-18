@@ -4,7 +4,7 @@
 #
 # Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# pcinitrd 1.23 2000/07/25 18:31:31
+# pcinitrd 1.24 2003/09/11 15:58:30
 #
 RELEASE=""
 ALL=""
@@ -13,7 +13,7 @@ MODULES="pcmcia/pcmcia_core.o pcmcia/ds.o"
 
 # Things to install when "all" is selected
 SOCK="i82365.o tcic.o"
-BLK="ide_cs.o pcmem_cs.o aha152x_cs.o fdomain_cs.o qlogic_cs.o"
+BLK="ide-cs.o aha152x_cs.o fdomain_cs.o qlogic_cs.o"
 MEM="ftl_cs.o memory_cs.o sram_mtd.o iflash2_mtd.o iflash2+_mtd.o"
 
 usage()

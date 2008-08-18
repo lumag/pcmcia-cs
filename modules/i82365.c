@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.357 2003/09/10 03:50:13
+    i82365.c 1.358 2003/09/13 17:34:01
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -139,7 +139,7 @@ INT_MODULE_PARM(pci_int, 1);		/* PCI IO card irqs? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.357 2003/09/10 03:50:13 (David Hinds)";
+"i82365.c 1.358 2003/09/13 17:34:01 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -428,6 +428,9 @@ static u_int __init cirrus_set_opts(socket_info_t *s, char *buf)
     if (p->misc1 & PD67_MC1_INPACK_ENA)
 	strcat(buf, " [inpack]");
     if (!(s->flags & (IS_PCI|IS_CARDBUS))) {
+	flip(p->misc2, PD67_MC2_FREQ_BYPASS, freq_bypass);
+	if (p->misc2 & PD67_MC2_FREQ_BYPASS)
+	    strcat(buf, " [freq bypass]");
 	if (p->misc2 & PD67_MC2_IRQ15_RI)
 	    mask &= ~0x8000;
 	if (has_led > 0) {
@@ -437,9 +440,6 @@ static u_int __init cirrus_set_opts(socket_info_t *s, char *buf)
 	if (has_dma > 0) {
 	    strcat(buf, " [dma]");
 	    mask &= ~0x0600;
-	flip(p->misc2, PD67_MC2_FREQ_BYPASS, freq_bypass);
-	if (p->misc2 & PD67_MC2_FREQ_BYPASS)
-	    strcat(buf, " [freq bypass]");
 	}
 #ifdef CONFIG_PCI
     } else {

@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.283 2002/06/29 06:23:09
+    cs.c 1.285 2003/11/27 22:30:38
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -130,9 +130,10 @@ INT_MODULE_PARM(do_pnp, 1);
 #endif
 
 #ifdef PCMCIA_DEBUG
-INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+int pc_debug=PCMCIA_DEBUG;
+MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.283 2002/06/29 06:23:09 (David Hinds)";
+"cs.c 1.285 2003/11/27 22:30:38 (David Hinds)";
 #endif
 
 /*====================================================================*/
@@ -1784,7 +1785,7 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 {
     socket_info_t *s;
     config_t *c;
-    int ret = 0, irq = 0;
+    int ret = CS_IN_USE, irq = 0;
     
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
@@ -1797,12 +1798,8 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
     if (c->state & CONFIG_IRQ_REQ)
 	return CS_IN_USE;
     
-    /* Short cut: if there are no ISA interrupts, then it is PCI */
-    if (!s->cap.irq_mask) {
-	irq = s->cap.pci_irq;
-	ret = (irq) ? 0 : CS_IN_USE;
 #ifdef CONFIG_ISA
-    } else if (s->irq.AssignedIRQ != 0) {
+    if (s->irq.AssignedIRQ != 0) {
 	/* If the interrupt is already assigned, it must match */
 	irq = s->irq.AssignedIRQ;
 	if (req->IRQInfo1 & IRQ_INFO2_VALID) {
@@ -1811,7 +1808,6 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 	} else
 	    ret = ((req->IRQInfo1&IRQ_MASK) == irq) ? 0 : CS_BAD_ARGS;
     } else {
-	ret = CS_IN_USE;
 	if (req->IRQInfo1 & IRQ_INFO2_VALID) {
 	    u_int try, mask = req->IRQInfo2 & s->cap.irq_mask;
 	    for (try = 0; try < 2; try++) {
@@ -1826,9 +1822,13 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 	    irq = req->IRQInfo1 & IRQ_MASK;
 	    ret = try_irq(req->Attributes, irq, 1);
 	}
-#endif
     }
-    if (ret != 0) return ret;
+#endif
+    if (ret != 0) {
+	if (!s->cap.pci_irq)
+	    return ret;
+	irq = s->cap.pci_irq;
+    }
 
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
 	if (bus_request_irq(s->cap.bus, irq, req->Handler,

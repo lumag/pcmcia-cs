@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.230 2003/08/29 15:46:24 (David Hinds)
+# config 1.235 2003/11/24 17:55:14 (David Hinds)
 #
 
 # config.opts is now included at the very end.  In general, it is a
@@ -124,6 +124,12 @@ device "pcilynx_cb"
 device "ohci1394_cb"
   class "ieee1394" module "cb_enabler", "ohci1394_cb"
 
+# dummy drivers
+
+device "dummy_cs" module "dummy_cs"
+
+device "dummy_cb" module "cb_enabler", "dummy_cb"
+
 #
 # Ethernet adapter definitions
 #
@@ -202,6 +208,10 @@ card "Billionton LNT-10TB"
 
 card "Billionton LNT-10TN"
   version "PCMCIA", "LNT-10TN"
+  bind "pcnet_cs"
+
+card "Billionton CFLA 10Base-Ethernet"
+  version "CF", "10Base-Ethernet"
   bind "pcnet_cs"
 
 card "Buffalo LPC2-CLT Ethernet"
@@ -1021,6 +1031,11 @@ card "NE2000 Compatible Fast Ethernet"
   bind "pcnet_cs"
 
 card "Asix AX88190 Fast Ethernet"
+  version "PCMCIA", "FastEthernet", "V", "1.0"
+  manfid 0x021b, 0x0202
+  bind "pcnet_cs"
+
+card "Asix AX88190 Fast Ethernet"
   #version "PCMCIA", "10/100 Ethernet Card"
   #version "NEWMEDIA", "LIVEWIRE 10/100"
   manfid 0x8a01, 0xc1ab
@@ -1119,6 +1134,20 @@ card "Aironet PC4500"
 card "Aironet PC4800"
   manfid 0x015f, 0x0007
   bind "airo_cs"
+
+card "AirWay 802.11 Adapter (PCMCIA)"
+  #version "AirWay", "802.11 Adapter (PCMCIA)"
+  manfid 0x0261, 0x0002
+  bind "orinoco_cs"
+
+card "ARtem Onair Version 1.0"
+  #version "ARtem", "Onair", "Version 1.0"
+  manfid 0x0268, 0x0001
+  bind "orinoco_cs"
+
+card "ASUS SpaceLink WL-100"
+  manfid 0x02aa, 0x0002
+  bind "orinoco_cs"
 
 card "AT&T WaveLAN Adapter"
   version "AT&T", "WaveLAN/PCMCIA"
@@ -1276,11 +1305,6 @@ card "Xircom Wireless Network Adapter"
 card "ZCOMAX AirRunner/XI-300"
   #version "ZCOMAX", "AirRunner/XI-300"
   manfid 0xd601, 0x0002
-  bind "orinoco_cs"
-
-card "AirWay 802.11 Adapter (PCMCIA)"
-  #version "AirWay", "802.11 Adapter (PCMCIA)"
-  manfid 0x0261, 0x0002
   bind "orinoco_cs"
 
 #
@@ -1955,6 +1979,10 @@ card "Argosy EIDE CD-ROM"
 
 card "Argosy PnPIDE"
   version "ARGOSY", "PnPIDE"
+  bind "ide-cs"
+
+card "ATronics PCMCIA-IDE-CDROM/HDD"
+  manfid 0x2080, 0x0001
   bind "ide-cs"
 
 card "Caravelle CD-36N/CD-36E CD-ROM"

@@ -1,0 +1,49 @@
+.\" Copyright (C) 2003 David A. Hinds -- dahinds@users.sourceforge.net
+.\" dummy_cb.4 1.1 2003/09/15 05:36:41
+.\"
+.TH DUMMY_CB 4 "2003/09/15 05:36:41" "pcmcia-cs"
+.SH NAME
+dummy_cb \- CardBus dummy device driver
+.SH SYNOPSIS
+\fBinsmod dummy_cb.o\fR [\fBpc_debug=\fIn\fR]
+.SH DESCRIPTION
+The \fBdummy_cb\fR module is a sort of "point enabler" for CardBus
+cards.  When it is bound to a card, it configures that card, but
+otherwise does not do anything.  It may be useful for cards that have
+Hot Plug PCI kernel drivers, but do not have CardBus client drivers in
+the pcmcia-cs package.  Hot Plug PCI drivers expect the kernel to
+handle CardBus card configuration; instead, drivers in the pcmcia-cs
+package rely on the cb_enabler module to do that.
+.P
+To use \fBdummy_cb\fR, edit \fI/etc/pcmcia/config.opts\fR and add one
+or more card descriptions, like:
+.sp
+.RS
+.nf
+card "Western Digital 1394 Adapter"
+  pci 0x1033, 0x00cd
+  bind "dummy_cb"
+.RE
+.fi
+.sp
+This will override any driver bindings in the main config file.  After
+restarting \fBcardmgr\fR, then, insertion of these cards should load
+\fBdummy_cb\fR.  After that, the Hot Plug PCI driver can be loaded.
+.P
+Before ejecting a card using \fBdummy_cb\fR, it is important to
+manually unload the corresponding Hot Plug PCI driver.  Since
+\fBcardmgr\fR cannot notify this sort of driver about removal events,
+bad things can happen if the Hot Plug PCI driver is not unloaded
+first.  Yes this is rather fragile.  Ideally, people will use Hot Plug
+PCI drivers with the kernel PCMCIA subsystem, but \fBdummy_cb\fR is
+meant as a quick fix for situations where that is not possible.
+.SH PARAMETERS
+.TP
+.BI pc_debug= n
+Selects the PCMCIA debugging level.  This parameter is only available
+if the module is compiled with debugging enabled.  A non-zero value
+enables debugging.
+.SH AUTHOR
+David Hinds \- dahinds@users.sourceforge.net
+.SH "SEE ALSO"
+cardmgr(8), pcmcia(5).

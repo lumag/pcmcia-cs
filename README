@@ -1,7 +1,7 @@
-This version of Card Services should work with 2.0 and 2.2 kernels,
-and most 2.3 and pre-2.4 kernels.  It will not work with 1.3 or
-earlier kernels, and may not work with 2.1 kernels.  See README-2.4
-for additional information about PCMCIA with 2.4 kernels.
+This version of Card Services should work with 2.0, 2.2, 2.4, and
+later kernels.  Generally you should not use outdated 2.1, 2.3, and
+2.5 development kernels.  See README-2.4 for additional information
+about PCMCIA with 2.4 and later kernels.
 
 The PCMCIA-HOWTO now includes all installation instructions.
 

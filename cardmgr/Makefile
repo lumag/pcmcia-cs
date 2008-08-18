@@ -1,5 +1,5 @@
 #
-# cardmgr/Makefile 1.92 2002/12/21 08:22:25 (David Hinds)
+# cardmgr/Makefile 1.93 2003/11/22 08:54:13 (David Hinds)
 #
 
 # Include site dependent options
@@ -83,11 +83,11 @@ xcardinfo: xcardinfo.o
 	$(CC) $< -o $@ -L/usr/X11R6/lib -L/usr/X11/lib -lX11 -lXaw
 
 gpccard.o: gpccard.c
-	$(CC) -O -Wall -MD $(CPPFLAGS) `gtk-config --cflags` -c $<
+	$(CC) -O -Wall -MD $(CPPFLAGS) $(GTK_CFLAGS) -c $<
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
 gpccard: gpccard.o
-	$(CC) $< -o $@ `gtk-config --libs`
+	$(CC) $< -o $@ $(GTK_LIBS)
 
 install-cardinfo: cardinfo
 	@mkdir -p $(PREFIX)/usr/X11R6/bin

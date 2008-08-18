@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# dump_pirq 1.21 2001/09/05 02:59:31
+# dump_pirq 1.22 2003/11/25 06:35:47
 #
 # A utility to parse the BIOS PCI IRQ Routing Table
 #
@@ -85,22 +85,31 @@ sub parse_pirq
 # dependent.  Here, we'll try to interpret the link values for some
 # known PCI bridge types.
 
-%pIIx = (0x122e8086, "82371FB PIIX",
-	 0x70008086, "82371SB PIIX3",
-	 0x71108086, "82371AB PIIX4/PIIX4E",
+%pIIx = (0x122e8086, "82371FB",
+	 0x12348086, "82371MX",
+	 0x70008086, "82371SB",
+	 0x71108086, "82371AB",
 	 0x71988086, "82443MX",
-	 0x24108086, "82801AA ICH",
-	 0x24208086, "82801AB ICH0",
-	 0x24408086, "82801BA ICH2",
-	 0x244c8086, "82801BAM ICH2-M");
+	 0x24108086, "82801AA",
+	 0x24208086, "82801AB",
+	 0x24408086, "82801BA",
+	 0x244c8086, "82801BA",
+	 0x24808086, "82801CA",
+	 0x248c8086, "82801CA",
+	 0x24c08086, "82801DB",
+	 0x24508086, "82801E",
+	 0x24d08086, "82801EB",
+	 0x25a08086, "ESB");
 
 %via = (0x05861106, "82C586",
 	0x05961106, "82C596",
-	0x06861106, "82C686");
+	0x06861106, "82C686",
+	0x82311106, "8231");
 
 %opti = (0xc7001045, "82C700");
 
-%pico = (0x00021066, "PT86C523");
+%pico = (0x00021066, "PT86C523",
+	 0x80021066, "PT86C523");
 
 %ali = (0x153310b9, "Aladdin M1533");
 

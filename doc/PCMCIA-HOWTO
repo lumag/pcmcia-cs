@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.115, 06 September 2003
+  v2.117, 18 October 2003
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -272,11 +272,11 @@
   this will become a useful repository of information, for questions
   that go beyond the scope of the HOWTO.
 
-  The Linux Laptop Page at  <http://www.linux-laptop.net> has links to a
-  vast number of sites that have information about configuring specific
-  types of laptops for Linux.  There is also a searchable database of
-  system configuration information, and pointers to a variety of laptop-
-  related mailing lists.
+  The Linux Laptop Page at  <http://www.linux-on-laptops.com> has links
+  to a vast number of sites that have information about configuring
+  specific types of laptops for Linux.  There is also a searchable
+  database of system configuration information, and pointers to a
+  variety of laptop-related mailing lists.
 
   22..  CCoommppiillaattiioonn aanndd iinnssttaallllaattiioonn
 
@@ -294,7 +294,7 @@
   The following things should be installed on your system before you
   begin:
 
-  +o  A 2.0, 2.2, 2.4, or 2.5 series kernel source tree.
+  +o  A 2.0, 2.2, 2.4, or 2.6 series kernel source tree.
 
   +o  An appropriate set of module utilities.
 
@@ -388,6 +388,17 @@
   CONFIG_I82365, only supports ISA-to-PCMCIA bridges.  PCI-to-PCMCIA
   bridges that are not CardBus capable, like the Cirrus PD6729, are not
   supported at all by the kernel PCMCIA drivers.
+
+  When compiling the standalone PCMCIA package, the Configure script
+  decides whether or not to build any kernel modules by looking at the
+  value of the CONFIG_PCMCIA option in your kernel configuration.  If
+  CONFIG_PCMCIA is enabled, then by default, no driver components are
+  built.  If CONFIG_PCMCIA is disabled, then all the modules will be
+  built and installed.  It is safe to compile the user tools (cardmgr,
+  cardctl, etc) in a PCMCIA package whose version number differs from
+  the PCMCIA version number in the kernel source tree.  The kernel
+  PCMCIA header files take precedence over the ones included in the
+  PCMCIA package, if CONFIG_PCMCIA is enabled.
 
   22..33..  IInnssttaallllaattiioonn
 
@@ -502,7 +513,6 @@
   directly in the startup script, or they may be kept in a separate
   option file.  See the ``Notes about specific Linux distributions'' for
   specifics.  The following variables can be set:
-
      PCMCIA
         This variable specifies whether PCMCIA support should be started
         up, or not.  If it is set to anything other than ``yes'', then
@@ -809,7 +819,6 @@
   script is installed as /etc/rc.d/rc.pcmcia, and boot options are
   specified in rc.pcmcia itself.  The PCMCIA startup script is invoked
   from /etc/rc.d/rc.S.
-
   22..66..44..  SSuuSSEE
 
   SuSE uses a System V init script arrangement, with init scripts stored
@@ -882,6 +891,7 @@
 
   +o  cardmgr reports ``no pcmcia driver in /proc/devices'' in the system
      log.
+
   Kernel modules contain version information that is checked against the
   current kernel when a module is loaded.  The type of checking depends
   on the setting of the CONFIG_MODVERSIONS kernel option.  If this is
@@ -991,7 +1001,6 @@
 
   +o  The system log shows a successful host controller probe just before
      the lock-up, but does not show interrupt probe results.
-
   After identifying the host controller type, the socket driver probes
   for free ISA bus interrupts.  The probe involves programming the
   controller for each apparently free interrupt, then generating a
@@ -1058,6 +1067,7 @@
   Linux driver.  The probe is read-only, but in rare cases, reading from
   a device may interfere with an important system function, resulting in
   a lock-up.
+
   Your system user's guide may include a map of system devices, showing
   their IO and memory ranges.  These can be explicitly excluded in
   config.opts.
@@ -1213,9 +1223,9 @@
   a PCI interrupt (if available) for card status changes.
 
   In some cases, kernel misconfiguration can also produce an apparent
-  interrupt shortage.  On later 2.4 and 2.5 kernels, if CONFIG_ISA is
-  not enabled, then the PCMCIA drivers will assume no ISA bus interrupts
-  are available.
+  interrupt shortage.  On 2.4 and later kernels, if CONFIG_ISA is not
+  enabled, then the PCMCIA drivers will assume no ISA bus interrupts are
+  available.
 
   IO port starvation is fairly uncommon, but sometimes happens with
   cards that require large, contiguous, aligned regions of IO port
@@ -1331,6 +1341,14 @@
   and minor device numbers for this device (if applicable).  See the
   stab man page for more info.
 
+  In 2.4 and later kernels, hot plut PCI drivers for CardBus cards are
+  not managed by cardmgr; they are managed by the hotplug subsystem.
+  See  <http://linux-hotplug.sourceforge.net> for information about this
+  facility.  When cardmgr sees a card that is owned by a hot plug PCI
+  driver, it will ignore that card.  There will be one beep when these
+  cards are inserted or ejected, but they will be identified only as a
+  ``CardBus hotplug device'' in the system log and stab file.
+
   44..11..33..  TThhee ccaarrddccttll aanndd ccaarrddiinnffoo uuttiilliittiieess
 
   The cardctl command can be used to check the status of a socket, or to
@@ -1338,18 +1356,18 @@
   configuration status of a card.  Here is an example of the output of
   the ``cardctl config'' command:
 
-  Socket 0:
-    not configured
-  Socket 1:
-    Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
-    Card type is memory and I/O
-    IRQ 3 is dynamic shared, level mode, enabled
-    Speaker output is enabled
-    Function 0:
-      Config register base = 0x0800
-        Option = 0x63, status = 0x08
-      I/O window 1: 0x0280 to 0x02bf, auto sized
-      I/O window 2: 0x02f8 to 0x02ff, 8 bit
+       Socket 0:
+         not configured
+       Socket 1:
+         Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
+         Card type is memory and I/O
+         IRQ 3 is dynamic shared, level mode, enabled
+         Speaker output is enabled
+         Function 0:
+           Config register base = 0x0800
+             Option = 0x63, status = 0x08
+           I/O window 1: 0x0280 to 0x02bf, auto sized
+           I/O window 2: 0x02f8 to 0x02ff, 8 bit
 
   Or ``cardctl ident'', to get card identification information:
 
@@ -1428,6 +1446,11 @@
   command will indicate if any sockets could not be shut down.
 
   44..22..  OOvveerrvviieeww ooff tthhee PPCCMMCCIIAA ccoonnffiigguurraattiioonn ssccrriippttss
+
+  The following information applies to cards that are managed by
+  cardmgr.  In 2.4 and later kernels, if the kernel PCMCIA subsystem is
+  active, then CardBus cards are managed by the hotplug subsystem and
+  the PCMCIA scripts are not used.
 
   Each PCMCIA device has an associated ``class'' that describes how it
   should be configured and managed.  Classes are associated with device
@@ -1514,14 +1537,14 @@
   different purposes, one option would be to configure the cards based
   on socket position, as in:
 
-  case "$ADDRESS" in
-  *,0,*,*)
-      # definitions for network card in socket 0
-      ;;
-  *,1,*,*)
-      # definitions for network card in socket 1
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,0,*,*)
+           # definitions for network card in socket 0
+           ;;
+       *,1,*,*)
+           # definitions for network card in socket 1
+           ;;
+       esac
 
   Alternatively, they could be configured using their hardware
   addresses, as in:
@@ -1556,7 +1579,6 @@
      DHCP_HOSTNAME
         Specifies a hostname to be passed to dhcpcd or pump, for
         inclusion in DHCP messages.
-
      IPADDR
         The IP address for this interface.
 
@@ -1808,8 +1830,8 @@
   driver as a module, you must edit /etc/pcmcia/config to indicate that
   this module must be loaded.  Edit the serial device entry to read:
 
-  device "serial_cs"
-    class "serial" module "misc/serial", "serial_cs"
+       device "serial_cs"
+         class "serial" module "misc/serial", "serial_cs"
 
   44..44..11..  SSeerriiaall ddeevviiccee ppaarraammeetteerrss
 
@@ -1836,7 +1858,7 @@
   For example:
 
        case "$ADDRESS" in
-       *,*,*,*)
+       *,*,*)
            LINK="/dev/modem"
            SERIAL_OPTS=""
            INITTAB="/sbin/getty"
@@ -2012,7 +2034,7 @@
   with several partitions, scsi.opts will first be called for the whole
   device, with a five-field address.  The script should set the PARTS
   variable to a list of partitions.  Then, scsi.opts will be called for
-  each partition, with the longer seven-field addresses.
+  each partition, with the longer six-field addresses.
 
   If your kernel does not have a top-level driver (disk, tape, etc) for
   a particular SCSI device, then the device will not be configured by
@@ -2026,8 +2048,8 @@
   to tell cardmgr which extra modules need to be loaded when your
   adapter is configured.  For example:
 
-       device "aha152x_cs"
-         class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
+  device "aha152x_cs"
+    class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
 
   would say to load the core SCSI module and the top-level disk driver
   module before loading the regular PCMCIA driver module.
@@ -2088,37 +2110,36 @@
 
   For example, here is a script for configuring a disk device at SCSI ID
   3, with two partitions, and a CD-ROM at SCSI ID 6:
-
-  case "$ADDRESS" in
-  *,sd,*,0,3,0)
-      # This device has two partitions...
-      PARTS="1 2"
-      ;;
-  *,sd,*,0,3,0,1)
-      # Options for partition 1:
-      #  update /etc/fstab, and mount an ext2 fs on /usr1
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="ext2"
-      OPTS=""
-      MOUNTPT="/usr1"
-      ;;
-  *,sd,*,0,3,0,2)
-      # Options for partition 2:
-      #  update /etc/fstab, and mount an MS-DOS fs on /usr2
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="msdos"
-      OPTS=""
-      MOUNTPT="/usr2"
-      ;;
-  *,sr,*,0,6,0)
-      # Options for CD-ROM at SCSI ID 6
-      PARTS=""
-      DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
-      FSTYPE="iso9660"
-      OPTS="ro"
-      MOUNTPT="/cdrom"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,sd,*,0,3,0)
+           # This device has two partitions...
+           PARTS="1 2"
+           ;;
+       *,sd,*,0,3,0,1)
+           # Options for partition 1:
+           #  update /etc/fstab, and mount an ext2 fs on /usr1
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2"
+           OPTS=""
+           MOUNTPT="/usr1"
+           ;;
+       *,sd,*,0,3,0,2)
+           # Options for partition 2:
+           #  update /etc/fstab, and mount an MS-DOS fs on /usr2
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="msdos"
+           OPTS=""
+           MOUNTPT="/usr2"
+           ;;
+       *,sr,*,0,6,0)
+           # Options for CD-ROM at SCSI ID 6
+           PARTS=""
+           DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
+           FSTYPE="iso9660"
+           OPTS="ro"
+           MOUNTPT="/cdrom"
+           ;;
+       esac
 
   44..66..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
 

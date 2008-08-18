@@ -1,3 +1,20 @@
+[30-Nov-03] Version 3.2.6
+-- Made cardmgr less verbose by default, and fixed logging levels of
+   some messages to be more sensible.
+-- Added ability to build a free-standing PnP BIOS interface module.
+-- Added --{no}x11 option to Configure script to control building of
+   X11 based tools (xcardinfo, cardinfo, gpccard).
+-- Added dummy_cb point enabler for CardBus cards.
+-- Added gtk-2.0 detection to Configure script.
+-- Changed pcmcia_core to fall back on PCI interrupts even for 16-bit
+   cards, when all ISA interrupts are in use.
+-- Updates to README-2.4 and HOWTO.
+-- Fixed Configure script for 2.4.23 and 2.6.0-test kernels.
+-- Fixed CardBus resource management bug for 2.4 kernels.
+-- Fixed debug code breakage in cs module.
+-- Fixed freq_bypass handling in i82365 driver.
+-- Fixed full duplex mode for DL10019 cards, from Komuro.
+
 [09-Sep-03] Version 3.2.5
 -- Changed cardmgr to not complain if the "anonymous" card type is
    redefined in the config files, from Pavel Roskin.
