@@ -1,0 +1,37 @@
+.\" Copyright (c) 1995 David Hinds <dhinds@allegro.stanford.edu>
+.\" stab.5 1.6 1996/08/29 04:39:04
+.\"
+.TH STAB 5 "1996/08/29 04:39:04" "Stanford University"
+.SH NAME
+stab \- Current PCMCIA device status
+.SH DESCRIPTION
+.I /var/run/stab
+is created by
+.B cardmgr
+and contains identification and device driver information for PCMCIA
+cards.  Each socket is described by one header line, followed by one
+or more device driver lines.  The header gives the card name as given
+in
+.IR /etc/pcmcia/config .
+Device driver lines consist of a series of tab-separated fields.  The
+first field is the socket number.  The second field is the device
+class, which identifies which script in
+.I /etc/pcmcia
+is used to configure or shut down this device.
+The third field is the driver name.
+The fourth field is used to number devices when a single
+card has several devices associated with the same driver.  The fifth
+field is the device name, and the final two fields are major and minor
+device numbers for this device, if appropriate.
+.PP
+The file is updated by
+.B cardmgr
+whenever a card is inserted or ejected, and when
+.B cardmgr
+receives a
+.B SIGHUP
+signal.
+.SH AUTHOR
+David Hinds \- dhinds@allegro.stanford.edu
+.SH "SEE ALSO"
+cardmgr(8), pcmcia(5), cardinfo(1).

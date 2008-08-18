@@ -1,0 +1,76 @@
+.\" Copyright (c) 1995 David Hinds <dhinds@allegro.stanford.edu>
+.\" tcic.4 1.10 1997/09/08 02:13:14
+.\"
+.TH TCIC 4 "1997/09/08 02:13:14" "Stanford University"
+.SH NAME
+tcic \- Databook TCIC-2 PCMCIA controller driver
+.SH SYNOPSIS
+.B insmod tcic.o
+.RB [ pc_debug=n ]
+.RB [ tcic_base=n ]
+.RB [ ignore=n ]
+.RB [ do_scan=n ]
+.RB [ irq_list=i,j,... ]
+.RB [ cs_irq=n ]
+.RB [ poll_interval=n ]
+.RB [ poll_quick=n ]
+.RB [ cycle_time=n ]
+.RB [ async_clock=n ]
+.SH DESCRIPTION
+This is the low-level driver for the Databook TCIC-2 PCMCIA interface
+controller.  It is used by Card Services for programming the TCIC-2
+chip, and for monitoring card status change events.
+.SH PARAMETERS
+.TP
+.B pc_debug=n
+Selects the PCMCIA debugging level.  This parameter is only available
+if the module is compiled with debugging enabled.  A non-zero value
+enables debugging.
+.TP
+.B tcic_base=n
+Sets the base I/O port address of the TCIC-2 chip.  The default is
+0x240.
+.TP
+.B ignore=n
+Causes the driver to ignore a single socket.  Sockets are numbered
+starting at 0.  The socket will be left in whatever state it was
+already in, so it can be used for cards with point enablers that do
+not cooperate with Card Services.
+.TP
+.B do_scan=n
+This flag specifies that all free interrupts should be tested to see
+if they can be triggered by the PCMCIA controller.  The default is 1
+(on). 
+.TP
+.B irq_list=i,j,...
+Specifies the set of interrupts that may be allocated by this driver,
+if they are otherwise available.
+The default list is 3, 4, 5, 6, 7, 10, 11, and 14. 
+.TP
+.B cs_irq=n
+Sets the interrupt line to use for monitoring card status changes.
+The default is 0, which means pick any legal interrupt not already in
+use.  Legal values are 14, 10, 7, 6, 5, 4, and 3.
+.TP
+.B poll_interval=n
+Sets the card status polling delay, in 1/100 second increments.  If
+this parameter is set, card status interrupts will be disabled.  
+.TP
+.B poll_quick=n
+When a card status change interrupt is received, the TCIC-2 chip is
+briefly polled for additional status changes.  This parameter sets the
+polling delay, in 1/100 second increments.  The default is 5, meaning
+0.05 seconds.
+.TP
+.B cycle_time=n
+Sets the length of a CCLK external clock cycle, in nanoseconds.  The
+default is 70 ns, corresponding to a standard ISA 14.31818 MHz clock.
+.TP
+.B async_clock=n
+This flag specifies that PCMCIA bus cycles should be clocked
+asynchronously from host bus cycles, effectively adding extra wait
+states to some operations.  The default is 0 (off).
+.SH AUTHOR
+David Hinds \- dhinds@allegro.stanford.edu
+.SH "SEE ALSO"
+cardmgr(8), pcmcia(5).

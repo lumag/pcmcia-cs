@@ -1,0 +1,16 @@
+# CD-ROM adapter configuration
+#
+# Device configuration section
+#
+# The address format is "scheme,socket".
+#
+# This example will mount any CD-ROM on /cdrom, if possible.
+#
+case "$ADDRESS" in
+*,*)
+    DO_FSTAB="y" ; DO_MOUNT="y"
+    FSTYPE="iso9660"
+    OPTS="ro"
+    MOUNTPT="/cdrom"
+    ;;
+esac

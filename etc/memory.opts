@@ -1,0 +1,12 @@
+# Device configuration for memory cards
+#
+# The address format is "scheme,socket".
+#
+case "$ADDRESS" in
+*,*)
+    #DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+    #FSTYPE="ext2"
+    #OPTS=""
+    #MOUNTPT="/mem"
+    ;;
+esac

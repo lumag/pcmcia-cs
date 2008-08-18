@@ -1,0 +1,16 @@
+#
+# config.in 1.9 1997/06/26 05:29:23 (David Hinds)
+#
+LINUX=/usr/src/linux
+MODPATH=/lib/modules
+CC=gcc
+LD=ld
+PCDEBUG=
+# UNSAFE_TOOLS is not set
+CONFIG_PCI=y
+# CONFIG_APM is not set
+# CONFIG_SCSI is not set
+CONFIG_INET=y
+CONFIG_MODVERSIONS=y
+SYSV_INIT=n
+RC_DIR=/etc

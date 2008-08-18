@@ -1,0 +1,2360 @@
+  Linux PCMCIA HOWTO
+  David Hinds, dhinds@hyper.stanford.edu
+  v2.5, 1998/02/19 23:20:06
+
+  This document describes how to install and use PCMCIA Card Services
+  for Linux, and answers some frequently asked questions.  The latest
+  version of this document can always be found at <ftp://hyper.stan-
+  ford.edu/pub/pcmcia/doc>.  An HTML version is at <http://hyper.stan-
+  ford.edu/HyperNews/get/pcmcia/home.html>.
+  ______________________________________________________________________
+
+  Table of Contents:
+
+  1.      General information and hardware requirements
+
+  1.1.    Introduction
+
+  1.2.    Copyright notice and disclaimer
+
+  1.3.    What is the latest version, and where can I get it?
+
+  1.4.    What systems are supported?
+
+  1.5.    What PCMCIA cards are supported?
+
+  1.6.    When will my new card be supported?
+
+  1.7.    Mailing lists and other information sources
+
+  1.8.    Why don't you distribute PCMCIA binaries?
+
+  1.9.    Why is the PCMCIA package so darned big?
+
+  2.      Compilation and installation
+
+  2.1.    Prerequisites and kernel setup
+
+  2.2.    Installation
+
+  2.3.    Post-installation for systems using BSD init scripts
+
+  2.4.    Post-installation for systems using System V init scripts
+
+  2.5.    Socket driver options
+
+  2.6.    System resource settings
+
+  3.      Resolving installation and configuration problems
+
+  3.1.    Base PCMCIA kernel modules do not load
+
+  3.2.    Interrupt scan failures
+
+  3.3.    Memory probe failures
+
+  3.4.    Failure to detect card insertions and removals
+
+  3.5.    Resource conflict between two cards
+
+  3.6.    Device configuration does not complete
+
+  4.      Usage and features
+
+  4.1.    Tools for configuring and monitoring PCMCIA devices
+
+  4.1.1.  The cardmgr configuration daemon
+
+  4.1.2.  The cardctl and cardinfo utilities
+
+  4.1.3.  Inserting and ejecting cards
+
+  4.1.4.  Card Services and Advanced Power Management
+
+  4.1.5.  Shutting down the PCMCIA system
+
+  4.2.    Overview of the PCMCIA configuration scripts
+
+  4.3.    PCMCIA network adapters
+
+  4.3.1.  Network device parameters
+
+  4.3.2.  Comments about specific cards
+
+  4.3.3.  Diagnosing problems with network adapters
+
+  4.4.    PCMCIA serial and modem devices
+
+  4.4.1.  Serial device parameters
+
+  4.4.2.  Diagnosing problems with serial devices
+
+  4.5.    PCMCIA SCSI adapters
+
+  4.5.1.  SCSI device parameters
+
+  4.5.2.  Diagnosing problems with SCSI adapters
+
+  4.6.    PCMCIA memory cards
+
+  4.6.1.  Memory device parameters
+
+  4.6.2.  Using flash memory cards
+
+  4.7.    PCMCIA ATA/IDE card drives
+
+  4.7.1.  ATA/IDE fixed-disk device parameters
+
+  4.7.2.  Diagnosing problems with ATA/IDE adapters
+
+  4.8.    Multifunction cards
+
+  5.      Advanced topics
+
+  5.1.    Resource allocation for PCMCIA devices
+
+  5.2.    How can I have separate device setups for home and work?
+
+  5.3.    Booting from a PCMCIA device
+
+  5.3.1.  The pcinitrd helper script
+
+  5.3.2.  Creating an initrd boot floppy
+
+  5.3.3.  Installing an initrd image on a non-Linux drive
+
+  6.      Dealing with unsupported cards
+
+  6.1.    Configuring unrecognized cards
+
+  6.2.    Adding support for an NE2000-compatible ethernet card
+
+  6.3.    PCMCIA floppy interface cards
+
+  6.4.    What's up with support for Xircom cards?
+
+  7.      Debugging tips and programming information
+
+  7.1.    Submitting useful bug reports
+
+  7.2.    Low level PCMCIA debugging aids
+
+  7.3.    Writing Card Services drivers for new cards
+
+  7.4.    Guidelines for PCMCIA client driver authors
+
+  7.5.    Guidelines for Linux distribution maintainers
+  ______________________________________________________________________
+
+  11..  GGeenneerraall iinnffoorrmmaattiioonn aanndd hhaarrddwwaarree rreeqquuiirreemmeennttss
+
+  11..11..  IInnttrroodduuccttiioonn
+
+  Card Services for Linux is a complete PCMCIA support package.  It
+  includes a set of loadable kernel modules that implement a version of
+  the PCMCIA Card Services applications program interface, a set of
+  client drivers for specific cards, and a card manager daemon that can
+  respond to card insertion and removal events, loading and unloading
+  drivers on demand.  It supports ``hot swapping'' of PCMCIA cards, so
+  cards can be inserted and ejected at any time.
+
+  This software is continually under development.  It probably contains
+  bugs, and should be used with caution.  I'll do my best to fix
+  problems that are reported to me, but if you don't tell me, I may
+  never know.  If you use this code, I hope you will send me your
+  experiences, good or bad!
+
+  If you have any suggestions for how this document could be improved,
+  please let me know (dhinds@hyper.stanford.edu).
+
+  11..22..  CCooppyyrriigghhtt nnoottiiccee aanndd ddiissccllaaiimmeerr
+
+  Copyright (c) 1998 David A. Hinds
+
+  This document may be reproduced or distributed in any form without my
+  prior permission.  Modified versions of this document, including
+  translations into other languages, may be freely distributed, provided
+  that they are clearly identified as such, and this copyright is
+  included intact.
+
+  This document may be included in commercial distributions without my
+  prior consent.  While it is not required, I would like to be informed
+  of such usage.  If you intend to incorporate this document in a
+  published work, please contact me to make sure you have the latest
+  available version.
+
+  This document is provided ``as is'', with no explicit or implied
+  warranties.  Use the information in this document at your own risk.
+
+  11..33..  WWhhaatt iiss tthhee llaatteesstt vveerrssiioonn,, aanndd wwhheerree ccaann II ggeett iitt??
+
+  The current major release of Card Services is version 3.0, and minor
+  updates or bug fixes are numbered 3.0.1, 3.0.2, and so on.
+
+  Source code for the latest version is available from
+  hyper.stanford.edu in the /pub/pcmcia directory, as pcmcia-
+  cs-3.0.?.tar.gz.  There will usually be several versions here.  I
+  generally only keep the latest minor release for a given major
+  release.  New major releases may contain relatively untested code, so
+  I also keep the latest version of the previous major release as a
+  relatively stable fallback; the current fallback is 2.9.12.  It is up
+  to you to decide which version is more appropriate, but the CHANGES
+  file will summarize the most important differences.
+
+  hyper.stanford.edu is mirrored at sunsite.unc.edu (and all sunsite
+  mirror sites) in /pub/Linux/kernel/pcmcia.
+
+  If you do not feel up to compiling the PCMCIA drivers from scratch,
+  pre-compiled drivers are included with current releases of most of the
+  major Linux distributions, including Slackware, Red Hat, Caldera, and
+  Yggdrasil, among others.
+
+  11..44..  WWhhaatt ssyysstteemmss aarree ssuuppppoorrtteedd??
+
+  This code should run on almost any Linux-capable laptop.  Most common
+  PCMCIA controllers are supported, including Intel, Cirrus, Vadem,
+  VLSI, Ricoh, and Databook chips.  Custom controllers used in IBM and
+  Toshiba laptops are also supported.  PCMCIA card docks for desktop
+  systems should work as long as they are the type that plugs directly
+  into the ISA bus, rather than SCSI-to-PCMCIA or IDE-to-PCMCIA
+  adapters.
+
+  CardBus bridge controllers that conform to the ``Yenta'' register
+  specification (including TI, Cirrus, SMC, O2Micro, Omega Micro, and
+  Ricoh chips) are supported, though support for 32-bit CardBus cards is
+  still somewhat experimental.  Drivers prior to version 3.0 only
+  support 16-bit cards in CardBus sockets.  Due to the rapid pace of
+  technological change for laptop hardware, new controllers appear
+  frequently, and there may be delays between when a new model appears
+  on the market, and when driver support becomes available.
+
+  The Motorola 6AHC05GA controller used in some Hyundai laptops is not
+  supported.  The custom PCMCIA controller in the HP Omnibook 600 is
+  unsupported.
+
+  11..55..  WWhhaatt PPCCMMCCIIAA ccaarrddss aarree ssuuppppoorrtteedd??
+
+  The current release includes drivers for a variety of ethernet cards,
+  a driver for modem and serial port cards, several SCSI adapter
+  drivers, a driver for ATA/IDE drive cards, and memory card drivers
+  that should support most SRAM cards and some flash cards.  The
+  SUPPORTED.CARDS file included with each release of Card Services lists
+  all cards that are known to work in at least one actual system.
+
+  The likelihood that a card not on the supported list will work depends
+  on the type of card.  Essentially all modems should work with the
+  supplied driver.  Some network cards may work if they are OEM versions
+  of supported cards.  Other types of IO cards (frame buffers, sound
+  cards, etc) will not work until someone writes the appropriate
+  drivers.
+
+  11..66..  WWhheenn wwiillll mmyy nneeww ccaarrdd bbee ssuuppppoorrtteedd??
+
+  Unfortunately, they usually don't pay me to write device drivers, so
+  if you would like to have a driver for your favorite card, you are
+  probably going to have to do at least some of the work.  Ideally, I'd
+  like to work towards a model like the Linux kernel, where I would be
+  responsible mainly for the ``core'' PCMCIA code and other authors
+  would contribute and maintain drivers for specific cards.  The
+  SUPPORTED.CARDS file mentions some cards for which driver work is
+  currently in progress.  I will try to help where I can, but be warned
+  that debugging kernel device drivers by email is not particularly
+  effective.
+
+  Manufacturers interested in helping provide Linux support for their
+  products can contact me about consulting arrangements.
+
+  11..77..  MMaaiilliinngg lliissttss aanndd ootthheerr iinnffoorrmmaattiioonn ssoouurrcceess
+
+  I used to maintain a database and mailing list of Linux PCMCIA users.
+  More recently, I've turned my web page for Linux PCMCIA information
+  into a ``HyperNews'' site, with a set of message lists for Linux
+  PCMCIA issues.  There are lists for installation and configuration
+  issues, for different types of cards, and for PCMCIA programming and
+  debugging.  The Linux PCMCIA information page is at
+  <http://hyper.stanford.edu/HyperNews/get/pcmcia/home.html>.  Users can
+  request email notification of new responses to particular questions,
+  or notification for all new messages in a given category.  I hope that
+  this will become a useful repository of information, for questions
+  that go beyond the scope of the HOWTO.
+
+  There is a Linux mailing list devoted to laptop issues, the ``linux-
+  laptop'' list.  For more information, send a message containing the
+  word ``help'' to majordomo@vger.rutgers.edu.  To subscribe, send a
+  message containing ``subscribe linux-laptop'' to the same address.
+  This mailing list might be a good forum for discussion of Linux PCMCIA
+  issues.
+
+  The Linux Laptop Home Page at
+  <http://www.cs.utexas.edu/users/kharker/linux-laptop> has links to
+  many sites that have information about configuring specific types of
+  laptops for Linux (and PCMCIA).  There is also a searchable database
+  of system configuration information.
+
+  11..88..  WWhhyy ddoonn''tt yyoouu ddiissttrriibbuuttee PPCCMMCCIIAA bbiinnaarriieess??
+
+  For me, distributing binaries would be a significant hassle.  It is
+  complicated because some features can only be selected at compile
+  time, and because the PCMCIA modules are somewhat dependent on having
+  the ``right'' kernel configuration.  So, I would probably need to
+  distribute precompiled modules along with matching kernels.  Beyond
+  this, the greatest need for precompiled modules is when installing
+  Linux on a clean system.  This typically requires setting up PCMCIA so
+  that it can be used in the installation process for a particular Linux
+  distribution.  Each Linux distribution has its own procedures, and it
+  is not feasible for me to provide boot and root disks for even just
+  the common combinations of drivers and distributions.
+
+  PCMCIA is now a part of many of the major Linux distributions,
+  including Red Hat, Caldera, Slackware, Yggdrasil, Craftworks, and
+  Nascent Technology.
+
+  11..99..  WWhhyy iiss tthhee PPCCMMCCIIAA ppaacckkaaggee ssoo ddaarrnneedd bbiigg??
+
+  Well, first of all, it isn't actually that large.  All the driver
+  modules together take up about 200K of disk space.  The utility
+  programs add up to about 70K, and the stuff in /etc/pcmcia is about
+  30K.  When running, the core PCMCIA modules take up 48K of system
+  memory.  The cardmgr daemon will generally be swapped out except when
+  cards are inserted or removed.  The total package size is not much
+  different from DOS Card Services implementations.
+
+  Compared to DOS ``point enablers'', this may still seem like a lot of
+  overhead, especially for people that don't plan on using many of the
+  features of PCMCIA, such as power management or hot swapping.  Point
+  enablers can be tiny because they generally support only one or a
+  small set of cards, and also generally support a restricted set of
+  PCMCIA controllers.  If someone were to write a genuinely ``generic''
+  modem enabler, it would end up incorporating much of the functionality
+  of Card Services, to handle cards from different vendors and the full
+  range of PCMCIA controller variants.
+
+  22..  CCoommppiillaattiioonn aanndd iinnssttaallllaattiioonn
+
+  22..11..  PPrreerreeqquuiissiitteess aanndd kkeerrnneell sseettuupp
+
+  Before starting, you should think about whether you really need to
+  compile the PCMCIA package yourself.  All common Linux distributions
+  come with pre-compiled PCMCIA driver packages.  Generally, you only
+  need to install the drivers from scratch if you need a new feature of
+  the current drivers, or if you've updated and/or reconfigured your
+  kernel in a way that is incompatible with the drivers included with
+  your Linux distribution.  While compiling the PCMCIA package is not
+  technically difficult, it does require some general Linux familiarity.
+
+  The following things should be installed on your system before you
+  start installing PCMCIA:
+
+  +o  A 2.0.* or 2.1.* series kernel source tree.
+
+  +o  An appropriate set of module utilities.
+
+  +o  (Optional) the ``XForms'' X11 user interface toolkit.
+
+  The current driver package actually works with most kernel versions
+  back to 1.2.8.  However, use with older kernels is deprecated, and
+  backwards compatibility with very old kernels may go away at any time.
+
+  You need to have a complete linux source tree for your kernel, not
+  just an up-to-date kernel image, to compile the PCMCIA package.  The
+  PCMCIA modules contain some references to kernel source files.  While
+  you may want to build a new kernel to remove unnecessary drivers,
+  installing PCMCIA does not require you to do so.
+
+  Current ``stable'' kernel sources and patches are available from
+  <ftp://sunsite.unc.edu/pub/Linux/kernel/v2.0>, or from
+  <ftp://tsx-11.mit.edu/pub/linux/sources/system/v2.0>.  Development
+  kernels can be found in the corresponding v2.1 subdirectories.
+  Current module utilities can be found in the same locations.
+
+  In the Linux source tree for 2.0 and 2.1 kernels, the
+  Documentation/Changes file describes the versions of all sorts of
+  other system components that are required for that kernel release.
+  You may want to check through this and verify that your system is up
+  to date, especially if you have updated your kernel.  If you are using
+  a 2.1 kernel, be sure that you are using the right combination of
+  shared libraries and module tools.
+
+  When configuring your kernel, if you plan on using a PCMCIA ethernet
+  card, you should turn on networking support but turn off the normal
+  Linux network card drivers, including the ``pocket and portable
+  adapters''.  The PCMCIA network card drivers are all implemented as
+  loadable modules.  Any drivers compiled into your kernel will only
+  waste space.
+
+  If you want to use SLIP, PPP, or PLIP, you do need to either configure
+  your kernel with these enabled, or use the loadable module versions of
+  these drivers.  There is an unfortunate deficiency in the kernel
+  config process in 1.2.X kernels, in that it is not possible to set
+  configuration options (like SLIP compression) for a loadable module,
+  so it is probably better to just link SLIP into the kernel if you need
+  it.
+
+  In order to use a PCMCIA token ring adapter, your kernel should be
+  configured with ``Token Ring driver support'' (CONFIG_TR) enabled,
+  though you should leave CONFIG_IBMTR off.
+
+  If you want to use a PCMCIA IDE adapter, your kernel should be
+  configured with CONFIG_BLK_DEV_IDE_PCMCIA enabled, for 1.3.72 through
+  2.1.7 kernels.  Older kernels do not support removeable IDE devices;
+  newer kernels do not require a special configuration setting.
+
+  If you will be using a PCMCIA SCSI adapter, you should enable
+  CONFIG_SCSI when configuring your kernel.  Also, enable any top level
+  drivers (SCSI disk, tape, cdrom, generic) that you expect to use.  All
+  low-level drivers for particular host adapters should be disabled, as
+  they will just take up space.
+
+  If you want to modularize a driver that is needed for a PCMCIA device,
+  you must modify /etc/pcmcia/config to specify what modules need to be
+  loaded for what card types.  For example, if the serial driver is
+  modularized, then the serial device definition should be:
+
+       device "serial_cs"
+         class "serial" module "misc/serial", "serial_cs"
+
+  This package includes an X-based card status utility called cardinfo.
+  This utility is based on a freely distributed user interface toolkit
+  called the XForms Library.  This library is available as a separate
+  package with most Linux distributions.  If you would like to build
+  cardinfo, you should install XForms and all the normal X header files
+  and libraries before configuring the PCMCIA package.
+
+  22..22..  IInnssttaallllaattiioonn
+
+  Here is a synopsis of the installation process:
+
+  +o  Unpack pcmcia-cs-3.0.?.tar.gz in /usr/src.
+
+  +o  Run ``make config'' in the new pcmcia-cs-3.0.? directory.
+
+  +o  Run ``make all'', then ``make install''.
+
+  +o  Customize the PCMCIA startup script and the option files in
+     /etc/pcmcia for your site.
+
+  If you plan to install any contributed client drivers not included in
+  the core PCMCIA distribution, unpack each of them in the top-level
+  directory of the PCMCIA source tree.  Then follow the normal build
+  instructions.  The extra drivers will be compiled and installed
+  automatically.
+
+  Running ``make config'' prompts for a few configuration options, and
+  checks out your system to verify that it satisfies all prerequisites
+  for installing PCMCIA support.  In most cases, you'll be able to just
+  accept all the default configuration options.  Be sure to carefully
+  check the output of this command in case there are problems.
+
+  If you are compiling the PCMCIA package for installation on another
+  machine, specify an alternate target directory when prompted by the
+  configure script.  This should be an absolute path.  All the PCMCIA
+  tools will be installed relative to this directory.  You will then be
+  able to tar this directory tree and copy to your target machine, and
+  unpack relative to its root directory to install everything in the
+  proper places.
+
+  If you are cross compiling on another machine, you may want to specify
+  alternate names for the compiler and linker.  This may also be helpful
+  on mixed a.out and ELF systems.  The script will also prompt for
+  additional compiler flags for debugging.
+
+  Some of the support utilities (cardctl and cardinfo) can be compiled
+  either in ``safe'' or ``trusting'' forms.  The ``safe'' forms prevent
+  non-root users from modifying card configurations.  The ``trusting''
+  forms permit ordinary users to issue commands to suspend and resume
+  cards, reset cards, and change the current configuration scheme.  The
+  configuration script will ask if you want the utilities compiled as
+  safe or trusting: the default is to be safe.
+
+  There are a few kernel configuration options that affect the PCMCIA
+  tools.  The configuration script can deduce these from the running
+  kernel (the most common case).  Alternatively, if you are compiling
+  for installation on another machine, it can read the configuration
+  from a kernel source tree, or each option can be set interactively.
+
+  Running ``make all'' followed by ``make install'' will build and then
+  install the kernel modules and utility programs.  Kernel modules are
+  installed under /lib/modules/<version>/pcmcia.  The cardmgr and
+  cardctl programs are installed in /sbin.  If cardinfo is built, it is
+  installed in /usr/bin/X11.
+
+  Configuration files will be installed in the /etc/pcmcia directory.
+  If you are installing over an older version, your old config scripts
+  will be backed up before being replaced.  The saved scripts will be
+  given extensions like *.~1~, *.~2~, and so on.
+
+  If you don't know what kind of PCMCIA controller chip you have, you
+  can use the probe utility in the cardmgr/ subdirectory to determine
+  this.  There are two major types: the Databook TCIC-2 type and the
+  Intel i82365SL-compatible type.
+
+  In a few cases, the probe command will be unable to determine your
+  controller type automatically.  If you have a Halikan NBD 486 system,
+  it has a TCIC-2 controller at an unusual location: you'll need to edit
+  rc.pcmcia to load the tcic module, and also set the PCIC_OPTS
+  parameter to ``tcic_base=0x02c0''.
+
+  On some systems using Cirrus controllers, including the NEC Versa M,
+  the BIOS puts the controller in a special suspended state at system
+  startup time.  On these systems, the probe command will fail to find
+  any known PCMCIA controller.  If this happens, edit rc.pcmcia and set
+  PCIC to i82365, and PCIC_OPTS to ``wakeup=1''.
+
+  22..33..  PPoosstt--iinnssttaallllaattiioonn ffoorr ssyysstteemmss uussiinngg BBSSDD iinniitt ssccrriippttss
+
+  Some Linux distributions, including Slackware, use a BSD arrangement
+  for system startup scripts.  If /etc/rc.d/rc.M exists, your system is
+  in this group.  The script rc.pcmcia, installed in /etc/rc.d, controls
+  starting up and shutting down the PCMCIA system.  ``make install''
+  will use the probe command to determine your controller type and
+  modify rc.pcmcia appropriately.  You should add a line to your system
+  startup file /etc/rc.d/rc.M to invoke the PCMCIA startup script, like:
+
+       /etc/rc.d/rc.pcmcia start
+
+  It does not really matter where you insert this line, as long as the
+  PCMCIA drivers are started after syslogd.
+
+  22..44..  PPoosstt--iinnssttaallllaattiioonn ffoorr ssyysstteemmss uussiinngg SSyysstteemm VV iinniitt ssccrriippttss
+
+  Red Hat, Caldera, and Debian Linux have a System V-ish arrangement for
+  system startup files.  If you have a directory called /etc/init.d or
+  /etc/rc.d/init.d, then your system is in this group.  The rc.pcmcia
+  script will be installed as /etc/rc.d/init.d/pcmcia, or
+  /etc/init.d/pcmcia, as appropriate.  There is no need to edit any of
+  the startup scripts to enable PCMCIA: it will happen automatically.
+
+  If the /etc/sysconfig directory exists, then a separate configuration
+  file, /etc/sysconfig/pcmcia, will be created for startup options.  If
+  you need to change any module options (like the PCIC= or PCIC_OPTS=
+  settings), edit this config file rather than the actual PCMCIA startup
+  script.  This file will not be overwritten by subsequent installs.
+
+  Some previous releases used the /etc/sysconfig/pcmcia-scripts
+  directory in place of /etc/pcmcia on these platforms.  The current
+  release instead uses /etc/pcmcia for all systems, and will move an
+  existing /etc/sysconfig/pcmcia-scripts to /etc/pcmcia.
+
+  22..55..  SSoocckkeett ddrriivveerr ooppttiioonnss
+
+  Some PCMCIA controllers have optional features that may or may not be
+  implemented in a particular system.  In some cases, it is impossible
+  for the socket driver to detect if these features are implemented.
+  Check the man page for your socket driver to see what optional
+  features may be present for your controller.
+
+  The low level socket drivers, tcic and i82365, have numerous bus
+  timing parameters that may need to be adjusted for systems with
+  particularly fast processors.  Symptoms of timing problems include
+  card recognition problems, lock-ups under heavy loads, high error
+  rates, or poor device performance.  Check the corresponding man pages
+  for more details, but here is a brief summary:
+
+  +o  Cirrus controllers have numerous configurable timing parameters.
+     The most important seems to be the cmd_time flag, which determines
+     the length of PCMCIA bus cycles.  Fast 486 systems (i.e., DX4-100)
+     seem to often benefit from increasing this from 6 (the default) to
+     12 or 16.
+
+  +o  The Cirrus PD6729 PCI controller has the fast_pci flag, which
+     should be set if the PCI bus speed is greater than 25 MHz.
+
+  +o  For Vadem VG-468 controllers and Databook TCIC-2 controllers, the
+     async_clock flag changes the relative clocking of PCMCIA bus and
+     host bus cycles.  Setting this flag adds extra wait states to some
+     operations.  However, I have yet to hear of a laptop that needs
+     this.
+
+  +o  The pcmcia_core module has the cis_speed parameter for changing the
+     memory speed used for accessing a card's Card Information Structure
+     (CIS).  On some systems with fast bus clocks, increasing this
+     parameter (i.e., slowing down card accesses) may be beneficial for
+     card recognition problems.
+
+  +o  This isn't a timing issue, but if you have more than one ISA-to-
+     PCMCIA controller in your system or extra sockets in a docking
+     station, the i82365 module should be loaded with the extra_sockets
+     parameter set to 1.  This should not be necessary for PCI-to-PCMCIA
+     or PCI-to-CardBus bridges
+
+  All these options should be configured by modifying the top of
+  /etc/rc.d/rc.pcmcia.  For example:
+
+       # Should be either i82365 or tcic
+       PCIC=i82365
+       # Put socket driver timing parameters here
+       PCIC_OPTS="cmd_time=12"
+       # Put pcmcia_core options here
+       CORE_OPTS="cis_speed=500"
+
+  Here are some timing settings for specific systems:
+
+  +o  On the ARM Pentium-90 or Midwest Micro Soundbook Plus, use
+     ``freq_bypass=1 cmd_time=8''.
+
+  +o  On a Midwest Micro Soundbook Elite, use ``cmd_time=12''.
+
+  +o  On a Gateway Liberty, try ``cmd_time=16''.
+
+  22..66..  SSyysstteemm rreessoouurrccee sseettttiinnggss
+
+  Card Services should automatically avoid allocating IO ports and
+  interrupts already in use by other standard devices.  It will also
+  attempt to detect conflicts with unknown devices, but this is not
+  completely reliable.  In some cases, you may need to explicitly
+  exclude resources for a device in /etc/pcmcia/config.opts.
+
+  Here are some resource settings for specific laptop types.
+
+  +o  On the AMS SoundPro, exclude irq 10.
+
+  +o  On some AMS TravelPro 5300 models, use memory 0xc8000-0xcffff.
+
+  +o  On the BMX 486DX2-66, exclude irq 5, irq 9.
+
+  +o  On the Chicony NB5, use memory 0xda000-0xdffff.
+
+  +o  On the Compaq Presario 1020, exclude port 0x2f8-0x2ff, irq 3, irq
+     5.
+
+  +o  On the HP Omnibook 4000C, exclude port 0x300-0x30f.
+
+  +o  On the Micron Millenia Transport, exclude irq 5, irq 9.
+
+  +o  On the NEC Versa M, exclude irq 9, port 0x2e0-2ff.
+
+  +o  On the NEC Versa P/75, exclude irq 5, irq 9.
+
+  +o  On the NEC Versa S, exclude irq 9, irq 12.
+
+  +o  On the NEC Versa 6000 series, exclude port 0x300-0x33f, irq 9, irq
+     10.
+
+  +o  On the ProStar 9200, Altima Virage, and Acquiline Hurricane
+     DX4-100, exclude irq 5, port 0x330-0x35f.  Maybe use memory
+     0xd8000-0xdffff.
+
+  +o  On the Siemens Nixdorf SIMATIC PG 720C, use memory 0xc0000-0xcffff,
+     port 0x300-0x3bf.
+
+  +o  On the TI TravelMate 5000, use memory 0xd4000-0xdffff.
+
+  +o  On the Toshiba T4900 CT, exclude irq 5, port 0x2e0-0x2e8, port
+     0x330-0x338.
+
+  +o  On the Twinhead 5100, HP 4000, Sharp PC-8700 and PC-8900, exclude
+     irq 9 (sound), irq 12.
+
+  +o  On an MPC 800 Series, exclude irq 5, port 0x300-0x30f for the CD-
+     ROM.
+
+  33..  RReessoollvviinngg iinnssttaallllaattiioonn aanndd ccoonnffiigguurraattiioonn pprroobblleemmss
+
+  This section describes some of the most common failure modes for the
+  PCMCIA subsystem.  Try to match your symptoms against the examples.
+  This section only describes ``general failures'' that are not specific
+  to a particular card or driver.
+
+  It is nearly impossible to debug PCMCIA driver problems encountered
+  when attempting to install Linux via a PCMCIA device.  Even if you can
+  identify the problem based on its symptoms, installation disks are
+  difficult to modify, especially without access to a running Linux
+  system.  Customization of installation disks is completely dependent
+  on the choice of Linux distribution, and is beyond the scope of this
+  document.  In general, the best course of action is to install Linux
+  using some other means, obtain the latest PCMCIA drivers, and then
+  debug the problem if it persists.
+
+  33..11..  BBaassee PPCCMMCCIIAA kkeerrnneell mmoodduulleess ddoo nnoott llooaadd
+
+  Symptoms:
+
+  +o  Kernel version mismatch errors are reported when the PCMCIA startup
+     script runs.
+
+  +o  After startup, lsmod does not show any PCMCIA modules.
+
+  +o  cardmgr reports ``no pcmcia driver in /proc/devices'' in the system
+     log.
+
+  Kernel modules contain version information that is checked against the
+  current kernel when a module is loaded.  The type of checking depends
+  on the setting of the CONFIG_MODVERSIONS kernel option.  If this is
+  false, then the kernel version number is compiled into each module,
+  and insmod checks this for a match with the running kernel.  If
+  CONFIG_MODVERSIONS is true, then each symbol exported by the kernel is
+  given a sort of checksum.  These codes are all compared against the
+  corresponding codes compiled into a module.  The intent was for this
+  to make modules less version-dependent, because the checksums would
+  only change if a kernel interface changed, and would generally stay
+  the same across minor kernel updates.  In practice, the checksums have
+  turned out to be even more restrictive, because many kernel interfaces
+  depend on compile-time kernel option settings.  Also, the checksums
+  turned out to be an excessively pessimistic judge of compatibility.
+
+  Some of the PCMCIA modules require kernel services that may or may not
+  be present, depending on kernel configuration.  For instance, the SCSI
+  card drivers require that the kernel be configured with SCSI support,
+  and the network drivers require a networking kernel.  If a kernel
+  lacks a necessary feature, insmod may report undefined symbols and
+  refuse to load a module.
+
+  The practical upshot of this is that kernel modules are closely tied
+  to both the kernel version, and the setting of many kernel
+  configuration options.  Generally, a set of modules compiled for one
+  2.0.31 kernel will not load against some other 2.0.31 kernel unless
+  special care is taken to ensure that the two were built with similar
+  configurations.  This makes distribution of precompiled kernel modules
+  a tricky business.
+
+  You have several options:
+
+  +o  If you obtained precompiled drivers as part of a Linux
+     distribution, verify that you are using an unmodified kernel as
+     supplied with that distribution.  If you intend to use precompiled
+     modules, you generally must stick with the corresponding kernel.
+
+  +o  If you have reconfigured or upgraded your kernel, you will probably
+     need to compile and install the PCMCIA package from scratch.  This
+     is easily done if you already have the kernel source tree
+     installed.  See the PCMCIA-HOWTO for detailed instructions.
+
+  +o  In some cases, incompatibilities in other system components can
+     prevent correct loading of kernel modules.  If you have upgraded
+     your own kernel, pay attention to the ``minimal requirements'' for
+     module utilities and binutils listed in the Documentation/Changes
+     file in the kernel source code tree.
+
+  33..22..  IInntteerrrruupptt ssccaann ffaaiilluurreess
+
+  Symptoms:
+
+  +o  The system locks up when the PCMCIA drivers are loaded, even with
+     no cards present.
+
+  +o  The system log shows a successful PCMCIA controller probe just
+     before the lock-up, but does not show interrupt probe results.
+
+  After identifying the PCMCIA controller, the socket driver probes for
+  free interrupts.  The probe involves programming the controller for
+  each apparently free interrupt, then generating a ``soft'' interrupt,
+  to see if the interrupt can be detected correctly.  In some cases,
+  probing a particular interrupt can interfere with another system
+  device.
+
+  The reason for the probe is to identify interrupts which appear to be
+  free (i.e., are not reserved by any other Linux device driver), yet
+  are either not physically wired to the PCMCIA controller, or are
+  connected to another device that does not have a driver.
+
+  There are two ways to proceed:
+
+  +o  The interrupt probe can be restricted to a list of interrupts using
+     the irq_list parameter for the socket drivers.  For example,
+     ``irq_list=5,9,10'' would limit the scan to three interrupts.  All
+     PCMCIA devices will be restricted to using these interrupts
+     (assuming they pass the probe).  You may need to use trial and
+     error to find out which interrupts can be safely probed.
+
+  +o  The interrupt probe can be disabled entirely by loading the socket
+     driver with the ``do_scan=0'' option.  In this case, a default
+     interrupt list will be used, which avoids interrupts already
+     allocated for other devices.
+
+  In either case, the probe options can be specified using the PCIC_OPTS
+  definition in the PCMCIA startup script, for example:
+
+       PCIC_OPTS="irq_list=5,9,10"
+
+  33..33..  MMeemmoorryy pprroobbee ffaaiilluurreess
+
+  Symptoms:
+
+  +o  The core drivers load correctly when no cards are present, with no
+     errors in the system log.
+
+  +o  The system freezes and/or reboots as soon as any card is inserted,
+     before any beeps are heard.
+
+  Or alternately:
+
+  +o  All card insertions generate a high beep followed by a low beep.
+
+  +o  All cards are identified as ``anonymous memory cards''.
+
+  +o  The system log reports that various memory ranges have been
+     excluded.
+
+  The core modules perform a memory scan at the time of first card
+  insertion.  This scan can potentially interfere with other memory
+  mapped devices.  Also, pre-3.0.0 driver packages perform a more
+  aggressive scan than more recent drivers.  The memory window is
+  defined in /etc/pcmcia/config.opts.  The default window is large, so
+  it may help to restrict the scan to a narrower range.  Reasonable
+  ranges to try include 0xd0000-0xdffff, 0xc0000-0xcffff,
+  0xc8000-0xcffff, or 0xd8000-0xdffff.
+
+  If you have DOS or Windows PCMCIA drivers, you may be able to deduce
+  what memory region those drivers use.  Note that DOS memory addresses
+  are often specified in ``segment'' form, which leaves off the final
+  hex digit (so an absolute address of 0xd0000 might be given as
+  0xd000).  Be sure to add the extra digit back when making changes to
+  /etc/pcmcia/config.opts.
+
+  33..44..  FFaaiilluurree ttoo ddeetteecctt ccaarrdd iinnsseerrttiioonnss aanndd rreemmoovvaallss
+
+  Symptoms:
+
+  +o  Cards are detected and configured properly if present at boot time.
+
+  +o  The drivers do not respond to insertion and removal events, either
+     by recording events in the system log, or by beeping.
+
+  In most cases, the socket driver (i82365 or tcic) will automatically
+  probe and select an appropriate interrupt to signal card status
+  changes.  The automatic interrupt probe doesn't work on some Intel-
+  compatible controllers, including Cirrus chips and the chips used in
+  some IBM ThinkPads.  If a device is inactive at probe time, its
+  interrupt may also appear to be available.  In these cases, the socket
+  driver may pick an interrupt that is used by another device.
+
+  With the i82365 and tcic drivers, the irq_list option can be used to
+  limit the interrupts that will be tested.  This list limits the set of
+  interrupts that can be used by PCMCIA cards as well as for monitoring
+  card status changes.  The cs_irq option can also be used to explicitly
+  set the interrupt to be used for monitoring card status changes.
+
+  If you can't find an interrupt number that works, there is also a
+  polled status mode: both i82365 and tcic will accept a
+  poll_interval=100 option, to poll for card status changes once per
+  second.  This option should also be used if your system has a shortage
+  of interrupts available for use by PCMCIA cards.  Especially for
+  systems with more than one PCMCIA controller, there is little point in
+  dedicating interrupts for monitoring card status changes.
+
+  All these options should be set in the PCIC_OPTS= line in either
+  /etc/rc.d/rc.pcmcia or /etc/sysconfig/pcmcia, depending on your site
+  setup.
+
+  33..55..  RReessoouurrccee ccoonnfflliicctt bbeettwweeeenn ttwwoo ccaarrddss
+
+  Symptoms:
+
+  +o  Two cards each work fine when used separately.
+
+  +o  When both cards are inserted, only one works.
+
+  This usually indicates a resource conflict with a system device that
+  Linux does not know about.  PCMCIA devices are dynamically configured,
+  so, for example, interrupts are allocated as needed, rather than
+  specifically assigned to particular cards or sockets.  Given a list of
+  resources that appear to be available, cards are assigned resources in
+  the order they are configured.  In this case, the card configured last
+  is being assigned a resource that in fact is not free.
+
+  Check the system log to see what resources are used by the non-working
+  card.  Exclude these in /etc/pcmcia/config.opts, and restart the
+  cardmgr daemon to reload the resource database.
+
+  33..66..  DDeevviiccee ccoonnffiigguurraattiioonn ddooeess nnoott ccoommpplleettee
+
+  Symptoms:
+
+  +o  When a card is inserted, exactly one high beep is heard.
+
+  +o  Subsequent card insertions and removals may be ignored.
+
+  This indicates that the card was identified successfully, however,
+  cardmgr has been unable to complete the configuration process for some
+  reason.  The most likely reason is that a step in the card setup
+  script has blocked.  A good example would be the network script
+  blocking if a network card is inserted with no actual network hookup
+  present.
+
+  To pinpoint the problem, you can manually run a setup script to see
+  where it is blocking.  The scripts are in the /etc/pcmcia directory.
+  They take two parameters: a device name, and an action.  The cardmgr
+  daemon records the configuration commands in the system log.  For
+  example, if the system log shows that the command ``./network start
+  eth0'' was the last command executed by cardmgr, the following
+  commands would trace the script:
+
+       cd /etc/pcmcia
+       sh -x ./network start eth0
+
+  44..  UUssaaggee aanndd ffeeaattuurreess
+
+  44..11..  TToooollss ffoorr ccoonnffiigguurriinngg aanndd mmoonniittoorriinngg PPCCMMCCIIAA ddeevviicceess
+
+  If the modules are all loaded correctly, the output of the lsmod
+  command should look like the following, when no cards are inserted:
+
+       Module                  Size  Used by
+       ds                      5640   2
+       i82365                 15452   2
+       pcmcia_core            30012   3  [ds i82365]
+
+  The system log should also include output from the socket driver
+  describing the host controller(s) found and the number of sockets
+  detected.
+
+  44..11..11..  TThhee ccaarrddmmggrr ccoonnffiigguurraattiioonn ddaaeemmoonn
+
+  The cardmgr daemon is responsible for monitoring PCMCIA sockets,
+  loading client drivers when needed, and running user-level scripts in
+  response to card insertions and removals.  It records its actions in
+  the system log, but also uses beeps to signal card status changes.
+  The tones of the beeps indicate success or failure of particular
+  configuration steps.  Two high beeps indicate that a card was
+  identified and configured successfully.  A high beep followed by a low
+  beep indicates that a card was identified, but could not be configured
+  for some reason.  One low beep indicates that a card could not be
+  identified.
+
+  Cardmgr records device information for each socket in /var/run/stab.
+  Here is a sample /var/run/stab listing:
+
+       Socket 0: Adaptec APA-1460 SlimSCSI
+       0       scsi    aha152x_cs      0       sda     8       0
+       0       scsi    aha152x_cs      1       scd0    11      0
+       Socket 1: Serial or Modem Card
+       1       serial  serial_cs       0       ttyS1   5       65
+
+  For the lines describing devices, the first field is the socket, the
+  second is the device class, the third is the driver name, the fourth
+  is used to number multiple devices associated with the same driver,
+  the fifth is the device name, and the final two fields are the major
+  and minor device numbers for this device (if applicable).
+
+  The cardmgr daemon configures cards based on a database of known card
+  types kept in /etc/pcmcia/config.  This file describes the various
+  client drivers, then describes how to identify various cards, and
+  which driver(s) belong with which cards.  The format of this file is
+  described in the pcmcia(5) man page.
+
+  44..11..22..  TThhee ccaarrddccttll aanndd ccaarrddiinnffoo uuttiilliittiieess
+
+  The cardctl command can be used to check the status of a socket, or to
+  see how it is configured.  It can also be used to alter the
+  configuration status of a card.  Here is an example of the output of
+  the ``cardctl config'' command:
+
+       Socket 0:
+       Socket 1:
+         Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
+         Card type is memory and I/O
+         IRQ 3 is dynamic shared, level mode, enabled
+         Speaker output is enabled
+         Function 0:
+           Config register base = 0x0800
+             Option = 0x63, status = 0x08
+           I/O window 1: 0x0280 to 0x02bf, auto sized
+           I/O window 2: 0x02f8 to 0x02ff, 8 bit
+
+  The ``cardctl suspend'' and ``cardctl resume'' commands can be used to
+  shut down a card without unloading its associated drivers.  The
+  ``cardctl reset'' command attempts to reset and reconfigure a card.
+  ``cardctl insert'' and ``cardctl eject'' mimic the actions performed
+  when a card is physically inserted or ejected, including loading or
+  unloading drivers, and configuring or shutting down devices.
+
+  If you are running X, the cardinfo utility produces a graphical
+  display showing the current status of all PCMCIA sockets, similar in
+  content to ``cardctl config''.  It also provides a graphical interface
+  to most other cardctl functions.
+
+  44..11..33..  IInnsseerrttiinngg aanndd eejjeeccttiinngg ccaarrddss
+
+  In theory, you can insert and remove PCMCIA cards at any time.
+  However, it is a good idea not to eject a card that is currently being
+  used by an application program.  Kernels older than 1.1.77 would often
+  lock up when serial/modem cards were ejected, but this should be fixed
+  now.
+
+  44..11..44..  CCaarrdd SSeerrvviicceess aanndd AAddvvaanncceedd PPoowweerr MMaannaaggeemmeenntt
+
+  Card Services can be compiled with support for APM (Advanced Power
+  Management) if you've installed this package on your system.  APM is
+  incorporated into 1.3.46 and later kernels.  It is currently being
+  maintained by Rick Faith (faith@cs.unc.edu), and APM tools can be
+  obtained from <ftp://ftp.cs.unc.edu/pub/users/faith/linux>.  The
+  PCMCIA modules will automatically be configured for APM if a
+  compatible version is detected on your system.
+
+  Without resorting to APM, you can do ``cardctl suspend'' before
+  suspending your laptop, and ``cardctl resume'' after resuming, to
+  properly shut down and restart your PCMCIA cards.  This will not work
+  with a PCMCIA modem that is in use, because the serial driver isn't
+  able to save and restore the modem operating parameters.
+
+  APM seems to be unstable on some systems.  If you experience trouble
+  with APM and PCMCIA on your system, try to narrow down the problem to
+  one package or the other before reporting a bug.
+
+  Some drivers, notably the PCMCIA SCSI drivers, cannot recover from a
+  suspend/resume cycle.  When using a PCMCIA SCSI card, use ``cardctl
+  eject'' prior to suspending the system.
+
+  44..11..55..  SShhuuttttiinngg ddoowwnn tthhee PPCCMMCCIIAA ssyysstteemm
+
+  To unload the entire PCMCIA package, invoke rc.pcmcia with:
+
+       /etc/rc.d/rc.pcmcia stop
+
+  This script will take several seconds to run, to give all client
+  drivers time to shut down gracefully.  If a PCMCIA device is currently
+  in use, the shutdown will be incomplete, and some kernel modules may
+  not be unloaded.  To avoid this, use ``cardctl eject'' to shut down
+  all sockets before invoking rc.pcmcia.  The exit status of the cardctl
+  command will indicate if any sockets could not be shut down.
+
+  44..22..  OOvveerrvviieeww ooff tthhee PPCCMMCCIIAA ccoonnffiigguurraattiioonn ssccrriippttss
+
+  Each PCMCIA device has an associated ``class'' that describes how it
+  should be configured and managed.  Classes are associated with device
+  drivers in /etc/pcmcia/config.  There are currently five IO device
+  classes (network, SCSI, cdrom, fixed disk, and serial) and two memory
+  device classes (memory and FTL).  For each class, there are two
+  scripts in /etc/pcmcia/config: a main configuration script (i.e.,
+  /etc/pcmcia/scsi for SCSI devices), and an options script (i.e.,
+  /etc/pcmcia/scsi.opts).  The main script for a device will be invoked
+  to configure that device when a card is inserted, and to shut down the
+  device when the card is removed.  For cards with several associated
+  devices, the script will be invoked for each device.
+
+  The config scripts start by extracting some information about a device
+  from /var/run/stab.  Each script constructs a ``device address'', that
+  uniquely describes the device it has been asked to configure, in the
+  ADDRESS shell variable.  This is passed to the *.opts script, which
+  should return information about how a device at this address should be
+  configured.  For some devices, the device address is just the socket
+  number.  For others, it includes extra information that may be useful
+  in deciding how to configure the device.  For example, network devices
+  pass their hardware ethernet address as part of the device address, so
+  the network.opts script could use this to select from several
+  different configurations.
+
+  The first part of all device addresses is the current PCMCIA
+  ``scheme''.  This parameter is used to support multiple sets of device
+  configurations based on a single external user-specified variable.
+  One use of schemes would be to have a ``home'' scheme, and a ``work''
+  scheme, which would include different sets of network configuration
+  parameters.  The current scheme is selected using the ``cardctl
+  scheme'' command.  The default if no scheme is set is ``default''.
+
+  As a general rule, when configuring Linux for a laptop, PCMCIA devices
+  should only be configured from the PCMCIA device scripts.  Do not try
+  to configure a PCMCIA device the same way you would configure a
+  permanently attached device.  However, some Linux distributions
+  provide PCMCIA packages that are hooked into those distributions' own
+  device configuration tools.  In that case, some of the following
+  sections may not apply; ideally, this will be documented in the
+  distribution.
+
+  44..33..  PPCCMMCCIIAA nneettwwoorrkk aaddaapptteerrss
+
+  Linux ethernet-type network interfaces normally have names like eth0,
+  eth1, and so on.  Token-ring adapters are handled similarly, however
+  they are named tr0, tr1, and so on.  The ifconfig command is used to
+  view or modify the state of a network interface.  A peculiarity of
+  Linux is that network interfaces do not have corresponding device
+  files under /dev, so do not be surprised when you do not find them.
+
+  When a PCMCIA ethernet card is detected, it will be assigned the first
+  free interface name, which will probably be eth0.  Cardmgr will run
+  the /etc/pcmcia/network script to configure the interface.
+
+  Do not configure your PCMCIA ethernet card in /etc/rc.d/rc.inet1,
+  since the card may not be present when this script is executed.
+  Comment out everything except the loopback stuff in rc.inet1.
+  Instead, edit the /etc/pcmcia/network.opts file to match your local
+  network setup.  The network and network.opts scripts will be executed
+  only when your ethernet card is actually present.  If your system has
+  an automatic network configuration procedure, it may or may not be
+  PCMCIA-aware.  Consult the documentation of your Linux distribution to
+  determine if PCMCIA network devices should be configured with the
+  automatic tools, or by editing network.opts.
+
+  The device address passed to network.opts consists of four comma-
+  separated fields: the scheme, the socket number, the device instance,
+  and the card's hardware ethernet address.  The device instance is used
+  to number devices for cards that have several network interfaces, so
+  it will usually be 0.  If you have several network cards used for
+  different purposes, one option would be to configure the cards based
+  on socket position, as in:
+
+       case "$ADDRESS" in
+       *,0,*,*)
+           # definitions for network card in socket 0
+           ;;
+       *,1,*,*)
+           # definitions for network card in socket 1
+           ;;
+       esac
+
+  Alternatively, they could be configured using their hardware
+  addresses, as in:
+
+       case "$ADDRESS" in
+       *,*,*,00:80:C8:76:00:B1)
+           # definitions for a D-Link card
+           ;;
+       *,*,*,08:00:5A:44:80:01)
+           # definitions for an IBM card
+       esac
+
+  44..33..11..  NNeettwwoorrkk ddeevviiccee ppaarraammeetteerrss
+
+  The following parameters can be defined in network.opts:
+
+     IF_PORT
+        Specifies the ethernet transceiver type, for cards that do not
+        autodetect.  See ``man ifport'' for transceiver names.
+
+     BOOTP
+        A boolean (y/n) value: indicates if the host's IP address and
+        routing information should be obtained using the BOOTP protocol.
+
+     IPADDR
+        The IP address for this interface.
+
+     NETMASK, BROADCAST, NETWORK
+        Basic network parameters: see the networking HOWTO for more
+        information.
+
+     GATEWAY
+        The IP address of a gateway for this host's subnet.  Packets
+        with destinations outside this subnet will be routed to this
+        gateway.
+
+     DOMAIN
+        The network domain name for this host, to be used in creating
+        /etc/resolv.conf.
+
+     DNS_1, DNS_2, DNS_3
+        Host names or IP addresses for nameservers for this interface,
+        to be added to /etc/resolv.conf
+
+     MOUNTS
+        A list of NFS mount points to be mounted for this interface.
+
+     IPX_FRAME, IPX_NETNUM
+        For IPX networks: the frame type and network number, passed to
+        the ipx_interface command.
+
+  For example:
+
+  case "$ADDRESS" in
+  *,*,*,*)
+      IF_PORT="10base2"
+      BOOTP="n"
+      IPADDR="10.0.0.1"
+      NETMASK="255.255.255.0"
+      NETWORK="10.0.0.0"
+      BROADCAST="10.0.0.255"
+      GATEWAY="10.0.0.1"
+      DOMAIN="domain.org"
+      DNS_1="dns1.domain.org"
+      ;;
+  esac
+
+  To automatically mount and unmount NFS filesystems, first add all
+  these filesystems to /etc/fstab, but include noauto in the mount
+  options.  In network.opts, list the filesystem mount points in the
+  MOUNTS variable.  It is especially important to use either cardctl or
+  cardinfo to shut down a network card when NFS mounts are configured
+  this way.  It is not possible to cleanly unmount NFS filesystems if a
+  network card is simply ejected without warning.
+
+  In addition to the usual network configuration parameters, the
+  network.opts script can specify extra actions to be taken after an
+  interface is configured, or before an interface is shut down.  If
+  network.opts defines a shell function called start_fn, it will be
+  invoked by the network script after the interface is configured, and
+  the interface name will be passed to the function as its first (and
+  only) argument.  Similarly, if it is defined, stop_fn will be invoked
+  before shutting down an interface.
+
+  The transceiver type can be selected using the IF_PORT setting.  This
+  can either be a numeric value as in previous PCMCIA releases, or a
+  keyword identifying the transceiver type.  All the network drivers
+  default to either autodetect the interface if possible, or 10baseT
+  otherwise.  The ifport command can be used to check or set the current
+  transceiver type.  For example:
+
+       # ifport eth0 10base2
+       #
+       # ifport eth0
+       eth0    2 (10base2)
+
+  Current releases of the 3c589 driver attempt to autodetect the network
+  connection, but this doesn't seem to be completely functional yet.
+  For autodetection to work, the network cable should be connected to
+  the card when the card is configured.  Alternatively, once the network
+  is connected, you can force the driver to check the connection with:
+
+       ifconfig eth0 down up
+
+  44..33..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
+
+  +o  With IBM CCAE and Socket EA cards, you need to pick the transceiver
+     type (10base2, 10baseT, AUI) when the network device is configured.
+     Make sure that the transceiver type reported in the system log
+     matches your connection.
+
+  +o  The drivers for SMC, Megahertz, Ositech, and 3Com cards should
+     autodetect the attached network type (10base2 or 10baseT).  Setting
+     the transceiver type when the driver is loaded serves to define the
+     card's ``first guess''.
+
+  +o  The Farallon EtherWave is actually based on the 3Com 3c589, with a
+     special transceiver.  Though the EtherWave uses 10baseT-style
+     connections, its transceiver requires that the 3c589 be configured
+     in 10base2 mode.
+
+  +o  If you have trouble with an IBM CCAE, NE4100, Thomas Conrad, or
+     Kingston adapter, try increasing the memory access time with the
+     mem_speed=# option to the pcnet_cs module.  An example of how to do
+     this is given in the standard config.opts file.  Try speeds of up
+     to 1000 (in nanoseconds).
+
+  +o  For the New Media Ethernet adapter, on some systems, it may be
+     necessary to increase the IO port access time with the io_speed=#
+     option when the pcmcia_core module is loaded.  Edit CORE_OPTS in
+     the startup script  to set this option.
+
+  +o  The multicast support in the New Media Ethernet driver is
+     incomplete.  The latest driver will function with multicast
+     kernels, but will ignore multicast packets.  Promiscuous mode
+     should work properly.
+
+  +o  The driver used by the IBM and 3Com token ring adapters seems to
+     behave very badly if the cards are not connected to a ring when
+     they get initialized.  Always connect these cards to the net before
+     they are powered up.  This driver also requires free IO ports in
+     the range of 0xa20-0xa27.  On some systems, the automatic IO port
+     conflict checker will incorrectly determine that this port range is
+     unavailable.  In that case, the port check can be disabled by
+     loading the pcmcia_core module with probe_io=0.
+
+  +o  Newer Linksys and D-Link cards have a unique way of selecting the
+     transceiver type that isn't handled by the Linux drivers.  One
+     workaround is to boot DOS and use the vendor-supplied utility to
+     select the transceiver, then warm boot Linux.  I am looking for
+     beta testers for a Linux utility to perform this function.
+
+  +o  For WaveLAN wireless network adapters, Jean Tourrilhes
+     (jt@hplb.hpl.hp.com) has put together a wireless HOWTO at
+     <http://www-uk.hpl.hp.com/people/jt/Linux/Wavelan.html>.
+
+  44..33..33..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh nneettwwoorrkk aaddaapptteerrss
+
+  +o  Is your card recognized as an ethernet card?  Check the system log
+     and make sure that cardmgr identifies the card correctly and starts
+     up one of the network drivers.  If it doesn't, your card might
+     still be usable if it is compatible with a supported card.  This
+     will be most easily done if the card claims to be ``NE2000
+     compatible''.
+
+  +o  Is the card configured properly?  If you are using a supported
+     card, and it was recognized by cardmgr, but still doesn't work,
+     there might be an interrupt or port conflict with another device.
+     Find out what resources the card is using (from the system log),
+     and try excluding these in /etc/pcmcia/config.opts to force the
+     card to use something different.
+
+  +o  If your card seems to be configured properly, but sometimes locks
+     up, particularly under high load, you may need to try changing your
+     socket driver timing parameters.  See section ``2.3'' for more
+     information.
+
+  +o  If you get messages like ``network unreachable'' when you try to
+     access the network, then you have probably set up
+     /etc/pcmcia/network.opts incorrectly.  On the other hand, mis-
+     configured cards will usually fail silently.
+
+  +o  To diagnose problems in /etc/pcmcia/network.opts, start by trying
+     to ping other systems on the same subnet using their IP addresses.
+     Then try to ping your gateway, and then machines on other subnets.
+     Ping machines by name only after trying these simpler tests.
+
+  +o  Make sure your problem is really a PCMCIA one.  It may help to see
+     see if the card works under DOS with the vendor's drivers.  Double
+     check your modifications to the /etc/pcmcia/network.opts script.
+     Make sure your drop cable, ``T'' jack, terminator, etc are working.
+
+  44..44..  PPCCMMCCIIAA sseerriiaall aanndd mmooddeemm ddeevviicceess
+
+  Linux serial devices are accessed via the /dev/cua* and /dev/ttyS*
+  special device files.  The ttyS* devices are for incoming connections,
+  such as directly connected terminals.  The cua* devices are for
+  outgoing connections, such as modems.  Each physical serial port has
+  both a ttyS and a cua device file: it is up to you to pick the
+  appropriate device for your application.  The configuration of a
+  serial device can be examined and modified with the setserial command.
+
+  When a PCMCIA serial or modem card is detected, it will be assigned to
+  the first available serial device slot.  This will usually be
+  /dev/ttyS1 (cua1) or /dev/ttyS2 (cua2), depending on the number of
+  built-in serial ports.  The ttyS* device is the one reported in
+  /var/run/stab.  The default serial device option script,
+  /etc/pcmcia/serial.opts, will link the corresponding cua* device file
+  to /dev/modem as a convenience.
+
+  Do not try to use /etc/rc.d/rc.serial to configure a PCMCIA modem.
+  This script should only be used to configure non-removable devices.
+  Modify /etc/pcmcia/serial.opts if you want to do anything special to
+  set up your modem.  Also, do not try to change the IO port and
+  interrupt settings of a PCMCIA serial device using setserial.  This
+  would tell the serial driver to look for the device in a different
+  place, but would not change how the card hardware is actually
+  configured.  The serial configuration script allows you to specify
+  other setserial options, as well as whether a line should be added to
+  /etc/inittab for this port.
+
+  The device address passed to serial.opts has three comma-separated
+  fields: the first is the scheme, the second  is the socket number, and
+  the third is the device instance.  The device instance may take
+  several values for cards that support multiple serial ports, but for
+  single-port cards, it will always be 0.  If you commonly use more than
+  one PCMCIA modem, you may want to specify different settings based on
+  socket position, as in:
+
+       case "$ADDRESS" in
+       *,0,*)
+           # Options for modem in socket 0
+           LINK=/dev/modem0
+           ;;
+       *,1,*)
+           # Options for modem in socket 1
+           LINK=/dev/modem1
+           ;;
+       esac
+
+  If a PCMCIA modem is already configured when Linux boots, it may be
+  incorrectly identified as an ordinary built-in serial port.  This is
+  harmless, however, when the PCMCIA drivers take control of the modem,
+  it will be assigned a different device slot.  It is best to either
+  parse /var/run/stab or use /dev/modem, rather than expecting a PCMCIA
+  modem to always have the same device assignment.
+
+  If you configure your kernel to load the basic Linux serial port
+  driver as a module, you must edit /etc/pcmcia/config to indicate that
+  this module must be loaded.  Edit the serial device entry to read:
+
+       device "serial_cs"
+         class "serial" module "misc/serial", "serial_cs"
+
+  44..44..11..  SSeerriiaall ddeevviiccee ppaarraammeetteerrss
+
+  The following parameters can be defined in serial.opts:
+
+     LINK
+        Specifies a path for a symbolic link to be created to the
+        ``dialout'' or /dev/cua* device.
+
+     SERIAL_OPTS
+        Specifies options to be passed to the setserial command.
+
+     INITTAB
+        If specified, this will be used to construct an inittab entry
+        for the device.
+
+  For example:
+
+       case "$ADDRESS" in
+       *,*,*,*)
+           LINK="/dev/modem"
+           SERIAL_OPTS=""
+           INITTAB="/sbin/getty"
+
+  44..44..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh sseerriiaall ddeevviicceess
+
+  +o  Is your card recognized as a modem?  Check the system log and make
+     sure that cardmgr identifies the card correctly and starts up the
+     serial_cs driver.  If it doesn't, you may need to add a new entry
+     to your /etc/pcmcia/config file so that it will be identified
+     properly.  See section ``3.6'' for details.
+
+  +o  Is the modem configured successfully by serial_cs?  Again, check
+     the system log and look for messages from the serial_cs driver.  If
+     you see ``register_serial() failed'', you may have an I/O port
+     conflict with another device.  Another tip-off of a conflict is if
+     the device is reported to be an 8250; most modern PCMCIA modems
+     should be identified as 16550A UART's.  If you think you're seeing
+     a port conflict, edit /etc/pcmcia/config.opts and exclude the port
+     range that was allocated for the modem.
+
+  +o  Is there an interrupt conflict?  If the system log looks good, but
+     the modem just doesn't seem to work, try using setserial to change
+     the irq to 0, and see if the modem works.  This causes the serial
+     driver to use a slower polled mode instead of using interrupts.  If
+     this seems to fix the problem, it is likely that some other device
+     in your system is using the interrupt selected by serial_cs.  You
+     should add a line to /etc/pcmcia/config.opts to exclude this
+     interrupt.
+
+  +o  If the modem seems to work only very, very slowly, this is an
+     almost certain indicator of an interrupt conflict.
+
+  +o  Make sure your problem is really a PCMCIA one.  It may help to see
+     if the card works under DOS with the vendor's drivers.  Also, don't
+     test the card with something complex like SLIP or PPP until you are
+     sure you can make simple connections.  If simple things work but
+     SLIP does not, your problem is most likely with SLIP, not with
+     PCMCIA.
+
+  +o  If you get kernel messages indicating that the serial_cs module
+     cannot be loaded, it means that your kernel does not have serial
+     device support.  If you have compiled the serial driver as a
+     module, you must modify /etc/pcmcia/config to indicate that the
+     serial module should be loaded before serial_cs.
+
+  44..55..  PPCCMMCCIIAA SSCCSSII aaddaapptteerrss
+
+  All the currently supported PCMCIA SCSI cards are work-alikes of one
+  of the following ISA bus cards: the Qlogic, the Adaptec AHA-152X, or
+  the Future Domain TMC-16x0.  The PCMCIA drivers are built by linking
+  some PCMCIA-specific code (in qlogic_cs.c, toaster_cs.c, or
+  fdomain_cs.c) with the normal Linux SCSI driver.
+
+  When a new SCSI host adapter is detected, the SCSI drivers will probe
+  for devices.  Check the system log to make sure your devices are
+  detected properly.  New SCSI devices will be assigned to the first
+  available SCSI device files.  The first SCSI disk will be /dev/sda,
+  the first SCSI tape will be /dev/st0, and the first CD-ROM will be
+  /dev/scd0.
+
+  With 1.3.X and later kernels, the PCMCIA core drivers are able to find
+  out from the kernel which SCSI devices are connected to a card.  They
+  will be listed in /var/run/stab, and the SCSI configuration script,
+  /etc/pcmcia/scsi, will be called once for each attached device, to
+  either configure or shut down that device.  The default script does
+  not take any actions to configure SCSI devices, but will properly
+  unmount filesystems on SCSI devices when a card is removed.
+
+  With 1.2.X kernels, the PCMCIA drivers cannot automatically deduce
+  which devices are associated with a particular SCSI adapter.  Instead,
+  if you have one normal SCSI device configuration, you may list these
+  devices in /etc/pcmcia/scsi.opts.  For example, if you normally have a
+  SCSI disk and a CD-ROM, you would use:
+
+       # For 1.2 kernels: list of attached devices
+       SCSI_DEVICES="sda scd0"
+
+  The device addresses passed to scsi.opts are complicated, because of
+  the variety of things that can be attached to a SCSI adapter.
+  Addresses consist of either six or seven comma-separated fields: the
+  current scheme, the device type, the socket number, the SCSI channel,
+  ID, and logical unit number, and optionally, the partition number.
+  The device type will be ``sd'' for disks, ``st'' for tapes, ``sr'' for
+  CD-ROM devices, and ``sg'' for generic SCSI devices.  For most setups,
+  the SCSI channel and logical unit number will be 0.  For disk devices
+  with several partitions, scsi.opts will first be called for the whole
+  device, with a five-field address.  The script should set the PARTS
+  variable to a list of partitions.  Then, scsi.opts will be called for
+  each partition, with the longer seven-field addresses.
+
+  If your kernel does not have a top-level driver (disk, tape, etc) for
+  a particular SCSI device, then the device will not be configured by
+  the PCMCIA drivers.  As a side effect, the device's name in
+  /var/run/stab will be something like ``sd#nnnn'' where ``nnnn'' is a
+  four-digit hex number.  This happens when cardmgr is unable to
+  translate a SCSI device ID into a corresponding Linux device name.
+
+  It is possible to modularize the top-level SCSI drivers so that they
+  are only loaded when a PCMCIA SCSI adapter is detected.  To do so, you
+  need to edit /etc/pcmcia/config to tell cardmgr which extra modules
+  need to be loaded when your adapter is configured.  For example:
+
+       device "aha152x_cs"
+         class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
+
+  would say to load the core SCSI module and the top-level disk driver
+  module before loading the regular PCMCIA driver module.  The PCMCIA
+  Configure script will not automatically detect modularized SCSI
+  modules, so you will need use the manual configure option to enable
+  SCSI support.
+
+  Always turn on SCSI devices before powering up your laptop, or before
+  inserting the adapter card, so that the SCSI bus is properly
+  terminated when the adapter is configured.  Also be very careful about
+  ejecting a SCSI adapter.  Be sure that all associated SCSI devices are
+  unmounted and closed before ejecting the card.  The best way to ensure
+  this is to use either cardctl or cardinfo to request card removal
+  before physically ejecting the card.  For now, all SCSI devices should
+  be powered up before plugging in a SCSI adapter, and should stay
+  connected until after you unplug the adapter and/or power down your
+  laptop.
+
+  There is a potential complication when using these cards that does not
+  arise with ordinary ISA bus adapters.  The SCSI bus carries a
+  ``termination power'' signal that is necessary for proper operation of
+  ordinary passive SCSI terminators.  PCMCIA SCSI adapters do not supply
+  termination power, so if it is required, an external device must
+  supply it.  Some external SCSI devices may be configured to supply
+  termination power.  Others, such as the Zip Drive and the Syquest EZ-
+  Drive, use active terminators that do not depend on it.  In some
+  cases, it may be necessary to use a special terminator block such as
+  the APS SCSI Sentry 2, which has an external power supply.  When
+  configuring your SCSI device chain, be aware of whether or not any of
+  your devices require or can provide termination power.
+
+  The Adaptec APA-460 SlimSCSI adapter is not supported.  This card was
+  originally sold under the Trantor name, and when Adaptec merged with
+  Trantor, they continued to sell the Trantor card with an Adaptec
+  label.  The APA-460 is not compatible with any existing Linux driver.
+  I'm not sure how hard it would be to write a driver; I don't think
+  anyone has been able to obtain the technical information from Adaptec.
+
+  The (unsupported) Trantor SlimSCSI can be identified by the following:
+
+       Trantor / Adaptec APA-460 SlimSCSI
+       FCC ID: IE8T460
+       Shipped with SCSIworks! driver software
+
+  The (supported) Adaptec SlimSCSI can be identified by the following:
+
+       Adaptec APA-1460 SlimSCSI
+       FCC ID: FGT1460
+       P/N: 900100
+       Shipped with EZ-SCSI driver software
+
+  44..55..11..  SSCCSSII ddeevviiccee ppaarraammeetteerrss
+
+  The following parameters can be defined in scsi.opts:
+
+     DO_FSTAB
+        A boolean (y/n) setting: specifies if an entry should be added
+        to /etc/fstab for this device.
+
+     DO_FSCK
+        A boolean (y/n) setting: specifies if the filesystem should be
+        checked before being mounted, with ``fsck -Ta''.
+
+     DO_MOUNT
+        A boolean (y/n) setting: specifies if this device should be
+        automatically mounted at card insertion time.
+
+     FSTYPE, OPTS, MOUNTPT
+        The filesystem type, mount options, and mount point to be used
+        for the fstab entry and/or mounting the device.
+
+  For example, here is a script for configuring a disk device at SCSI ID
+  3, with two partitions, and a CD-ROM at SCSI ID 6:
+       case "$ADDRESS" in
+       *,sd,*,0,3,0)
+           # This device has two partitions...
+           PARTS="1 2"
+           ;;
+       *,sd,*,0,3,0,1)
+           # Options for partition 1:
+           #  update /etc/fstab, and mount an ext2 fs on /usr1
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2"
+           OPTS=""
+           MOUNTPT="/usr1"
+           ;;
+       *,sd,*,0,3,0,2)
+           # Options for partition 2:
+           #  update /etc/fstab, and mount an MS-DOS fs on /usr2
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="msdos"
+           OPTS=""
+           MOUNTPT="/usr2"
+           ;;
+       *,sr,*,0,6,0)
+           # Options for CD-ROM at SCSI ID 6
+           PARTS=""
+           DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
+           FSTYPE="iso9660"
+           OPTS="ro"
+           MOUNTPT="/cdrom"
+           ;;
+       esac
+
+  44..55..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh SSCCSSII aaddaapptteerrss
+
+  +o  With the aha152x_cs driver (used by Adaptec, New Media, and a few
+     others), it seems that SCSI disconnect/reconnect support is a
+     frequent source of trouble with tape drives.  To disable this
+     ``feature,'' add the following to /etc/pcmcia/config.opts:
+
+       module "aha152x_cs" opts "reconnect=0"
+
+  +o  If you have compiled SCSI support as modules (CONFIG_SCSI is
+     ``m''), when configuring PCMCIA, you must explicitly specify that
+     you want the SCSI drivers to be built.  You must also modify
+     /etc/pcmcia/config to load the SCSI modules before the appropriate
+     *_cs driver is loaded.
+
+  +o  If you get ``aborting command due to timeout'' messages when the
+     SCSI bus is probed, you almost certainly have an interrupt
+     conflict.
+
+  44..66..  PPCCMMCCIIAA mmeemmoorryy ccaarrddss
+
+  The memory_cs driver handles all types of memory cards, as well as
+  providing direct access to the PCMCIA memory address space for cards
+  that have other functions.  When loaded, it creates a combination of
+  character and block devices.  See the man page for the module for a
+  complete description of the device naming scheme.  Block devices are
+  used for disk-like access (creating and mounting filesystems, etc).
+  The character devices are for "raw" unbuffered reads and writes at
+  arbitrary locations.
+
+  The device address passed to memory.opts consists of two fields: the
+  scheme, and the socket number.  The options are applied to the first
+  common memory partition on the corresponding memory card.
+
+  Some older memory cards, and most simple static RAM cards, lack a
+  ``Card Information Structure'' (CIS), which is the scheme PCMCIA cards
+  use to identify themselves.  Normally, cardmgr will assume that any
+  card that lacks a CIS is a simple memory card, and load the memory_cs
+  driver.  Thus, a common side effect of a general card identification
+  problem is that other types of cards may be misdetected as memory
+  cards.
+
+  The memory_cs driver uses a heuristic to guess the capacity of these
+  cards.  The heuristic does not work for write protected cards, and may
+  make mistakes in some other cases as well.  If a card is misdetected,
+  its size should then be explicitly specified when using commands such
+  as dd or mkfs.
+
+  44..66..11..  MMeemmoorryy ddeevviiccee ppaarraammeetteerrss
+
+  The following parameters can be specified in memory.opts:
+
+     DO_FSTAB
+        A boolean (y/n) setting: specifies if an entry should be added
+        to /etc/fstab for this device.
+
+     DO_FSCK
+        A boolean (y/n) setting: specifies if the filesystem should be
+        checked before being mounted, with ``fsck -Ta''.
+
+     DO_MOUNT
+        A boolean (y/n) setting: specifies if this device should be
+        automatically mounted at card insertion time.
+
+     FSTYPE, OPTS, MOUNTPT
+        The filesystem type, mount options, and mount point to be used
+        for the fstab entry and/or mounting the device.
+
+  Here is an example of a script that will automatically mount memory
+  cards based on which socket they are inserted into:
+
+       case "$ADDRESS" in
+       *,0,0)
+           # Mount filesystem, but don't update /etc/fstab
+           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2" ; OPTS=""
+           MOUNTPT="/mem0"
+           ;;
+       *,1,0)
+           # Mount filesystem, but don't update /etc/fstab
+           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2" ; OPTS=""
+           MOUNTPT="/mem1"
+           ;;
+       esac
+
+  44..66..22..  UUssiinngg ffllaasshh mmeemmoorryy ccaarrddss
+
+  The device address passed to ftl.opts consists of three or four
+  fields: the scheme, the socket number, the region number, and
+  optionally, the partition number.  Most flash cards have just one
+  flash memory region, so the region number will generally always be
+  zero.
+
+  To use a flash memory card as an ordinary disk-like block device,
+  first create an FTL, or ``flash translation layer'', partition on the
+  device with the ftl_format command.  This layer hides the device-
+  specific details of flash memory programming and make the card look
+  like a simple block device.  For example:
+
+       ftl_format -i /dev/mem0c0c
+
+  Note that this command accesses the card through the ``raw'' memory
+  card interface.  Once formatted, the card can be accessed as an
+  ordinary block device via the ftl_cs driver.  For example:
+
+       mke2fs /dev/ftl0c0
+       mount -t ext2 /dev/ftl0c0 /mnt
+
+  Device naming for FTL devices is tricky.  Minor device numbers have
+  three parts: the card number, the region number on that card, and
+  optionally, the partition within that region.  A region can either be
+  treated as a single block device with no partition table (like a
+  floppy), or it can be partitioned like a hard disk device.  The
+  ``ftl0c0'' device is card 0, common memory region 0, the entire
+  region.  The ``ftl0c0p1'' through ``ftl0c0p4'' devices are primary
+  partitions 1 through 4 if the region has been partitioned.
+
+  There are two major formats for flash memory cards: the FTL style, and
+  the Microsoft Flash File System.  The FTL format is generally more
+  flexible because it allows any ordinary high-level filesystem (ext2,
+  ms-dos, etc) to be used on a flash card as if it were an ordinary disk
+  device.  The FFS is a completely different filesystem type.  Linux
+  cannot currently handle cards formated with FFS.
+
+  44..77..  PPCCMMCCIIAA AATTAA//IIDDEE ccaarrdd ddrriivveess
+
+  ATA/IDE drive support requires a 1.3.72 or higher kernel.  The PCMCIA-
+  specific part of the driver is fixed_cs.  Be sure to use cardctl or
+  cardinfo to shut down an ATA/IDE card before ejecting it, as the
+  driver has not been made ``hot-swap-proof''.
+
+  The device addresses passed to fixed.opts consist of either three or
+  four fields: the current scheme, the socket number, the drive's serial
+  number, and an optional partition number.  The ide_info can be used to
+  obtain an IDE device's serial number.  As with SCSI devices,
+  fixed.opts is first called for the entire device.  If fixed.opts
+  returns a list of partitions in the PARTS variable, the script will
+  then be called for each partition.
+
+  44..77..11..  AATTAA//IIDDEE ffiixxeedd--ddiisskk ddeevviiccee ppaarraammeetteerrss
+
+  The following parameters can be specified in fixed.opts:
+
+     DO_FSTAB
+        A boolean (y/n) setting: specifies if an entry should be added
+        to /etc/fstab for this device.
+
+     DO_FSCK
+        A boolean (y/n) setting: specifies if the filesystem should be
+        checked before being mounted, with ``fsck -Ta''.
+
+     DO_MOUNT
+        A boolean (y/n) setting: specifies if this device should be
+        automatically mounted at card insertion time.
+
+     FSTYPE, OPTS, MOUNTPT
+        The filesystem type, mount options, and mount point to be used
+        for the fstab entry and/or mounting the device.
+
+  Here is an example fixed.opts file to mount the first partition of any
+  ATA/IDE card on /mnt.
+
+       case "$ADDRESS" in
+       *,*,*)
+           PARTS="1"
+           ;;
+       *,*,*,1)
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="msdos"
+           OPTS=""
+           MOUNTPT="/mnt"
+           ;;
+       esac
+
+  44..77..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh AATTAA//IIDDEE aaddaapptteerrss
+
+  +o  Some IDE drives violate the PCMCIA specification by requiring a
+     longer time to spin up than the maximum allowed card setup time.
+     To use these cards, load the pcmcia_core module with:
+
+       CORE_OPTS="unreset_delay=400"
+
+  +o  To use an ATA/IDE CD-ROM device, your kernel must be compiled with
+     CONFIG_BLK_DEV_IDECD enabled.  This will normally be the case for
+     standard kernels, however it is something to be aware of if you
+     compile a custom kernel.
+
+  44..88..  MMuullttiiffuunnccttiioonn ccaarrddss
+
+  Starting with the 1.3.73 Linux kernel, a single interrupt can be
+  shared by several drivers, such as the serial driver and an ethernet
+  driver.  When using a multifunction card under a newer kernel, all
+  card functions can be used without loading and unloading drivers.
+
+  Simultaneous use of two card functions is ``tricky'' and various
+  hardware vendors have implemented interrupt sharing in their own
+  incompatible (and sometimes proprietary) ways.  The drivers for some
+  cards (Ositech Jack of Diamonds, 3Com 3c562, Linksys) properly support
+  simultaneous access, but others (Megahertz in particular) do not.
+
+  Earlier kernels do not support interrupt sharing between different
+  device drivers, so it is not possible for the PCMCIA drivers to
+  configure this card for simultaneous ethernet and modem access.  The
+  ethernet and serial drivers are both loaded automatically.  However,
+  the ethernet driver ``owns'' the card interrupt by default.  To use
+  the modem, you can unload the ethernet driver and reconfigure the
+  serial port by doing something like:
+
+       ifconfig eth0 down
+       rmmod 3c589_cs
+       setserial /dev/modem autoconfig auto_irq
+       setserial /dev/modem
+
+  The second setserial should verify that the port has been configured
+  to use the interrupt previously used by the ethernet driver.
+
+  55..  AAddvvaanncceedd ttooppiiccss
+
+  55..11..  RReessoouurrccee aallllooccaattiioonn ffoorr PPCCMMCCIIAA ddeevviicceess
+
+  In theory, it should not really matter which interrupt is allocated to
+  which device, as long as two devices are not configured to use the
+  same interrupt.  In /etc/pcmcia/config.opts you'll find a place for
+  excluding interrupts that are used by non-PCMCIA devices.
+
+  Similarly, there is no way to directly specify the I/O addresses for a
+  PCMCIA card to use.  The /etc/pcmcia/config.opts file allows you to
+  specify ranges of ports available for use by all PCMCIA devices, or to
+  exclude ranges that conflict with other devices.
+
+  After modifying /etc/pcmcia/config.opts, you can restart cardmgr with
+  ``kill -HUP''.
+
+  The interrupt used to monitor card status changes is chosen by the
+  low-level socket driver module (i82365 or tcic) before cardmgr parses
+  /etc/pcmcia/config, so it is not affected by changes to this file.  To
+  set this interrupt, use the cs_irq= option when the socket driver is
+  loaded, by setting the PCIC_OPTS variable in /etc/rc.d/rc.pcmcia.
+
+  All the client card drivers have a parameter called irq_list for
+  specifying which interrupts they may try to allocate.  These driver
+  options should be set in your /etc/pcmcia/config file.  For example:
+
+       device "serial_cs"
+         module "serial_cs" opts "irq_list=8,12"
+         ...
+
+  would specify that the serial driver should only use irq 8 or irq 12.
+  Regardless of irq_list settings, Card Services will never allocate an
+  interrupt that is already in use by another device, or an interrupt
+  that is excluded in the config file.
+
+  55..22..  HHooww ccaann II hhaavvee sseeppaarraattee ddeevviiccee sseettuuppss ffoorr hhoommee aanndd wwoorrkk??
+
+  This is fairly easy using PCMCIA ``scheme'' support.  Use two
+  configuration schemes, called ``home'' and ``work''.  Here is an
+  example of a network.opts script with scheme-specific settings:
+
+       case "$ADDRESS" in
+       work,*,*,*)
+           # definitions for network card in work scheme
+           ...
+           ;;
+       home,*,*,*|default,*,*,*)
+           # definitions for network card in home scheme
+           ...
+           ;;
+       esac
+
+  The first part of a PCMCIA device address is always the configuration
+  scheme.  In this example, the second ``case'' clause will select for
+  both the ``home'' and ``default'' schemes.  So, if the scheme is unset
+  for any reason, it will default to the ``home'' setup.
+
+  Now, to choose between the two sets of settings, run either:
+
+       cardctl scheme home
+
+  or
+
+       cardctl scheme work
+
+  The cardctl command does the equivalent of shutting down all your
+  cards and restarting them.  The command can be safely executed whether
+  or not the PCMCIA system is loaded, but the command may fail if you
+  are using other PCMCIA devices at the time (even if their
+  configurations are not explicitly dependant on the scheme setting).
+
+  To find out the current PCMCIA scheme setting, run:
+
+       cardctl scheme
+
+  55..33..  BBoooottiinngg ffrroomm aa PPCCMMCCIIAA ddeevviiccee
+
+  Having the root filesystem on a PCMCIA device is tricky because the
+  Linux PCMCIA system is not designed to be linked into the kernel.  Its
+  core components, the loadable kernel modules and the user mode cardmgr
+  daemon, depend on an already running system.  The kernel's ``initrd''
+  facility works around this requirement by allowing Linux to boot using
+  a temporary ram disk as a minimal root image, load drivers, and then
+  re-mount a different root filesystem.  The temporary root can
+  configure PCMCIA devices and then re-mount a PCMCIA device as root.
+
+  The initrd image absolutely must reside on a bootable device: this
+  generally cannot be put on a PCMCIA device.  This is a BIOS
+  limitation, not a kernel limitation.  It is useful here to distinguish
+  between ``boot-able'' devices (i.e., devices that can be booted), and
+  ``root-able'' devices (i.e., devices that can be mounted as root).
+  ``Boot-able'' devices are determined by the BIOS, and are generally
+  limited to internal floppy and hard disk drives.  ``Root-able''
+  devices are any block devices that the kernel supports once it has
+  been loaded.  The initrd facility makes more devices ``root-able'',
+  not ``boot-able''.
+
+  Some Linux distributions will allow installation to a device connected
+  to a PCMCIA SCSI adapter, as an unintended side-effect of their
+  support for installs from PCMCIA SCSI CD-ROM devices.  However, at
+  present, no Linux installation tools support configuring an
+  appropriate ``initrd'' to boot Linux with a PCMCIA root filesystem.
+  Setting up a system with a PCMCIA root thus requires that you use
+  another Linux system to create the ``initrd'' image.  If another Linux
+  system is not available, another option would be to temporarily
+  install a minimal Linux setup on a non-PCMCIA drive, create an initrd
+  image, and then reinstall to the PCMCIA target.
+
+  The Linux Bootdisk-HOWTO has some general information about setting up
+  boot disks but nothing specific to initrd.  The main initrd document
+  is included with recent kernel source code distributions, in
+  linux/Documentation/initrd.txt.  Before beginning, you should read
+  this document.  A familiarity with lilo is also helpful.  Using initrd
+  also requires that you have a kernel compiled with CONFIG_BLK_DEV_RAM
+  and CONFIG_BLK_DEV_INITRD enabled.
+
+  This is an advanced configuration technique, and requires a high level
+  of familiarity with Linux and the PCMCIA system.  Be sure to read all
+  the relevant documentation before starting.  The following cookbook
+  instructions should work, but deviations from the examples will
+  quickly put you in uncharted and ``unsupported'' territory, and you
+  will be on your own.
+
+  This method absolutely requires that you use a PCMCIA driver release
+  of 2.9.5 or later.  Older PCMCIA packages or individual components
+  will not work in the initrd context.  Do not mix components from
+  different releases.
+
+  55..33..11..  TThhee ppcciinniittrrdd hheellppeerr ssccrriipptt
+
+  The pcinitrd script creates a basic initrd image for booting with a
+  PCMCIA root partition.  The image includes a minimal directory
+  heirarchy, a handful of device files, a few binaries, shared
+  libraries, and a set of PCMCIA driver modules.  When invoking
+  pcinitrd, you specify the driver modules that you want to be included
+  in the image.  The core PCMCIA components, pcmcia_core and ds, are
+  automatically included.
+
+  As an example, say that your laptop uses an i82365-compatible PCMCIA
+  host controller, and you want to boot Linux with the root filesystem
+  on a hard drive attached to an Adaptec SlimSCSI adapter.  You could
+  create an appropriate initrd image with:
+
+       pcinitrd -v initrd pcmcia/i82365.o pcmcia/aha152x_cs.o
+
+  To customize the initrd startup sequence, you could mount the image
+  using the ``loopback'' device with a command like:
+
+       mount -o loop -t ext2 initrd /mnt
+
+  and then edit the linuxrc script.  The PCMCIA configuration files will
+  be installed under /etc in the image, and can also be customized.  See
+  the man page for pcinitrd for more information.
+
+  55..33..22..  CCrreeaattiinngg aann iinniittrrdd bboooott ffllooppppyy
+
+  After creating an image with pcinitrd, you can create a boot floppy by
+  copying the kernel, the compressed initrd image, and a few support
+  files for lilo to a clean floppy.  In the following example, we assume
+  that the desired PCMCIA root device is /dev/sda1:
+
+       mke2fs /dev/fd0
+       mount /dev/fd0 /mnt
+       mkdir /mnt/etc /mnt/boot /mnt/dev
+       cp -a /dev/fd0 /dev/sda1 /mnt/dev
+       cp [kernel-image] /mnt/vmlinuz
+       gzip < [initrd-image] > /mnt/initrd
+
+  Create /mnt/etc/lilo.conf with the contents:
+
+       boot=/dev/fd0
+       compact
+       image=/vmlinuz
+           label=linux
+           initrd=/initrd
+           read-only
+           root=/dev/sda1
+
+  Finally, invoke lilo with:
+
+  lilo -r /mnt
+
+  When lilo is invoked with -r, it performs all actions relative to the
+  specified alternate root directory.  The reason for creating the
+  device files under /mnt/dev was that lilo will not be able to use the
+  files in /dev when it is running in this alternate-root mode.
+
+  55..33..33..  IInnssttaalllliinngg aann iinniittrrdd iimmaaggee oonn aa nnoonn--LLiinnuuxx ddrriivvee
+
+  One common use of the initrd facility would be on systems where the
+  internal hard drive is dedicated to another operating system.  The
+  Linux kernel and initrd image can be placed in a non-Linux partition,
+  and lilo or LOADLIN can be set up to boot Linux from these images.
+
+  Assuming that you have a kernel has been configured for the
+  appropriate root device, and an initrd image created on another
+  system, the easiest way to get started is to boot Linux using LOADLIN,
+  as:
+
+       LOADLIN <kernel> initrd=<initrd-image>
+
+  Once you can boot Linux on your target machine, you could then install
+  lilo to allow booting Linux directly.  For example, say that /dev/hda1
+  is the non-Linux target partition and /mnt can be used as a mount
+  point.  First, create a subdirectory on the target for the Linux
+  files:
+
+       mount /dev/hda1 /mnt
+       mkdir /mnt/linux
+       cp [kernel-image] /mnt/linux/vmlinuz
+       cp [initrd-image] /mnt/linux/initrd
+
+  In this example, say that /dev/sda1 is the desired Linux root
+  partition, a SCSI hard drive mounted via a PCMCIA SCSI adapter.  To
+  install lilo, create a lilo.conf file with the contents:
+
+       boot=/dev/hda
+       map=/mnt/linux/map
+       compact
+       image=/mnt/linux/vmlinuz
+               label=linux
+               root=/dev/sda1
+               initrd=/mnt/linux/initrd
+               read-only
+       other=/dev/hda1
+               table=/dev/hda
+               label=windows
+
+  The boot= line says to install the boot loader in the master boot
+  record of the specified device.  The root= line identifies the desired
+  root filesystem to be used after loading the initrd image, and may be
+  unnecessary if the kernel image is already configured this way.  The
+  other= section is used to describe the other operating system
+  installed on /dev/hda1.
+
+  To install lilo in this case, use:
+
+       lilo -C lilo.conf
+
+  Note that in this case, the lilo.conf file uses absolute paths that
+  include /mnt.  I did this in the example because the target filesystem
+  may not support the creation of Linux device files for the boot= and
+  root= options.
+
+  66..  DDeeaalliinngg wwiitthh uunnssuuppppoorrtteedd ccaarrddss
+
+  66..11..  CCoonnffiigguurriinngg uunnrreeccooggnniizzeedd ccaarrddss
+
+  Assuming that your card is supported by an existing driver, all that
+  needs to be done is to add an entry to /etc/pcmcia/config to tell
+  cardmgr how to identify the card, and which driver(s) need to be
+  linked up to this card.  Check the man page for pcmcia for more
+  information about the config file format.  If you insert an unknown
+  card, cardmgr will normally record some identification information in
+  the system log that can be used to construct the config entry.
+
+  Here is an example of how cardmgr will report an unsupported card in
+  /usr/adm/messages.
+
+       cardmgr[460]: unsupported card in socket 1
+       cardmgr[460]: version info: "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
+
+  The corresponding entry in /etc/pcmcia/config would be:
+
+       card "Megahertz XJ2288 V.34 Fax Modem"
+         version "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
+         bind "serial_cs"
+
+  You can use ``*'' to match strings that don't need to match exactly,
+  like version numbers.  When making new config entries, be careful to
+  copy the strings exactly, preserving case and blank spaces.  Also be
+  sure that the config entry has the same number of strings as are
+  reported in the log file.
+
+  Beware that you can specify just about any driver for a card, but if
+  you're just shooting in the dark, there is not much reason to expect
+  this to be productive.  You may get lucky and find that your card is
+  supported by an existing driver.  However, the most likely outcome is
+  that the driver won't work, and may have unfortunate side effects like
+  locking up your system.  Unlike most ordinary device drivers, which
+  probe for an appropriate card, the probe for a PCMCIA device is done
+  by cardmgr, and the driver itself may not do much validation before
+  attempting to communicate with the device.
+
+  After editing /etc/pcmcia/config, you can signal cardmgr to reload the
+  file with:
+
+       kill -HUP `cat /var/run/cardmgr.pid`
+
+  If you do set up an entry for a new card, please send me a copy so
+  that I can include it in the standard config file.
+
+  66..22..  AAddddiinngg ssuuppppoorrtt ffoorr aann NNEE22000000--ccoommppaattiibbllee eetthheerrnneett ccaarrdd
+
+  First, see if the card is already recognized by cardmgr.  Some cards
+  not listed in SUPPORTED.CARDS are actually OEM versions of cards that
+  are supported.  If you find a card like this, let me know so I can add
+  it to the list.
+
+  If your card is not recognized, follow the instructions in section
+  ``3.6'' to create a config entry for your card, and bind the card to
+  the pcnet_cs driver.  Restart cardmgr to use the updated config file.
+
+  If the pcnet_cs driver says that it is unable to determine your card's
+  hardware ethernet address, then edit your new config entry to bind the
+  card to the memory card driver, memory_cs.  Restart cardmgr to use the
+  new updated config file.  You will need to know your card's hardware
+  ethernet address.  This address is a series of six two-digit hex
+  numbers, often printed on the card itself.  If it is not printed on
+  the card, you may be able to use a DOS driver to display the address.
+  In any case, once you know it, run:
+
+       dd if=/dev/mem0a count=20 | od -Ax -t x1
+
+  and search the output for your address.  Only the even bytes are
+  defined, so ignore the odd bytes in the dump.  Record the hex offset
+  of the first byte of the address.  Now, edit modules/pcnet_cs.c and
+  find the hw_info structure.  You'll need to create a new entry for
+  your card.  The first field is the memory offset.  The next three
+  fields are the first three bytes of the hardware address.  The final
+  field contains some flags for specific card features; to start, try
+  setting it to 0.
+
+  After editing pcnet_cs.c, compile and install the new module.  Edit
+  /etc/pcmcia/config again, and change the card binding from memory_cs
+  to pcnet_cs.  Follow the instructions for reloading the config file,
+  and you should be all set.  Please send me copies of your new hw_info
+  and config entries.
+
+  If you can't find your card's hardware address in the hex dump, as a
+  method of last resort, it is possible to ``hard-wire'' the address
+  when the pcnet_cs module is initialized.  Edit /etc/pcmcia/config.opts
+  and add a hw_addr= option, like so:
+
+       module "pcnet_cs" opts "hw_addr=0x00,0x80,0xc8,0x01,0x02,0x03"
+
+  Substitute your own card's hardware address in the appropriate spot,
+  of course.  Beware that if you've gotten this far, it is very unlikely
+  that your card is genuinely NE2000 compatible.  In fact, I'm not sure
+  if there are _a_n_y cards that are not handled by one of the first two
+  methods.
+
+  66..33..  PPCCMMCCIIAA ffllooppppyy iinntteerrffaaccee ccaarrddss
+
+  The PCMCIA floppy interface used in the Compaq Aero and a few other
+  laptops is not yet supported by this package.  The snag in supporting
+  the Aero floppy is that the Aero seems to use a customized PCMCIA
+  controller to support DMA to the floppy.  Without knowing exactly how
+  this is done, there isn't any way to implement support under Linux.
+
+  If the floppy adapter card is present when an Aero is booted, the Aero
+  BIOS will configure the card, and Linux will identify it as a normal
+  floppy drive.  When the Linux PCMCIA drivers are loaded, they will
+  notice that the card is already configured and attached to a Linux
+  driver, and this socket will be left alone.  So, the drive can be used
+  if it is present at boot time, but the card is not hot swappable.
+
+  66..44..  WWhhaatt''ss uupp wwiitthh ssuuppppoorrtt ffoorr XXiirrccoomm ccaarrddss??
+
+  A driver for Xircom ethernet and ethernet/modem cards is included in
+  the current PCMCIA package, thanks to the work of Werner Koch.  I've
+  set up a HyperNews forum specifically for discussion of Xircom driver
+  development, at
+  <http://hyper.stanford.edu/HyperNews/get/pcmcia/xircom.html>.
+
+  For a long time, Xircom cards were not supported because Xircom had a
+  company policy of not disclosing technical information about their
+  cards.  However, they have relaxed their rules, and now, they do
+  distribute driver information.
+
+  77..  DDeebbuuggggiinngg ttiippss aanndd pprrooggrraammmmiinngg iinnffoorrmmaattiioonn
+
+  77..11..  SSuubbmmiittttiinngg uusseeffuull bbuugg rreeppoorrttss
+
+  The best way to submit bug reports is to use the HyperNews message
+  lists on the Linux PCMCIA information site.  That way, other people
+  can see current problems (and fixes or workarounds, if available).
+  Here are some things that should be included in all bug reports:
+
+  +o  Your system type, and the output of the probe command.
+
+  +o  What PCMCIA cards you are using.
+
+  +o  Your Linux kernel version, and PCMCIA driver version.
+
+  +o  Any changes you have made to the startup files in /etc/pcmcia, or
+     to the PCMCIA startup script.
+
+  +o  All PCMCIA-related messages in your system log file.
+
+  All the PCMCIA modules and the cardmgr daemon send status messages to
+  the system log.  This will usually be something like /var/log/messages
+  or /usr/adm/messages.  This file should be the first place to look
+  when tracking down a problem.  When submitting a bug report, always
+  include the contents of this file.  If you are having trouble finding
+  your system messages, check /etc/syslogd.conf to see how different
+  classes of messages are handled.
+
+  Before submitting a bug report, please check to make sure that you are
+  using an up-to-date copy of the driver package.  While it is somewhat
+  gratifying to read bug reports for things I've already fixed, it isn't
+  a particularly constructive use of my time.
+
+  If your problem involves a kernel fault, the register dump from the
+  fault is only useful if you can track down the fault address, EIP.  If
+  it is in the main kernel, look up the address in System.map to
+  identify the function at fault.  If the fault is in a loadable module,
+  it is a bit harder to trace.  With the current module tools, ``ksyms
+  -m'' will report the base address of each loadable module.  Pick the
+  module that contains the EIP address, and subtract its base address
+  from EIP to get an offset inside that module.  Then, run gdb on that
+  module, and look up the offset with the list command.  This will only
+  work if you've compiled that module with -g to include debugging
+  information.
+
+  If you do not have web access, bug reports can be sent to me at
+  dhinds@hyper.stanford.edu.  However, I prefer that bug reports be
+  posted to my web site, so that they can be seen by others.
+
+  77..22..  LLooww lleevveell PPCCMMCCIIAA ddeebbuuggggiinngg aaiiddss
+
+  The PCMCIA modules contain a lot of conditionally-compiled debugging
+  code.  Most of this code is under control of the PCMCIA_DEBUG
+  preprocessor define.  If this is undefined, debugging code will not be
+  compiled.  If set to 0, the code is compiled but inactive.  Larger
+  numbers specify increasing levels of verbosity.  Each module built
+  with PCMCIA_DEBUG defined will have an integer parameter, pc_debug,
+  that controls the verbosity of its output.  This can be adjusted when
+  the module is loaded, so output can be controlled on a per-module
+  basis without recompiling.
+
+  There are a few debugging tools in the debug_tools/ subdirectory of
+  the PCMCIA distribution.  The dump_tcic and dump_i365 utilities
+  generate complete register dumps of the PCMCIA controllers, and decode
+  a lot of the register information.  They are most useful if you have
+  access to a datasheet for the corresponding controller chip.  The
+  dump_tuples utility lists a card's CIS (Card Information Structure),
+  and decodes some of the important bits.  And the dump_cisreg utility
+  displays a card's local configuration registers.
+
+  The memory_cs memory card driver is also sometimes useful for
+  debugging.  It can be bound to any PCMCIA card, and does not interfere
+  with other drivers.  It can be used to directly access any card's
+  attribute memory or common memory.
+
+  77..33..  WWrriittiinngg CCaarrdd SSeerrvviicceess ddrriivveerrss ffoorr nneeww ccaarrddss
+
+  The Linux PCMCIA Programmer's Guide is the best documentation for the
+  Linux PCMCIA interface.  The latest version is always available from
+  hyper.stanford.edu in /pub/pcmcia/doc, or on the web at
+  <http://hyper.stanford.edu/HyperNews/get/pcmcia/home.html>.
+
+  For devices that are close relatives of normal ISA devices, you'll
+  probably be able to use parts of existing Linux drivers.  In some
+  cases, the biggest stumbling block will be modifying an existing
+  driver so that it can handle adding and removing devices after boot
+  time.  Of the current drivers, the memory card driver is the only
+  ``self-contained'' driver that does not depend on other parts of the
+  Linux kernel to do most of the dirty work.
+
+  In many cases, the largest barrier to supporting a new card type is
+  obtaining technical information from the manufacturer.  It may be
+  difficult to figure out who to ask, or to explain exactly what
+  information is needed.  However, with a few exceptions, it is very
+  difficult if not impossible to implement a driver for a card without
+  technical information from the manufacturer.
+
+  I've written a skeleton driver with lots of comments that explains a
+  lot of how a driver communicates with Card Services; you'll find this
+  in the PCMCIA source distribution in modules/skeleton.c.
+
+  77..44..  GGuuiiddeelliinneess ffoorr PPCCMMCCIIAA cclliieenntt ddrriivveerr aauutthhoorrss
+
+  I have decided that it is not really feasible for me to distribute all
+  PCMCIA client drivers as part of the PCMCIA package.  Each new driver
+  makes the main package incrementally harder to maintain, and including
+  a driver inevitably transfers some of the maintenance work from the
+  driver author to me.  Instead, I will decide on a case by case basis
+  whether or not to include contributed drivers, based on user demand as
+  well as maintainability.  For drivers not included in the core
+  package, I suggest that driver authors adopt the following scheme for
+  packaging their drivers for distribution.
+
+  Driver files should be arranged in the same directory scheme used in
+  the PCMCIA source distribution, so that the driver can be unpacked on
+  top of a complete PCMCIA source tree.  A driver should include source
+  files (in ./modules/), a man page (in ./man/), and configuration files
+  (in ./etc/).  The top level directory should also include a README
+  file.
+
+  The top-level directory should include a makefile, set up so that
+  ``make -f ... all'' and ``make -f ... install'' compile the driver and
+  install all appropriate files.  If this makefile is given an extension
+  of .mk, then it will automatically be invoked by the top-level
+  Makefile for the all and install targets.  Here is an example of how
+  such a makefile could be constructed:
+
+       # Sample Makefile for contributed client driver
+       FILES = sample_cs.mk README.sample_cs \
+               modules/sample_cs.c modules/sample_cs.h \
+               etc/sample etc/sample.opts man/sample_cs.4
+       all:
+               $(MAKE) -C modules MODULES=sample_cs.o
+       install:
+               $(MAKE) -C modules install-modules MODULES=sample_cs.o
+               $(MAKE) -C etc install-clients CLIENTS=sample
+               $(MAKE) -C man install-man4 MAN4=sample_cs.4
+       dist:
+               tar czvf sample_cs.tar.gz $(FILES)
+
+  This makefile uses install targets defined in 2.9.10 and later
+  versions of the PCMCIA package.  This makefile also includes a
+  ``dist'' target for the convenience of the driver author.  You would
+  probably want to add a version number to the final package filename
+  (for example, sample_cs-1.5.tar.gz).  A complete distribution could
+  look like:
+
+       sample_cs.mk
+       README.sample_cs
+       modules/sample_cs.c
+       modules/sample_cs.h
+       etc/sample
+       etc/sample.opts
+       man/sample_cs.4
+
+  With this arrangement, when the contributed driver is unpacked, it
+  becomes essentially part of the PCMCIA source tree.  It can make use
+  of the PCMCIA header files, as well as the machinery for checking the
+  user's system configuration, and automatic dependency checking, just
+  like a ``normal'' client driver.
+
+  I will accept client drivers prepared according to this specification
+  and place them in the /pub/pcmcia/contrib directory on my FTP server,
+  hyper.stanford.edu.  The README in this directory will describe how to
+  unpack a contributed driver.
+
+  The PCMCIA client driver interface has not changed much over time, and
+  has almost always preserved backwards compatibility.  A client driver
+  will not normally need to be updated for minor revisions in the main
+  PCMCIA package.  I will try to notify authors of contributed drivers
+  of changes that require updates to their drivers.
+
+  77..55..  GGuuiiddeelliinneess ffoorr LLiinnuuxx ddiissttrriibbuuttiioonn mmaaiinnttaaiinneerrss
+
+  If your distribution has system configuration tools that you would
+  like to be PCMCIA-aware, please use the *.opts files in /etc/pcmcia
+  for your ``hooks.''  These files will not be modified if a user
+  compiles and installs a new release of the PCMCIA package.  If you
+  modify the main configuration scripts, then a fresh PCMCIA install
+  will silently overwrite your custom scripts and break the connection
+  with your configuration tools.  Contact me if you are not sure how to
+  write an appropriate option script.
+
+  It is helpful for users (and for me) if you can document how your
+  distribution deviates from the PCMCIA package as described in this
+  document.  In particular, please document changes to the startup
+  script and configuration scripts.
+
+  When building PCMCIA for distribution, you should consider including
+  contributed drivers that are not part of the main PCMCIA package.  For
+  reasons of maintainability, I am trying to limit the core package
+  size, by only adding new drivers if I think they are of particularly
+  broad interest.  Other drivers will be distributed separately, as
+  described in the previous section.  The split between integral and
+  separate drivers is somewhat arbitrary and partly historical, and
+  should not imply a difference in quality.
+

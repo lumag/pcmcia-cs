@@ -1,0 +1,18 @@
+# Fixed (ATA/IDE) drive adapter configuration
+#
+# The address format is "scheme,socket[,part]".
+#
+# For multi-partition devices, first return list of partitions in
+# $PARTS.  Then, we'll get called for each partition.
+#
+case "$ADDRESS" in
+*,*,1)
+    #DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+    #FSTYPE="msdos"
+    #OPTS=""
+    #MOUNTPT="/ide"
+    ;;
+*,*)
+    #PARTS="1"
+    ;;
+esac

@@ -1,0 +1,20 @@
+.\" Copyright (c) 1995 David Hinds <dhinds@allegro.stanford.edu>
+.\" ftl_check.1 1.2 1996/09/15 04:15:27
+.\"
+.TH FTL_CHECK 1 "1996/09/15 04:15:27" "Stanford University"
+.SH NAME
+ftl_check \- Flash Translation Layer format checker
+.SH SYNOPSIS
+.B ftl_check
+device
+.SH DESCRIPTION
+.B Ftl_check
+dumps a lot of bookkeeping information for a Flash Translation Layer
+partition.  It needs to access the flash partition's raw character-mode
+device (such as
+.IR /dev/mem0c0c ).
+It cannot actually fix formatting problems.
+.SH AUTHOR
+David Hinds \- dhinds@allegro.stanford.edu
+.SH "SEE ALSO"
+ftl_format(8).

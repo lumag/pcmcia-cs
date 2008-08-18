@@ -1,0 +1,43 @@
+.\" Copyright (c) 1995 David Hinds <dhinds@allegro.stanford.edu>
+.\" cardinfo.1 1.4 1995/09/29 16:47:35
+.\"
+.TH CARDCTL 1 "1995/09/29 16:47:35" "Stanford University"
+.SH NAME
+cardinfo \- PCMCIA card monitor and control utility for X
+.SH SYNOPSIS
+.B cardinfo
+.SH DESCRIPTION
+.B Cardinfo
+displays the current configurations of all PCMCIA sockets in the
+system.  For each card, the display includes the card name, the card
+state, IO port and interrupt settings, and the names of any devices
+associated with that card.  Each socket also has a menu of commands
+for manipulating the socket state.
+.PP
+The socket state includes a row of abbreviated state flags.  The
+.B CD
+flag indicates that a card is detected in that socket.  The
+.B Vcc
+flag indicates that the socket is powered up.  The
+.B Vpp
+flag indicates that the programming power supply is active.  The
+.B WP
+flag indicates that the card is write protected.
+.PP
+Below the socket status data is a log of card status change events.
+The following events are logged: card insertion and removal, user
+insert and eject requests, suspend and resume, and socket resets.
+.PP
+The reset button below the socket displays sends a SIGHUP signal to
+.BR cardmgr ,
+causing all sockets to be reinitialized from scratch.
+.PP
+.B Cardinfo
+is setuid root so that it can create temporary device
+files for accessing the PCMCIA sockets.  An ordinary user will not be
+able to access any of the socket control functions.
+.SH AUTHOR
+David Hinds \- dhinds@allegro.stanford.edu
+.SH "SEE ALSO"
+cardmgr(8), cardctl(8).
+

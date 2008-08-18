@@ -1,0 +1,84 @@
+#!/bin/sh
+#
+# serial 1.22 1998/02/15 18:06:19 (David Hinds)
+#
+# Initialize or shutdown a PCMCIA serial device
+#
+# The first argument should be either 'start' or 'stop'.  The second
+# argument is the base name for the device.
+#
+# The script passes an extended device address to 'serial.opts' in the 
+# ADDRESS variable, to retrieve device-specific configuration options.
+# The address format is "scheme,socket,instance" where "scheme" is the
+# PCMCIA configuration scheme, "socket" is the socket number, and
+# "instance" is used to number multiple ports on a single card.  
+#
+
+. ./shared
+
+# Get device attributes
+get_info $DEVICE
+
+# Load site-specific settings
+ADDRESS="$SCHEME,$SOCKET,$INSTANCE"
+. $0.opts
+
+NR=`expr $MINOR - 64`
+DIALOUT=cua$NR
+
+case "$ACTION" in
+
+'start')
+    if [ ! -c /dev/${DEVICE} -o ! -c /dev/cua$NR ] ; then
+	cd /dev
+	./MAKEDEV ${DEVICE}
+    fi
+    if [ "$LINK" != "" ] ; then
+	rm -f $LINK
+	ln -s /dev/$DIALOUT $LINK
+    fi
+    if [ "$SERIAL_OPTS" != "" ] ; then
+	setserial /dev/$DEVICE $SERIAL_OPTS
+    fi
+    if [ "$INITTAB" != "" ] ; then
+	echo "S$NR:12345:respawn:$INITTAB $DEVICE" >> /etc/inittab
+	telinit q
+    fi
+    ;;
+
+'check')
+    fuser -s /dev/$DEVICE /dev/$DIALOUT $LINK && exit 1
+    ;;
+
+'cksum')
+    chk_simple "$3,$SOCKET,$INSTANCE" || exit 1
+    ;;
+    
+'stop')
+    if [ "$INITTAB" != "" ] ; then
+	fgrep -v $DEVICE /etc/inittab > /etc/inittab.new
+	mv /etc/inittab.new /etc/inittab
+	telinit q
+    fi
+    fuser -s -k /dev/$DEVICE /dev/$DIALOUT $LINK
+    rm -f $LINK
+    ;;
+
+'suspend')
+    fuser -s -k -STOP /dev/$DEVICE /dev/$DIALOUT
+    ;;
+
+'resume')
+    if [ "$SERIAL_OPTS" != "" ] ; then
+	setserial /dev/$DEVICE $SERIAL_OPTS
+    fi
+    fuser -s -k -CONT /dev/$DEVICE /dev/$DIALOUT $LINK
+    ;;
+
+*)
+    usage
+    ;;
+
+esac
+
+exit 0

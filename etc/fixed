@@ -1,0 +1,63 @@
+#!/bin/sh
+#
+# fixed 1.17 1997/05/13 02:16:47 (David Hinds)
+#
+# Initialize or shutdown a PCMCIA ATA/IDE adapter
+#
+# The first argument should be either 'start' or 'stop'.  The second
+# argument is the base name for the device.
+#
+# The script passes an extended device address to 'fixed.opts' in the
+# ADDRESS variable, to retrieve device-specific configuration options.
+# The address format is "scheme,socket,serial_no,[,part]" where
+# "scheme" is the PCMCIA configuration scheme, "socket" is the socket
+# number, "serial_no" is the card's serial number if available, and
+# "part" is, optionally, the partition number.
+#
+# The script first calls fixed.opts for the entire device.  If
+# fixed.opts returns with the PARTS variable set, then this variable
+# contains a list of partitions for which options should be read.
+#
+
+. ./shared
+
+# Get device attributes
+get_info $DEVICE
+eval `/sbin/ide_info /dev/$DEVICE` || usage
+
+# Load site-specific settings
+ADDRESS="$SCHEME,$SOCKET,$SERIAL_NO"
+. $0.opts
+
+case "$ACTION" in
+
+'start')
+    add_parts $ADDRESS "$PARTS" || exit 1
+    ;;
+
+'check')
+    if [ -b /dev/$DEVICE ] ; then
+	fuser -s -m /dev/${DEVICE}* && exit 1
+    else
+	fuser -s /dev/${DEVICE}* && exit 1
+    fi
+    ;;
+
+'stop')
+    rm_parts $ADDRESS "$PARTS" || exit 1
+    ;;
+
+'cksum')
+    chk_parts "$3,$SOCKET,$SERIAL_NO" || exit 1
+    ;;
+    
+'suspend'|'resume')
+    ;;
+
+*)
+    usage
+    ;;
+
+esac
+
+exit 0

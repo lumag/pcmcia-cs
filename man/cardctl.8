@@ -1,0 +1,92 @@
+.\" Copyright (c) 1995 David Hinds <dhinds@allegro.stanford.edu>
+.\" cardctl.8 1.7 1996/11/26 07:22:08
+.\"
+.TH CARDCTL 8 "1996/11/26 07:22:08" "Stanford University"
+.SH NAME
+cardctl \- PCMCIA card control utility
+.SH SYNOPSIS
+.B cardctl
+command
+.RB [ sock ]
+.BR
+.B cardctl
+.RB [ "\-c\ "\c
+.I configpath\c
+]
+.RB [ "\-f\ "\c
+.I schemefile\c
+]
+.RB [ "\-s\ "\c
+.I stabfile\c
+]
+.B scheme
+.RB [ name ]
+.SH DESCRIPTION
+.B Cardctl
+is used to monitor and control the state of PCMCIA sockets.  If a
+socket number is specified, the command will be applied to just one
+socket; otherwise, all sockets will be affected.
+.PP
+.B Cardctl
+is also used to select between multiple PCMCIA configuration schemes.
+The current scheme name is passed to the device option scripts as part
+of the ``device address'', so the scripts can use it to choose between
+different setups.
+.PP
+If
+.B cardctl
+is executed by root, all commands are available.  If it is executed by
+an unpriviledged user, only the informational commands are accessible.
+.SH COMMANDS
+.TP \w'abcd'u
+.B status
+Display the current socket status flags.
+.TP
+.B config
+Display the socket configuration, including power settings, interrupt
+and I/O window settings, and configuration registers.
+.TP
+.B suspend
+Shut down and then disable power for a socket.
+.TP
+.B resume
+Restore power to a socket, and re-configure for use.
+.TP
+.B reset
+Send a reset signal to a socket, subject to approval by any drivers
+already bound to the socket.
+.TP
+.B eject
+Notify all client drivers that this card will be ejected, then cut
+power to the socket.
+.TP
+.B insert
+Notify all client drivers that this card has just been inserted.
+.TP
+.B scheme
+If no scheme name is given,
+.B cardctl
+will display the current PCMCIA configuration scheme.  If a scheme
+name is given,
+.B cardctl
+will unconfigure all PCMCIA devices, and reconfigure for the new
+scheme.
+.SH OPTIONS
+.TP
+.BI "\-c " configpath
+Look for the card configuration database and card configuration
+scripts in the specified directory, instead of 
+.IR /etc/pcmcia .
+.TP
+.BI "\-f " schemefile
+Use the specified file to keep track of the current configuration
+scheme, instead of
+.IR /var/run/pcmcia-scheme .
+.TP
+.BI "\-s " stabpath
+Read current socket information from the specified file, instead of
+.IR /var/run/stab .
+.SH AUTHOR
+David Hinds \- dhinds@allegro.stanford.edu
+.SH "SEE ALSO"
+cardmgr(8).

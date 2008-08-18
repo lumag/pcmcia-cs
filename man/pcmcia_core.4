@@ -1,0 +1,106 @@
+.\" Copyright (c) 1997 David Hinds <dhinds@hyper.stanford.edu>
+.\" pcmcia_core.4 1.15 1998/02/02 02:47:30
+.\"
+.TH PCMCIA_CORE 4 "1998/02/02 02:47:30" "Stanford University"
+.SH NAME
+pcmcia_core \- PCMCIA Card Services core module
+.SH SYNOPSIS
+.B insmod pcmcia_core.o
+.RB [ pc_debug=n ]
+.RB [ setup_delay=n ]
+.RB [ resume_delay=n ]
+.RB [ shutdown_delay=n ]
+.RB [ vcc_settle=n ]
+.RB [ reset_time=n ]
+.RB [ unreset_delay=n ]
+.RB [ unreset_check=n ]
+.RB [ unreset_limit=n ]
+.RB [ cis_speed=n ]
+.RB [ io_speed=n ]
+.RB [ strict_cis=n ]
+.RB [ probe_io=n ]
+.RB [ probe_mem=n ]
+.SH DESCRIPTION
+.B Pcmcia_core
+is the core Card Services module, required for all drivers for
+specific PCMCIA cards.  It is loaded prior to loading any socket
+device drivers.
+.PP
+In the event that kernel version mismatches prevent this module from
+being loaded, version information can be extracted from the module
+itself by doing:
+.sp
+.RS
+.nf
+strings -n 10 pcmcia_core.o | head -3
+.RE
+.fi
+.sp
+.SH PARAMETERS
+.TP
+.B pc_debug=n
+Selects the PCMCIA debugging level.  This parameter is only available
+if the module is compiled with debugging enabled.  A non-zero value
+enables debugging.
+.TP
+.B setup_delay=n
+Sets the delay between when a card is first detected, and when it will
+be powered up.  In 1/100 second increments, the default is 5.
+.TP
+.B resume_delay=n
+Sets the delay between when a resume event is processed, and when a
+suspended card will be powered up.  In 1/100 second increments, the
+default is 20.
+.TP
+.B shutdown_delay=n
+Sets the delay between when when a card removal event is detected, and
+when the socket will be disabled.  In 1/100 second increments, the
+default is 5.
+.TP
+.B vcc_settle=n
+Sets the time to wait after first applying power to a socket before
+accessing a card.  In 1/100 second increments, the default is 30.
+.TP
+.B reset_time=n
+Sets how long the software reset signal will be asserted, in
+microseconds.  The default is 10.
+.TP
+.B unreset_delay=n
+Sets the delay between when a card is reset, and when the card will
+first be checked to see if it is ready.  In 1/100 second increments,
+the default is 10.  This delay should be increased for cards that
+raise the ready signal prematurely.
+.TP
+.B unreset_check=n
+Sets how often to check to see if a card is ready after it is sent a
+software reset.  In 1/100 second increments, the default is 10.
+.TP
+.B unreset_limit=n
+Sets the maximum number of checks to make before pronouncing a card to
+be dead.  The default is 30.
+.TP
+.B cis_speed=n
+Sets the access delay in nanoseconds for CIS memory windows.
+The default is 300 ns.
+.TP
+.B io_speed=n
+Sets the access delay in nanoseconds for IO port windows.  The default
+is 0.
+.TP
+.B strict_cis=n
+A flag (zero is false, non-zero is true) indicating if a card's Card
+Information Structure should be checked for strict conformance to the
+PCMCIA spec.  The default is false.
+.TP
+.B probe_io=n
+A flag indicating if Card Services should probe IO port regions for
+conflicts with other devices unknown to Linux.  The default is true.
+.TP
+.B probe_mem=n
+A flag indicating if Card Services should probe memory windows for
+conflicts with ROM extensions or memory-mapped devices.  The default
+is true.
+.SH AUTHOR
+David Hinds \- dhinds@hyper.stanford.edu
+.SH "SEE ALSO"
+cardmgr(8), pcmcia(5).

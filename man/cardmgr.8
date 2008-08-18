@@ -1,0 +1,129 @@
+.\" Copyright (c) 1998 David Hinds <dhinds@hyper.stanford.edu>
+.\" cardmgr.8 1.25 1998/01/14 03:15:56
+.\"
+.TH CARDMGR 8 "1998/01/14 03:15:56" "Stanford University"
+.SH NAME
+cardmgr \- PCMCIA device manager
+.SH SYNOPSIS
+.B cardmgr
+.RB [ -q ]
+.RB [ -d ]
+.RB [ -o ]
+.RB [ -f ]
+.RB [ "\-c\ "\c
+.I configpath\c
+]
+.RB [ "\-m\ "\c
+.I modpath\c
+]
+.RB [ "\-p\ "\c
+.I pidpath\c
+]
+.RB [ "\-s\ "\c
+.I stabfile\c
+]
+.SH DESCRIPTION
+.B Cardmgr
+monitors PCMCIA sockets for card insertion and removal events.  When a
+card is inserted,
+.B cardmgr
+looks up the card in a database of known cards.  If the card can be
+identified, appropriate device drivers will be loaded and bound to the
+card.  When a card is ejected, that card's drivers will be shut down
+and unloaded if possible.  Based on the contents of the PCMCIA card
+configuration database,
+.B cardmgr
+may also execute arbitrary commands when appropriate cards are either
+inserted or removed.
+.PP
+All insertion and removal events, device driver loads and unloads, and
+startup and shutdown commands are reported in the system log file.
+Warnings and errors will also be logged.  Current card and device
+information for each socket is recorded in
+.IR /var/run/stab .
+.PP
+Normally, when a card is identified,
+.I cardmgr
+will send a beep to the console.  A beep is also generated when a card
+is successfully configured.  A beep of lower pitch is generated if
+either of these steps fails.  Ejecting a card produces a single beep.
+.PP
+When
+.B cardmgr
+receives a
+.B SIGHUP
+signal, it will shut down all sockets, reload the
+config file, then re-initialize all sockets.  When
+.B cardmgr
+receives a
+.B SIGTERM
+signal, it will shut down all sockets and then
+exit.
+.PP
+If the
+.B PCMCIA_OPTS
+environment variable is set, its contents will be parsed after the
+main card configuration file is read.
+.SH OPTIONS
+.TP
+.B \-q
+Quiet mode: don't beep when cards are inserted.
+.TP
+.B \-d
+Follow module dependencies when loading driver modules, by defaulting
+to use
+.B modprobe
+instead of
+.BR insmod .
+Normally,
+.B cardmgr
+will try using
+.B modprobe
+only after an unsuccessful attempt with
+.BR insmod .
+.TP
+.B \-f
+Foreground: do not fork and run as a daemon until after configuring
+any cards that are already present.
+.TP
+.B \-o
+One pass: configure cards that are present, then exit.  This flag
+also forces
+.B cardmgr
+to run in the foreground.
+.TP
+.BI "\-c " configpath
+Look for the card configuration database and card configuration
+scripts in the specified directory, instead of 
+.IR /etc/pcmcia .
+.TP
+.BI "\-m " modpath
+Look for loadable kernel modules in the specified directory, instead
+of
+.IR /lib/modules/`uname -r` .
+.TP
+.BI "\-p " pidpath
+Write the PID of the cardmgr process to the specified file, instead of
+.IR /var/run/cardmgr.pid .
+.TP
+.BI "\-s " stabpath
+Write current socket information to the specified file, instead of
+.IR /var/run/stab .
+.SH FILES
+.PD 0
+.TP \w'/etc/pcmcia/config.opts\ \ \ \|\|'u
+/etc/pcmcia/config
+Card configuration database
+.TP
+/etc/pcmcia/config.opts
+Local resource settings for PCMCIA devices
+.TP
+/var/run/cardmgr.pid
+PID of active cardmgr process
+.TP
+/var/run/stab
+Current card and device information for each socket.
+.SH AUTHOR
+David Hinds \- dhinds@hyper.stanford.edu
+.SH "SEE ALSO"
+pcmcia(5), stab(5), cardctl(8), cardinfo(8).

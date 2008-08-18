@@ -1,0 +1,202 @@
+.\" Copyright (c) 1998 David Hinds <dhinds@hyper.stanford.edu>
+.\" i82365.4 1.13 1998/01/13 15:48:26
+.\"
+.TH I82365 4 "1998/01/13 15:48:26" "Stanford University"
+.SH NAME
+i82365 \- Intel i82365sl PCMCIA controller driver
+.SH SYNOPSIS
+.B insmod i82365.o
+.RB [ pc_debug=n ]
+.RB [ i365_base=n ]
+.RB [ cb_io_base=n ]
+.RB [ cb_mem_base=n ]
+.RB [ ignore=n ]
+.RB [ extra_sockets=n ]
+.RB [ do_scan=n ]
+.RB [ irq_list=i,j,... ]
+.RB [ cs_irq=n ]
+.RB [ pci_csc=n ]
+.RB [ poll_interval=n ]
+.RB [ has_dma=n ]
+.RB [ has_led=n ]
+.RB [ has_ring=n ]
+.RB [ cycle_time=n]
+.RB [ freq_bypass=n ]
+.RB [ setup_time=n ]
+.RB [ cmd_time=n ]
+.RB [ recov_time=n ]
+.RB [ wakeup=n ]
+.RB [ fast_pci=n ]
+.RB [ async_clock=n ]
+.RB [ cable_mode=n ]
+.RB [ has_clkrun=n ]
+.RB [ clkrun_sel=n ]
+.RB [ irq_mode=n ]
+.SH DESCRIPTION
+This is the low-level driver for the Intel i82365sl PCMCIA interface
+controller, and various clones chips.  Common clones include the
+Cirrus PD67xx, the VLSI 82C146, the Vadem VG-468, and Toshiba and IBM
+proprietary chips.  Various PCI-to-PCMCIA and PCI-to-CardBus chips are
+also supported.  This driver is used by Card Services for
+programming the i82365sl chip, and for monitoring card status change
+events.
+.PP
+When the
+.B i82365
+driver is loaded, it will try to determine what interrupts can safely
+be allocated for use by PCMCIA devices.  Cirrus controllers support
+some optional features that interfere with the use of certain
+interrupt lines.  Cirrus chips also lack the functionality needed to
+detect whether or not an interrupt can be used.  The
+.BR has_dma ,
+.BR has_ring ,
+and
+.B has_led
+options are used to specify if these features are implemented.
+.PP
+An i82365-compatible controller normally sits at the IO addresses
+0x3e0-0x3e1.  Two controllers can cooperate to share the same IO
+ports, supporting a total of four sockets.  A second pair of
+controllers can be located at 0x3e2-0x3e3.  Probing at this position
+is controlled by the
+.BR extra_sockets
+parameter.  The driver will support a maximum of eight sockets.
+
+.SH PARAMETERS
+.TP
+.B pc_debug=n
+Selects the PCMCIA debugging level.  This parameter is only available
+if the module is compiled with debugging enabled.  A non-zero value
+enables debugging.
+.TP
+.B i365_base=n
+Sets the base I/O port address of the i82365sl chip.  The default is
+0x3e0.
+.TP
+.B cb_io_base=n
+Sets the base I/O port address to use when configuring a CardBus
+controller.  The default is 0x3e0.
+.TP
+.B cb_mem_base=n
+Sets the base address to use for memory mapping CardBus registers, if
+not set by the PCI BIOS.  The default is 0x68000000.
+.TP
+.B ignore=n
+Causes the driver to ignore a single socket.  Sockets are numbered
+starting at 0.  The socket will be left in whatever state it was
+already in, so it can be used for cards with point enablers that do
+not cooperate with Card Services.
+.TP
+.B extra_sockets=n
+A flag indicating if the driver should probe for as many as eight
+sockets, or stop after checking for four sockets.  The default is
+0 (stop at four sockets).  Systems with two independent PCMCIA
+controllers (say, one internal and one in a docking station) may
+require this flag to be set, even though they have a total of only
+four sockets.  If this flag is set, then
+.BR poll_status
+will automatically be enabled.
+.TP
+.B do_scan=n
+This flag specifies that all free interrupts should be tested to see
+if they can be triggered by the PCMCIA controller.  The default is 1
+(true). 
+.TP
+.B irq_list=i,j,...
+Specifies the set of interrupts that may be allocated by this driver,
+if they are otherwise available.
+The default list is 3, 4, 5, 7, 9, 10, 11, 12, 14, and 15.
+.TP
+.B cs_irq=n
+Sets the interrupt line to use for monitoring card status changes.
+The default is 0, which means pick the highest-numbered legal
+interrupt not already in use.  Legal values are 15, 14, 12, 11,
+10, 9, 7, 5, 4, and 3.
+.TP
+.B pci_csc=n
+Specifies that card status change interrupts should be routed to PCI
+interrupts, for CardBus controllers.  The default is 0 (false).
+.TP
+.B poll_interval=n
+Sets the card status polling delay, in 1/100 second increments.  If
+this parameter is set, card status interrupts will be disabled.  A
+reasonable value is 100.
+.TP
+.B cycle_time=n
+Sets the length of a host bus cycle, in nanoseconds.  The default is
+210 ns, corresponding to a standard 4.77 MHz clock.
+
+.SH Options specific for Cirrus controllers
+.TP
+.B has_dma=n
+A flag (zero is false, non-zero is true) indicating if the controller
+has DMA support.
+.TP
+.B has_led=n
+A flag indicating if the controller is wired for a disk status LED.
+This is set by default.
+.TP
+.B has_ring=n
+A flag indicating if the controller's "ring indicate" signal is
+implemented.  This is set by default.
+.TP
+.B freq_bypass=n
+A flag indicating that the controller should be set up in "frequency
+bypass" mode.  This disables the normal 7/4 clock multiplier, and
+slows down all PCMCIA bus access, for systems with fast system clocks.
+.TP
+.B setup_time=n
+Sets the bus setup time, in internal clock cycles. The default is 1.
+.TP
+.B cmd_time=n
+Sets the bus command time, in internal clock cycles. The default is 6.
+.TP
+.B recov_time=n
+Sets the bus recovery time, in internal clock cycles. The default is 0.
+.TP
+.B wakeup=n
+A flag indicating if the probe function should attempt to wake up a
+suspended controller chip.  The default is 0.
+.TP
+.B fast_pci=n
+A flag for the CL6729 PCI controller, indicating that the PCI bus
+speed exceeds 25 MHz.
+
+.SH Options specific for Vadem controllers
+.TP
+.B async_clock=n
+This flag specifies that PCMCIA bus cycles should be clocked
+asynchronously from host bus cycles.  It effectively adds a wait state
+to some operations.
+.B cable_mode=n
+For the VG469, this flag adjusts certain socket signals for driving a
+socket connected via a cable.
+
+.SH Options specific for TI 113X CardBus controllers
+Normally, a system's BIOS will configure these options appropriately,
+so all these options default to leaving these features configured the
+way the driver finds them.
+.TP
+.B has_ring=n
+A flag indicating if the controller is wired for "ring indicate".
+The default is to read the current setting from the controller.
+.TP
+.B has_clkrun=n
+A flag indicating if the controller is wired for PCI CLKRUN support.
+The default is to read the current setting from the controller.
+.TP
+.B clkrun_sel=n
+A flag indicating if the CLKRUN signal is wired to the ISA interrupt
+12 pin, as opposed to ISA interrupt 10.
+The default is to read the current setting from the controller.
+.TP
+.B irq_mode=n
+Selects the interrupt routing method.  A value of 1 selects ISA
+interrupt routing, and 2 selects interrupt routing via an external
+serial interrupt controller.  The default is to use whatever routing
+method is already active, or ISA routing if no method is enabled.
+
+.SH AUTHOR
+David Hinds \- dhinds@hyper.stanford.edu
+.SH "SEE ALSO"
+cardmgr(8), pcmcia(5).

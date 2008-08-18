@@ -1,0 +1,858 @@
+#
+# config.sample 1.69 1998/02/16 23:45:24 (David Hinds)
+#
+
+# config.opts is now included at the very end
+
+#
+# Device driver definitions
+#
+device "3c589_cs"
+  class "network" module "3c589_cs"
+
+device "ibmtr_cs"
+  class "network" module "ibmtr_cs"
+
+device "nmclan_cs"
+  class "network" module "nmclan_cs"
+
+device "oti12_cs"
+  class "cdrom" module "oti12_cs"
+
+device "pcnet_cs"
+  class "network" module "net/8390", "pcnet_cs"
+
+device "smc91c92_cs"
+  class "network" module "smc91c92_cs"
+
+device "wavelan_cs"
+  class "network" module "wavelan_cs"
+
+device "memory_cs" needs_mtd
+  class "memory" module "memory_cs"
+
+device "ftl_cs" needs_mtd
+  class "ftl" module "ftl_cs"
+
+device "serial_cs"
+  class "serial" module "serial_cs"
+
+device "qlogic_cs"
+  class "scsi" module "qlogic_cs"
+
+device "aha152x_cs"
+  class "scsi" module "aha152x_cs"
+
+device "fdomain_cs"
+  class "scsi" module "fdomain_cs"
+
+device "sym53c500_cs"
+  class "scsi" module "sym53c500_cs"
+
+device "fixed_cs"
+  class "fixed" module "fixed_cs"
+
+device "fmvj18x_cs"
+  class "network" module "fmvj18x_cs" 
+
+device "netwave_cs"
+  class "network" module "netwave_cs"
+
+device "xirc2ps_cs"
+  class "network" module "xirc2ps_cs"
+
+device "iscc_cs"
+  class "iscc" module "iscc_cs"
+
+device "3c574_cs"
+  class "network" module "3c574_cs"
+
+device "3c59x_cb"
+  class "network" module "cb_enabler", "3c59x_cb"
+
+#
+# Ethernet adapter definitions
+#
+card "3Com 3c589 LAN Adapter"
+  version "3Com Corporation", "3C589"
+  bind "3c589_cs"
+
+card "3Com 3c589D LAN Adapter"
+  version "3Com Corporation", "3C589D"
+  bind "3c589_cs"
+
+card "3Com 3c574TX Fast EtherLink Adapter"
+  version "3Com", "3C574-TX Fast EtherLink PC Card"
+  bind "3c574_cs"
+
+card "Accton EN2212 EtherCard"
+  version "ACCTON", "EN2212", "ETHERNET"
+  bind "pcnet_cs"
+
+card "Accton EN2216 EtherCard"
+  version "ACCTON", "EN2216-PCMCIA-ETHERNET"
+  bind "pcnet_cs"
+
+card "Accton UE2212 Ethernet Card"
+  version "PCMCIA", "UE2212", "ETHERNET"
+  bind "pcnet_cs"
+
+card "Accton UE2216 EtherCard"
+  version "PCMCIA", "PCMCIA-ETHERNET-CARD", "UE2216"
+  bind "pcnet_cs"
+
+card "Allied Telesis Ethernet Card"
+  version "Allied Telesis,K.K", "Ethernet LAN Card"
+  bind "pcnet_cs"
+
+card "Asante FriendlyNet PC Card"
+  version "ASANTE", "FriendlyNet PC Card"
+  bind "pcnet_cs"
+
+card "CeLAN Ethernet EPCMCIA"
+  version "PCMCIA", "ETHERNET V1.0"
+  bind "pcnet_cs"
+
+card "CNet CN30BC Ethernet Card"
+  version "CNet  ", "CN30BC", "ETHERNET"
+  bind "pcnet_cs"
+
+card "CNet CN40BC Ethernet Card"
+  version "CNet", "CN40BC Ethernet"
+  bind "pcnet_cs"
+
+card "Compaq Ethernet LAN Card"
+  version "Compaq", "Ethernet LAN Card"
+  bind "xirc2ps_cs"
+
+card "Connectware LANdingGear Adapter"
+  manfid 0x0057, 0x1004
+  bind "pcnet_cs"
+
+card "CONTEC Ethernet Card"
+  version "CONTEC Co.,Ltd."
+  bind "fmvj18x_cs"
+
+card "Danpex EN-6200P2 Ethernet"
+  version "*", "EN-6200P2"
+  bind "pcnet_cs"
+
+card "DataTrek NetCard"
+  version "DataTrek.", "NetCard "
+  bind "pcnet_cs"
+
+card "Dayna Commnunications CommuniCard E"
+  version "Dayna Communications, Inc.", "CommuniCard E"
+  bind "pcnet_cs"
+
+card "Digital DEPCM-BA Ethernet"
+  version "DIGITAL", "DEPCM-XX"
+  bind "pcnet_cs"
+
+card "D-Link DE-650 Ethernet Card"
+  version "D-Link", "DE-650"
+  bind "pcnet_cs"
+
+card "D-Link DE-660 Ethernet Card"
+  version "D-Link", "DE-660"
+  bind "pcnet_cs"
+
+card "D-Link DE-650 Ethernet Card"
+  tuple 0x40, 0x0009, "D-Link PC Ethernet Card"
+  bind "pcnet_cs"
+
+card "E2000 NE2000-Compatible Ethernet Card"
+  version "Ethernet Adapter", "E2000 PCMCIA Ethernet"
+  bind "pcnet_cs"
+
+card "Edimax Ethernet Combo"
+  version "Edimax Technology Inc.", "PCMCIA", "Ethernet Card"
+  bind "pcnet_cs"
+
+card "Eiger Labs EPX-ET10T2 Ethernet Card"
+  version "EIGER Labs Inc.", "Ethernet Combo card"
+  bind "pcnet_cs"
+
+card "Eiger Labs EPX-10BT Ethernet Card"
+  version "Eiger Labs,Inc", "EPX-10BT PC Card Ethernet 10BT"
+  bind "fmvj18x_cs"
+
+card "EZLink 4109"
+  version "PCMCIA", "Ethernet Card"
+  bind "pcnet_cs"
+
+card "EP-210 Ethernet Card"
+  version "Ethernet PCMCIA adapter", "EP-210"
+  bind "pcnet_cs"
+
+card "EP-220 Ethernet Card"
+  version "PCMCIA", "ETHERNET"
+  bind "pcnet_cs"
+
+card "Epson EEN10B Ethernet Card"
+  version "Seiko Epson Corp.", "Ethernet"
+  bind "pcnet_cs"
+
+card "Farallon ENet Adapter"
+  version "Farallon", "ENet"
+  bind "3c589_cs"
+
+card "Fujitsu FMV-J181 LAN Card"
+  version "PCMCIA MBH10302"
+  bind "fmvj18x_cs"
+
+card "Fujitsu FMV-J182 LAN Card"
+  version "FUJITSU", "LAN Card(FMV-J182)"
+  bind "fmvj18x_cs"
+
+card "Fujitsu Towa LA501 LAN Card"
+  version "FUJITSU TOWA", "LA501"
+  bind "fmvj18x_cs"
+
+card "Grey Cell GCS2000 Ethernet Card"
+  version "Grey Cell", "GCS2000"
+  bind "pcnet_cs"
+
+card "Grey Cell GCS2220 Ethernet Card"
+  version "Grey Cell", "GCS2220"
+  bind "pcnet_cs"
+
+card "GVC NIC-2000P Ethernet Card"
+  version "GVC", "NIC-2000p"
+  bind "pcnet_cs"
+
+card "GVC NIC-2000P Ethernet Card"
+  version "PCMCIA", "Ethernet Combo card"
+  bind "pcnet_cs"
+
+card "Hitachi HT-4840-11 EtherCard"
+  version "HITACHI", "HT-4840-11"
+  bind "fmvj18x_cs"
+
+card "IBM Credit Card Ethernet Adapter"
+  version "IBM Corp.", "Ethernet"
+  bind "pcnet_cs"
+
+card "IC-Card Ethernet"
+  version "IC-CARD", "IC-CARD"
+  bind "pcnet_cs"
+
+card "IC-Card Plus Ethernet"
+  version "IC-CARD+", "IC-CARD+"
+  bind "pcnet_cs"
+
+card "Intel EtherExpress PRO/100"
+  version "Intel", "EtherExpress(TM) PRO/100 PC Card Mobile Adapter16"
+  bind "xirc2ps_cs"
+
+card "Katron PE-520 Ethernet Card"
+  version "KCI", "PE520 PCMCIA Ethernet Adapter"
+  bind "pcnet_cs"
+
+card "Kingston KNE-PCM/x Ethernet"
+  version "Kingston Technology Corp.", "EtheRx PC Card Ethernet Adapter"
+  bind "pcnet_cs"
+
+card "Kingston KNE-PC2 Ethernet"
+  version "Kingston", "KNE-PC2"
+  bind "pcnet_cs"
+
+card "KTI PE-520 Plus Ethernet"
+  version "KTI", "PE520 PLUS"
+  bind "pcnet_cs"
+
+card "Linksys Ethernet Card"
+  tuple 0x40, 0x0009, "E-CARD PC Ethernet Card"
+  bind "pcnet_cs"
+
+card "Linksys Ethernet Card"
+  version "LINKSYS", "E-CARD"
+  bind "pcnet_cs"
+
+card "Linksys Ethernet Card"
+  version "E-CARD", "E-CARD"
+  bind "pcnet_cs"
+
+card "Linksys Ethernet Card"
+  version "Linksys", "Combo PCMCIA EthernetCard (EC2T)"
+  bind "pcnet_cs"
+
+card "Longshine ShineNet LCS-8534"
+  version "LONGSHINE", "PCMCIA Ethernet Card"
+  bind "pcnet_cs"
+
+card "Longshine ShineNet LCS-8534"
+  version "LONGSHINE", "*", "EP401"
+  bind "pcnet_cs"
+
+card "Logitec LPM-LN10BA Ethernet"
+  version "Cardwell", "PCMCIA", "ETHERNET"
+  bind "pcnet_cs"
+
+card "MACNICA Ethernet Card"
+  version "MACNICA", "ME1-JEIDA"
+  bind "pcnet_cs"
+
+card "Megahertz CC10BT/2 Ethernet"
+  version "Megahertz", "CC10BT/2"
+  bind "smc91c92_cs"
+
+card "Maxtech PCN2000 Ethernet"
+  version "MAXTECH", "PCN2000", "ETHERNET"
+  bind "pcnet_cs"
+
+card "National Semiconductor InfoMover 4100"
+  version "National Semiconductor", "InfoMover 4100"
+  bind "pcnet_cs"
+
+card "National Semiconductor InfoMover NE4100"
+  version "National Semiconductor", "InfoMover NE4100"
+  bind "pcnet_cs"
+
+card "New Media Ethernet Adapter"
+  version "New Media Corporation", "Ethernet"
+  bind "nmclan_cs"
+
+card "New Media BASICS Ethernet"
+  version "BASICS by New Media Corporation", "Ethernet", "SMC91C94"
+  bind "smc91c92_cs"
+
+card "NextCom NC5310"
+  version "NextComK.K.", "NC5310 Ver1.0        "
+  bind "fmvj18x_cs"
+
+card "NE2000 Compatible Ethernet Card"
+  version "PCMCIA", "Ethernet"
+  bind "pcnet_cs"
+
+card "NE2000 Compatible Ethernet Card"
+  version "NE2000 Compatible", "PCMCIA", "Ethernet Card"
+  bind "pcnet_cs"
+
+card "NE2000 Compatible Ethernet Card"
+  version "Ethernet", "Adapter"
+  bind "pcnet_cs"
+
+card "NDC Instant-Link"
+  version "NDC", "Ethernet"
+  bind "pcnet_cs"
+
+card "Eagle NE200 Ethernet Card"
+  manfid 0x0004, 0x0004
+  bind "fmvj18x_cs"
+
+card "Ositech Four of Diamonds Ethernet"
+  version "Ositech", "Trumpcard:Four of Diamonds Ethernet"
+  bind "smc91c92_cs"
+
+card "I-O DATA PCLA/T LAN Card"
+  version "I-O DATA", "PCLA", "ETHERNET"
+  bind "pcnet_cs"
+
+card "Panasonic CF-VEL211"
+  version "Matsushita Electric Industrial Co.,LTD.", "CF-VEL211"
+  bind "pcnet_cs"
+
+card "PreMax PE-200 Ethernet Card"
+  version "PMX   ", "PE-200"
+  bind "pcnet_cs"
+
+card "RATOC Ethernet Card"
+  version "PCMCIA LAN MBH10304  ES"
+  bind "fmvj18x_cs"
+
+card "Relia RE2408T Ethernet"
+  version "PCMCIA LAN", "Ethernet"
+  bind "pcnet_cs"
+
+card "RPTI EP400 Ethernet Card"
+  version "RPTI LTD.", "EP400"
+  bind "pcnet_cs"
+
+card "RPTI EP400 Ethernet Card"
+  version "RPTI", "EP400 Ethernet NE2000 Compatible"
+  bind "pcnet_cs"
+
+card "RPTI EP401 Ethernet Card"
+  version "RPTI", "EP401 Ethernet NE2000 Compatible"
+  bind "pcnet_cs"
+
+card "SCM Ethernet Combo"
+  version "SCM", "Ethernet Combo card"
+  bind "pcnet_cs"
+
+card "SMC EtherEZ Ethernet"
+  version "SMC", "EtherEZ Ethernet 8020"
+  bind "smc91c92_cs"
+
+card "Socket EA LAN Adapter"
+  version "Socket Communications Inc",
+    "Socket EA PCMCIA LAN Adapter Revision D"
+  bind "pcnet_cs"
+
+card "Socket EA LAN Adapter"
+  version "Socket Communications Inc",
+    "Socket EA PCMCIA LAN Adapter Revision E"
+  bind "pcnet_cs"
+
+card "Surecom Ethernet"
+  version "TAMARACK", "Ethernet"
+  bind "pcnet_cs"
+
+card "TDK LAC-CD02x LAN Card"
+  version "TDK", "LAC-CD02x"
+  bind "fmvj18x_cs"
+
+card "Xircom IIps Ethernet Card"
+  version "Xircom", "*", "PS-CE2-10"
+  bind "xirc2ps_cs"
+
+#
+# 10/100baseT network adapters
+#
+card "Linksys EtherFast 10/100 Network Adapter"
+  manfid 0x0149, 0xc1ab
+  bind "pcnet_cs"
+
+card "Xircom CE3-10/100 Ethernet Card"
+  version "Xircom", "*", "CE3-10/100"
+  bind "xirc2ps_cs"
+
+#
+# Wireless network adapters
+#
+card "AT&T WaveLAN Adapter"
+  version "AT&T", "WaveLAN/PCMCIA"
+  bind "wavelan_cs"
+
+card "Digital RoamAbout/DS"
+  version "Digital", "RoamAbout/DS"
+  bind "wavelan_cs"
+
+card "Lucent Technologies WaveLAN Adapter"
+  version "Lucent Technologies", "WaveLAN/PCMCIA"
+  bind "wavelan_cs"
+
+card "NCR WaveLAN Adapter"
+  version "NCR", "WaveLAN/PCMCIA"
+  bind "wavelan_cs"
+
+card "Xircom CreditCard Netwave"
+  version "Xircom", "CreditCard Netwave"
+  bind "netwave_cs"
+
+#
+# Modems and other serial devices
+#
+# NOTE: most modems do not need explicit entries here, because they
+# are correctly identified using the following generic entry.
+#
+card "Serial or Modem Card"
+  function serial_port
+  bind "serial_cs"
+
+card "Angia Fax/Modem"
+  version "Intelligent", "ANGIA FAX/MODEM"
+  bind "serial_cs"
+
+card "Cirrus Logic 14.4K Fax Modem"
+  version "CIRRUS LOGIC", "FAX MODEM"
+  bind "serial_cs"
+
+card "Compaq 28.8K Modem"
+  version "COMPAQ", "PCMCIA 28800 FAX/DATA MODEM"
+  bind "serial_cs"
+
+card "Gateway 2000 TelePath Fax Modem"
+  version "GATEWAY2000", "CC3144", "*", "PCMCIA MODEM"
+  bind "serial_cs"
+
+card "Intel-compatible Modem"
+  version "Intel", "MODEM 2400+"
+  bind "serial_cs"
+
+card "Macronix Fax/Modem"
+  version "MACRONIX", "FAX/MODEM"
+  bind "serial_cs"
+
+card "Megahertz PCMCIA Modem"
+  version "MEGAHERTZ", "*", "*", "PCMCIA MODEM"
+  bind "serial_cs"
+
+card "Megahertz V.34 Modem"
+  version "MEGAHERTZ", "*", "V.34 PCMCIA MODEM"
+  bind "serial_cs"
+
+card "MultiTech V.34 Modem"
+  version "Multi-Tech", "MT2834LT", "FAX MODEM "
+  bind "serial_cs"
+
+card "Toshiba T144PF Modem"
+  version "TOSHIBA", "T144PF", "*", "PCMCIA MODEM"
+  bind "serial_cs"
+
+card "Computerboards PCM-COM422"
+  version "Computerboards, Inc.", "PCM-COM422"
+  bind "serial_cs"
+
+card "Fujitsu FMV-JMD711"
+  version "FUJITSU", "FC14F ", "MBH10213"
+  bind "serial_cs"
+
+card "Advantech COMpad-32/85"
+  version "ADVANTECH", "COMpad-32/85"
+  bind "serial_cs"
+
+card "Advantech COMpad-32/85"
+  version "ADV", "*", "TECH", "COMpad-32/85"
+  bind "serial_cs"
+
+card "IOTech Dual RS-232 Card"
+  version "IOTech Inc ", "PCMCIA Dual RS-232 Serial Port Card"
+  bind "serial_cs"
+
+card "Quatech Dual RS-232 Card"
+  version "Quatech Inc", "PCMCIA Dual RS-232 Serial Port Card"
+  bind "serial_cs"
+
+card "Quatech Quad RS-232 Card"
+  version "Quatech Inc", "PCMCIA Quad RS-232 Serial Port Card"
+  bind "serial_cs"
+
+card "Socket Communications Dual RS-232 Card"
+  version "Socket Communications Inc",
+    "Dual Serial Port Adapter Revision E"
+  bind "serial_cs"
+
+#
+# Memory cards
+#
+card "Anonymous Memory Card"
+  anonymous
+  bind "memory_cs"
+
+card "Memory Card"
+  function memory_card
+  bind "memory_cs", "ftl_cs"
+
+card "IBM 2MB SRAM Card"
+  version "IBM", "2MB SRAM"
+  bind "memory_cs"
+
+card "IBM 4MB Series 1 Flash Card"
+  version "IBM", "4MB FLASH"
+  bind "memory_cs", "ftl_cs"
+
+card "IBM 8MB Series 2 Flash Card"
+  version "IBM", "8MB FLASH"
+  bind "memory_cs", "ftl_cs"
+
+card "Intel Series 2 2MB Flash Card"
+  version "intel", "SERIES2-02 "
+  bind "memory_cs", "ftl_cs"
+
+card "Intel Series 2 4MB Flash Card"
+  version "intel", "SERIES2-04 "
+  bind "memory_cs", "ftl_cs"
+
+card "Intel Series 2+ 8MB Flash Card"
+  version "Intel", "S2E8 SW"
+  bind "memory_cs", "ftl_cs"
+
+card "Intel Series 2+ 20MB Flash Card"
+  version "Intel", "S2E20SW"
+  bind "memory_cs", "ftl_cs"
+
+card "I/O DATA 2MB SRAM card"
+  version "IO DATA", "PCS-2M", "2MB SRAM"
+  bind "memory_cs"
+
+card "Maxtor MobileMax Flash Memory"
+  version "Maxtor", "MAXFL MobileMax Flash Memory Card"
+  bind "memory_cs", "ftl_cs"
+
+card "Seiko/Epson WWB513EN20"
+  version "SEIKO EPSON", "WWB513EN20"
+  bind "memory_cs"
+
+card "Franklink/Rolodex REX-3000"
+  version "Starfish, Inc.", "REX-3000"
+  bind "memory_cs"
+
+#
+# Memory Technology Drivers
+#
+region "Generic or SRAM"
+  default
+  mtd "sram_mtd"
+
+region "Intel Series 2 Flash"
+  jedec 0x89 0xa2
+  mtd "iflash2_mtd"
+
+region "Intel Series 2+ Flash"
+  jedec 0x89 0xa0
+  mtd "iflash2+_mtd"
+
+#
+# Token Ring adapters
+#
+card "IBM Token Ring Adapter"
+  version "IBM", "TOKEN RING"
+  bind "ibmtr_cs"
+
+#
+# SCSI host adapters
+#
+card "Adaptec APA-1460 SlimSCSI"
+  version "Adaptec, Inc.", "APA-1460 SCSI Host Adapter"
+  bind "aha152x_cs"
+
+#card "Adaptec APA-460 / Trantor T460 SCSI"
+#  version "Trantor Systems, Ltd.", "T460 SCSI Host Adapter"
+#  bind "t460_cs"
+
+card "Eiger Labs SCSI adapter"
+  version "EIger Labs", "PCMCIA-to-SCSI Adapter"
+  bind "qlogic_cs"
+
+card "IBM SCSI adapter"
+  version "IBM Corp.", "SCSI PCMCIA Card"
+  bind "fdomain_cs"
+
+card "IBM SCSI adapter"
+  version "SCSI PCMCIA Adapter Card"
+  bind "fdomain_cs"
+
+#card "MACNICA mPS100 SCSI"
+#  version "MACNICA", "MIRACLE SCSI", "mPS100"
+#  bind "qlogic_cs"
+
+card "MACNICA mPS110 SCSI"
+  version "MACNICA", "MIRACLE SCSI-II mPS110"
+  bind "qlogic_cs"
+
+card "NEC PC-9801N-J03R"
+  version "NEC", "PC-9801N-J03R"
+  bind "qlogic_cs"
+
+card "New Media Bus Toaster SCSI"
+  version "New Media", "SCSI", "Bus Toaster"
+  bind "aha152x_cs"
+
+card "New Media Toast & Jam Sound/SCSI"
+  version "New Media Corporation", "Multimedia Sound/SCSI"
+  bind "aha152x_cs"
+
+card "New Media Bus Toaster SCSI"
+  version "New Media Corporation", "SCSI Bus Toaster Sym53C500"
+  bind "sym53c500_cs"
+
+card "Qlogic FastSCSI"
+  version "QLOGIC CORPORATION", "pc05"
+  bind "qlogic_cs"
+
+card "Qlogic FastSCSI"
+  version "QLOGIC CORPORATION", "pc05 rev 1.10"
+  bind "qlogic_cs"
+
+card "Raven CD-Note"
+  version "KME", "KXLC002", "00"
+  bind "qlogic_cs"
+
+card "RATOC REX-9530 SCSI-2"
+  version "RATOC System Inc.", "SCSI2 CARD 37"
+  bind "qlogic_cs"
+
+card "Simple Technology SCSI"
+  version " SIMPLE TECHNOLOGY Corporation",
+    "SCSI PCMCIA Credit Card Controller"
+  bind "fdomain_cs"
+
+card "Toshiba SCSC200B SCSI"
+  version "TOSHIBA", "SCSC200B PC CARD SCSI-10"
+  bind "qlogic_cs"
+
+#
+# Multifunction cards
+#
+card "3Com 3c562 LAN+Modem Adapter"
+  version "3Com Corporation", "3C562"
+  bind "3c589_cs" to 0, "serial_cs" to 1
+
+card "3Com 3c562B/3c563B LAN+Modem Adapter"
+  version "3Com Corporation", "3C562B/3C563B"
+  bind "3c589_cs" to 0, "serial_cs" to 1
+
+card "3Com 3c562C/3c563C LAN+Modem Adapter"
+  version "3Com Corporation", "3C562C/3C563C"
+  bind "3c589_cs" to 0, "serial_cs" to 1
+
+card "3Com 3c562D/3c563D LAN+Modem Adapter"
+  version "3Com Corporation", "3C562D/3C563D"
+  bind "3c589_cs" to 0, "serial_cs" to 1
+
+card "Apex MultiCard"
+  version "APEX DATA", "MULTICARD", "ETHERNET-MODEM"
+  bind "pcnet_cs" to 0, "serial_cs" to 1
+
+card "D-Link DME336T"
+  version "D-Link", "DME336T"
+  bind "pcnet_cs", "serial_cs"
+
+card "Gateway Telepath Combo Card"
+  version "Gateway 2000", "XJEM3336"
+  bind "smc91c92_cs", "serial_cs"
+
+card "IBM Home and Away Adapter"
+  version "IBM", "Home and Away Credit Card Adapter"
+  bind "pcnet_cs" to 0, "serial_cs" to 1
+
+card "IBM Home and Away 28.8 Adapter"
+  version "IBM", "Home and Away 28.8 PC Card       "
+  bind "pcnet_cs" to 0, "serial_cs" to 1
+
+card "IBM w95 Home and Away Adapter"
+  version "IBM", "w95 Home and Away Credit Card "
+  bind "pcnet_cs" to 0, "serial_cs" to 1
+
+card "No-Name FAX/Modem/Ethernet Combo"
+  version "*", "FAX/Modem/Ethernet Combo Card "
+  bind "pcnet_cs" to 0, "serial_cs" to 1
+
+card "Linksys LANmodem 28.8"
+  version "LINKSYS", "PCMLM28"
+  bind "pcnet_cs", "serial_cs"
+
+card "Linksys LANmodem 33.6"
+  version "LINKSYS", "PCMLM336"
+  bind "pcnet_cs", "serial_cs"
+
+card "Megahertz CC/XJEM1144 Ethernet + Modem"
+  version "MEGAHERTZ", "XJEM1144/CCEM1144", "PCMCIA MODEM"
+  bind "smc91c92_cs", "serial_cs"
+
+card "Megahertz CC/XJEM1144 Ethernet + Modem"
+  version "MEGAHERTZ", "XJEM1144/CCEM1144"
+  bind "smc91c92_cs", "serial_cs"
+
+card "Megahertz EM1144T Ethernet + Modem"
+  version "MEGAHERTZ", "EM1144T", "PCMCIA MODEM"
+  bind "smc91c92_cs", "serial_cs"
+
+card "Megahertz CC/XJEM3288 Ethernet + Modem"
+  version "MEGAHERTZ", "CC/XJEM3288", "DATA/FAX/CELL ETHERNET MODEM"
+  bind "smc91c92_cs", "serial_cs"
+
+card "Megahertz CC/XJEM3336 Ethernet + Modem"
+  version "MEGAHERTZ", "CC/XJEM3336", "DATA/FAX/CELL ETHERNET MODEM"
+  bind "smc91c92_cs", "serial_cs"
+
+card "Motorola Marquis LAN+Modem Adapter"
+  version "Motorola MARQUIS"
+  bind "3c589_cs" to 0, "serial_cs" to 1
+
+card "Motorola Mariner"
+  manfid 0x0109, 0x0501
+  bind "smc91c92_cs", "serial_cs"
+
+card "Ositech Jack of Diamonds Ethernet + Modem"
+  version "Ositech", "Trumpcard:Jack of Diamonds Modem+Ethernet"
+  bind "smc91c92_cs", "serial_cs"
+
+card "TDK Global Networker"
+  version "TDK", "GlobalNetworker 3410/3412"
+  bind "serial_cs"
+
+card "Xircom CE II Ethernet/Modem Card"
+  version "Xircom", "CreditCard Ethernet+Modem II"
+  bind "serial_cs"
+
+card "Xircom CEM28 Ethernet/Modem Card"
+  version "Xircom", "*", "CEM28"
+  bind "xirc2ps_cs", "serial_cs"
+
+card "Xircom CEM33 Ethernet/Modem Card"
+  version "Xircom", "*", "CEM33"
+  bind "xirc2ps_cs", "serial_cs"
+
+card "Xircom CEM56 Ethernet/Modem Card"
+  version "Xircom", "*", "CEM56"
+  bind "xirc2ps_cs", "serial_cs"
+
+#
+# ATA/IDE fixed disk devices
+#
+card "ATA/IDE Fixed Disk Card"
+  function fixed_disk
+  bind "fixed_cs"
+
+card "ACE DoubleFlash 20MB"
+  version "IBM", "IBM17JSSFP20"
+  bind "fixed_cs"
+
+card "Argosy EIDE CD-ROM"
+  version "ARGOSY", "CD-ROM"
+  bind "fixed_cs"
+
+card "Caravelle CD-36N/CD-36E CD-ROM"
+  version "Caravelle", "PSC-IDE ", "PSC000"
+  bind "fixed_cs"
+
+card "Creative Technology CD-ROM"
+  version "Creative Technology Ltd.", "PCMCIA CD-ROM Interface Card"
+  bind "fixed_cs"
+
+card "Digital Mobile Media CD-ROM"
+  version "Digital Equipment Corporation.", "Digital Mobile Media CD-ROM"
+  bind "fixed_cs"
+
+card "EXP CD940 CD-ROM"
+  version "EXP   ", "CD-ROM"
+  bind "fixed_cs"
+
+card "EXP Traveler 620 CD-ROM"
+  version "EXP", "CD+GAME", "C1"
+  bind "fixed_cs"
+
+card "IO-DATA CDP-TX/PCIDE"
+  version "IO DATA", "PCIDE"
+  bind "fixed_cs"
+
+card "IO-DATA PCIDE II"
+  version "IO DATA", "PCIDEII"
+  bind "fixed_cs"
+
+card "OTI-SCYLLA ATAPI CD-ROM"
+  version "PCMCIA", "CD-ROM"
+  bind "fixed_cs"
+
+#
+# Non-ATA/IDE CD-ROM's
+#
+card "Innovative Communications CyberRom CD"
+  version "Innovative Communications", "CyberRom CD"
+  bind "oti12_cs"
+
+#
+# Miscellaneous card definitions
+#
+#card "Canon FDCard"
+#  version "Canon Electronics INC.", "FDCard Ver. 1.00"
+#
+#card "New Media .WAVjammer"
+#version "New Media Corporation", ".WAVjammer"
+
+card "IBM Smart Capture Card"
+  version "IBM Corp.", "Video Capture"
+  bind "iscc_cs"
+
+#
+# CardBus cards
+#
+card "3Com 3c575-TX Fast EtherLink XL"
+  manfid 0x0101, 0x5057
+  bind "3c59x_cb"
+
+# Include local configuration settings
+source ./config.opts

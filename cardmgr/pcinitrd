@@ -1,0 +1,199 @@
+#!/bin/sh
+#
+# pcinitrd revision 1.11 1998/02/10 11:08:34 (David Hinds)
+#
+RELEASE=""
+ALL=""
+SIZE=1440
+MODULES="pcmcia/pcmcia_core.o pcmcia/ds.o"
+
+# Things to install when "all" is selected
+SOCK="i82365.o tcic.o"
+BLK="fixed_cs.o pcmem_cs.o aha152x_cs.o fdomain_cs.o qlogic_cs.o"
+MEM="ftl_cs.o memory_cs.o sram_mtd.o iflash2_mtd.o iflash2+_mtd.o"
+
+usage()
+{
+    echo "usage: $0 [-v] [-a|-all] [-u|--update] [-r|--kernel=kernel-release]" >&2
+    echo "       [-s|--size=image-size] <initrd-image> [modules ...]" >&2
+    exit 1
+}
+
+while [ $# -gt 0 ] ; do
+    case $1 in
+    -a|--all)
+	ALL=y
+	;;
+    -d)
+	ROOT=$2 ; shift
+	;;
+    --dir=*)
+	ROOT=`echo $1 | sed -e 's/^--root=//'`
+	;;
+    -r)
+	KERNEL=$2 ; shift
+	;;
+    --release=*)
+	KERNEL=`echo $1 | sed -e 's/^--kernel=//'`
+	;;
+    -s)
+	SIZE=$2 ; shift
+	;;
+    --size=*)
+	SIZE=`echo $1 | sed -e 's/^--size=//'`
+	;;
+    -u|--update)
+	UPDATE=y
+	;;
+    -v|--verbose)
+	VERBOSE=--verbose
+	;;
+    -*)
+	usage
+	exit 1
+	;;
+    *)
+	break
+	;;
+    esac
+    shift
+done
+
+if [ $# -lt 1 ] ; then usage ; fi
+TARGET=$1 ; shift
+if [ "$ALL" = "y" ] ; then
+    for MOD in $SOCK $BLK $MEM ; do
+	if [ -f $ROOT/lib/modules/$KERNEL/pcmcia$MOD ] ; then
+	    MODULES="$MODULES pcmcia/$MOD"
+	fi
+    done
+else
+    MODULES="$MODULES $*"
+fi
+
+if [ "$KERNEL" = "" ] ; then
+    KERNEL=`uname -r`
+fi
+[ "$VERBOSE" ] && echo "Using version $KERNEL modules"
+
+for MOD in $MODULES ; do
+    if [ ! -f $ROOT/lib/modules/$KERNEL/$MOD ] ; then
+	echo "$ROOT/lib/modules/$KERNEL/$MOD does not exist." 1>&2
+	exit 1
+    fi
+done
+
+fail()
+{
+    umount $VERBOSE $MNT
+    rmdir $MNT
+    exit 1
+}
+trap fail SIGTERM SIGINT
+
+strip_cp()
+{
+    if [ -d $3 ] ; then
+	DEST=$3/`basename $2`
+    else
+	DEST=$3
+    fi
+    strip $1 $VERBOSE -o $DEST $2 | sed -e 's/([^ ]*)//g' || fail
+}
+
+MNT=$ROOT/tmp/initrd.mnt-$$
+mkdir $VERBOSE $MNT || exit 1
+
+if [ "$UPDATE" = "y" ] ; then
+    if [ -b $TARGET ] ; then
+	mount $VERBOSE -t ext2 $TARGET $MNT || fail
+    else
+	mount $VERBOSE -t ext2 -o loop $TARGET $MNT || fail
+    fi
+    strip_cp --strip-all $ROOT/sbin/cardmgr $MNT/sbin || fail
+    CD=`pwd` ; cd $MNT
+    for DIR in block misc fs net pcmcia ; do
+	for MOD in $DIR/*.o ; do
+	    strip_cp --discard-all $ROOT/lib/modules/$MOD $DIR || fail
+	done
+    done
+    cd $CD
+    umount $VERBOSE $MNT
+    rmdir $MNT
+    exit 0
+fi
+
+[ "$VERBOSE" ] && echo "Creating filesystem on $TARGET"
+if [ -b $TARGET ] ; then
+    mke2fs $TARGET $SIZE > /dev/null || fail
+    mount $VERBOSE -t ext2 $TARGET $MNT || fail
+else
+    dd if=$ROOT/dev/zero of=$TARGET bs=1k count=$SIZE
+    echo "y" | mke2fs $TARGET $SIZE >/dev/null || fail
+    mount $VERBOSE -t ext2 -o loop $TARGET $MNT || fail
+fi
+
+rm -rf $MNT/lost+found
+for DIR in bin dev etc lib lib/pcmcia proc tmp mnt ; do
+    mkdir $VERBOSE $MNT/$DIR || fail
+done
+
+for DEV in console null ram tty1 tty2 tty3 tty4 ; do
+    cp -a $VERBOSE $ROOT/dev/$DEV $MNT/dev || fail
+done
+if [ -e $ROOT/dev/systty ] ; then
+    cp -a $VERBOSE $ROOT/dev/systty $MNT/dev || fail
+fi
+
+BIN="bin/mount bin/umount sbin/insmod sbin/cardmgr"
+for F in $BIN ; do
+    strip_cp --strip-all $ROOT/$F $MNT/bin
+done
+strip_cp --strip-all $ROOT/bin/ash $MNT/bin/sh
+
+LIBC=`ls $ROOT/lib/libc.so.? | sort | tail -1`
+strip_cp --strip-debug $LIBC $MNT/lib
+cp $VERBOSE $ROOT/lib/ld-linux.so.? $MNT/lib || fail
+
+cp $VERBOSE $ROOT/etc/ld.so.cache $MNT/etc || fail
+cp $VERBOSE $ROOT/etc/pcmcia/config $MNT/etc || fail
+cp $VERBOSE $ROOT/etc/pcmcia/config.opts $MNT/etc || fail
+
+for MOD in $MODULES ; do
+    strip_cp --strip-debug $ROOT/lib/modules/$KERNEL/$MOD $MNT/lib/$MOD
+done
+
+[ "$VERBOSE" ] && echo "Creating linuxrc startup script"
+cat > $MNT/linuxrc <<- 'EOF'
+	#!/bin/sh
+	
+	# Should be either i82365 or tcic
+	PCIC=i82365
+	# Put socket driver timing parameters here
+	PCIC_OPTS=
+	# Put pcmcia_core options here
+	CORE_OPTS=
+	
+	mount -t proc /proc /proc
+
+	echo ""
+	echo "==== initrd: starting PCMCIA services ===="
+	echo ""
+	PC=/lib/pcmcia
+	insmod $PC/pcmcia_core.o $CORE_OPTS
+	insmod $PC/$PCIC.o $PCIC_OPTS
+	insmod $PC/ds.o
+	if [ "$DEBUG" != "" ] ; then V=-v ; fi
+	cardmgr $V -q -o -c /etc -m /lib -s /tmp/stab -p /tmp/pid
+	umount /proc
+	echo ""
+	
+	if [ "$DEBUG" != "" ] ; then
+	    /bin/sh < /dev/console
+	fi
+EOF
+chmod +x $MNT/linuxrc 
+
+umount $VERBOSE $MNT
+rmdir $MNT
+exit 0

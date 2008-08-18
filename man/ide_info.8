@@ -1,0 +1,23 @@
+.\" Copyright (c) 1996 David Hinds <dhinds@allegro.stanford.edu>
+.\" ide_info.8 1.1 1996/09/08 22:48:25
+.\"
+.TH IDE_INFO 8 "1996/09/08 22:48:25" "Stanford University"
+.SH NAME
+ide_info \- IDE device description tool
+.SH SYNOPSIS
+.B ide_info
+device
+.SH DESCRIPTION
+.B Ide_info
+opens the specified IDE device file, and retrieves its device
+identification information.  Its
+output is a set of Bourne-style shell commands to define the
+.BR MODEL ,
+.BR FW_REV ,
+and
+.B SERIAL_NO
+variables based on this information.  The PCMCIA configuration script
+for IDE-type devices uses this utility so that the serial number can
+be used to specify configurations for particular cards.
+.SH AUTHOR
+David Hinds \- dhinds@allegro.stanford.edu

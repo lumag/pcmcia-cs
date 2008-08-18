@@ -1,0 +1,20 @@
+--- linux-1.2.13/drivers/scsi/aha152x.c.orig	Mon May  1 21:31:26 1995
++++ linux-1.2.13/drivers/scsi/aha152x.c	Tue Dec  5 21:08:08 1995
+@@ -200,9 +200,17 @@
+ 
+  **************************************************************************/
+ 
++#ifdef PCMCIA
++#define MODULE
++#endif
++
+ #ifdef MODULE
+ #include <linux/config.h>
+ #include <linux/module.h>
++#endif
++
++#ifdef PCMCIA
++#undef MODULE
+ #endif
+ 
+ #include <linux/sched.h>

@@ -1,0 +1,1087 @@
+Version 3.0.0
+-- Added 3c574_cs module.
+-- Major update of HOWTO and programming guide.
+-- Various new sections of code to support Cardbus cards.
+-- Major reorganization of i82365 module and probe logic.
+-- Rewrite of CIS parsing logic to also handle Cardbus cards.
+-- Code cleanup, and switch-over of many things from 'long' to 'int'.
+-- Made the memory and IO probes a bit more conservative.
+-- Updated xirc2ps_cs driver.
+-- Updated pcinitrd: glibc fix, more sanity checks, more verbose.
+-- Updates for 2.1.68, 2.1.76, and 2.1.86 kernels.
+-- Fixed cardinfo to work in "trusted" mode.
+-- Fixed ready/busy status reporting for IO cards.
+-- Fixed interrupts on second serial port for Socket dual-port cards.
+-- Fixed memory_cs access to attribute memory devices.
+-- Fixed smc91c92_cs IO bus width selection.
+-- Fixed bug in Cirrus PD6832 socket addressing.
+-- Fixed bad bug in fmvj18x_cs driver's card setup code.
+-- Fixed version checking for new modutils in Configure script.
+-- Fixed i82365 module to disable zoom-video where appropriate, and to
+   not probe PCI interrupts.
+-- Fixed bug in pcnet_cs driver that breaks 2.1.60 and later kernels.
+-- Fixed bug in wavelan_cs interrupt handling introduced in 2.9.12,
+   and fixed EEPROM checksum bug.
+-- Fixed some 32/64-bit issues that cause trouble on Alpha platform.
+
+Version 2.9.12
+-- Updated to handle 2.1.60 kernel changes.
+-- Updated the Xircom driver, fixing CEM56 support.
+-- Updated the Wavelan driver
+-- Changed network script to be slightly smarter about when it allows
+   a card to be ejected.
+-- Added O2Micro OZ6832 CardBus and Intel 82092AA PCI support.
+-- Made the memory window scan a bit safer and more reliable.
+-- Fixed smc91c92 driver to work with 91c94-based cards.
+-- Fixed several minor install script bugs.
+-- Fixed bug in partition code in ftl_cs driver.
+-- Fixed bug in multiple-cardbus-controller setup code.
+-- Fixed config file install glitch.
+
+Version 2.9.11
+-- Fixed Configure script to automatically detect SCSI modules, and to
+   do a better job of figuring out kernel symbol version information.
+-- Config file updates.
+-- Fixed Linksys EtherFast configuration code.
+-- Fixed several 1.2.X kernel incompatibilities.
+
+Version 2.9.10
+-- Added support for Linksys EtherFast 10/100 network adapter.
+-- Extended ftl_cs driver to support partition tables within an FTL
+   partition.
+-- Updated Werner Koch's Xircom driver, now including CE3 support.
+-- Updated Makefiles to facilitate add-on client drivers, and added
+   automatic dependency handling.
+-- Fixed the fixed-disk driver to deal with 12V cards.
+-- Fixed bug in Macnica SCSI support in the qlogic_cs driver.
+-- Fixed several bad bugs in the memory_cs driver.
+-- Fixed cardmgr to create stab file even if no cards are present.
+
+Version 2.9.9
+-- Added support for Novell/Eagle NE200 ethernet adapter.
+-- Replaced "irq_mask" module options with more intuitive "irq_list"
+   options.  For compatibility, "irq_mask" will still work.
+-- Fixed several typos, and an event handling bug added in 2.9.8.
+
+Version 2.9.8
+-- Better module tool version checking.
+-- Merged pcmem_cs driver into memory_cs.
+-- Updates of Xircom Netwave and ethernet drivers
+-- Added support for the Motorola Mariner.
+-- Removed the frequently-misleading card name information from the
+   card information table in pcnet_cs.
+-- Fixed PCI controller probe problem in i82365 driver.
+-- Fixed configuration scripts to still set up proper fstab entries
+   when a filesystem type is not explicitly specified.
+-- Fixed race condition in 3c589_cs driver unload sequencing.
+-- Fixed incompatibilities with both 1.2.* and post-2.1.44 kernels.
+-- Fixed file handling bug in cardmgr with delayed-fork option.
+-- Fixed resume handling bug when suspended cards are ejected.
+-- Various compilation fixes for Alpha platform.
+-- Changed syntax of ReportError service.
+-- Various changes to Card Services interface to accommodate future
+   CardBus card support.
+
+Version 2.9.7
+-- Added Werner Koch's driver for Xircom ethernet and ethernet/modem
+   adapters.  
+-- Simplified multifunction card handling in the serial driver.
+-- Added code to serial configuration scripts to create entries in
+   inittab if desired.
+-- Changed Cirrus timing parameters to be a bit more conservative.
+-- Made Configure script more bullet-proof.
+-- Changed cardmgr to, by default, try 'modprobe' if 'insmod' fails.
+-- Rewrite of code for memory mapping CardBus controller registers.
+-- Fixed bash-2.0 incompatibility in default network.opts script.
+-- Fixed memory resource parsing bug that messed up memory windows
+   in the upper 2GB.
+-- Fixed some interrupt-picking problems in the i82365 driver, that
+   most directly affected Cirrus controllers.
+-- Fixed glibc header clash in smc91c92_cs driver.
+-- Fixed bug in initialization code for the second socket of CardBus
+   controllers.
+
+Version 2.9.6
+-- Added stuff to configuration scripts and cardctl so that when the
+   scheme is changed, we only reconfigure devices that need it.
+-- Added an improved memory-scanner that should be able to figure out
+   most memory window position problems without intervention.
+-- Added New Media BASICS Ethernet support.
+-- Cleaned up a lot of debugging code.
+-- Changed output of scsi_info to be more consistent with ide_info.
+-- Update for 2.1.38 and later kernels.
+-- Update for the Wavelan driver.
+-- Improved CIS validation tests.
+-- Relaxed some arbitrary port allocation restrictions on 3c589,
+   pcnet, smc91c92, and xircnw drivers.
+-- Minor improvements to error and informational messages.
+-- More reorganization in i82365 driver.
+-- Fixed bug in multiport serial card configuration.
+-- Fixed bogus cardctl output when a socket isn't bound to anything.
+-- Fixed missing "#include <pcmcia/config.h>" in cardctl.c.
+-- Fixed various minor bugs/typos
+
+Version 2.9.5
+-- Added support for Quatech quad serial card.
+-- Added "pcinitrd" helper script, info to the HOWTO.
+-- Updated IBM token-ring driver for 2.1.X kernels.
+-- Updated Wavelan driver.
+-- More fixes to i82365 probe code for multiple controllers.
+-- Fixed ancient bug in CIS handling code that broke the 3Com 3c562D.
+-- Fixed bug in SCSI and fixed-disk configuration scripts when the
+   config file describes multiple partitions for one device.
+
+Version 2.9.4
+-- More kernel version tweaks for 2.1.31 and later kernels.
+-- Fixed network script to *always* shut down an interface at card
+   eject time, whether or not this script turned it on.
+-- Fixed 3c589_cs autodetect code, again.
+-- Fixed i82365 breakage in 2.9.3.
+
+Version 2.9.3
+-- Reorganized the PCMCIA-HOWTO.
+-- Added a configuration option to allow cardctl, cardinfo to be
+   compiled in "unsafe" mode so non-root users can modify cards.
+-- Added a default path of /bin:/sbin:/usr/bin:/usr/sbin to cardmgr.
+-- Changed card status change interrupt selection algorithm in the
+   i82365 module, to use the same irq for all controllers.
+-- Fixed 3c589_cs transceiver autodetection code.
+-- Fixed Configure script to work with bash-2.0.
+-- Fixed /var/run/stab parsing bug in card configuration scripts.
+
+Version 2.9.2
+-- Minor updates to docs and config files.
+-- Added new card identification method to cardmgr, based on the
+   MANFID tuple.
+-- Added support for Omega Micro 82C092G PCI-to-PCMCIA controller.
+-- Added code to all network drivers to count bytes sent and received
+   for newer (> 2.1.25) kernels.
+-- Two new flags for cardmgr: '-f' causes it to run in the foreground
+   until any already-inserted cards are configured. '-o' causes it to
+   make one pass at configuring cards, then exit.
+-- Consolidated common device configuration functions into a separate
+   shell script file.
+-- Changed i82365 module to disable dynamic power mode on Cirrus
+   controllers.
+-- Updated to work with latest (post-2.1.17) kernel module code, and
+   various other fixes for 2.1.X kernels.
+-- Rewrite of i82365 module to better handle multiple controllers, and
+   combinations of PCI-to-PCMCIA, PCI-to-Cardbus, and ISA stuff.
+-- Fixed kernel compatibility bug on Alpha systems.
+-- Partly fixed multicast support in New Media ethernet driver.
+-- Fixed smc91c92_cs driver to only make a 10baseT/10base2 switch when
+   an interface is first configured.
+-- Fixed another configuration bug in the Wavelan driver.
+-- Fixed all troubles with Linksys LANmodem multifunction cards.
+-- Fixed problem with retrieving status information from unconfigured
+   or empty sockets.
+-- Fixed all the memory card drivers (memory_cs, pcmem_cs, ftl_cs) to
+   invalidate the buffer cache when a card is ejected.
+-- Fixed Ricoh RL5C466 CardBus controller setup bug.
+
+Version 2.9.1
+-- Added support for MACNICA and IO-DATA SCSI adapters.
+-- Increased write timeout in iflash2+_mtd driver, and made it a
+   configurable parameter.
+-- New feature in cardmgr to parse PCCARD_OPTS environment variable
+   after the main config file.
+-- Updated serial driver to support Advantech dual serial card, and
+   fixed bug in configuration of second port on dual-port cards.
+-- Fixed bug in PCMCIA shutdown code for systems with SYSV init (well,
+   Red Hat for sure, maybe others).
+-- Fixed major instability in iflash2+_mtd driver.
+-- Fixed bug in Megahertz multifunction card configuration logic.
+-- Fixed difficult-to-trigger bug in cardmgr file descriptor handling.
+-- Fixed some sort of bug in the Wavelan driver.
+-- Fixed bug in probe for TI 1130 CardBus chips.
+
+Version 2.9.0
+-- Updated for 2.1.X kernels (retaining compatibility with older
+   kernels, of course).
+-- Updated the Wavelan driver.
+-- Reorganized file layout: moved headers to separate include tree.
+-- Added command-line options to cardctl to allow control over
+   file placement, including the scheme file.
+-- Added '-d' flag to cardmgr to use depmod/modprobe for module
+   dependencies.
+-- Added two new timing parameters to pcmcia_core module: resume_delay
+   and reset_delay.  See the man page for details.
+-- Added experimental support for SMC, Cirrus, TI, and Ricoh CardBus
+   controllers (in legacy 16-bit card mode).
+-- Changed cardmgr to log child program output to the system log.
+-- Changed socket drivers to never use irq 12 for monitoring card
+   status changes, to avoid trouble with PS/2 mice.
+-- Changed i82365 driver so that extra_sockets implies poll_status.
+-- Updated probe command to find PCI controllers.
+-- Updated smc91c92_cs driver for SMC EtherEZ cards.
+-- Fixed initialization bug in smc91c92_cs driver.
+-- Fixed IO port allocation bug in the serial driver.
+-- Fixed setup bug in aha152x driver for 1.2.X kernels.
+-- Fixed several bugs and race conditions in card power-up sequencing
+   and resume handling.
+
+Version 2.8.23
+-- Added 'ide_info' utility so that IDE configuration scripts can
+   look up a card's serial number.
+-- Updated network configuration script to support IPX setup.
+-- Experimental support for Quatech/IOTech dual serial port cards.
+-- Improved the forms library checking in the Configure script.
+-- Updated the fmvj18x_cs driver.
+-- Fixed ftl_cs so that it can handle partitions bigger than 16MB.
+   Also fixed kernel trap problem in the device close code.
+-- Fixed bug in installing startup scripts when an alternate target
+   directory is specified.
+-- Fixed i82365 driver to distinguish between VLSI and i82365SL DF
+   controllers.  Also updated 'probe' command.
+-- Fixed wavelan_cs check for stopped card in interrupt handler.
+
+Version 2.8.22
+-- Added Wavelan man pages.
+-- Fixed configure problem for DEC Alpha UDB systems.
+-- Fixed missed interrupt problem with simultaneous ethernet/modem
+   operation on Ositech cards.
+-- Fixed bugs in card status interrupt selection in i82365 and tcic
+   modules.
+-- Fixed aha152x_cs driver to compile with 2.0.14 kernels, and also
+   fixed a null pointer dereference in the reset code.
+-- Fixed bug in promiscuous mode selection code in 3c589 driver.
+-- Fixed bug in the TCIC-2 chip identification code.
+-- Fixed Wavelan driver so that the multicast code will only reset the
+   card when the setting actually changes.  Also fixed problems with
+   card eject and driver unloading, increased the xmit timeout, and
+   took out code that forces the card to use a fixed port address.
+
+Version 2.8.21
+-- Fixed network and serial configuration scripts to do appropriate
+   things when a card is suspended or resumed.
+-- Fixed bug in fsck exit code checking in scsi and fixed-disk
+   scripts.
+-- Fixed cardmgr to correctly report cards in /var/run/stab even if
+   they are not configured, instead of claiming the socket is empty.
+-- Fixed bug in cardinfo device name reporting.
+-- Fixed missing #include in the fmvj18x_cs driver.
+-- Fixed race condition in resume handling that would sometimes cause
+   sockets to be powered down just after a resume.
+-- Fixed bug in Megahertz EM3288 power-up sequence in smc91c92_cs.
+-- Fixed interrupt handling bug in wavelan_cs.
+
+Version 2.8.20
+-- Updated the Fujitsu ethernet driver to support the TDK LAC-CD02x.
+-- Added Logitec ethernet, Digital Mobile Media CD-ROM to config file
+   and supported cards list.
+-- Cleaned up some if_port handling code in various ethernet drivers.
+-- Fixed bug in cardinfo with newer Forms library.
+-- Fixed wavelan_cs driver to build with 1.2.X kernels.
+-- Fixed two bugs in smc91c92 driver for Megahertz cards.
+
+Version 2.8.19
+-- Added support for IBM "KING" PCIC, added decoding of TCIC-2 chip
+   revision codes to tcic module and probe command.
+-- Added DO_FSCK flag to all configuration scripts that can mount
+   filesystems (scsi, fixed, memory, ftl).
+-- Added do_scan parameters to i82365 and tcic modules, to allow
+   blocking the normal interrupt scan.
+-- Added code to cache CIS information, for cards whose CIS is not
+   readable once they are configured.
+-- Added AT&T WaveLAN version 2.0 driver.
+-- Added support for Megahertz 1144 and 3288 ethernet/modem cards.
+-- Fixed exit status values in cardctl.
+-- Fixed bug in suspend/resume handling for Ositech multifunction
+   cards (and maybe some others).
+
+Version 2.8.18
+-- Added support for new revision of Vadem VG469 host controller.
+-- Added Xircom Netwave driver.
+-- Added Micronet EtherFast, 3Com 3c689 token ring, and Trimble GPS
+   card to supported cards list.
+-- Fixed serial_cs driver to handle some quirky modem cards with
+   deceptive CIS information.  This should fix the Compaq 192.
+-- Fixed interrupt release bug with multifunction cards.
+-- Fixed scsi, fixed-disk config scripts to respect DO_FSTAB flag when
+   removing entries from /etc/fstab.
+-- Fixed network script to ignore inactive connections when checking
+   network status.
+-- Fixed stupid bug in smc91c92_cs driver that broke Ositech
+   multifunction cards.
+
+Version 2.8.17
+-- Added code to check for spurious APM suspend/resume events.
+-- Changed serial_cs driver to be more aggressive about finding IO
+   ports for modems when the standard locations are all unavailable.
+   Also changed the device name passed to cardmgr from the 'cua'
+   device to the 'ttyS' device.
+-- Changed serial device script to expect 'ttyS' device names, and to
+   create device files if needed.
+-- Changed network drivers to do more checking of if_port values.
+-- Fixed Configure script to recognize 2.0 kernels.
+-- Fixed probe.c and dump_i365.c to use the same probe logic as the
+   i82365 module.
+-- Fixed mistake in the fix for the qlogic_cs driver for pre-2.0.
+-- Fixed interrupt allocation bugs in smc91c92_cs.c and pcnet_cs.c
+   that goofed up Ositech and Linksys ethernet/modem combo cards.
+
+Version 2.8.16
+-- Added 'ifport' command for selecting transceiver types for network
+   adapters.  Also cleaned up all the transceiver selection code in
+   the various network drivers, and updated the HOWTO.
+-- Added support for Linksys ethernet/modem multifunction card.
+-- Cleaned up timer handling code in all the modules, for better
+   platform independence.
+-- Added priority coding to all module printk()'s.
+-- Moved /etc/stab to /var/run/stab for consistency.
+-- Changed CIS parsing to tolerate errors in long link tuples.  This
+   should fix the New Media Net Surfer.
+-- Fixed modules/Makefile to work with pre-2.0.6 kernel.
+-- Fixed several bugs in the card status interrupt allocation code in
+   the i82365 module, for supporting multiple controllers.
+
+Version 2.8.15
+-- Updated Configure to handle 1.99.* (i.e., "pre-2.0") kernels.
+-- More changes to the socket-ignoring code.
+-- Added support for 3Com 3c562B, and Motorola Marquis cards.
+-- Fixed more SCSI problems with 1.3.98 and later kernels.
+-- Fixed Ositech problem in smc91c92_cs module.
+
+Version 2.8.14
+-- Changed the socket-ignoring code so now it should work properly.
+-- Cleaned up some of the resource manager code.
+-- Added smc91c92_cs driver, for SMC, Megahertz, and Ositech ethernet
+   adapters.
+-- Updated serial_cs to handle quirky Ositech multifunction cards.
+-- Fixed incompatibility with 1.3.98 and later kernels.
+-- Fixed bug in error reporting in cardmgr's config file parsing code,
+   and fixed bug in config file.
+
+Version 2.8.13
+-- One more fix for 1.2.X kernels.
+-- Added Fujitsu FMV-J181, FMV-J182 ethernet driver.
+-- Added mention of CONFIG_TR to HOWTO, also fixed Configure script
+   and modules/Makefile to check for this before building ibmtr_cs.o.
+-- Changed core drivers so that if a socket contains a card that is
+   already active when CS is loaded, it will be left alone... this
+   should remove the need to use "ignore" with the socket drivers.
+-- Fixed bug in debug flag handling in modules/Makefile.
+-- Fixed modem support for IBM Home and Away Adapter.
+
+Version 2.8.12
+-- Minor cleanup of multifunction card support.
+-- Added more CIS tuple definitions.
+-- Fixed (hopefully) the last 1.2.X kernel compatibility bug.
+
+Version 2.8.11
+-- Minor updates to config file.
+-- Changed the pcnet_cs, ibmtr_cs, memory card drivers, and socket
+   drivers to be architecture independent, for DEC Multia.
+-- Fixed to work with 1.2.X kernels again.
+
+Version 2.8.10
+-- Added New Media Toast & Jam SCSI-only support.
+-- Added Panasonic KXL-D740 to supported cards.
+-- Added a new header file, ciscode.h, to keep track of manufacturer
+   and product ID codes.
+-- Updated pcnet_cs to support the Longshine Ethernet card.
+-- Updated pcnet_cs and serial_cs to work with IBM Home and Away Card.
+-- Changed CIS handling code to work with the DEC Multia.
+-- Changed network scripts to handle NFS mounts.
+-- Fixed serial_cs to use ASYNC_SKIP_TEST: some PCMCIA modems don't
+   pass the test, and it was always skipped for pre-1.3.72 kernels.
+-- Fixed risky parsing code in fixed_cs driver.
+-- Fixed error reporting bug in ibmtr_cs.c, added token-ring port
+   range to config.opts.
+-- Fixed bugs in rc.pcmcia shutdown and cleanup code.
+-- Fixed two Future Domain/IBM SCSI typos.
+-- Fixed another rare CIS parsing bug.
+-- Fixed flags for Epson ethernet in pcnet_cs.
+
+Version 2.8.9
+-- Updated for kernels up to and including 1.3.73.
+-- Made some drivers a bit less verbose.
+-- Changed PCMCIA startup script to clean up old devices after an
+   unclean shutdown.
+-- Moved /tmp/.pcmcia-scheme to /var/run/pcmcia-scheme
+-- Added IBM SCSI and Future Domain SCSI2GO support.
+-- Added IBM Token Ring support.
+-- Added config entries for Accton 2216, CNet CN40BC, Epson ethernet,
+   Raven CD-Note.
+-- Added true simultaneous ethernet/modem support for the 3c562 with
+   1.3.73 and later kernels.
+-- Fixed scsi script to not complain about nonexistent device files
+   when shutting down devices.
+-- Fixed bug in cardmgr SCSI disk device name handling.
+-- Fixed bug in Configure script for 1.3.49 kernel with SCSI support.
+-- Fixed bug in nmclan_cs.c with 1.3.X kernels.
+-- Fixed umask bug in cardctl.
+-- Fixed obscure bug in CIS parsing for IO windows.
+-- Fixed ATA/IDE driver to be more flexible about choosing IO ports.
+-- Fixed race condition in 3c589_cs transceiver detection code, also
+   fixed "missed interrupt" problem.
+
+Version 2.8.8
+-- Made the scheme stuff more secure.
+-- Fixed serial driver to work better with 3c562... see HOWTO.
+-- Faster and better transceiver autodetection for 3c589 cards.
+-- Fixed debug-tools/Makefile to work when CFLAGS is set in the
+   environment.  
+-- Fixed kernel version parsing bug in Configure script.
+-- Fixed bug with unmounting multiple partitions in the "scsi" and
+   "fixed" device scripts.
+-- Fixed modules/Makefile to include dependencies for objects built
+   from source code in the Linux kernel tree.
+
+Version 2.8.7
+-- Added NDC Instant-Link support.
+-- Fixed 3c589 transceiver selection problem, probably.
+-- Fixed bug in modules/Makefile with fixed_cs.o module.
+-- Fixed bug in cardmgr "resume" processing.
+-- Fixed network script to shut down BOOTP setups properly, and to
+   handle some more special cases.
+
+Version 2.8.6
+-- Cleaned up Makefiles.
+-- Changed the default debug level in nmclan_cs to 2, and got rid of
+   the "checking if_port..." messages in 3c589_cs.c.
+-- Changed i82365 module to only probe for additional controllers if
+   the "extra_sockets" parameter is set.
+-- Added Kingston, SCM address signatures to pcnet_cs.c.
+-- Added "beta" IDE/ATA driver.
+-- Fixed cardctl to have some functionality for non-root users.
+-- Fixed scsi_info to compile with 1.2.X kernels.
+-- Fixed the device scripts to set scheme to "default" if it is unset,
+   and changed cardctl to do the same.
+
+Version 2.8.5
+-- Tweaks for kernels up to 1.3.57.
+-- Modified device scripts to grab more info from /etc/stab.  Now, all
+   the device scripts pass an "address" to the corresponding option
+   script, which can be used to tailor the configuration of specific
+   devices.
+-- Added support for multiple PCMCIA configuration "schemes", such as
+   home and work.  There is an example in the HOWTO.
+-- Added 'scsi_info' utility for looking up SCSI device information,
+   used by the SCSI device config script.
+-- Added automatic transceiver detection to 3c589_cs.
+-- Added "do_sound" parameter to serial driver, so that the speaker
+   can be turned off if desired.
+-- Extended config file syntax so that config.opts can specify extra
+   parameters for kernel modules.  So, now, all local info should be
+   in config.opts, and the main config file should be completely
+   general.
+-- Changed i82365 and tcic drivers to automatically poll for card
+   status changes when interrupts are scarce.
+-- Fixed reset problem in New Media ethernet driver.
+-- Fixed error reporting bug in pcnet_cs.
+-- Fixed bug in i82365 socket counting code for systems with just one
+   socket.
+
+Version 2.8.4
+-- Added support for DataTrek NetCard, config entry for Megahertz
+   V.34 modem.
+-- Added '00 04 ac ...' signature for IBM cards to pcnet_cs driver.
+-- Added 'scsi.opts' file, where 1.2.X kernel users can list SCSI
+   devices that should be checked when unloading SCSI adapters.
+-- Added more configuration options to network.opts, serial.opts.  The
+   network script now handles bootp, and nameserver configuration.
+-- Added a sanity check for results of the automatic IO port probe.
+-- Changed the installation for SysV-type setups to use /etc/pcmcia
+   like everybody else, instead of /etc/sysconfig/pcmcia-scripts.
+-- Changed etc/Makefile to only update /etc/pcmcia stuff that has
+   actually changed.
+-- Changed rc.pcmcia so that there are new PCIC_OPTS and CORE_OPTS
+   environment variables for customization.
+-- Worked around 'insmod' bug: 'symbol=value' stuff silently fails
+   when another symbol is a longer version of the intended one.
+-- Fixed bug in cardmgr, where it would only recognize the first
+   device associated with a particular driver module.
+-- Fixed up memory_cs to work better with static RAM cards.
+-- Fixed possible kernel stack overflow problem in pcmem_cs module.
+-- Fixed bug in cardmgr include-file handling, which caused re-loading
+   the config file to fail.  Also fixed error recovery.
+-- Fixed bug in modules/Makefile that causes compiling the patched
+   aha152x driver to fail.
+-- Fixed 3c589_cs driver's card recognition check.
+-- Fixed bug in dump_tuples and dump_cisreg that left extra device
+   files hanging around in /tmp.
+
+Version 2.8.3
+-- Fixed bug in Configure script, common symptom was deciding that
+   CONFIG_MODVERSIONS was set when it wasn't.
+
+Version 2.8.2
+-- Added '00 20 af ...' address signature to 3c589_cs driver.
+
+Version 2.8.1
+-- A few dumb typo fixes.
+-- Extended config file format to support nesting files, split the
+   config file, and the network and serial scripts into generic and
+   local options.
+-- A fix for the New Media ethernet slowdown problem?
+
+Version 2.8.0
+-- New way of passing device info from client drivers to cardmgr, to
+   better support cards that may have several logical devices (i.e.,
+   SCSI, multiport cards, etc).
+-- Modified SCSI clients to identify attached devices, for 1.3.X
+   kernels.
+-- Modified ftl_format to support reserving space for a boot image.
+-- Added code to automatically identify resource conflicts for IO and
+   memory windows.  Memory checking is not reliable, and disabled by
+   default.  
+-- Simplified the config file format, updated all the device control
+   scripts.  Added new script for managing SCSI adapters.  The new
+   scripts can determine if it is safe to remove a card, for all
+   supported card types.
+-- Fixed the eject request code so that it correctly rejects requests
+   when a device is in use.
+-- Changed shutdown code to make sure sockets are deactivated.
+-- Modified dump_tcic and dump_i365 to compile with Borland C++ under
+   MS-DOS.
+-- Added Allied Telesis Ethernet support.
+-- Fixed module version checking problems with 1.3.39 and 1.3.40.
+   Updated multicast stuff in 3c589 and nmclan drivers for 1.3.44.
+   Tested with 1.3.43 and 1.3.45.
+-- Fixed bug in i82365 interrupt probe that caused the probe to goof
+   up after a warm boot.
+-- Fixed bug in i82365 socket probe code.
+-- Fixed install procedure to handle Debian startup script layout, and
+   fixed a bug affecting installs for System V style init scripts.
+-- Fixed pcnet_cs driver to respect CIS config entries for cards that
+   seem to have valid info (fixes Grey Cell Ethernet).
+-- Fixed Qlogic driver to support Eiger SCSI adapter.
+-- Fixed Configure script and Makefiles to handle multi-word options
+   properly.
+-- Fixed 3c589 driver to refuse to bind to non-3Com cards.
+-- Working on interrupt sharing for multifunction cards.
+
+Version 2.7.6
+-- Fixed resource allocation bug that affected IO port availability
+   after restarting cardmgr.
+-- Fixed typo in qlogic_cs module initialization.
+-- Fixed "kfree of non-kmalloced memory" bug associated with "flushing
+   pending setup".
+-- Fixed a bug in SCSI driver unloading.
+
+Version 2.7.5
+-- Made the configuration procedure a little more bullet-proof.
+-- Fixed bug in module version support for 1.2.X kernels.
+
+Version 2.7.4
+-- Fixed 3Com 3c562 support in serial_cs and 3c589_cs.
+-- Fixed infrequent bug in alignment logic for IO and memory windows.
+-- Fixed various kernel incompatibilities, tested with 1.3.37 through
+   1.3.39.
+-- Fixed sizing bug in pcmem_cs.
+-- Fixed memory window setup bug in the TCIC-2 driver.
+-- Made the serial card driver slightly better at dealing with cards
+   with not-quite-right CIS info.
+-- Revamped some of the module startup code, to facilitate optionally
+   linking stuff into the kernel.
+
+Version 2.7.3
+-- Changed default bus timing in i82365.c to 8.33 MHz.
+-- Fixed i82365 driver to deal with VG-469 3V/5V decision.  Also
+   changed probe logic to do a better job with docking stations.
+-- Updated pcmem driver.  Added write for char device, fixed up
+   seeking, etc, thanks to Don Wanigasekar.
+-- Changed pcnet driver to support reading the PROM to get a network
+   card's station address.  Verified with Linksys v2.00 card.
+-- Added support for multifunction cards that conform to the PC Card
+   95 standard.  3Com 3C562 almost works.
+
+Version 2.7.2
+-- Consolidated most kernel version differences in "k_compat.h".
+-- Replaced de650 and ibmcc drivers with merged "pcnet" driver.  Note
+   that people will *have* to update their config files...
+-- Changed cardmgr to only load MTD's for memory-related drivers.
+-- Updated i82365.c to handle Vadem VG-469 controller, and to wake up
+   Cirrus chips after a suspend.
+
+Version 2.7.1
+-- Fixed typo in toaster_cs driver.
+-- Fixed module unloading in network drivers.
+-- Fixed problem with new timer behavior in 1.3.X.
+
+Version 2.7.0
+-- New interactive configuration procedure.
+-- Updated to work with 1.3.X kernels.
+-- Fixed iflash2_mtd driver to work with IBM flash cards.  Added more
+   config entries for IBM, Maxtor flash cards.
+-- Fixed module building so that CONFIG_MODVERSIONS should work for
+   all drivers, including the SCSI drivers.
+-- Fixed New Media Ethernet reset bug.
+-- Added stuff to cardmgr to support user specified actions during
+   suspend and resume processing.
+-- Changed Makefile to build 8390.o on the fly.
+-- Fix to toaster_cs for CIS parsing problem.
+
+Version 2.6.3a
+-- Fixed dumb bug in de650_cs driver.
+
+Version 2.6.3
+-- Another fix for 'kill -HUP' cardmgr.
+-- More flash, FTL fixes.  Better error recovery in iflash2_mtd.
+   Added man pages for ftl_format and ftl_check.
+-- Added support for "hardwiring" the hardware addresses for de650
+   type cards, if they can't be probed properly.
+-- Fixed "too much work..." problem with de650-type cards.
+-- Cleaned up suspend/resume a bit?
+-- First attempt at Adaptec/Trantor T460 driver.
+-- Changed interrupt scanning rules in i82365 and tcic drivers.  Now,
+   both drivers accept irq_mask and cs_irq parameters.
+-- Changed CS, cardinfo to properly update Vcc, Vpp for memory cards.
+-- Added support for Caldera installation.
+-- Added code to 'checkme' and modules/Makefile to decide whether or
+   not to try building the t460_cs module.
+-- Added test to cardinfo to make sure it is setuid root.
+-- Took out some warnings about conflicting CIS tuples for memory
+   regions.
+
+Version 2.6.2
+-- Streamlined install procedure; moved etc stuff into separate
+   subdirectory.
+-- First draft of Flash Translation Layer module, and FTL formatting
+   tools (ftl_format, ftl_check).
+-- Fixed bug in resource allocation that sometimes causes bad things
+   to happen when unloading modules or when restarting cardmgr.
+-- Updated Roger Pao's New Media ethernet driver to v0.14.
+-- Changed pcmem_cs to use memcpy() for block reads and writes.
+-- Changed de650_cs to use larger packet buffer on Socket EA cards.
+-- Fixed cardmgr 'kill -HUP' behavior.
+-- Updated some man pages.
+
+Version 2.6.1
+-- Changed 'checkme' and docs to ask for kernel 1.2.8.
+-- Fixed bug in modules/Makefile
+-- Fixed bug in module version mismatch reporting.
+-- Fixed a couple of minor bugs in cardmgr.
+-- Fixed uninitialized variable bug in CIS parsing stuff in network
+   drivers.
+
+Version 2.6.0
+-- More robust handling of some i82365 timing parameters.
+-- Moved all CIS handling stuff from cs.c to cistpl.c.  Added more CIS
+   parsing, mainly for memory cards.  Changed default for "strict_cis"
+   to "off".
+-- Moved all the resource management stuff into rsrc_mgr.{c,h}, merged
+   with the old mem_region.{c,h}.
+-- Added cs_internal.h for stuff shared between parts of pcmcia_core.
+-- Added support for Memory Technology Drivers.  Added new sram_mtd,
+   also added generic MTD-aware memory card driver, 'memory_cs'.
+-- Added MTD stuff to Programmer's Guide.
+-- Fixed bug in CS that prevented clean unloading of drivers that use
+   memory windows.
+-- Changed i82365 module to detect Vadem chip in Vadem-Rev mode.
+-- Added MTD's for Intel Series 2 and Series 2+ Flash.
+-- Incorporated recent updates to Linux NE2000 driver into de650_cs
+   driver.
+-- Fixed bad uninitialized variable bug in pcmem_cs.
+-- Added config entry for Adaptec APA-1460 SlimSCSI.
+
+Version 2.5.6
+-- Fixed rc.pcmcia so that "stop" doesn't bomb if you're not running
+   cardinfo.
+-- Added back a few modem config entries.
+-- Added version checking to all PCMCIA modules and utilities.
+-- Fixed bug in i82365 socket counting code.
+-- Fixed 'checkme' and HOWTO to give better info about version.h,
+   added more network checks, better formatting.
+-- Clarified NE2000 instructions in HOWTO.
+-- Added support for KCI PE-520 Ethernet.
+-- Fixed bug in pcmem driver that could cause the first byte of a card
+   to get scrambled.
+
+Version 2.5.5
+-- Added function-based card identification to cardmgr.  Deleted all
+   modem card entries from standard config file.
+-- Added 'strict_cis' parameter to pcmcia_core module to control
+   strict CIS parsing rules (default is turned on).
+-- Changed power-up sequence: reset will only be asserted after
+   vcc_settle, reset timing tweaked to conform to standard.
+-- Fixed bugs in suspend/resume losing track of socket state.
+-- Added definitions for Ricoh controllers.
+
+Version 2.5.4
+-- Fix for CIS long link tuple handling.
+-- Fixed CIS config table parsing bug in parse_irq().
+-- Changed cardmgr so that wildcard product strings will match
+   not-present strings.
+-- A few new sanity checks for 'make prereq' and 'make install-etc'.
+
+Version 2.5.3
+-- Another fix to cistpl.c version string parsing.
+-- Another fix to CIS end-of-chain handling.
+
+Version 2.5.2
+-- Changed cistpl.c to accept some non-conforming version tuples.
+-- Duh, took floating point code out of kernel modules.
+
+Version 2.5.1
+-- Fixed bug in 'cardinfo' updating of device info.
+-- Changed defaults in i82365 module to disable irqs 12 and 15 for
+   Cirrus chips.  Also made interrupt scans more robust, and fixed
+   probe for two controllers.
+-- More module unloading bugs fixed (ethernet, scsi modules).
+-- Fixed a couple of minor bugs in Makefiles, etc.
+-- Added more extensive CIS parsing, improved dump_tuples, added long
+   link handling.  Some error responses may have changed.
+-- Changed 'attr_speed' parameter to 'cis_speed', since code now also
+   handles CIS stuff in common memory.  Default changed to 300 ns.
+-- Added text to the Programmer's Guide describing new CIS stuff.
+-- Fixed suspend/resume problem where an empty socket isn't set up
+   properly after a resume.
+-- Fixed race condition in socket initialization that could sometimes
+   cause a card to be configured twice.
+
+Version 2.5.0
+-- Verified with Linux 1.2.0
+-- Added a lot of new text to the Programmer's Guide.
+-- Added Roger Pao's alpha driver for New Media Ethernet.
+-- Added %c% substitution for 'cardmgr' start/stop commands, to map to
+   the card name.
+-- Rewrote Driver Services event handling to deal with more than one
+   reader.  Rewrote handing of eject requests so that cardmgr can
+   clean up before a card is shut down.
+-- Added event report window to 'cardinfo' display.  Made 'cardinfo' a
+   setuid program so that regular users can run it to get status info,
+   but not modify sockets.  Added file locking to /etc/stab.
+-- Changed socket initialization sequence to conform to PCMCIA docs;
+   should fix Megahertz 2144 modem and some suspend/resume problems.
+-- Changed interrupt mask code in i82365 and tcic to probe for working
+   interrupt lines at startup time.  Added ability for tcic driver to
+   use irq 11.
+-- Fixed 'checkme' to do more SCSI option sanity checking, and to look
+   in $LINUX/include/linux instead of /usr/include/linux.
+-- Fixed module unloading bugs in toaster_cs and qlogic_cs.
+-- Fixed bug in /etc/stab updating at card removal.
+-- Fixed Vpp display bug in cardinfo.
+-- Fixed power setting bug in GetSocket in i82365.
+-- Fixed serial_cs shutdown bug for case of two modems.
+
+Version 2.4.9
+-- Minor fixes to HOWTO, Programmer's Guide.
+-- Included missing man pages for cardinfo, stab.
+
+Version 2.4.8
+-- Added Maxtech Ethernet support.  Added text to HOWTO for how to add
+   support for any NE2000-compatible card.
+-- Fixed serial driver suspend bug, but it is still goofy.
+-- Added status beeps to cardmgr.
+-- Fixed Makefiles to include ${LINUX}/include, to better support
+   systems with more than one Linux source tree.
+-- Made 'cardinfo' tool part of distribution.
+-- New man pages for /etc/stab, cardinfo.
+
+Version 2.4.7
+-- Changed cardmgr to use uname() instead of /bin/uname.
+-- Moved cardmgr PID file from /var/pid to /var/run.
+-- Changed 'checkme' script to also work with ksh.
+-- Overhaul of suspend/resume and reset event handling.  Goal is to
+   fix trouble with cards not waking up after resume.
+-- Added some more tests to 'checkme'; now it creates 'xtra.options'
+   to hold extra Makefile settings.
+-- Changed Makefile to autoconfigure rc.pcmcia using 'probe -m'.
+-- Added '/etc/stab' file output to cardmgr to hold current card info.
+-- Added more interlocks to shutdown code in de650_cs.
+-- Updated Qlogic driver for 1.1.93, for rev 1.10 card.
+
+Version 2.4.6
+-- More fixes for Socket EA card, that should also fix Accton file
+   transfer problems.  Added 'delay_time' parameter to de650_cs.
+-- Fixed reset code for Compaq modem.  New 'reset_time' parameter for
+   pcmcia_core module.  Changed default reset timing parameters.
+
+Version 2.4.5
+-- Added support for EP-210 Ethernet
+-- Fixed Socket EA card, for real!
+
+Version 2.4.4
+-- Changed Bus Toaster driver to use CIS tuples to pick IO addresses.
+-- Added 'wakeup' parameter to i82365 module for sleepy Cirrus chips.
+-- Fixed minor Makefile bugs.
+-- Fixed bugs in de650_cs for Socket EA card.
+-- Added 'mem_speed' parameter to ibmcc_cs module.
+
+Version 2.4.3
+-- Fixed bug in PCI controller handling in i82365 module.
+-- Changed qlogic module to support turbo DMA.
+-- Increased tuple buffer in serial_cs for Toshiba V.34 modem.
+-- Added 'eject' and 'insert' commands to cardctl.
+-- Disabled Bus Toaster driver by default, since it is broken.
+-- Changed rc.sample to rc.pcmcia, added 'start' and 'stop'.
+-- Fixed interlocks between socket drivers and pcmcia_core.
+
+Version 2.4.2
+-- Fixed several bugs in Qlogic, Bus Toaster SCSI drivers.
+
+Version 2.4.1
+-- Fixed bug in TCIC-2 bus sizing code.
+
+Version 2.4.0
+-- Changed default spot for cardmgr pid file to /var/pid/cardmgr.pid
+   to conform to Linux standards.
+-- Converted FAQ to linuxdoc-sgml HOWTO format.
+-- More fixes for reset handling in cardmgr.
+-- 'cardctl status' will now report if a socket is suspended.
+-- When cardmgr gets a SIGHUP, it will reload the config file.
+-- Changed i82365 driver to handle multiple controllers better.
+-- Replaced old 'exclude=' options in i82365 and tcic with new
+   'ignore=' option to specifically ignore any one socket.  The old
+   option ignored sockets starting from 0.
+-- Cleaned up resource management stuff in cardmgr, so that SIGHUP
+   will work properly, and no more "could not adjust resource" stuff.
+-- Fixed some device locking bugs in the memory card driver.
+-- Fixed small memory leak in CS resource handling.
+-- Wrote Programmer's Guide.
+-- Small fixes in cs.c and 3c589 driver for very fast systems.
+-- Added 'checkme' script and 'make prereq' target to check system for
+   PCMCIA prerequisites.
+-- Fixed up module handling in cardmgr for dealing with several cards
+   of the same type.
+-- Got rid of CONFIG_APM and CONFIG_PCI options -- they will be set
+   automatically using /usr/include/linux/autoconf.h.
+-- Updated for 1.1.85 kernel.
+-- Fixed up Qlogic, Bus Toaster SCSI drivers.
+-- Kernel modules now installed under /lib/modules/<rev>/pcmcia.
+   Updated cardmgr to use the new module location.
+-- Changed cardmgr to bind anonymous card driver to unsupported cards
+   whenever possible.
+-- Added more timing controls to i82365 and tcic modules.  Implemented
+   AccessSpeed for memory windows.  Added attr_speed and io_speed
+   parameters to pcmcia_core module.
+-- Added IO window attribute IO_DATA_WIDTH_AUTO for auto-sizing IO
+   windows.
+
+Version 2.3.9
+-- Changed default compile options for modules to include "-g".
+-- Added 'reset' command to cardctl.  Made cardmgr more sensible about
+   dealing with failed resets.
+-- Added device locking to pcmem_cs driver for "clean" suspend/resume.
+-- Cleaned up network driver shutdown code -- fixed "device still
+   locked" message when drivers are unloaded.
+-- Fixed memory card size determination algorithm so that it doesn't
+   return garbage for I/O cards.
+-- Cleaning up spurious interrupts when net cards are ejected: a new
+   patch for 8390.c.
+
+Version 2.3.8
+-- Fixed bug in 3c589_cs.c that prevented clean unloading.
+-- Fixed 3c589_cs.c to work with 3c589B cards.
+
+Version 2.3.7
+-- Fixed bad bug in tcic.c.
+
+Version 2.3.6
+-- Fixed 'exclude' bug in i82365
+-- Update for Linux 1.1.72.
+-- Replaced 'status' with new 'cardctl' utility.  Added options for
+   suspending and resuming individual sockets.
+-- Added RPTI ethernet support.
+-- Added stuff to i82365 and tcic modules to fix interrupt selection.
+   Also added flags for Cirrus controllers with optional features like
+   status LED's, ring indicate, and DMA.
+
+Version 2.3.5
+-- Fixed ifconfig problem in 3c589 driver.
+-- Fixed up PCI support some more.
+-- Fixed i82365 to handle VLSI with > 1 socket
+-- Changes for APM support.  These include revamping the socket setup
+   stuff in i82365 and tcic, and adding event handling to all clients.
+-- Changes for Qlogic SCSI support
+
+Version 2.3.4
+-- Added support for Cirrus PCI controller.
+-- Cleaned up serial driver shutdown code.
+-- Added 'patches' subdirectory for useful kernel patches.
+-- Added PCMCIA-FAQ
+-- Added 'exclude=#' parameter to i82365 and tcic modules to better
+   accommodate cards with point enablers.
+-- Fixed bug in dump_tcic -- mode register wasn't read correctly.
+-- Fixed TCIC-2 event handler problem
+
+Version 2.3.3
+-- Fixed some TCIC-2 bugs.
+
+Version 2.3.2
+-- Changed i82365 so if it is limited with a 'sockets=#' option, it
+   will never touch any higher numbered socket -- for SCSI drivers
+   with point enablers.
+-- More debugging code in i82365, tcic modules.
+-- Added stuff to 'cardmgr' to maintain a /etc/pcmcia/cardmgr.pid file.
+-- Fixed blocksize problem, module unloading bug in pcmem_cs driver.
+-- Fixed bug in cardmgr 'kill -HUP' handling (actually in Card Services)
+
+Version 2.3.1
+-- Fixed TCIC-2 polling bug.
+
+Version 2.3
+-- Major rewrite of low-level i82365 and tcic driver interface.  Card
+   status polling put in the low level drivers instead of pcmcia_core.
+-- Rewrite of low-level card status event handling.
+-- Better TCIC-2 register dump utility.
+-- DMA and speaker output control for TCIC-2, Cirrus controllers.
+-- Added signal handling to cardmgr
+-- Checked with 1.1.61 kernel.
+
+Version 2.2.10
+-- Small fix in Vadem probe code.
+-- Fix for New Media hardware address probe.
+-- Cleaned up memory window handling in Card Services.
+-- Added a heavily-commented "skeleton" client driver
+
+Version 2.2.9
+-- One more VLSI controller fix.
+-- Accton and New Media ethernet support merged into de650 driver.
+
+Version 2.2.8
+-- Fixed handling of second socket with VLSI controller.
+-- Fixed event handling bug in ibmcc and pcmem drivers.
+
+Version 2.2.7
+-- Added TCIC_SCF2_IDBR fix to tcic.c.
+-- Fixed bug in 3c589 interrupt handler.
+
+Version 2.2.6
+-- Changed distribution to include lex and yacc output files.
+-- Added support for Vadem VG-468 controller.
+-- Changed i82365 code to support suspend/resume (sometimes, anyway).
+-- Fixes in TCIC-2 autodetect and event handling.
+-- Updated 3c589_cs driver to parallel changes to 3c509 driver.
+-- Changed all client drivers so they can be manually unloaded as long
+   as their devices are not in use.
+-- Working on Accton EN2212 driver.
+-- Checked with 1.1.54 kernel.
+
+Version 2.2.5
+-- Fixed event mask bug in ibmcc_cs, socket numbering bug in i82365.
+
+Version 2.2.4
+-- Changed cardmgr to handle modules that take parameters.
+-- Minor cleanups of Makefiles.
+-- Better error handling for all Card Services stuff.
+-- Minor improvements in debug tools.
+-- Small fix in 3c589_cs driver.
+-- Checked with 1.1.51 kernel.
+
+Version 2.2.3
+-- Added 'expert' flag (-x) to probe -- this does a somewhat risky but
+   thorough search for a TCIC-2 chip.  But, it doesn't work yet.
+-- Fixed bug in CS that prevented clean unloading of modules.
+-- Fixed 'kmalloc called nonatomically' bug in ibmcc_cs.
+-- Added extra test to i82365 to fix socket counting for some clones.
+-- Added write protect test to memory card driver.
+-- Man pages for cardmgr, config file, and drivers!
+-- Changed default config script to automatically link /dev/modem to
+   a modem or serial card.
+
+Version 2.2.2
+-- Added 'anonymous' card type to cardmgr, so that cards with no CIS
+   information can be bound to the memory card driver.
+
+Version 2.2.1
+-- Checked with 1.1.49.
+-- Minor install bug fixes.
+
+Version 2.2
+-- Cleaned up README's
+
+Version 2.1.4
+-- Added 'poll_delay' parameter to tcic module to control busy loop.
+-- Checked against 1.1.48.
+-- Fixed the shared-memory IBM CCAE driver.
+-- Removed (broken) IBM CCAE support from DE650 driver.
+-- Better Cirrus PD67xx register dumping in dump_i365
+-- Minor improvements to trim down module sizes
+
+Version 2.1.3
+-- Added preliminary shared memory driver for IBM CCAE cards.
+
+Version 2.1.2
+-- Added setup of "misc" register for IBM CCAE cards.
+-- Cleaned up header files.
+-- Fixed pcmem_cs for 1.1.47.
+
+Version 2.1.1
+-- Fixed network setup bug in config.sample.
+
+Version 2.1
+-- Checked against 1.1.46
+-- Added memory card driver, pcmem_cs, providing character and block
+   devices for accessing PCMCIA card memory.
+-- Moved cardmgr from /usr/sbin to /sbin.
+-- Added 'sockets' parameter to i82365 for systems where the probe
+   does not give the right answer.
+-- Added support for memory windows to CS.
+-- Working on support for IBM CCAE in de650_cs.c.
+-- Changed ds.c to relay major and minor device #'s as well as device
+   names; now cardmgr can create device files on the fly.
+-- Changed tcic driver to support alternate base addresses for the
+   TCIC-2 chip, via an 'insmod' parameter setting.
+-- Moved all configuration options to 'make.options', cleaned up the
+   Makefiles, so that builds will be warning-free.
+-- Updated modules for 1.1.44.
+-- Cleaned up event handling in CS to make insert/removal detection
+   more robust -- seems to help with MHz XJ2144.
+-- Fixed bug in cardmgr temporary device file unlinking that was
+   causing /tmp to fill up with bogus device files.
+-- Fixed cardmgr to log messages on the console when syslogd is not
+   running.
+-- No patches needed for 1.1.43 kernel!
+-- Added some hooks to CS so that it can be tweaked when you load it.
+-- Added sti()'s to all the CS interrupt routines, added more timeouts
+   to hopefully lower chance of deadlocks.
+
+Version 2.0
+-- Updated patches for 1.1.42 kernel.
+-- Major file reorganization: now all the pcmcia stuff is segregated
+   in one directory tree.
+-- Changed device code in ds.c to grab the first free character
+   device number.  Also changed cardmgr to read /proc/devices to
+   determine what device number was found.  This eliminates the
+   need for a kernel patch to include/linux/major.h.
+-- Moved the "improved" resource registrar code out of ioport.c and
+   into drivers/pcmcia, since it seems unlikely to be adopted any time
+   soon.  
+-- Changed DE650 driver so that it will pick I/O ports aligned to a 32
+   port boundary between 0x300 and 0x400, since odd boundaries don't
+   work.
+-- Fixed IBM modem test in serial driver so it won't bail on modems
+   with incomplete CIS's.
+-- Working on simplifying configuration of 3c589 driver.  Now you can
+   set if_port from insmod: "insmod 3c589_cs.o if_port=#".  This still
+   isn't useful, because cardmgr doesn't allow arguments for modules.
+
+Version 1.7
+-- Changed serial driver to actually use the ports specified in the
+   CIS.  This fixes Intel modems (and others??).
+-- Support for 3Com 3c589 ethernet!
+-- Support for IBM high-speed modems.
+
+Version 1.6
+-- Updated patches for kernel level 1.1.38.
+-- Fixed serial driver to enable audio output.
+-- Added GetStatus call to Card Services, added to 'status' reports.
+-- Added 'probe' program to report PCMCIA controller type.
+-- Added 'dump_i365' program to dump Intel and Cirrus registers.
+-- Added 'dump_tcic' program to dump TCIC-2 registers.
+-- Added -DPOLL_STATUS option to cs.c, to support explicit polling of
+   card status changes on systems where card insertion/removal irq's
+   don't seem to work.
+-- Added 'dump_cisreg' program to dump CIS registers.
+-- Better card status change handling with TCIC-2 controller.
+
+Version 1.5
+-- Attempt to fix card insertion/removal detection for TCIC-2.
+-- Installation bug fixes.
+-- Added 'tuples' program to dump CIS data.
+
+Version 1.4
+-- Updated patches for kernel level 1.1.35.
+-- Fixed cardmgr to look in /sbin for the module utilities.
+
+Version 1.3
+-- Alpha support for TCIC-2 controller.
+
+Version 1.1
+-- Included missing cisreg.h header file.
+
+Version 1.0
+-- First release.

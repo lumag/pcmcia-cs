@@ -1,0 +1,86 @@
+.\" Copyright (c) 1997 Werner Koch <werner.koch@guug.de>
+.\" xirc2ps_cs.4,v 1.2 1997/06/26 14:46:09 wk Exp
+.\"
+.TH XIRC2PS_CS 4 "1.2  1997/06/26 14:46:09" ""
+.SH NAME
+xirc2ps_cs \- Xircom CE2 and CEM device driver
+.SH SYNOPSIS
+.B insmod xirc2ps_cs.o
+.RB [ card_type=n ]
+.RB [ pc_debug=n ]
+.RB [ irq_list=i,j,... ]
+.SH DESCRIPTION
+.B xirc2ps_cs
+is the low-level Card Services driver for the Xircom
+PCMCIA ethernet adapters.  When this driver is attached to a card, it
+allocates the next available ethernet device.
+.SH PARAMETERS
+.TP
+.B card_type=n
+Overrides the card type:
+.br
+1 for a CE2
+.br
+2 for a CEM28
+.br
+3 for a CE3 (not yet supported)
+.br
+4 for a CEM33.
+.TP
+.B pc_debug=n
+Selects the PCMCIA debugging level.  This parameter is only available
+if the module is compiled with debugging enabled.  A non-zero value
+enables debugging.
+.TP
+.B irq_list=i,j,...
+Specifies the set of interrupts that may be allocated by this driver.
+x.SH "SEE ALSO"
+cardmgr(8), pcmcia(5).
+.SH BUGS
+Please report to <xircom-bugs@isil.d.shuttle.de>
+.SH AUTHOR
+Werner Koch
+<werner.koch@guug.de>
+.\" Copyright (c) 1997 Werner Koch <werner.koch@guug.de>
+.\" xirc2ps_cs.4,v 1.2 1997/06/26 14:46:09 wk Exp
+.\"
+.TH XIRC2PS_CS 4 "1.2  1997/06/26 14:46:09" ""
+.SH NAME
+xirc2ps_cs \- Xircom CE2 and CEM device driver
+.SH SYNOPSIS
+.B insmod xirc2ps_cs.o
+.RB [ card_type=n ]
+.RB [ pc_debug=n ]
+.RB [ irq_list=i,j,... ]
+.SH DESCRIPTION
+.B xirc2ps_cs
+is the low-level Card Services driver for the Xircom
+PCMCIA ethernet adapters.  When this driver is attached to a card, it
+allocates the next available ethernet device.
+.SH PARAMETERS
+.TP
+.B card_type=n
+Overrides the card type:
+.br
+1 for a CE2
+.br
+2 for a CEM28
+.br
+3x for a CE3 (not yet supported)
+.br
+4 for a CEM33.
+.TP
+.B pc_debug=n
+Selects the PCMCIA debugging level.  This parameter is only available
+if the module is compiled with debugging enabled.  A non-zero value
+enables debugging.
+.TP
+.B irq_list=i,j,...
+Specifies the set of interrupts that may be allocated by this driver.
+.SH "SEE ALSO"
+cardmgr(8), pcmcia(5).
+.SH BUGS
+Please report to <xircom-bugs@isil.d.shuttle.de>
+.SH AUTHOR
+Werner Koch
+<werner.koch@guug.de>
