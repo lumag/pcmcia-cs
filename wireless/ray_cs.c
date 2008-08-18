@@ -319,7 +319,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.34 2002/11/05 03:50:22 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.35 2003/08/25 15:59:50 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -368,6 +368,7 @@ static dev_link_t *ray_attach(void)
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
     if (link == NULL) return link;
     memset(link, 0, sizeof(struct dev_link_t));
+    init_timer(&link->release);
     link->release.function = &ray_release;
     link->release.data = (u_long)link;
 

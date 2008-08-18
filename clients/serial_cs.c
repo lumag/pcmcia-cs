@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.138 2002/10/25 06:24:52
+    serial_cs.c 1.139 2003/08/25 15:57:41
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -79,7 +79,7 @@ INT_MODULE_PARM(buggy_uart, 0);		/* Skip strict UART tests? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.138 2002/10/25 06:24:52 (David Hinds)";
+"serial_cs.c 1.139 2003/08/25 15:57:41 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -161,6 +161,7 @@ static dev_link_t *serial_attach(void)
     memset(info, 0, sizeof(*info));
     link = &info->link; link->priv = info;
 
+    init_timer(&link->release);
     link->release.function = &serial_release;
     link->release.data = (u_long)link;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;

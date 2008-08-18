@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" i82365.4 1.38 2002/07/14 00:54:54
+.\" i82365.4 1.39 2003/09/10 03:47:04
 .\"
-.TH I82365 4 "2002/07/14 00:54:54" "pcmcia-cs"
+.TH I82365 4 "2003/09/10 03:47:04" "pcmcia-cs"
 .SH NAME
 i82365 \- Intel i82365sl PCMCIA controller driver
 
@@ -163,6 +163,10 @@ This is set by default.
 .BI has_ring= n
 A flag indicating if the controller's "ring indicate" signal is
 implemented.  This is set by default.
+.TP
+.BI has_vsense= n
+A flag indicating that a PD6722 is configured to support VS1/VS2
+voltage detection using its general purpose IO mechanism.
 .TP
 .BI freq_bypass= n
 A flag indicating that the controller should be set up in "frequency

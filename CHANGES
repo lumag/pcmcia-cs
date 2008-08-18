@@ -1,3 +1,20 @@
+[09-Sep-03] Version 3.2.5
+-- Changed cardmgr to not complain if the "anonymous" card type is
+   redefined in the config files, from Pavel Roskin.
+-- Added HOST output to scsi_info, from Derek Whayman.
+-- Added has_vsense support for Cirrus PD6722, from Paul Stewart.
+-- Updates for orinoco driver to version 0.13e, from Adam Kropelin.
+-- Updated pcic_probe to recognize ENE bridges, from Gunnar Ritter.
+-- Fixed fmvj18x_cs to share interrupts properly for TDK 3410/3412
+   multifunction cards, from Komuro.
+-- Fixed scsi_info to not rely on kernel's scsi.h header.
+-- Fixed *_cs to use init_timer(), from Pavel Roskin.
+-- Fixed bug in resource code sometimes causing memory probe goof-ups.
+-- Fixed Configure bug in deducing HZ setting from running kernel.
+-- Fixes to ifuser from Alex Riesen.
+-- Fixed duplicate IO probes.
+-- Fixed error reporting bug in cardmgr config file parser code.
+
 [03-Mar-03] Version 3.2.4
 -- Changed handling of pci_irq_list= in i82365 module so that it will
    take precedence over an existing bridge interrupt assignment.

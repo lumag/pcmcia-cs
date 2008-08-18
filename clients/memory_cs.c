@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.88 2003/03/03 16:29:00
+    memory_cs.c 1.89 2003/08/25 15:57:40
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -97,7 +97,7 @@ INT_MODULE_PARM(force_size, 0);		/* force SRAM card size? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.88 2003/03/03 16:29:00 (David Hinds)";
+"memory_cs.c 1.89 2003/08/25 15:57:40 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -236,6 +236,7 @@ static dev_link_t *memory_attach(void)
     memset(dev, 0, sizeof(*dev));
     link = &dev->link; link->priv = dev;
 
+    init_timer(&link->release);
     link->release.function = &memory_release;
     link->release.data = (u_long)link;
     dev_table[i] = link;

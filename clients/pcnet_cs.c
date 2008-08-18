@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.151 2002/10/22 02:11:43
+    pcnet_cs.c 1.152 2003/08/25 15:57:41
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -74,7 +74,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.151 2002/10/22 02:11:43 (David Hinds)";
+"pcnet_cs.c 1.152 2003/08/25 15:57:41 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -299,7 +299,8 @@ static dev_link_t *pcnet_attach(void)
     memset(info, 0, sizeof(*info));
     link = &info->link; dev = &info->dev;
     link->priv = info;
-    
+
+    init_timer(&link->release);
     link->release.function = &pcnet_release;
     link->release.data = (u_long)link;
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;

@@ -284,6 +284,7 @@ static dev_link_t *fmvj18x_attach(void)
     link = &lp->link; dev = &lp->dev;
     link->priv = dev->priv = link->irq.Instance = lp;
 
+    init_timer(&link->release);
     link->release.function = &fmvj18x_release;
     link->release.data = (u_long)link;
 
@@ -529,6 +530,8 @@ static void fmvj18x_config(dev_link_t *link)
     }
 
     if (link->io.NumPorts2 != 0) {
+	link->irq.Attributes =
+	    IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED|IRQ_HANDLE_PRESENT;
 	ret = mfc_try_io_port(link);
 	if (ret != CS_SUCCESS) goto cs_failed;
     } else if (cardtype == UNGERMANN) {

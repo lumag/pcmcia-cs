@@ -229,6 +229,7 @@ static dev_link_t *airo_attach(void)
 	/* Initialize the dev_link_t structure */
 	link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
 	memset(link, 0, sizeof(struct dev_link_t));
+	init_timer(&link->release);
 	link->release.function = &airo_release;
 	link->release.data = (u_long)link;
 	

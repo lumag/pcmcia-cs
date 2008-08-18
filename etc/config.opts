@@ -2,8 +2,19 @@
 # Local PCMCIA Configuration File
 #
 #----------------------------------------------------------------------
-
-# System resources available for PCMCIA devices
+#
+# System resources available for PCMCIA cards
+#
+# NOTE: these settings have no effect on resources assigned to a
+# CardBus bridge device itself; this file only affects resources
+# assigned to cards.  Also, interrupt settings here will only affect
+# ISA bus interrupts assigned to 16-bit cards.  PCI interrupts
+# generally can't be reconfigured.
+#
+# With the kernel PCMCIA subsystem, these settings also have no effect
+# at all on resources used for 32-bit CardBus cards.  Those are set by
+# the PCI hotplug subsystem.
+#
 
 include port 0x100-0x4ff, port 0x800-0x8ff, port 0xc00-0xcff
 include memory 0xc0000-0xfffff

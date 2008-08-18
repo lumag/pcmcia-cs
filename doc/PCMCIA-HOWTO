@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.113, 27 February 2003
+  v2.115, 06 September 2003
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -511,9 +511,9 @@
      PCIC
         This identifies the PC Card Interface Controller driver module.
         There are several options: ``tcic'', ``i82365'', and (for the
-        kernel PCMCIA subsystem) ``yenta-socket''.  Virtually all
+        kernel PCMCIA subsystem) ``yenta_socket''.  Virtually all
         current controllers are in the ``i82365'' group for the
-        standalone drivers, and ``yenta-socket'' for the kernel drivers.
+        standalone drivers, and ``yenta_socket'' for the kernel drivers.
         This is the only mandatory option setting.
 
      PCIC_OPTS
@@ -596,7 +596,7 @@
   exactly like laptop PCMCIA bridges.  PCI card readers, in particular,
   may handle interrupts differently.  Some of the following parameter
   settings are only available for the i82365 module in the standalone
-  drivers; the kernel's yenta-socket driver is not configurable.
+  drivers; the kernel's yenta_socket driver is not configurable.
 
   +o  The Linksys ProConnect PCMRDWR and Antec DataChute ISA card readers
      are ``ISA Plug and Play'' devices.  To use these, you must first
@@ -659,6 +659,8 @@
 
   +o  On the Compaq Presario 1020, exclude port 0x2f8-0x2ff, irq 3, irq
      5.
+
+  +o  On the Compaq Presario 2120EA, exclude irq 10.
 
   +o  On the Dell Inspiron 7000, exclude irq 3, irq 5.
 
@@ -880,7 +882,6 @@
 
   +o  cardmgr reports ``no pcmcia driver in /proc/devices'' in the system
      log.
-
   Kernel modules contain version information that is checked against the
   current kernel when a module is loaded.  The type of checking depends
   on the setting of the CONFIG_MODVERSIONS kernel option.  If this is

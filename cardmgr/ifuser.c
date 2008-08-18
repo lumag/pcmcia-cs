@@ -9,7 +9,7 @@
     The exit code is 0 if any host is using the specified interface,
     and 1 if the interface is not in use (just like fuser).
     
-    ifuser.c 1.16 2001/08/24 12:19:20
+    ifuser.c 1.17 2003/05/14 16:02:58
 
     1998/10/24: Regis "HPReg" Duchesne <regis@via.ecp.fr>
       . Added network names (/etc/networks) management
@@ -106,9 +106,9 @@ int main(int argc, char *argv[])
     if (strcmp(argv[1], "-v") == 0) {
 	verbose = 1; i++;
     }
-    if ((*argv[i] == '-') || (argc < i+1)) usage(argv[0]);
+    if ((*argv[i] == '-') || (argc < i+2)) usage(argv[0]);
     dev = argv[i]; i++;
-    
+
     /* Get routing table */
     f = popen("netstat -nr", "r");
     if (f == NULL) {
@@ -116,11 +116,13 @@ int main(int argc, char *argv[])
 		argv[0], strerror(errno));
 	return 2;
     }
-    
+
     do {
 	fgets(s, 128, f);
     } while (!feof(f) && !isdigit(s[0]));
-    
+    if (!isdigit(s[0]))
+	return 0;
+
     tail = &tbl;
     do {
 	r = malloc(sizeof(route_t));
@@ -147,6 +149,8 @@ int main(int argc, char *argv[])
 	}
 
 	for (r = tbl; r; r = r->next) {
+	    if ((a & 0xff000000) == 0x7f000000)
+		continue; /* loopback network */
 	    if ((a & r->mask) == r->dest) {
 		if (r->match) {
 		    if (verbose) {

@@ -2,7 +2,7 @@
 
     PCMCIA bridge device probe
 
-    pcic_probe.c 1.3 2003/02/13 06:38:14
+    pcic_probe.c 1.4 2003/08/05 18:38:23
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -102,6 +102,10 @@ pci_id_t pci_id[] = {
     { 0x119b, 0x1221, "i82365", "Omega Micro 82C092G" }, 
     { 0x8086, 0x1221, "i82092", "Intel 82092AA_0" }, 
     { 0x8086, 0x1222, "i82092", "Intel 82092AA_1" }, 
+    { 0x1524, 0x1211, "yenta_socket", "ENE 1211" },
+    { 0x1524, 0x1225, "yenta_socket", "ENE 1225" },
+    { 0x1524, 0x1410, "yenta_socket", "ENE 1410" },
+    { 0x1524, 0x1420, "yenta_socket", "ENE 1420" },
 };
 #define PCI_COUNT (sizeof(pci_id)/sizeof(pci_id_t))
 

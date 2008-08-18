@@ -2,7 +2,7 @@
 
     Dump ExCA compatible PCMCIA bridge registers
 
-    dump_exca.c 1.5 2001/08/24 12:16:44
+    dump_exca.c 1.6 2003/09/06 17:07:47
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -545,6 +545,10 @@ int main(int argc, char *argv[])
 	in = load_info(fn);
 	printf("Socket %d:\n", i);
 	dump_sock(ex, in);
+    }
+    if (i == 0) {
+	fprintf(stderr, "/proc/bus/pccard/*/exca not found!\n");
+	return 1;
     }
     return 0;
 }

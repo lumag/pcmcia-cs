@@ -1,5 +1,5 @@
 /*
- * cirrus.h 1.10 2001/08/24 12:15:33
+ * cirrus.h 1.11 2003/09/09 07:05:40
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -62,6 +62,7 @@
 #define PD67_EXT_CTL_1		0x03	/* Extension control 1 */
 #define PD67_MEM_PAGE(n)	((n)+5)	/* PCI window bits 31:24 */
 #define PD67_EXTERN_DATA	0x0a
+#define PD67_EXT_CTL_2		0x0b
 #define PD67_MISC_CTL_3		0x25
 #define PD67_SMB_PWR_CTL	0x26
 
@@ -129,6 +130,12 @@
 #define PD67_EXD_VS1(s)		(0x01 << ((s)<<1))
 #define PD67_EXD_VS2(s)		(0x02 << ((s)<<1))
 
+/* Fields in PD67_EXT_CTL_2 */
+#define PD67_EC2_GPSTB_TOTEM	0x04
+#define PD67_EC2_GPSTB_IOR	0x08
+#define PD67_EC2_GPSTB_IOW	0x10
+#define PD67_EC2_GPSTB_HIGH	0x20
+
 /* Fields in PD67_MISC_CTL_3 */
 #define PD67_MC3_IRQ_MASK	0x03
 #define PD67_MC3_IRQ_PCPCI	0x00
@@ -143,7 +150,6 @@
 /* Register definitions for Cirrus PD6832 PCI-to-CardBus bridge */
 
 /* PD6832 extension registers -- indexed in PD67_EXT_INDEX */
-#define PD68_EXT_CTL_2			0x0b
 #define PD68_PCI_SPACE			0x22
 #define PD68_PCCARD_SPACE		0x23
 #define PD68_WINDOW_TYPE		0x24

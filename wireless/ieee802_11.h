@@ -9,6 +9,8 @@
    bytes is allowed, which is a bit confusing, I suspect this
    represents the 2304 bytes of real data, plus a possible 8 bytes of
    WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
+
+
 #define IEEE802_11_HLEN			30
 #define IEEE802_11_FRAME_LEN		(IEEE802_11_DATA_LEN + IEEE802_11_HLEN)
 

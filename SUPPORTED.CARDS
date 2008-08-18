@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2003/02/24 17:16:09
+		Last updated: 2003/08/27 06:25:37
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -66,7 +66,7 @@ Ethernet cards:
 	Atelco ethernet
 	Belkin F5D5020
 	Billionton LNT-10TB, LNT-10TN
-	Buffalo LPC2-CLT, LPC3-CLT
+	Buffalo LPC2-CLT, LPC3-CLT, LPC-CF-CLT
 	CADMUS Micro LNT-10T2C
 	California Access LAN Adapter
 	CeLAN EPCMCIA
@@ -183,9 +183,10 @@ Fast Ethernet (10/100baseT) adapters:
 	3Com Megahertz 3CCSH572BT, 3CXSH572BT
 
 	[axnet_cs driver]
+	Accton EN-2228
 	AmbiCom AMB8110
 	Billionton LNA-100B
-	Buffalo LPC3-CLX, LPC4-TX
+	Buffalo LPC3-CLX, LPC4-TX, LPC4-CLX
 	CNet CNF301
 	Corega FEther PCC-TXD
 	EagleTec ET-LE100BT2
@@ -221,6 +222,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Fiberline Fast Ethernet
 	Hamlet FE1000, FE1500 10/100
 	Hawking PN652TX
+	Highscreen Profinet
 	IO DATA PCET/TX
 	iPort 10/100 Ethernet
 	KTI KF-C16
@@ -238,6 +240,8 @@ Fast Ethernet (10/100baseT) adapters:
 	Net-Lynx 10/100 Fast Ethernet
 	New Media LiveWire 10/100
 	Planex FNW-3600T, FNW-3600TX
+	Roline Fast Ethernet
+	Sitecom FastEthernet
 	SMC 8041TX
 	Socket CF+ 10/100
 	WiseCom iPort 10/100
@@ -333,7 +337,7 @@ Wireless network adapters:
 
 	[airo_cs driver] [x86]
 	Aironet PC4500, PC4800
-	Cisco 340
+	Cisco 340, 350
 	Xircom Wireless Ethernet Adapter
 
 	[netwave_cs driver] [x86]
@@ -359,12 +363,15 @@ Wireless network adapters:
 	ARtem Onair ComCard STD & EMB versions, 128- & 64-bit
 	Avaya World Card
 	Belkin F5D6020
+	Buffallo WLI-PCM-S11
 	Cabletron/Enterasys RoamAbout 802.11 DS
 	Compaq WL100, HNW-100
+	Corega PCCA-11
 	Dell TrueMobile 1150 Series
-	D-Link DWL-650, DRC-650, DCF-650W, DWL-660, DCF-660W
+	D-Link DRC-650, DCF-650W, DWL-660, DCF-660W
+	D-Link DWL-650 [older version, NOT new CardBus ones or 650+]
 	EagleTec ET-WL300NE-CC
-	Efficient SpeedStream SS1021
+	Efficient SpeedStream SS1021 [old 16-bit, NOT new CardBus ones]
 	ELSA AirLancer MC-11
 	Ericsson WLAN Card C11
 	Farallon SkyLINE
@@ -380,10 +387,12 @@ Wireless network adapters:
 	NCR WaveLAN/IEEE 802.11
 	Netgear MA401RA
 	Nortel Networks eMobility
-	PLANEX GeoWave/GW-CF110
+	PLANEX GeoWave GW-CF110, RoadLannerWave GW-NS11H
 	Proxim Harmony 802.11b
 	Safeway Wireless
 	Samsung 11Mbps WLAN
+	Sandisk Connect SDWCFB-000
+	Seg Communications XI325H
 	SMC2632W
 	Tekram AIR.mate PCF 200
 	ZCOMAX AirRunner/XI=300
@@ -396,8 +405,8 @@ Modem and serial cards:
 	modems that emulate a standard UART are also supported.  Some
 	Winmodem drivers do exist (i.e., the ltmodem driver for Lucent
 	chipsets).  For more information about WinModems, drivers,
-	etc, see either http://www.o2.net/~gromitkc/winmodem.html,
-	http://www.linmodems.org, or http://linmodems.technion.ac.il ]
+	etc, see http://start.at/modem, http://www.linmodems.org, or
+	http://linmodems.technion.ac.il ]
 
 	[serial_cs driver] [x86,axp,ppc,smp]
 	Advantech COMpad-32/85 dual port, COMpad-32/85B-4 quad port
@@ -705,6 +714,11 @@ their own web sites.
 	Y-E Data FlashBuster floppy drive adapter
 	  (David Bateman <dbateman@eng.uts.edu.au>)
 
+	[imperxcve_cs driver]
+	Imperx Video Capture Essentials
+	Imperx VCE-B5A01
+	  http://www.inhandelectronics.com/opensource.asp
+
 	[iscc_cs driver]
 	IBM Smart Capture
 	RATOC REX-9590
@@ -783,7 +797,7 @@ http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/.
 	Addtron AWP-100
 	Ambicom WL1100 PC
 	Compaq WL100
-	D-Link DWL-650
+	D-Link DWL-650 [older 16-bit ones, NOT the Cardbus ones]
 	Linksys WPC11 Instant Wireless
 	Samsung MagicLAN
 	SMC2632W

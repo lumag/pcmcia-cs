@@ -1,7 +1,7 @@
-/* version.h 1.114 2002/11/06 05:23:52 (David Hinds) */
+/* version.h 1.115 2003/03/04 17:03:08 (David Hinds) */
 
-#define CS_PKG_RELEASE		"3.2.4"
-#define CS_PKG_RELEASE_CODE	0x3204
+#define CS_PKG_RELEASE		"3.2.5"
+#define CS_PKG_RELEASE_CODE	0x3205
 
 #define VERSION(v,p,s)		(((v)<<16)+(p<<8)+s)
 

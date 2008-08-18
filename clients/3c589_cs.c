@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    3c589_cs.c 1.166 2002/10/22 02:11:06
+    3c589_cs.c 1.167 2003/08/25 15:57:40
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -134,7 +134,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.166 2002/10/22 02:11:06 (David Hinds)";
+"3c589_cs.c 1.167 2003/08/25 15:57:40 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -218,7 +218,8 @@ static dev_link_t *tc589_attach(void)
     memset(lp, 0, sizeof(*lp));
     link = &lp->link; dev = &lp->dev;
     link->priv = dev->priv = link->irq.Instance = lp;
-    
+
+    init_timer(&link->release);
     link->release.function = &tc589_release;
     link->release.data = (u_long)link;
     link->io.NumPorts1 = 16;

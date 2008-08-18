@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.122 2002/10/25 06:26:39
+    smc91c92_cs.c 1.123 2003/08/25 15:57:41
 
     This driver contains code written by Donald Becker
     (becker@scyld.com), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -351,6 +351,7 @@ static dev_link_t *smc91c92_attach(void)
     memset(smc, 0, sizeof(struct smc_private));
     link = &smc->link; dev = &smc->dev;
 
+    init_timer(&link->release);
     link->release.function = &smc91c92_release;
     link->release.data = (u_long)link;
     link->io.NumPorts1 = 16;

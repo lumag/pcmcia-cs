@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_config.y 1.57 2002/08/19 03:19:56
+ * yacc_config.y 1.59 2003/06/12 07:24:27
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -217,10 +217,6 @@ anonymous: card ANONYMOUS
 			yyerror("ID method already defined for '%s'", $1->name);
 			YYERROR;
 		    }
-		    if (blank_card) {
-			yyerror("Anonymous card already defined");
-			YYERROR;
-		    }
 		    $1->ident_type = BLANK_IDENT;
 		    blank_card = $1;
 		}
@@ -359,11 +355,12 @@ opts:	  MODULE STRING OPTS STRING
 			    found = 1;
 			}
 		    }
-		    free($2); free($4);
 		    if (!found) {
 			yyerror("module name '%s' not found", $2);
+			free($2); free($4);
 			YYERROR;
 		    }
+		    free($2); free($4);
 		}
 	;
 

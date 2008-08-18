@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.356 2003/01/25 06:02:02
+    i82365.c 1.357 2003/09/10 03:50:13
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -91,6 +91,7 @@ INT_MODULE_PARM(do_scan, 1);		/* Probe free interrupts? */
 INT_MODULE_PARM(has_dma, -1);
 INT_MODULE_PARM(has_led, -1);
 INT_MODULE_PARM(has_ring, -1);
+INT_MODULE_PARM(has_vsense, 0);
 INT_MODULE_PARM(dynamic_mode, 0);
 INT_MODULE_PARM(freq_bypass, -1);
 INT_MODULE_PARM(setup_time, -1);
@@ -138,7 +139,7 @@ INT_MODULE_PARM(pci_int, 1);		/* PCI IO card irqs? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.356 2003/01/25 06:02:02 (David Hinds)";
+"i82365.c 1.357 2003/09/10 03:50:13 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -395,6 +396,10 @@ static void cirrus_set_state(socket_info_t *s)
     i365_set(s, PD67_MISC_CTL_1, misc | p->misc1);
     if (s->flags & IS_PCI)
 	pd67_ext_set(s, PD67_EXT_CTL_1, p->ectl1);
+    else if (has_vsense) {
+	socket_info_t *t = (s->psock) ? s : s+1;
+	pd67_ext_set(t, PD67_EXT_CTL_2, PD67_EC2_GPSTB_IOR);
+    }
     for (i = 0; i < 6; i++)
 	i365_set(s, PD67_TIME_SETUP(0)+i, p->timer[i]);
 }
@@ -1808,16 +1813,15 @@ static int i365_get_status(socket_info_t *s, u_int *value)
 	status = i365_get(s, O2_MODE_B);
 	*value |= (status & O2_MODE_B_VS1) ? 0 : SS_3VCARD;
 	*value |= (status & O2_MODE_B_VS2) ? 0 : SS_XVCARD;
-    } else if (s->type == IS_PD6729) {
+    }
+#endif
+    if ((s->flags & IS_CIRRUS) &&
+	((s->flags & IS_PCI) || has_vsense)) {
 	socket_info_t *t = (s->psock) ? s : s+1;
 	status = pd67_ext_get(t, PD67_EXTERN_DATA);
 	*value |= (status & PD67_EXD_VS1(s->psock)) ? 0 : SS_3VCARD;
 	*value |= (status & PD67_EXD_VS2(s->psock)) ? 0 : SS_XVCARD;
     }
-    /* For now, ignore cards with unsupported voltage keys */
-    if (*value & SS_XVCARD)
-	*value &= ~(SS_DETECT|SS_3VCARD|SS_XVCARD);
-#endif
 #ifdef CONFIG_ISA
     if (s->type == IS_VG469) {
 	status = i365_get(s, VG469_VSENSE);
@@ -1830,6 +1834,9 @@ static int i365_get_status(socket_info_t *s, u_int *value)
 	}
     }
 #endif
+    /* For now, ignore cards with unsupported voltage keys */
+    if (*value & SS_XVCARD)
+	*value &= ~(SS_DETECT|SS_3VCARD|SS_XVCARD);
     DEBUG(1, "i82365: GetStatus(%d) = %#4.4x\n", s-socket, *value);
     return 0;
 } /* i365_get_status */
@@ -2064,8 +2071,7 @@ static int i365_get_mem_map(socket_info_t *s, struct pccard_mem_map *mem)
 #ifdef CONFIG_PCI
     /* Take care of high byte, for PCI controllers */
     if (s->type == IS_PD6729) {
-	i365_set(s, PD67_EXT_INDEX, PD67_MEM_PAGE(map));
-	addr = i365_get(s, PD67_EXT_DATA) << 24;
+	addr = pd67_ext_get(s, PD67_MEM_PAGE(map)) << 24;
 	mem->sys_stop += addr; mem->sys_start += addr;
     } else if (s->flags & IS_CARDBUS) {
 	addr = i365_get(s, CB_MEM_PAGE(map)) << 24;
@@ -2105,8 +2111,7 @@ static int i365_set_mem_map(socket_info_t *s, struct pccard_mem_map *mem)
 #ifdef CONFIG_PCI
     /* Take care of high byte, for PCI controllers */
     if (s->type == IS_PD6729) {
-	i365_set(s, PD67_EXT_INDEX, PD67_MEM_PAGE(map));
-	i365_set(s, PD67_EXT_DATA, (mem->sys_start >> 24));
+	pd67_ext_set(s, PD67_MEM_PAGE(map), (mem->sys_start >> 24));
     } else if (s->flags & IS_CARDBUS)
 	i365_set(s, CB_MEM_PAGE(map), mem->sys_start >> 24);
 #endif

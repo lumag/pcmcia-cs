@@ -2,7 +2,7 @@
 
     Dump CardBus socket registers
 
-    dump_cardbus.c 1.4 2001/08/24 12:16:43
+    dump_cardbus.c 1.5 2003/09/06 17:12:10
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -179,6 +179,10 @@ int main(int argc, char *argv[])
 	in = load_info(fn);
 	printf("Socket %d:\n", i);
 	dump_sock(cb, in);
+    }
+    if (i == 0) {
+	fprintf(stderr, "/proc/bus/pccard/*/cardbus does not exist!\n");
+	return 1;
     }
     return 0;
 }

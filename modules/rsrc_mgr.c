@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.89 2002/07/27 05:46:02
+    rsrc_mgr.c 1.91 2003/08/16 16:51:26
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -405,11 +405,13 @@ static void invalidate_io(void)
 
 static void validate_io(void)
 {
-    resource_map_t *m;
+    resource_map_t *m, *n;
     if (!probe_io || io_scan++)
 	return;
-    for (m = io_db.next; m != &io_db; m = m->next)
+    for (m = io_db.next; m != &io_db; m = n) {
+	n = m->next;
 	do_io_probe(m->base, m->num);
+    }
 }
 
 #else /* CONFIG_ISA */
@@ -490,7 +492,7 @@ static void invalidate_mem(void)
 void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 		  int force_low)
 {
-    resource_map_t *m, *n;
+    resource_map_t *m, mm;
     static u_char order[] = { 0xd0, 0xe0, 0xc0, 0xf0 };
     u_long b, i, ok = 0;
     
@@ -503,18 +505,18 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 	       "available!\n");
     }
     if (lo_scan++) return;
-    for (m = mem_db.next; m != &mem_db; m = n) {
-	n = m->next;
+    for (m = mem_db.next; m != &mem_db; m = mm.next) {
+	mm = *m;
 	/* Only probe < 1 MB */
-	if (m->base >= 0x100000) continue;
-	if ((m->base | m->num) & 0xffff) {
-	    ok += do_mem_probe(m->base, m->num, is_valid, do_cksum);
+	if (mm.base >= 0x100000) continue;
+	if ((mm.base | mm.num) & 0xffff) {
+	    ok += do_mem_probe(mm.base, mm.num, is_valid, do_cksum);
 	    continue;
 	}
 	/* Special probe for 64K-aligned block */
 	for (i = 0; i < 4; i++) {
 	    b = order[i] << 12;
-	    if ((b >= m->base) && (b+0x10000 <= m->base+m->num)) {
+	    if ((b >= mm.base) && (b+0x10000 <= mm.base+mm.num)) {
 		if (ok >= mem_limit)
 		    sub_interval(&mem_db, b, 0x10000);
 		else

@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.183 2003/02/27 07:11:45
+    cardmgr.c 1.184 2003/06/17 05:19:33
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -1326,7 +1326,8 @@ static int init_sockets(void)
 	    syslog(LOG_ERR, "another cardmgr is already running?");
 	return -1;
     } else
-	syslog(LOG_INFO, "watching %d sockets", sockets);
+	syslog(LOG_INFO, "watching %d socket%s", sockets,
+	       (sockets != 1) ? "s" : "");
 
     adjust_resources();
     return 0;

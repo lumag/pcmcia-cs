@@ -1,5 +1,5 @@
 #
-# Makefile 1.40 2001/12/01 01:17:24 (David Hinds)
+# Makefile 1.41 2003/05/16 05:59:44 (David Hinds)
 #
 
 ifeq (config.mk, $(wildcard config.mk))
@@ -41,7 +41,7 @@ all:	.prereq.ok kcheck
 clean:
 	@touch config.mk
 	@set -e ; for d in $(ALL) ; do $(MAKE) -C $$d clean ; done
-	rm -f .prereq.ok config.mk include/pcmcia/config.h
+	rm -f .prereq.ok config.mk include/pcmcia/autoconf.h
 	rm -f include/linux/modversions.h
 
 realclean:
