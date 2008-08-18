@@ -11,7 +11,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.79 1998/12/03 17:55:08
+    pcnet_cs.c 1.81 1999/01/22 16:58:06
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.79 1998/12/03 17:55:08 (David Hinds)";
+"pcnet_cs.c 1.81 1999/01/22 16:58:06 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -183,6 +183,10 @@ static hw_info_t hw_info[] = {
     { /* IBM FME */ 0x0374, 0x08, 0x00, 0x5a,
       USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
     { /* IBM FME */ 0x0374, 0x00, 0x04, 0xac,
+      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+    { /* NSC DP83903 */ 0x0374, 0x00, 0xc0, 0xa8,
+      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+    { /* NSC DP83903 */ 0x0374, 0x00, 0xa0, 0xb0,
       USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
     { /* I-O DATA PCLA/T */ 0x0ff0, 0x00, 0xa0, 0xb0, 0 },
     { /* Katron PE-520 */ 0x0110, 0x00, 0x40, 0xf6, 0 },

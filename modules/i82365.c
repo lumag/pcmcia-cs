@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.223 1999/01/07 03:52:53
+    i82365.c 1.226 1999/01/22 17:00:58
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -72,7 +72,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static const char *version =
-"i82365.c 1.223 1999/01/07 03:52:53 (David Hinds)";
+"i82365.c 1.226 1999/01/22 17:00:58 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
@@ -175,7 +175,7 @@ static int has_clkrun = -1;
 static int clkrun_sel = -1;
 static int pci_latency = -1;
 static int cb_latency = -1;
-static int cb_bus_base = 0x20;
+static int cb_bus_base = 0;
 static int cb_bus_step = 2;
 MODULE_PARM(cb_mem_base, "i");
 MODULE_PARM(fast_pci, "i");
@@ -342,6 +342,7 @@ typedef enum pcic_id {
     IS_RL5C465, IS_RL5C466, IS_RL5C475, IS_RL5C476, IS_RL5C478,
     IS_SMC34C90,
     IS_TI1130, IS_TI1131, IS_TI1250A, IS_TI1220, IS_TI1221, IS_TI1210,
+    IS_TI1251A, IS_TI1251B, IS_TI1450,
     IS_TOPIC95_A, IS_TOPIC95_B, IS_TOPIC97,
     IS_UNK_PCI, IS_UNK_CARDBUS
 #endif
@@ -426,6 +427,12 @@ static pcic_t pcic[] = {
       PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1221 },
     { "TI 1210", IS_TI|IS_CARDBUS|IS_DF_PWR,
       PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1210 },
+    { "TI 1251A", IS_TI|IS_CARDBUS|IS_DF_PWR,
+      PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1251A },
+    { "TI 1251B", IS_TI|IS_CARDBUS|IS_DF_PWR,
+      PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1251B },
+    { "TI 1450", IS_TI|IS_CARDBUS|IS_DF_PWR,
+      PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1450 },
     { "Toshiba ToPIC95-A", IS_CARDBUS|IS_TOPIC|IS_DF_PWR,
       PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC95_A },
     { "Toshiba ToPIC95-B", IS_CARDBUS|IS_TOPIC|IS_DF_PWR,
@@ -716,6 +723,7 @@ static void ti113x_set_state(u_short s)
     pci_writel(t->bus, t->devfn, TI113X_SYSTEM_CONTROL, p->sysctl);
     pci_writeb(t->bus, t->devfn, TI113X_CARD_CONTROL, p->cardctl);
     pci_writeb(t->bus, t->devfn, TI113X_DEVICE_CONTROL, p->devctl);
+    pci_writeb(t->bus, t->devfn, TI1250_MULTIMEDIA_CTL, 0);
     i365_set_pair(s, TI113X_IO_OFFSET(0), 0);
     i365_set_pair(s, TI113X_IO_OFFSET(1), 0);
 }
@@ -1088,7 +1096,8 @@ static void cb_set_opts(u_short s, char *buf)
     else
 	sprintf(buf, " [pci irq %d]", t->cap.pci_irq);
     buf += strlen(buf);
-    if (t->cap.cardbus == 0) {
+    if ((cb_bus_base > 0) || (t->cap.cardbus == 0)) {
+	if (cb_bus_base <= 0) cb_bus_base = 0x20;
 	t->cap.cardbus = cb_bus_base;
 	t->sub_bus = cb_bus_base+cb_bus_step;
 	cb_bus_base += cb_bus_step+1;
@@ -1635,11 +1644,11 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
 {
     socket_info_t *s = &socket[sockets];
     u_short d, ns;
-    u_char pos, tmp, max;
+    u_char a, b, max;
 
     if (type == PCIC_COUNT) type = IS_UNK_CARDBUS;
-    pci_readb(bus, devfn, PCI_HEADER_TYPE, &tmp);
-    max = (tmp & 0x80) ? 8 : 1;
+    pci_readb(bus, devfn, PCI_HEADER_TYPE, &a);
+    max = (a & 0x80) ? 8 : 1;
     for (ns = 0; ns < max; ns++, s++, devfn++) {
 	if (pci_readw(bus, devfn, PCI_DEVICE_ID, &d) || (d != d0))
 	    break;
@@ -1647,16 +1656,16 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
 	s->vendor = v; s->device = d;
 	
 	/* Check for power management capabilities */
-	pci_readb(bus, devfn, PCI_STATUS, &tmp);
-	if (tmp & PCI_STATUS_CAPLIST) {
-	    pci_readb(bus, devfn, PCI_CB_CAPABILITY_POINTER, &pos);
-	    while (pos != 0) {
-		pci_readb(bus, devfn, pos+PCI_CAPABILITY_ID, &tmp);
-		if (tmp == PCI_CAPABILITY_PM) {
-		    s->pmcs = pos + PCI_PM_CONTROL_STATUS;
+	pci_readb(bus, devfn, PCI_STATUS, &a);
+	if (a & PCI_STATUS_CAPLIST) {
+	    pci_readb(bus, devfn, PCI_CB_CAPABILITY_POINTER, &b);
+	    while (b != 0) {
+		pci_readb(bus, devfn, b+PCI_CAPABILITY_ID, &a);
+		if (a == PCI_CAPABILITY_PM) {
+		    s->pmcs = b + PCI_PM_CONTROL_STATUS;
 		    break;
 		}
-		pci_readb(bus, devfn, pos+PCI_NEXT_CAPABILITY, &pos);
+		pci_readb(bus, devfn, b+PCI_NEXT_CAPABILITY, &b);
 	    }
 	}
 	/* If capability exists, make sure we're in D0 state */
@@ -1676,6 +1685,15 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
 	if (s->cb_virt == NULL)
 	    printk(KERN_NOTICE "i82365: ioremap failed: bad kernel!\n");
 	add_socket(0, 0, type);
+    }
+    if (ns == 2) {
+	/* Nasty special check for bad bus mapping */
+	pci_readb(s[-2].bus, s[-2].devfn, CB_CARDBUS_BUS, &a);
+	pci_readb(s[-1].bus, s[-1].devfn, CB_CARDBUS_BUS, &b);
+	if (a == b) {
+	    pci_writeb(s[-2].bus, s[-2].devfn, CB_CARDBUS_BUS, 0);
+	    pci_writeb(s[-1].bus, s[-1].devfn, CB_CARDBUS_BUS, 0);
+	}
     }
     if (ns > 0) add_pcic(ns, type);
 }

@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.38 1999/01/05 17:54:41
+    probe.c 1.39 1999/01/14 07:33:11
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -70,6 +70,9 @@ pci_id_t pci_id[] = {
     { 0x104c, 0xac17, "Texas Instruments PCI1220", "TI 1220" },
     { 0x104c, 0xac19, "Texas Instruments PCI1221", "TI 1221" },
     { 0x104c, 0xac1a, "Texas Instruments PCI1210", "TI 1210" },
+    { 0x104c, 0xac1d, "Texas Instruments PCI1251A", "TI 1251A" },
+    { 0x104c, 0xac1f, "Texas Instruments PCI1251B", "TI 1251B" },
+    { 0x104c, 0xac1b, "Texas Instruments PCI1450", "TI 1450" },
     { 0x1217, 0x6729, "O2 Micro 6729", "O2Micro OZ6729" },
     { 0x1217, 0x673a, "O2 Micro 6730", "O2Micro OZ6730" },
     { 0x1217, 0x6832, "O2 Micro 6832", "O2Micro OZ6832" },
@@ -150,14 +153,14 @@ static int pci_probe(int verbose, int module)
 static u_char i365_get(u_short sock, u_short reg)
 {
     u_char val = I365_REG(sock, reg);
-    outb_p(val, i365_base); val = inb_p(i365_base+1);
+    outb(val, i365_base); val = inb(i365_base+1);
     return val;
 }
 
 static void i365_set(u_short sock, u_short reg, u_char data)
 {
     u_char val = I365_REG(sock, reg);
-    outb_p(val, i365_base); outb_p(data, i365_base+1);
+    outb(val, i365_base); outb(data, i365_base+1);
 }
 
 static void i365_bset(u_short sock, u_short reg, u_char mask)
@@ -224,8 +227,8 @@ int i365_probe(int verbose, int module)
 	name = "i82365sl DF";
 
     /* Check for Vadem chips */
-    outb_p(0x0e, i365_base);
-    outb_p(0x37, i365_base);
+    outb(0x0e, i365_base);
+    outb(0x37, i365_base);
     i365_bset(0, VG468_MISC, VG468_MISC_VADEMREV);
     val = i365_get(0, I365_IDENT);
     if (val & I365_IDENT_VADEM) {

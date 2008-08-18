@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.119 1998/11/25 22:37:40
+    cardmgr.c 1.120 1999/01/18 08:20:38
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -1159,23 +1159,17 @@ static void handle_signal(void)
     case SIGTERM:
     case SIGINT:
 	for (i = 0; i < sockets; i++)
-	    if (socket[i].state & SOCKET_PRESENT)
-		do_remove(i);
+	    if ((socket[i].state & SOCKET_PRESENT) &&
+		(do_check(i) == 0)) do_remove(i);
 	free_resources();
 	exit(0);
 	break;
     case SIGHUP:
-	for (i = 0; i < sockets; i++)
-	    if (socket[i].state & SOCKET_PRESENT)
-		do_remove(i);
 	free_resources();
 	free_config();
 	syslog(LOG_INFO, "re-loading config file");
 	load_config();
 	adjust_resources();
-	for (i = 0; i < sockets; i++)
-	    if (socket[i].state & SOCKET_PRESENT)
-		do_insert(i);
 	break;
 #ifdef SIGPWR
     case SIGPWR:

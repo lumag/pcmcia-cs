@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.14 1998/12/11 07:00:04
+    ide_cs.c 1.15 1999/01/18 08:21:30
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -50,7 +50,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.14 1998/12/11 07:00:04 (David Hinds)";
+"ide_cs.c 1.15 1999/01/18 08:21:30 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -233,7 +233,6 @@ void ide_config(dev_link_t *link)
     cistpl_cftable_entry_t dflt = { 0 };
     int i, last_ret, last_fn, hd, io_base, ctl_base;
 
-    sti();
     handle = link->handle;
     info = link->priv;
     
@@ -336,7 +335,8 @@ void ide_config(dev_link_t *link)
 	       link->irq.AssignedIRQ);
 	goto failed;
     }
-    
+
+    MOD_INC_USE_COUNT;
     info->ndev = 1;
     sprintf(info->node.dev_name, "hd%c", 'a'+(hd*2));
     info->node.major = ide_major[hd];
@@ -370,12 +370,12 @@ void ide_release(u_long arg)
     dev_link_t *link = (dev_link_t *)arg;
     ide_info_t *info = link->priv;
     
-    sti();
-    
     DEBUG(0, "ide_release(0x%p)\n", link);
 
-    if (info->ndev)
+    if (info->ndev) {
 	ide_unregister(info->hd);
+	MOD_DEC_USE_COUNT;
+    }
     info->ndev = 0;
     link->dev = NULL;
     

@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.27, 1999/01/05 17:44:34
+  v2.28, 19 January 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -249,7 +249,8 @@
 
   +o  SMC 34C90
 
-  +o  Texas Instruments PCI1130, PCI1131, PCI1220, PCI1221, PCI1250A
+  +o  Texas Instruments PCI1130, PCI1131, PCI1220, PCI1221, PCI1250A,
+     PCI1221, PCI1210
 
   +o  Toshiba ToPIC95, ToPIC97 (experimental)
 
@@ -261,7 +262,6 @@
 
   +o  Databook DB86082, DB86082A, DB86084, DB86084A, DB86072, DB86082B
 
-
   Other controllers that are register compatible with the Intel i82365sl
   will generally work, as well.
 
@@ -272,10 +272,11 @@
   between when a new model appears on the market, and when driver
   support becomes available.
 
-  Toshiba recently made available specifications for their ToPIC95 and
-  ToPIC97 chipsets.  Work has been hindered by the fact that much of the
-  documentation exists only in Japanese.  Full support for these
-  chipsets is still experimental.
+  Toshiba has made available specifications for their ToPIC95 and
+  ToPIC97 chipsets, however the information is somewhat sparse.  Work
+  has been hindered by the fact that much of the documentation
+  apparently exists only in Japanese.  Full support for these chipsets
+  is still experimental.
 
   The Motorola 6AHC05GA controller used in some Hyundai laptops is not
   supported.  The custom host controller in the HP Omnibook 600 is also
@@ -460,6 +461,9 @@
   you must modify /etc/pcmcia/config to specify what modules need to be
   loaded for what card types.  For example, if the serial driver is
   modularized, then the serial device definition should be:
+
+
+
        device "serial_cs"
          class "serial" module "misc/serial", "serial_cs"
 
@@ -521,11 +525,13 @@
   configuration script will ask if you want the utilities compiled as
   safe or trusting: the default is to be safe.
 
+
   There are a few kernel configuration options that affect the PCMCIA
   tools.  The configuration script can deduce these from the running
   kernel (the most common case).  Alternatively, if you are compiling
   for installation on another machine, it can read the configuration
   from a kernel source tree, or each option can be set interactively.
+
   Running ``make all'' followed by ``make install'' will build and then
   install the kernel modules and utility programs.  Kernel modules are
   installed under /lib/modules/<version>/pcmcia.  The cardmgr and
@@ -584,6 +590,7 @@
         impossible for the socket driver to detect if these features are
         implemented.  See the corresponding man page for a complete
         description of the available options.
+
 
      CORE_OPTS
         This specifies options for the pcmcia_core module, which
@@ -658,6 +665,8 @@
   list with suspicion: it may give useful hints for solving problems,
   but it is inevitably out of date and certainly contains mistakes.
   Corrections and additions are welcome.
+
+
   +o  On the AMS SoundPro, exclude irq 10.
 
   +o  On some AMS TravelPro 5300 models, use memory 0xc8000-0xcffff.
@@ -673,6 +682,8 @@
 
   +o  On the IBM ThinkPad 380, and maybe the 385 and 600 series, exclude
      port 0x230-0x233, and irq 5.
+
+  +o  On the IBM ThinkPad 600, exclude port 0x2f8-0x2ff.
 
   +o  On the Micron Millenia Transport, exclude irq 5, irq 9.
 
@@ -721,7 +732,6 @@
   cs'' package contains cardmgr and other tools, man pages, and
   configuration scripts; and the ``pcmcia-modules'' package contains the
   kernel driver modules.
-
 
 
   22..55..22..  RReedd HHaatt,, aanndd CCaallddeerraa OOppeenn DDeesskkttoopp
@@ -775,6 +785,9 @@
   SuSE uses a System V init script arrangement, with init scripts stored
   under /sbin/init.d.  The PCMCIA startup script is installed as
   /sbin/init.d/pcmcia, and startup options are kept in /etc/rc.config.
+
+
+
 
 
   33..  RReessoollvviinngg iinnssttaallllaattiioonn aanndd ccoonnffiigguurraattiioonn pprroobblleemmss
@@ -843,7 +856,6 @@
      distribution, verify that you are using an unmodified kernel as
      supplied with that distribution.  If you intend to use precompiled
      modules, you generally must stick with the corresponding kernel.
-
   +o  If you have reconfigured or upgraded your kernel, you will probably
      need to compile and install the PCMCIA package from scratch.  This
      is easily done if you already have the kernel source tree
@@ -855,6 +867,7 @@
      your own kernel, pay attention to the ``minimal requirements'' for
      module utilities and binutils listed in the Documentation/Changes
      file in the kernel source code tree.
+
 
   33..22..  SSoommee cclliieenntt ddrriivveerr mmoodduulleess ddoo nnoott llooaadd
 
@@ -908,9 +921,6 @@
 
        device "serial_cs"
          class "serial" module "misc/serial", "serial_cs"
-
-
-
 
   Module paths are specified relative to the top-level module directory
   for the current kernel version; if no relative path is given, then the
@@ -972,6 +982,7 @@
 
 
        PCIC_OPTS="irq_list=5,9,10"
+
 
 
 
@@ -1043,7 +1054,6 @@
   hex digit (so an absolute address of 0xd0000 might be given as
   0xd000).  Be sure to add the extra digit back when making changes to
   config.opts.
-
   In unusual cases, a memory probe failure can indicate a timing
   register setup problem with the host controller.  See the ``Startup
   options'' section for information about dealing with common timing
@@ -1110,23 +1120,16 @@
 
   +o  When a card is inserted, it is identified correctly but cannot be
      configured (high/low beep pattern).
-
   +o  One of the following messages will appear in the system log:
 
 
-
-
-
-
-
-
-  RequestIO: Resource in use
-  RequestIRQ: Resource in use
-  RequestWindow: Resource in use
-  GetNextTuple: No more items
-  could not allocate nn IO ports for CardBus socket n
-  could not allocate nnK memory for CardBus socket n
-  could not allocate interrupt for CardBus socket n
+       RequestIO: Resource in use
+       RequestIRQ: Resource in use
+       RequestWindow: Resource in use
+       GetNextTuple: No more items
+       could not allocate nn IO ports for CardBus socket n
+       could not allocate nnK memory for CardBus socket n
+       could not allocate interrupt for CardBus socket n
 
 
 
@@ -1181,9 +1184,6 @@
   Check the system log to see what resources are used by the non-working
   card.  Exclude these in /etc/pcmcia/config.opts, and restart the
   cardmgr daemon to reload the resource database.
-
-
-
 
 
   33..99..  DDeevviiccee ccoonnffiigguurraattiioonn ddooeess nnoott ccoommpplleettee
@@ -1653,7 +1653,8 @@
      the Linux drivers.  One workaround is to boot DOS and use the
      vendor-supplied utility to select the transceiver, then warm boot
      Linux.  Alternatively, a Linux utility to perform this function is
-     available at  <ftp://hyper.stanford.edu/extras/dlport.c>.
+     available at
+     <ftp://hyper.stanford.edu/pub/pcmcia/extras/dlport.c>.
 
   +o  For WaveLAN wireless network adapters, Jean Tourrilhes
      (jt@hplb.hpl.hp.com) has put together a wireless HOWTO at
@@ -1780,6 +1781,7 @@
      LINK
         Specifies a path for a symbolic link to be created to the
         ``dialout'' or /dev/cua* device.
+
      SERIAL_OPTS
         Specifies options to be passed to the setserial command.
 
@@ -1845,6 +1847,7 @@
      device support.  If you have compiled the serial driver as a
      module, you must modify /etc/pcmcia/config to indicate that the
      serial module should be loaded before serial_cs.
+
 
   44..55..  PPCCMMCCIIAA SSCCSSII aaddaapptteerrss
 
@@ -1956,9 +1959,6 @@
 
   For example, here is a script for configuring a disk device at SCSI ID
   3, with two partitions, and a CD-ROM at SCSI ID 6:
-
-
-
 
 
 
@@ -2200,9 +2200,9 @@
 
   44..77..  PPCCMMCCIIAA AATTAA//IIDDEE ccaarrdd ddrriivveess
 
-  ATA/IDE drive support requires a 1.3.72 or higher kernel.  The PCMCIA-
-  specific part of the driver is ide_cs.  Be sure to use cardctl or
-  cardinfo to shut down an ATA/IDE card before ejecting it, as the
+  ATA/IDE drive support is based on the regular kernel IDE driver.  The
+  PCMCIA-specific part of the driver is ide_cs.  Be sure to use cardctl
+  or cardinfo to shut down an ATA/IDE card before ejecting it, as the
   driver has not been made ``hot-swap-proof''.
 
   The device addresses passed to ide.opts consist of either three or
@@ -2281,10 +2281,11 @@
 
   44..88..  MMuullttiiffuunnccttiioonn ccaarrddss
 
-  Starting with the 1.3.73 Linux kernel, a single interrupt can be
-  shared by several drivers, such as the serial driver and an ethernet
-  driver.  When using a multifunction card under a newer kernel, all
-  card functions can be used without loading and unloading drivers.
+  A single interrupt can be shared by several drivers, such as the
+  serial driver and an ethernet driver: in fact, the PCMCIA
+  specification requires all card functions to share the same interrupt.
+  Normally, all card functions are available without having to swap
+  drivers.
 
   Simultaneous use of two card functions is ``tricky'' and various
   hardware vendors have implemented interrupt sharing in their own
@@ -2292,7 +2293,7 @@
   cards (Ositech Jack of Diamonds, 3Com 3c562, Linksys) properly support
   simultaneous access, but others (Megahertz in particular) do not.
 
-  Earlier kernels do not support interrupt sharing between different
+  Older kernels do not support interrupt sharing between different
   device drivers, so it is not possible for the PCMCIA drivers to
   configure this card for simultaneous ethernet and modem access.  The
   ethernet and serial drivers are both loaded automatically.  However,
@@ -2306,7 +2307,6 @@
        rmmod 3c589_cs
        setserial /dev/modem autoconfig auto_irq
        setserial /dev/modem
-
 
   The second setserial should verify that the port has been configured
   to use the interrupt previously used by the ethernet driver.
@@ -2328,8 +2328,8 @@
   ranges of ports available for use by any card, or to exclude ranges
   that conflict with other devices.
 
-  After modifying /etc/pcmcia/config.opts, you can restart cardmgr with
-  ``kill -HUP''.
+  After modifying /etc/pcmcia/config.opts, you can reinitialize cardmgr
+  with ``kill -HUP''.
 
   The interrupt used to monitor card status changes is chosen by the
   low-level socket driver module (i82365 or tcic) before cardmgr parses

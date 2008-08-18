@@ -1,5 +1,5 @@
 #
-# config.sample 1.85 1999/01/05 17:07:00 (David Hinds)
+# config.sample 1.86 1999/01/22 17:28:25 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -119,6 +119,14 @@ card "Allied Telesis Ethernet"
 
 card "AmbiCom AMB8002 Ethernet"
   version "AmbiCom Inc", "AMB8002", "Ethernet Combo"
+  bind "pcnet_cs"
+
+card "AnyCom ECO Ethernet"
+  version "AnyCom", "ECO Ethernet"
+  bind "pcnet_cs"
+
+card "Argosy EN210 Ethernet"
+  version "PCMCIA LAN", "Ethernet"
   bind "pcnet_cs"
 
 card "Asante FriendlyNet Ethernet"
@@ -507,8 +515,24 @@ card "3Com 3c574TX Fast Ethernet"
   version "3Com", "3C574-TX Fast EtherLink PC Card"
   bind "3c574_cs"
 
+card "AnyCom ECO 10/100 Fast Ethernet"
+  version "AnyCom", "ECO Ethernet 10/100"
+  bind "pcnet_cs"
+
+card "Apollo Fast Ethernet"
+  manfid 0x0149, 0xc1ab
+  bind "pcnet_cs"
+
+card "COMPU-SHACK FASTline 10/100 Fast Ethernet"
+  version "COMPU-SHACK", "FASTline PCMCIA 10/100 Fast-Ethernet"
+  bind "pcnet_cs"
+
 card "Linksys EtherFast 10/100 Fast Ethernet"
   version "Linksys", "EtherFast 10/100 PC Card (PCMPC100)"
+  bind "pcnet_cs"
+
+card "Microcom C.E. Travel Card 10/100 Fast Ethernet"
+  version "Microcom C.E.", "Travel Card LAN 10/100"
   bind "pcnet_cs"
 
 card "NetGear FA410TXC Fast Ethernet"
@@ -804,6 +828,10 @@ card "RATOC REX-9530 SCSI-2"
   version "RATOC System Inc.", "SCSI2 CARD 37"
   bind "qlogic_cs"
 
+card "SIMA TECH SCSI9000"
+  version "*", "SCSI9000"
+  bind "sym53c500_cs"
+
 card "Simple Technology SCSI"
   version " SIMPLE TECHNOLOGY Corporation",
     "SCSI PCMCIA Credit Card Controller"
@@ -822,6 +850,11 @@ card "3Com 3c562/3c563 Ethernet/Modem"
 
 card "3Com/Megahertz 3CXEM556 Ethernet/Modem"
   manfid 0x0101, 0x0035
+  cis "cis/3CXEM556.dat"
+  bind "3c589_cs" to 0, "serial_cs" to 1
+
+card "3Com/Megahertz 3CXEM556 B-INT Ethernet/Modem"
+  manfid 0x0101, 0x003d
   cis "cis/3CXEM556.dat"
   bind "3c589_cs" to 0, "serial_cs" to 1
 
@@ -931,6 +964,10 @@ card "Psion Gold Card V34 Ethernet"
   cis "cis/PCMLM28.dat"
   bind "pcnet_cs", "serial_cs"
 
+card "Psion Gold Card Netglobal 56K+10Mb Ethernet"
+  manfid 0x016c, 0x0020
+  bind "smc91c92_cs" to 0, "serial_cs" to 1
+
 card "Rover ComboCard Ethernet/Modem"
   version "PCMCIAs", "ComboCard"
   bind "pcnet_cs", "serial_cs"
@@ -953,6 +990,10 @@ card "Xircom CEM33 Ethernet/Modem"
 
 card "Xircom CEM56 Ethernet/Modem"
   version "Xircom", "*", "CEM56"
+  bind "xirc2ps_cs", "serial_cs"
+
+card "Xircom RealPort REM10BT Ethernet/Modem"
+  version "Xircom", "*", "REM10"
   bind "xirc2ps_cs", "serial_cs"
 
 #

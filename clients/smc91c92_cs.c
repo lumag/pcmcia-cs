@@ -3,8 +3,8 @@
     A PCMCIA ethernet driver for SMC91c92-based cards.
 
     This driver supports Megahertz PCMCIA ethernet cards; and
-    Megahertz, Motorola, and Ositech ethernet/modem multifunction
-    cards.
+    Megahertz, Motorola, Ositech, and Psion Dacom ethernet/modem
+    multifunction cards.
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
@@ -724,7 +724,7 @@ static int osi_config(dev_link_t *link)
     return i;
 }
 
-static int osi_setup(dev_link_t *link)
+static int osi_setup(dev_link_t *link, u_short manfid)
 {
     client_handle_t handle = link->handle;
     struct device *dev = link->priv;
@@ -751,6 +751,8 @@ static int osi_setup(dev_link_t *link)
     for (i = 0; i < 6; i++)
 	dev->dev_addr[i] = buf[i+2];
 
+    if (manfid != MANFID_OSITECH) return 0;
+    
     /* Make sure both functions are powered up */
     set_bits(0x300, link->io.BasePort1 + OSITECH_AUI_PWR);
     /* Now, turn on the interrupt for both card functions */
@@ -840,6 +842,7 @@ static void smc91c92_config(dev_link_t *link)
     link->conf.Present = parse.config.rmask[0];
     
     tuple.DesiredTuple = CISTPL_MANFID;
+    tuple.Attributes = TUPLE_RETURN_COMMON;
     i = first_tuple(handle, &tuple, &parse);
     CS_EXIT_TEST(i, GetFirstTuple, config_failed);
     lp->manfid = le16_to_cpu(buf[0]);
@@ -886,7 +889,8 @@ static void smc91c92_config(dev_link_t *link)
 
     switch (lp->manfid) {
     case MANFID_OSITECH:
-	i = osi_setup(link); break;
+    case MANFID_PSION:
+	i = osi_setup(link, lp->manfid); break;
     case MANFID_SMC:
     case MANFID_NEW_MEDIA:
 	i = smc_setup(link); break;

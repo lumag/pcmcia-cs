@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.28 1998/10/16 11:02:36
+ * ciscode.h 1.29 1999/01/15 07:40:29
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -68,6 +68,8 @@
 #define PRODID_OSITECH_JACK_144		0x0001
 #define PRODID_OSITECH_JACK_288		0x0002
 #define PRODID_OSITECH_JACK_336		0x0007
+
+#define MANFID_PSION			0x016c
 
 #define MANFID_QUATECH			0x0137
 #define PRODID_QUATECH_DUAL_RS232	0x0012

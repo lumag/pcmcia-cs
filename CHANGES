@@ -1,6 +1,23 @@
+Version 3.0.8
+-- Minor changes in TI and O2Micro Cardbus bridge initialization.
+-- Changed semantics of i82365 cb_bus_base parameter (and put it in
+   the man page).
+-- Added interlock to prevent ide_cs module from being unloaded at
+   inappropriate times.
+-- Changed cardmgr to not shut down busy sockets when it gets SIGTERM,
+   and to only reload config files (and not reinitialize all sockets)
+   when it gets SIGHUP.
+-- Added (untested) support for TI 1251A, 1251B, 1450 Cardbus bridges.
+-- Added support for Psion 56K+10Mb multifunction cards.
+-- Fixed obscure BIOS bug in Cardbus bridge setup on some systems.
+-- Fixed fatal bug in pcinitrd script.
+-- Fixed Adaptec APA1480A support with 2.2.0-pre kernels.
+-- Fixed several configuration problems with 2.2.0-pre kernels.
+-- Fixed another Cardbus hot-eject problem.
+
 Version 3.0.7
 -- Added DHCP support to network script.
--- Updated for pre-2.2 kernels.
+-- Fixed configure script for 2.2.0-pre kernels.
 -- Cleaned up memory probe algorithm.
 -- Changed i82365 interrupt probe to be less aggressive.
 -- Cleaned up some obsolete cruft for old kernels, in network drivers.

@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.209 1998/12/09 07:36:01
+    cs.c 1.210 1999/01/22 17:00:58
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -59,7 +59,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.209 1998/12/09 07:36:01 (David Hinds)";
+"cs.c 1.210 1999/01/22 17:00:58 (David Hinds)";
 #endif
 
 #ifdef __BEOS__
@@ -311,7 +311,7 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 	init_socket(s);
 	ss_entry(ns, SS_InquireSocket, &s->cap);
 #ifdef HAS_PROC_BUS
-	{
+	if (proc_pccard) {
 	    char name[3];
 #ifdef PCMCIA_DEBUG
 	    struct proc_dir_entry *ent;
@@ -348,12 +348,14 @@ void unregister_ss_entry(ss_entry_t ss_entry)
 	    break;
 	} else {
 #ifdef HAS_PROC_BUS
-	    char name[3];
-	    sprintf(name, "%02d", i);
+	    if (proc_pccard) {
+		char name[3];
+		sprintf(name, "%02d", i);
 #ifdef PCMCIA_DEBUG
-	    remove_proc_entry("clients", s->proc);
+		remove_proc_entry("clients", s->proc);
 #endif
-	    remove_proc_entry(name, proc_pccard);
+		remove_proc_entry(name, proc_pccard);
+	    }
 #endif
 	    while (s->clients) {
 		client = s->clients;
@@ -2171,7 +2173,7 @@ int init_module(void)
     register_symtab(&cs_symtab);
 #ifdef HAS_PROC_BUS
     proc_pccard = create_proc_entry("pccard", S_IFDIR, proc_bus);
-    {
+    if (proc_pccard) {
 	struct proc_dir_entry *ent;
 	ent = create_proc_entry("memory", 0, proc_pccard);
 	ent->read_proc = proc_read_mem;
@@ -2184,8 +2186,10 @@ void cleanup_module(void)
 {
     printk(KERN_INFO "unloading PCMCIA Card Services\n");
 #ifdef HAS_PROC_BUS
-    remove_proc_entry("memory", proc_pccard);
-    remove_proc_entry("pccard", proc_bus);
+    if (proc_pccard) {
+	remove_proc_entry("memory", proc_pccard);
+	remove_proc_entry("pccard", proc_bus);
+    }
 #endif
 #ifdef CONFIG_APM
     apm_unregister_callback(&handle_apm_event);

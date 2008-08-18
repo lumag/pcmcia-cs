@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.84 1999/01/05 05:32:14
+# Configure 1.89 1999/01/22 17:30:46
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -58,6 +58,8 @@ cat << 'EOF' > $CONFIG_H
 */
 #ifndef _PCMCIA_CONFIG_H
 #define _PCMCIA_CONFIG_H
+
+#define AUTOCONF_INCLUDED
 
 EOF
 
@@ -152,10 +154,9 @@ version () {
 }
 
 echo ""
-VERSION=`sed -n -e 's/^VERSION = \(.*\)/\1/p' $LINUX/Makefile`
-PATCHLEVEL=`sed -n -e 's/^PATCHLEVEL = \(.*\)/\1/p' $LINUX/Makefile`
-SUBLEVEL=`sed -n -e 's/^SUBLEVEL = \(.*\)/\1/p' $LINUX/Makefile`
-EXTRAVERSION=`sed -n -e 's/^EXTRAVERSION =\(.*\)/\1/p' $LINUX/Makefile`
+for TAG in VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION ; do
+    eval `sed -ne "/^$TAG/s/ //gp" $LINUX/Makefile`
+done
 SRC_RELEASE=$VERSION.$PATCHLEVEL.$SUBLEVEL$EXTRAVERSION
 VERSION_CODE=`version $VERSION $PATCHLEVEL $SUBLEVEL`
 echo "The kernel source tree is version $SRC_RELEASE."
@@ -272,8 +273,8 @@ printnum() {
 printconfig () {
     echo "Kernel configuration options:"
     printflag "Symmetric multiprocessing support" CONFIG_SMP
-    printnum "Max physical memory in MB" CONFIG_MAX_MEMSIZE
     printflag "PCI BIOS support" CONFIG_PCI
+    printflag " PCI quirk support" CONFIG_PCI_QUIRKS
     printflag "Advanced Power Management (APM) support" CONFIG_APM
     printflag "SCSI support" CONFIG_SCSI
     printflag "Networking support" CONFIG_INET
@@ -281,7 +282,9 @@ printconfig () {
     printflag " Radio network interface support" CONFIG_NET_RADIO
     printflag " Token Ring device support" CONFIG_TR
     printflag "Module version checking" CONFIG_MODVERSIONS
-    printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
+    if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
+	printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
+    fi
     printflag "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
     printflag "/proc filesystem support" CONFIG_PROC_FS
 }
@@ -304,9 +307,8 @@ case $src in
 	echo "CHECK=\"/proc/version\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < /proc/version`\"" >> $CONFIG
 	symcheck smp_invalidate_needed CONFIG_SMP
-	# No way to probe for this at the moment...
-	CONFIG_MAX_MEMSIZE=1024
 	symcheck pcibios CONFIG_PCI
+	symcheck isa_dma_bridge_buggy CONFIG_PCI_QUIRKS
 	symcheck apm_register_callback CONFIG_APM
 	symcheck scsi_register CONFIG_SCSI
 	modcheck scsi_mod CONFIG_SCSI
@@ -326,7 +328,9 @@ case $src in
 	    CONFIG_NET_RADIO=n
 	fi
 	symcheck printk_R CONFIG_MODVERSIONS
-	symcheck ide_register CONFIG_BLK_DEV_IDE_PCMCIA
+	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
+	    symcheck ide_register CONFIG_BLK_DEV_IDE_PCMCIA
+	fi
 	symcheck tr_setup CONFIG_TR
 	symcheck hwrpb CONFIG_ALPHA_LCA
 	symcheck proc_root CONFIG_PROC_FS
@@ -353,9 +357,12 @@ case $src in
 	else
 	    configcheck CONFIG_SMP
 	fi
-	for C in CONFIG_PCI CONFIG_APM CONFIG_SCSI CONFIG_INET \
-	    CONFIG_IPV6 CONFIG_NET_RADIO CONFIG_TR CONFIG_MODVERSIONS \
-	    CONFIG_BLK_DEV_IDE_PCMCIA CONFIG_ALPHA_LCA CONFIG_PROC_FS \
+	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
+	    configcheck CONFIG_BLK_DEV_IDE_PCMCIA
+	fi
+	for C in CONFIG_PCI CONFIG_PCI_QUIRKS CONFIG_APM CONFIG_SCSI \
+	    CONFIG_INET CONFIG_IPV6 CONFIG_NET_RADIO CONFIG_TR \
+	    CONFIG_MODVERSIONS CONFIG_ALPHA_LCA CONFIG_PROC_FS \
 	    CONFIG_SERIAL ; do
 	    configcheck $C
 	done
@@ -366,7 +373,6 @@ case $src in
 	echo "# Configured manually" >> $CONFIG_MK
 	echo "/* Configured manually */" >> $CONFIG_H
 	ask_bool "Symmetric multiprocessing support" CONFIG_SMP
-	ask_num "Max physical memory in MB" CONFIG_MAX_MEMSIZE
 	ask_bool "PCI BIOS support" CONFIG_PCI
 	ask_bool "Advanced Power Management (APM) support" CONFIG_APM
 	ask_bool "SCSI support" CONFIG_SCSI
@@ -374,8 +380,12 @@ case $src in
 	ask_bool " IPv6 protocol support" CONFIG_IPV6
 	ask_bool " Radio network interface support" CONFIG_NET_RADIO
 	ask_bool " Token Ring device support" CONFIG_TR
-	ask_bool "Set version information for module symbols" CONFIG_MODVERSIONS
-	ask_bool "Include PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
+	ask_bool "Set version information for module symbols" \
+	    CONFIG_MODVERSIONS
+	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
+	    ask_bool "Include PCMCIA IDE device support" \
+		CONFIG_BLK_DEV_IDE_PCMCIA
+	fi
 	ask_bool "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
 	ask_bool "/proc filesystem support" CONFIG_PROC_FS
 	;;
@@ -442,18 +452,17 @@ echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
 if [ $VERSION_CODE -ge `version 2 0 6` ] ; then
     NEW_QLOGIC=y
 fi
-if [ $VERSION_CODE -ge `version 2 1 8` ] ; then
-    CONFIG_BLK_DEV_IDE_PCMCIA=y
-fi
 if [ $VERSION_CODE -ge `version 2 1 31` -a \
      $VERSION_CODE -le `version 2 1 34` ] ; then
     echo "Kernel versions 2.1.31-33 are broken.  Upgrade to 2.1.34."
     exit 1
 fi
 if [ "$CONFIG_CARDBUS" = "y" -a \
-     $VERSION_CODE -ge `version 2 1 90` -a \
-     $VERSION_CODE -lt `version 2 1 125` ] ; then
-    DO_APA1480=y
+     $VERSION_CODE -ge `version 2 1 90` ] ; then
+    if [ $VERSION_CODE -lt `version 2 1 125` -o \
+	 $VERSION_CODE -ge `version 2 1 132` ] ; then
+	DO_APA1480=y
+    fi
 fi
 if [ $VERSION_CODE -gt `version 2 1 104` ] ; then
     HAS_PROC_BUS=$CONFIG_PROC_FS
@@ -474,7 +483,8 @@ echo ""
 write_bool NEW_QLOGIC
 write_bool HAS_PROC_BUS
 
-if [ "$CONFIG_BLK_DEV_IDE_PCMCIA" = "y" ] ; then
+if [ $VERSION_CODE -ge `version 2 1 7` -o \
+     "$CONFIG_BLK_DEV_IDE_PCMCIA" = "y" ] ; then
     echo "DO_IDE=y" >> $CONFIG_MK
 fi
 
@@ -493,7 +503,7 @@ if [ "$CONFIG_SCSI" = "y" ] ; then
     fi
     if [ "$DO_APA1480" = "y" ] ; then
 	echo "DO_APA1480=y" >> $CONFIG_MK
-	if grep -q "define MODULE" ${LINUX}/drivers/scsi/aic7xxx.c ; then
+	if grep -q ADAPTEC_1480A ${LINUX}/drivers/scsi/aic7xxx.c ; then
 	    echo "# FIX_AIC7XXX is not defined" >> $CONFIG_MK
 	else
 	    echo "FIX_AIC7XXX=y" >> $CONFIG_MK

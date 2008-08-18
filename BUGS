@@ -1,5 +1,9 @@
-Known problems with the 3.0.6 PCMCIA release
+Known problems with the 3.0.8 PCMCIA release
 ============================================
+
+o The token ring driver tweaks a problem in the memory management
+  code.  To work around the problem, remove all high memory windows
+  from /etc/pcmcia/config.opts.
 
 o Megahertz EM3288 cards drop interrupts if the modem and ethernet are
   used simultaneously.  No known fix.
@@ -10,13 +14,16 @@ o The 3c574_cs driver is unstable.  Sometimes it works, sometimes
 
 o None of the CardBus drivers implement suspend/resume handling.
 
-o The apa1480_cb driver only works for 2.1.90-2.1.124 kernels.
+o The apa1480_cb driver only works for 2.1.90-2.1.124, or 2.1.132 and
+  later kernels.
 
 o Automatic determination of PCI interrupt routing for CardBus bridges
   is unreliable, so by default, we don't use PCI interrupts at all.
 
 o Interrupt routing on O2Micro CardBus bridges seems to have problems.
-
-o The token-ring driver doesn't work with late 2.1.* kernels.
+  Toshiba ToPIC97 bridges also seem to have problems, particularly
+  with Cardbus cards.
 
 o Newer Ositech Jack of Diamonds cards don't work.
+
+o Newer Xircom CE3 cards appear to not work.

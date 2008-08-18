@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" i82365.4 1.19 1998/10/15 09:26:15
+.\" i82365.4 1.20 1999/01/14 17:30:26
 .\"
-.TH I82365 4 "1998/10/15 09:26:15" "pcmcia-cs"
+.TH I82365 4 "1999/01/14 17:30:26" "pcmcia-cs"
 .SH NAME
 i82365 \- Intel i82365sl PCMCIA controller driver
 .SH SYNOPSIS
@@ -9,6 +9,8 @@ i82365 \- Intel i82365sl PCMCIA controller driver
 .RB [ pc_debug=n ]
 .RB [ i365_base=n ]
 .RB [ cb_mem_base=n ]
+.RB [ cb_bus_base=n ]
+.RB [ cb_bus_step=n ]
 .RB [ ignore=n ]
 .RB [ extra_sockets=n ]
 .RB [ do_scan=n ]
@@ -75,10 +77,6 @@ enables debugging.
 Sets the base I/O port address of the i82365sl chip.  The default is
 0x3e0.
 .TP
-.B cb_mem_base=n
-Sets the base address to use for memory mapping CardBus registers, if
-not set by the PCI BIOS.  The default is 0x68000000.
-.TP
 .B ignore=n
 Causes the driver to ignore a single socket.  Sockets are numbered
 starting at 0.  The socket will be left in whatever state it was
@@ -111,14 +109,6 @@ The default is 0, which means pick the highest-numbered legal
 interrupt not already in use.  Legal values are 15, 14, 12, 11,
 10, 9, 7, 5, 4, and 3.
 .TP
-.B pci_csc=n
-Specifies that card status change interrupts should be routed to PCI
-interrupts, for CardBus controllers.  The default is 0 (false).
-.TP
-.B pci_int=n
-Specifies that functional interrupts for IO cards should be routed to
-PCI interrupts, for CardBus controllers.  The default is 0 (false).
-.TP
 .B poll_interval=n
 Sets the card status polling delay, in 1/100 second increments.  If
 this parameter is set, card status interrupts will be disabled.  A
@@ -127,6 +117,30 @@ reasonable value is 100.
 .B cycle_time=n
 Sets the length of a host bus cycle, in nanoseconds.  The default is
 210 ns, corresponding to a standard 4.77 MHz clock.
+
+.SH Options for CardBus controllers
+.TP
+.B cb_mem_base=n
+Sets the base address to use for memory mapping CardBus registers, if
+not set by the PCI BIOS.  The default is 0x68000000.
+.TP
+.B cb_bus_base=n
+Specifies that PCI bus numbers for CardBus busses should be renumbered
+starting with this value.  By default, bus values that are
+uninitialized at boot time will be numbered starting with bus 0x20.
+.TP
+.B cb_bus_step=n
+Specifies the number of bus slots to reserve for secondary PCI
+busses, for each CardBus socket, when busses are renumbered.  The
+default is 2.
+.TP
+.B pci_csc=n
+Specifies that card status change interrupts should be routed to PCI
+interrupts, for CardBus controllers.  The default is 0 (false).
+.TP
+.B pci_int=n
+Specifies that functional interrupts for IO cards should be routed to
+PCI interrupts, for CardBus controllers.  The default is 0 (false).
 
 .SH Options specific for Cirrus controllers
 .TP

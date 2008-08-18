@@ -4,7 +4,7 @@
 #
 # Copyright (C) David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# pcinitrd 1.18 1998/12/09 07:35:31
+# pcinitrd 1.19 1999/01/14 17:55:56
 #
 RELEASE=""
 ALL=""
@@ -162,7 +162,7 @@ for DIR in block misc fs net pcmcia ; do
     mkdir $VERBOSE $MNT/lib/$DIR || fail
 done
 
-for DEV in console null ram tty1 tty2 tty3 tty4 ; do
+for F in $DEV ; do
     cp -a $VERBOSE $ROOT/$F $MNT/dev || fail
 done
 if [ -e $ROOT/dev/systty ] ; then
@@ -175,7 +175,7 @@ done
 strip_cp --strip-all $ROOT/bin/ash $MNT/bin/sh
 
 for F in $LIB ; do
-    strip_cp --strip-debug $F $MNT/lib
+    strip_cp --strip-debug $ROOT/$F $MNT/lib
 done
 cp $VERBOSE $ROOT/lib/ld-linux.so.? $MNT/lib || fail
 

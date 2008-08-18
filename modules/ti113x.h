@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.9 1998/11/09 06:13:14
+ * ti113x.h 1.10 1999/01/15 07:46:14
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -43,6 +43,15 @@
 #endif
 #ifndef PCI_DEVICE_ID_TI_1210
 #define PCI_DEVICE_ID_TI_1210		0xac1a
+#endif
+#ifndef PCI_DEVICE_ID_TI_1251A
+#define PCI_DEVICE_ID_TI_1251A		0xac1d
+#endif
+#ifndef PCI_DEVICE_ID_TI_1251B
+#define PCI_DEVICE_ID_TI_1251B		0xac1f
+#endif
+#ifndef PCI_DEVICE_ID_TI_1450
+#define PCI_DEVICE_ID_TI_1450		0xac1b
 #endif
 
 /* Register definitions for TI 113X PCI-to-CardBus bridges */

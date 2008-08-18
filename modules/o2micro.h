@@ -1,5 +1,5 @@
 /*
- * o2micro.h 1.5 1998/07/28 09:22:41
+ * o2micro.h 1.6 1999/01/18 08:18:12
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -44,6 +44,9 @@
 
 #define O2_MODE_B		0x39
 #define  O2_MODE_B_IDENT	0x03
+#define  O2_MODE_B_ID_BSTEP	0x00
+#define  O2_MODE_B_ID_CSTEP	0x01
+#define  O2_MODE_B_ID_O2	0x02
 #define  O2_MODE_B_VS1		0x04
 #define  O2_MODE_B_VS2		0x08
 #define  O2_MODE_B_IRQ15_RI	0x80

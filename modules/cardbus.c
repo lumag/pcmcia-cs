@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.42 1998/11/11 07:50:32
+    cardbus.c 1.43 1999/01/15 07:46:14
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -350,10 +350,8 @@ void cb_disable(socket_info_t *s)
     for (p = &pci_devices; *p; p = &((*p)->next))
 	if (*p == &c[0].dev) break;
     for (q = *p; q; q = q->next)
-	if (q == &c[s->functions-1].dev) break;
-    if (p && q) {
-	*p = q->next;
-    }
+	if (q->bus != (*p)->bus) break;
+    if (*p) *p = q;
 #endif
     
     DEBUG(0, ("cs: cb_disable(bus %d)\n", s->cap.cardbus));
