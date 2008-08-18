@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.65 1999/11/30 22:46:15
+    cardbus.c 1.66 1999/12/04 03:47:11
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -320,8 +320,9 @@ int cb_alloc(socket_info_t *s)
     tmp.next = pci_devices; pci_devices = &tmp;
 #endif
 
-    pci_readw(bus, 0, PCI_VENDOR_ID, &vend);
+    /* The APA1480 did not like reading the vendor ID first */
     pci_readw(bus, 0, PCI_DEVICE_ID, &dev);
+    pci_readw(bus, 0, PCI_VENDOR_ID, &vend);
     printk(KERN_INFO "cs: cb_alloc(bus %d): vendor 0x%04x, "
 	   "device 0x%04x\n", bus, vend, dev);
 

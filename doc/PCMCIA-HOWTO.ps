@@ -8,7 +8,7 @@
 %DVIPSWebPage: (www.radicaleye.com)
 %DVIPSCommandLine: dvips -t letter PCMCIA-HOWTO.dvi -o PCMCIA-HOWTO.ps
 %DVIPSParameters: dpi=600, compressed
-%DVIPSSource:  TeX output 1999.11.30:1625
+%DVIPSSource:  TeX output 1999.12.10:2023
 %%BeginProcSet: texc.pro
 %!
 /TeXDict 300 dict def TeXDict begin/N{def}def/B{bind def}N/S{exch}N/X{S
@@ -1523,7 +1523,7 @@ letter
 y(X)h(L)398 145 y Fl(A)435 162 y Fm(T)481 180 y(E)527
 162 y(X)0 348 y Fk(Linux)54 b(PCMCIA)f(HO)l(WTO)p 0 461
 3900 24 v 0 575 a Fm(Da)n(vid)27 b(Hinds,)h Fj(dhinds@pcmcia.so)o(urc)o
-(ef)o(or)o(ge.)o(or)o(g)p Fm(.)1198 b(v2.46,)26 b(01)h(Decem)n(b)r(er)g
+(ef)o(or)o(ge.)o(or)o(g)p Fm(.)1198 b(v2.47,)26 b(11)h(Decem)n(b)r(er)g
 (1999)0 881 y Fi(This)j(do)r(cument)f(describ)r(es)h(ho)n(w)f(to)g
 (install)g(and)h(use)f(PCMCIA)i(Ca)n(rd)e(Services)h(fo)n(r)g(Linux,)h
 (and)f(answ)n(ers)f(some)g(frequently)0 994 y(ask)n(ed)38
@@ -5045,90 +5045,101 @@ Fh(.mk)p Fm(,)0 1820 y(then)26 b(it)g(will)f(automatically)g(b)r(e)g
 (in)n(v)n(ok)n(ed)f(b)n(y)h(the)h(top-lev)n(el)e Fh(Makefile)f
 Fm(for)h(the)i Fh(all)e Fm(and)i Fh(install)c Fm(targets.)35
 b(Here)25 b(is)g(an)0 1934 y(example)i(of)h(ho)n(w)f(suc)n(h)g(a)g(mak)
-n(e\034le)g(could)g(b)r(e)h(constructed:)208 2164 y Fc(#)39
+n(e\034le)g(could)g(b)r(e)h(constructed:)208 2161 y Fc(#)39
 b(Sample)i(Makefile)f(for)g(contributed)i(client)f(driver)208
-2268 y(FILES)f(=)f(sample_cs.mk)j(README.sample_cs)h(\\)521
-2372 y(modules/sample_cs.c)h(modules/sample_cs.h)f(\\)521
-2476 y(etc/sample)f(etc/sample.opts)g(man/sample_cs.4)208
-2580 y(all:)521 2685 y($\(MAKE\))f(-C)f(modules)g(MODULES=sample_cs.o)
-208 2789 y(install:)521 2893 y($\(MAKE\))h(-C)f(modules)g
-(install-modules)j(MODULES=sample_cs.o)521 2997 y($\(MAKE\))e(-C)f(etc)
-g(install-clients)i(CLIENTS=sample)521 3101 y($\(MAKE\))f(-C)f(man)g
-(install-man4)h(MAN4=sample_cs.4)208 3205 y(dist:)521
-3309 y(tar)f(czvf)g(sample_cs.tar.gz)j($\(FILES\))0 3549
-y Fm(This)25 b(mak)n(e\034le)f(uses)g(install)h(targets)e(de\034ned)i
-(in)g(2.9.10)e(and)i(later)f(v)n(ersions)f(of)h(the)h(PCMCIA)h(pac)n(k)
--5 b(age.)34 b(This)25 b(mak)n(e\034le)0 3662 y(also)32
-b(includes)h(a)f(\020dist\021)40 b(target)32 b(for)g(the)h(con)n(v)n
-(enience)f(of)h(the)g(driv)n(er)f(author.)52 b(Y)-7 b(ou)33
-b(w)n(ould)f(probably)g(w)n(an)n(t)g(to)h(add)f(a)0 3776
-y(v)n(ersion)18 b(n)n(um)n(b)r(er)i(to)g(the)g(\034nal)f(pac)n(k)-5
-b(age)19 b(\034lename)g(\(for)h(example,)h Fh(sample_cs-1.5.ta)o(r.)o
-(gz)o Fm(\).)29 b(A)20 b(complete)g(distribution)0 3889
-y(could)27 b(lo)r(ok)g(lik)n(e:)208 4119 y Fc(sample_cs.mk)208
-4224 y(README.sample_cs)208 4328 y(modules/sample_cs.c)208
-4432 y(modules/sample_cs.h)208 4536 y(etc/sample)208
-4640 y(etc/sample.opts)208 4744 y(man/sample_cs.4)0 4984
-y Fm(With)c(this)g(arrangemen)n(t,)f(when)g(the)h(con)n(tributed)g
-(driv)n(er)e(is)h(unpac)n(k)n(ed,)h(it)g(b)r(ecomes)f(essen)n(tially)g
-(part)g(of)g(the)h(PCMCIA)0 5097 y(source)29 b(tree.)44
-b(It)30 b(can)g(mak)n(e)f(use)h(of)g(the)h(PCMCIA)f(header)g(\034les,)g
-(as)g(w)n(ell)f(as)h(the)g(mac)n(hinery)f(for)h(c)n(hec)n(king)f(the)h
-(user's)0 5211 y(system)d(con\034guration,)f(and)i(automatic)f(dep)r
-(endency)g(c)n(hec)n(king,)g(just)h(lik)n(e)f(a)g(\020normal\021)33
-b(clien)n(t)28 b(driv)n(er.)0 5367 y(I)f(will)h(accept)f(clien)n(t)g
-(driv)n(ers)f(prepared)g(according)f(to)i(this)h(sp)r(eci\034cation)f
-(and)g(place)f(them)i(in)g(the)f Fh(/pcmcia/contrib)p
-eop
+2265 y(FILES)f(=)f(sample_cs.mk)j(README.sample_cs)h(\\)521
+2369 y(modules/sample_cs.c)h(modules/sample_cs.h)f(\\)521
+2473 y(etc/sample.conf)g(etc/sample)e(etc/sample.opts)i(\\)521
+2578 y(man/sample_cs.4)208 2682 y(all:)521 2786 y($\(MAKE\))e(-C)f
+(modules)g(MODULES=sample_cs.o)208 2890 y(install:)521
+2994 y($\(MAKE\))h(-C)f(modules)g(install-modules)j
+(MODULES=sample_cs.o)521 3098 y($\(MAKE\))e(-C)f(etc)g(install-clients)
+i(CLIENTS=sample)521 3202 y($\(MAKE\))f(-C)f(man)g(install-man4)h
+(MAN4=sample_cs.4)208 3306 y(dist:)521 3410 y(tar)f(czvf)g
+(sample_cs.tar.gz)j($\(FILES\))0 3647 y Fm(This)25 b(mak)n(e\034le)f
+(uses)g(install)h(targets)e(de\034ned)i(in)g(2.9.10)e(and)i(later)f(v)n
+(ersions)f(of)h(the)h(PCMCIA)h(pac)n(k)-5 b(age.)34 b(This)25
+b(mak)n(e\034le)0 3761 y(also)32 b(includes)h(a)f(\020dist\021)40
+b(target)32 b(for)g(the)h(con)n(v)n(enience)f(of)h(the)g(driv)n(er)f
+(author.)52 b(Y)-7 b(ou)33 b(w)n(ould)f(probably)g(w)n(an)n(t)g(to)h
+(add)f(a)0 3874 y(v)n(ersion)18 b(n)n(um)n(b)r(er)i(to)g(the)g(\034nal)
+f(pac)n(k)-5 b(age)19 b(\034lename)g(\(for)h(example,)h
+Fh(sample_cs-1.5.ta)o(r.)o(gz)o Fm(\).)29 b(A)20 b(complete)g
+(distribution)0 3988 y(could)27 b(lo)r(ok)g(lik)n(e:)208
+4215 y Fc(sample_cs.mk)208 4319 y(README.sample_cs)208
+4423 y(modules/sample_cs.c)208 4527 y(modules/sample_cs.h)208
+4631 y(etc/sample.conf)208 4735 y(etc/sample)208 4839
+y(etc/sample.opts)208 4943 y(man/sample_cs.4)0 5180 y
+Fm(With)c(this)g(arrangemen)n(t,)f(when)g(the)h(con)n(tributed)g(driv)n
+(er)e(is)h(unpac)n(k)n(ed,)h(it)g(b)r(ecomes)f(essen)n(tially)g(part)g
+(of)g(the)h(PCMCIA)0 5294 y(source)29 b(tree.)44 b(It)30
+b(can)g(mak)n(e)f(use)h(of)g(the)h(PCMCIA)f(header)g(\034les,)g(as)g(w)
+n(ell)f(as)h(the)g(mac)n(hinery)f(for)h(c)n(hec)n(king)f(the)h(user's)0
+5407 y(system)d(con\034guration,)f(and)i(automatic)f(dep)r(endency)g(c)
+n(hec)n(king,)g(just)h(lik)n(e)f(a)g(\020normal\021)33
+b(clien)n(t)28 b(driv)n(er.)p eop
 %%Page: 48 48
 48 47 bop 0 -167 3900 5 v 0 -200 a Ff(7.)73 b(Debugging)31
 b(tips)g(and)h(programming)d(information)1741 b Fm(48)0
-162 y(directory)27 b(on)g Fh(sourceforge.org)p Fm(.)32
-b(The)c(README)i(in)f(this)f(directory)e(will)j(describ)r(e)e(ho)n(w)h
-(to)g(unpac)n(k)f(a)g(con)n(tributed)0 275 y(driv)n(er.)0
-432 y(The)35 b(clien)n(t)g(driv)n(er)f(in)n(terface)g(has)g(not)h(c)n
-(hanged)f(m)n(uc)n(h)h(o)n(v)n(er)e(time,)k(and)e(has)f(almost)g(alw)n
-(a)n(ys)f(preserv)n(ed)g(bac)n(kw)n(ards)0 545 y(compatibilit)n(y)-7
-b(.)36 b(A)26 b(clien)n(t)g(driv)n(er)e(will)i(not)g(normally)e(need)i
-(to)f(b)r(e)h(up)r(dated)h(for)e(minor)g(revisions)f(in)i(the)g(main)g
-(pac)n(k)-5 b(age.)0 659 y(I)28 b(will)f(try)h(to)f(notify)h(authors)e
-(of)i(con)n(tributed)f(driv)n(ers)f(of)i(c)n(hanges)e(that)i(require)e
-(up)r(dates)i(to)f(their)h(driv)n(ers.)0 950 y Fe(7.7)112
-b(Guidelines)36 b(for)i(Lin)m(ux)f(distribution)e(main)m(tainers)0
-1161 y Fm(If)26 b(y)n(our)e(distribution)i(has)f(system)g
-(con\034guration)f(to)r(ols)h(that)h(y)n(ou)f(w)n(ould)g(lik)n(e)g(to)g
-(b)r(e)h(PCMCIA-a)n(w)n(are,)e(please)h(use)h(the)0 1274
-y Fh(*.opts)d Fm(\034les)i(in)g Fh(/etc/pcmcia)20 b Fm(for)25
-b(y)n(our)f(\020ho)r(oks.\021)41 b(These)25 b(\034les)g(will)g(not)g(b)
-r(e)h(mo)r(di\034ed)f(if)h(a)f(user)f(compiles)h(and)f(installs)0
-1388 y(a)g(new)g(release)f(of)h(the)h(PCMCIA)g(pac)n(k)-5
-b(age.)34 b(If)25 b(y)n(ou)e(mo)r(dify)i(the)g(main)f(con\034guration)f
-(scripts,)h(then)h(a)f(fresh)g(install)g(will)0 1501
-y(silen)n(tly)29 b(o)n(v)n(erwrite)e(y)n(our)h(custom)h(scripts)g(and)g
-(break)f(the)i(connection)f(with)g(y)n(our)f(con\034guration)g(to)r
-(ols.)41 b(Con)n(tact)29 b(me)0 1615 y(if)f(y)n(ou)f(are)f(not)i(sure)f
-(ho)n(w)g(to)g(write)h(an)f(appropriate)f(option)h(script,)g(or)g(if)h
-(y)n(ou)f(need)g(additional)g(capabilities.)0 1771 y(It)j(is)g(helpful)
-h(for)e(users)g(\(and)h(for)g(me\))g(if)g(y)n(ou)g(can)f(do)r(cumen)n
-(t)h(ho)n(w)g(y)n(our)e(distribution)i(deviates)f(from)h(the)g(PCMCIA)0
-1885 y(pac)n(k)-5 b(age)32 b(as)h(describ)r(ed)g(in)h(this)g(do)r
-(cumen)n(t.)55 b(In)33 b(particular,)h(please)f(do)r(cumen)n(t)g(c)n
-(hanges)g(to)g(the)h(startup)f(script)g(and)0 1998 y(con\034guration)28
+162 y(In)40 b(this)h(example,)i Fh(etc/sample)36 b Fm(and)k
+Fh(etc/sample.opts)34 b Fm(w)n(ould)40 b(b)r(e)g(the)h(new)f(driv)n
+(er's)f(con\034guration)g(scripts)g(\(if)0 275 y(needed\),)22
+b(and)e Fh(etc/sample.conf)13 b Fm(w)n(ould)20 b(con)n(tain)f(an)n(y)g
+(additions)h(to)g(the)g(PCMCIA)h(card)e(con\034guration)f(\034le.)35
+b(Starting)0 389 y(with)i(the)g(3.1.6)e(release,)j Fh(cardmgr)33
+b Fm(will)k(automatically)f(pro)r(cess)f(an)n(y)h Fh(*.conf)e
+Fm(\034les)i(installed)h(in)f Fh(/etc/pcmcia)p Fm(,)f(so)0
+502 y(installation)27 b(of)g(con)n(tributed)h(driv)n(ers)e(should)h(no)
+g(longer)f(require)h(hand)g(editing)h(con\034guration)e(\034les.)0
+659 y(I)h(will)h(accept)f(clien)n(t)g(driv)n(ers)f(prepared)g
+(according)f(to)i(this)h(sp)r(eci\034cation)f(and)g(place)f(them)i(in)g
+(the)f Fh(/pcmcia/contrib)0 772 y Fm(directory)g(on)g
+Fh(sourceforge.org)p Fm(.)32 b(The)c(README)i(in)f(this)f(directory)e
+(will)j(describ)r(e)e(ho)n(w)h(to)g(unpac)n(k)f(a)g(con)n(tributed)0
+886 y(driv)n(er.)0 1043 y(The)35 b(clien)n(t)g(driv)n(er)f(in)n
+(terface)g(has)g(not)h(c)n(hanged)f(m)n(uc)n(h)h(o)n(v)n(er)e(time,)k
+(and)e(has)f(almost)g(alw)n(a)n(ys)f(preserv)n(ed)g(bac)n(kw)n(ards)0
+1156 y(compatibilit)n(y)-7 b(.)36 b(A)26 b(clien)n(t)g(driv)n(er)e
+(will)i(not)g(normally)e(need)i(to)f(b)r(e)h(up)r(dated)h(for)e(minor)g
+(revisions)f(in)i(the)g(main)g(pac)n(k)-5 b(age.)0 1270
+y(I)28 b(will)f(try)h(to)f(notify)h(authors)e(of)i(con)n(tributed)f
+(driv)n(ers)f(of)i(c)n(hanges)e(that)i(require)e(up)r(dates)i(to)f
+(their)h(driv)n(ers.)0 1561 y Fe(7.7)112 b(Guidelines)36
+b(for)i(Lin)m(ux)f(distribution)e(main)m(tainers)0 1771
+y Fm(If)26 b(y)n(our)e(distribution)i(has)f(system)g(con\034guration)f
+(to)r(ols)h(that)h(y)n(ou)f(w)n(ould)g(lik)n(e)g(to)g(b)r(e)h(PCMCIA-a)
+n(w)n(are,)e(please)h(use)h(the)0 1885 y Fh(*.opts)d
+Fm(\034les)i(in)g Fh(/etc/pcmcia)20 b Fm(for)25 b(y)n(our)f(\020ho)r
+(oks.\021)41 b(These)25 b(\034les)g(will)g(not)g(b)r(e)h(mo)r(di\034ed)
+f(if)h(a)f(user)f(compiles)h(and)f(installs)0 1998 y(a)g(new)g(release)
+f(of)h(the)h(PCMCIA)g(pac)n(k)-5 b(age.)34 b(If)25 b(y)n(ou)e(mo)r
+(dify)i(the)g(main)f(con\034guration)f(scripts,)h(then)h(a)f(fresh)g
+(install)g(will)0 2112 y(silen)n(tly)29 b(o)n(v)n(erwrite)e(y)n(our)h
+(custom)h(scripts)g(and)g(break)f(the)i(connection)f(with)g(y)n(our)f
+(con\034guration)g(to)r(ols.)41 b(Con)n(tact)29 b(me)0
+2226 y(if)f(y)n(ou)f(are)f(not)i(sure)f(ho)n(w)g(to)g(write)h(an)f
+(appropriate)f(option)h(script,)g(or)g(if)h(y)n(ou)f(need)g(additional)
+g(capabilities.)0 2382 y(It)j(is)g(helpful)h(for)e(users)g(\(and)h(for)
+g(me\))g(if)g(y)n(ou)g(can)f(do)r(cumen)n(t)h(ho)n(w)g(y)n(our)e
+(distribution)i(deviates)f(from)h(the)g(PCMCIA)0 2496
+y(pac)n(k)-5 b(age)32 b(as)h(describ)r(ed)g(in)h(this)g(do)r(cumen)n
+(t.)55 b(In)33 b(particular,)h(please)f(do)r(cumen)n(t)g(c)n(hanges)g
+(to)g(the)h(startup)f(script)g(and)0 2609 y(con\034guration)28
 b(scripts.)43 b(If)30 b(y)n(ou)f(send)h(me)g(the)g(appropriate)e
 (information,)h(I)h(will)g(include)g(it)g(in)g(the)g(2.5)f(\(Notes)h
-(ab)r(out)0 2112 y(sp)r(eci\034c)e(Lin)n(ux)f(distributions\).)0
-2268 y(When)21 b(building)g(PCMCIA)g(for)f(distribution,)i(consider)d
+(ab)r(out)0 2723 y(sp)r(eci\034c)e(Lin)n(ux)f(distributions\).)0
+2879 y(When)21 b(building)g(PCMCIA)g(for)f(distribution,)i(consider)d
 (including)i(con)n(tributed)f(driv)n(ers)f(that)i(are)e(not)i(part)f
-(of)g(the)h(main)0 2382 y(PCMCIA)26 b(pac)n(k)-5 b(age.)35
+(of)g(the)h(main)0 2993 y(PCMCIA)26 b(pac)n(k)-5 b(age.)35
 b(F)-7 b(or)24 b(reasons)g(of)h(main)n(tainabilit)n(y)-7
 b(,)25 b(I)g(am)h(trying)e(to)h(limit)i(the)e(core)f(pac)n(k)-5
-b(age)24 b(size,)i(b)n(y)f(only)g(adding)0 2496 y(new)32
+b(age)24 b(size,)i(b)n(y)f(only)g(adding)0 3106 y(new)32
 b(driv)n(ers)e(if)i(I)g(think)h(they)f(are)f(of)g(particularly)g(broad)
 f(in)n(terest.)50 b(Other)31 b(driv)n(ers)f(will)i(b)r(e)g(distributed)
-h(separately)-7 b(,)0 2609 y(as)28 b(describ)r(ed)g(in)g(the)h
+h(separately)-7 b(,)0 3220 y(as)28 b(describ)r(ed)g(in)g(the)h
 (previous)e(section.)39 b(The)29 b(split)f(b)r(et)n(w)n(een)g(in)n
 (tegral)g(and)g(separate)f(driv)n(ers)f(is)j(somewhat)e(arbitrary)0
-2723 y(and)g(partly)g(historical,)g(and)g(should)g(not)h(imply)g(a)f
+3334 y(and)g(partly)g(historical,)g(and)g(should)g(not)h(imply)g(a)f
 (di\033erence)g(in)h(qualit)n(y)-7 b(.)p eop
 %%Trailer
 end

@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.101 1999/11/16 02:03:53
+    ds.c 1.102 1999/12/09 20:17:29
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,10 +63,13 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.101 1999/11/16 02:03:53 (David Hinds)";
+"ds.c 1.102 1999/12/09 20:17:29 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
+
+MODULE_AUTHOR("David Hinds <dhinds@pcmcia.sourceforge.org>");
+MODULE_DESCRIPTION("PCMCIA Driver Services " CS_RELEASE);
 
 /*====================================================================*/
 

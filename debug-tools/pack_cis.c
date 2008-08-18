@@ -3,7 +3,7 @@
     A utility to convert a plain text description of a Card
     Information Structure into its packed binary representation.
 
-    pack_cis.c 1.13 1999/10/25 19:57:59
+    pack_cis.c 1.14 1999/12/07 02:17:02
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -99,9 +99,7 @@ static int pack_io(cistpl_io_t *p, u_char *b)
 {
     u_char *c = b;
     u_int i, j, ml, ma;
-    *c = 0;
-    *c |= (p->flags & CISTPL_IO_8BIT) ? 0x20 : 0;
-    *c |= (p->flags & CISTPL_IO_16BIT) ? 0x40 : 0;
+    *c = p->flags & (CISTPL_IO_8BIT|CISTPL_IO_16BIT);
     if ((p->nwin == 1) && (p->win[0].base == 0)) {
 	for (i = 1, j = 0; i < p->win[0].len; i *= 2, j++) ;
 	*c |= j; c++;
@@ -112,7 +110,7 @@ static int pack_io(cistpl_io_t *p, u_char *b)
 	}
 	ma = (ma > 0xffff) ? 3 : ((ma > 0xff) ? 2 : 1);
 	ml = (ml > 0xffff) ? 3 : ((ml > 0xff) ? 2 : 1);
-	*c |= 0x80; c++;
+	*c |= 0x80 | (p->flags & CISTPL_IO_LINES_MASK); c++;
 	*c = (p->nwin-1) | (ma<<4) | (ml<<6); c++;
 	if (ma == 3) ma++; if (ml == 3) ml++;
 	for (i = 0; i < p->nwin; i++) {

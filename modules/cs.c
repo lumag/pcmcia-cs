@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.238 1999/11/24 21:07:09
+    cs.c 1.242 1999/12/11 03:56:52
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -74,7 +74,34 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.238 1999/11/24 21:07:09 (David Hinds)";
+"cs.c 1.242 1999/12/11 03:56:52 (David Hinds)";
+#endif
+
+#ifdef CONFIG_PCI
+#define PCI_OPT " [pci]"
+#else
+#define PCI_OPT ""
+#endif
+#ifdef CONFIG_CARDBUS
+#define CB_OPT " [cardbus]"
+#else
+#define CB_OPT ""
+#endif
+#ifdef CONFIG_APM
+#define APM_OPT " [apm]"
+#else
+#define APM_OPT ""
+#endif
+#ifdef CONFIG_PNP_BIOS
+#define PNP_OPT " [pnp]"
+#else
+#define PNP_OPT ""
+#endif
+#if !defined(CONFIG_CARDBUS) && !defined(CONFIG_PCI) && \
+    !defined(CONFIG_APM) && !defined(CONFIG_PNP_BIOS)
+#define OPTIONS " none"
+#else
+#define OPTIONS PCI_OPT CB_OPT APM_OPT PNP_OPT
 #endif
 
 #ifdef __BEOS__
@@ -86,25 +113,11 @@ static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
 static const char *kernel = "kernel build: " UTS_RELEASE " " UTS_VERSION;
 #endif
 #endif
-static const char *options = "options: "
-#ifdef CONFIG_PCI
-" [pci]"
-#endif
-#ifdef CONFIG_CARDBUS
-" [cardbus]"
-#endif
-#ifdef CONFIG_APM
-" [apm]"
-#endif
-#ifdef CONFIG_PNP_BIOS
-" [pnp]"
-#else
-#if !defined(CONFIG_CARDBUS) && !defined(CONFIG_PCI) && \
-    !defined(CONFIG_APM) && !defined(CONFIG_PNP_BIOS)
-" none"
-#endif
-#endif
-;
+static const char *options = "options: " OPTIONS;
+
+MODULE_AUTHOR("David Hinds <dhinds@pcmcia.sourceforge.org>");
+MODULE_DESCRIPTION("Linux PCMCIA Card Services " CS_RELEASE
+		   "\n  options:" OPTIONS);
 
 /*====================================================================*/
 
@@ -736,8 +749,8 @@ static int alloc_io_space(socket_info_t *s, u_int attr, ioaddr_t *base,
     align = (*base) ? (1<<lines) : 1;
     if (align && (align < num)) {
 	if (*base) {
-	    printk(KERN_INFO "odd IO request: num %04x align %04x\n",
-		   num, align);
+	    printk(KERN_INFO "odd IO request: num %04x align %04x base %04x lines %d\n",
+		   num, align, *base, lines);
 	    align = 0;
 	} else
 	    while (align && (align < num)) align <<= 1;
@@ -1405,7 +1418,7 @@ static int register_client(client_handle_t *handle, client_reg_t *req)
 /*====================================================================*/
 
 static int release_configuration(client_handle_t handle,
-				 socket_t *Socket)
+				 config_req_t *req)
 {
     pccard_io_map io;
     socket_info_t *s;
@@ -1856,7 +1869,8 @@ static int request_window(client_handle_t *handle, win_req_t *req)
 {
     socket_info_t *s;
     window_t *win;
-    int w, align;
+    u_long align;
+    int w;
     
     if (CHECK_HANDLE(*handle))
 	return CS_BAD_HANDLE;
@@ -1866,16 +1880,25 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     if (req->Attributes & (WIN_PAGED | WIN_SHARED))
 	return CS_BAD_ATTRIBUTE;
 
+    /* Window size defaults to smallest available */
+    if (req->Size == 0)
+	req->Size = s->cap.map_size;
+    align = (((s->cap.features & SS_CAP_MEM_ALIGN) ||
+	      (req->Attributes & WIN_STRICT_ALIGN)) ?
+	     req->Size : s->cap.map_size);
+    if (req->Size & (s->cap.map_size-1))
+	return CS_BAD_SIZE;
+    if (req->Base & (align-1))
+	return CS_BAD_BASE;
+    if (req->Base)
+	align = 0;
+    
+    /* Allocate system memory window */
     for (w = 0; w < MAX_WIN; w++)
 	if (!(s->state & SOCKET_WIN_REQ(w))) break;
     if (w == MAX_WIN)
 	return CS_OUT_OF_RESOURCE;
 
-    /* Window size defaults to smallest available */
-    if (req->Size == 0)
-	req->Size = s->cap.map_size;
-    
-    /* Allocate system memory window */
     win = &s->win[w];
     win->magic = WINDOW_MAGIC;
     win->index = w;
@@ -1883,10 +1906,8 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->sock = s;
     win->base = req->Base;
     win->size = req->Size;
-    align = ((s->cap.features & SS_CAP_MEM_ALIGN) ||
-	     (req->Attributes & WIN_STRICT_ALIGN));
-    if (find_mem_region(&win->base, win->size,
-			(align ? req->Size : s->cap.map_size),
+	
+    if (find_mem_region(&win->base, win->size, align,
 			(req->Attributes & WIN_MAP_BELOW_1MB) ||
 			!(s->cap.features & SS_CAP_PAGE_REGS),
 			(*handle)->dev_info))

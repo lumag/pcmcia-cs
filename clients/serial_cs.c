@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.116 1999/11/17 22:00:45
+    serial_cs.c 1.117 1999/12/11 03:59:18
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -61,7 +61,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.116 1999/11/17 22:00:45 (David Hinds)";
+"serial_cs.c 1.117 1999/12/11 03:59:18 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -332,7 +332,8 @@ static int simple_config(dev_link_t *link)
 	if (cf->vpp1.present & (1<<CISTPL_POWER_VNOM))
 	    link->conf.Vpp1 = link->conf.Vpp2 =
 		cf->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	if ((cf->io.nwin > 0) && ((cf->io.win[0].base & 0xf) == 8)) {
+	if ((cf->io.nwin > 0) && (cf->io.win[0].len == 8) &&
+	    (cf->io.win[0].base != 0)) {
 	    link->conf.ConfigIndex = cf->index;
 	    link->io.BasePort1 = cf->io.win[0].base;
 	    link->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;

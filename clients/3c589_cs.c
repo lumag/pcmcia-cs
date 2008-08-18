@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    3c589_cs.c 1.140 1999/11/24 22:04:22
+    3c589_cs.c 1.141 1999/12/04 03:45:40
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -120,7 +120,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.140 1999/11/24 22:04:22 (David Hinds)";
+"3c589_cs.c 1.141 1999/12/04 03:45:40 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -895,7 +895,6 @@ static void media_check(u_long arg)
 
     if (dev->start == 0) goto reschedule;
 
-    printk(KERN_DEBUG "media_check %p\n", &media_check);
     EL3WINDOW(1);
     /* Check for pending interrupt with expired latency timer: with
        this, we can limp along even if the interrupt is blocked */

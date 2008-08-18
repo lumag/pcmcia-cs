@@ -1,3 +1,14 @@
+[10-Dec-99] Version 3.1.6
+-- Added modinfo strings to basic modules.
+-- Added filename globbing to cardmgr's "source" command.
+-- Changed i82365 module to enable speaker output on all TI bridges.
+-- Changed xirc2ps_cs driver to be silent about dropped rx packets.
+-- Relaxed an IO port allocation check in serial_cs driver.
+-- Added Toshiba ToPIC100 bridge device ID's.
+-- Fixed memory allocation bug mainly affecting ibmtr_cs driver.
+-- Fixed obscure CardBus setup problem with APA1480 cards.
+-- Fixed bug in PCI resource management code affecting ROM regions.
+
 [02-Dec-99] Version 3.1.5
 -- Minor updates to default *.opts files.
 -- Fixed CardBus setup code to initialize the address space bits in a

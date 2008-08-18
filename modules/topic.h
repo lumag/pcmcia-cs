@@ -1,5 +1,5 @@
 /*
- * topic.h 1.9 1999/10/25 20:03:34
+ * topic.h 1.10 1999/12/06 23:43:51
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -25,7 +25,7 @@
  * other provisions required by the GPL.  If you do not delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
- * topic.h $Release$ 1999/10/25 20:03:34
+ * topic.h $Release$ 1999/12/06 23:43:51
  */
 
 #ifndef _LINUX_TOPIC_H
@@ -42,6 +42,9 @@
 #endif
 #ifndef PCI_DEVICE_ID_TOSHIBA_TOPIC97
 #define PCI_DEVICE_ID_TOSHIBA_TOPIC97	0x060f
+#endif
+#ifndef PCI_DEVICE_ID_TOSHIBA_TOPIC100
+#define PCI_DEVICE_ID_TOSHIBA_TOPIC100	0x0617
 #endif
 
 /* Register definitions for Toshiba ToPIC95 controllers */

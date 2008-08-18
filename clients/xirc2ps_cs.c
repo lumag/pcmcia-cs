@@ -1466,7 +1466,7 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	    /* too many bytes received during this int, drop the rest of the
 	     * packets */
 	    lp->stats.rx_dropped++;
-	    printk(KINF_XIRC "%s: RX drop, too much done\n", dev->name);
+	    DEBUG(2, "%s: RX drop, too much done\n", dev->name);
 	    PutWord(XIRCREG0_DO, 0x8000); /* issue cmd: skip_rx_packet */
 	} else if (rsr & PktRxOk) {
 	    struct sk_buff *skb;
@@ -2131,7 +2131,7 @@ init_mii(struct net_device *dev)
     }
 
     if (local->probe_port) {
-	/* according to the DP83840A specs the auto negotation process
+	/* according to the DP83840A specs the auto negotiation process
 	 * may take up to 3.5 sec, so we use this also for our ML6692
 	 * Fixme: Better to use a timer here!
 	 */
@@ -2143,7 +2143,7 @@ init_mii(struct net_device *dev)
 	}
 
 	if (!(status & 0x0020)) {
-	    printk(KERN_INFO "%s: auto negotation failed;"
+	    printk(KERN_INFO "%s: autonegotiation failed;"
 		   " using 10mbs\n", dev->name);
 	    if (!local->new_mii) {
 		control = 0x0000;

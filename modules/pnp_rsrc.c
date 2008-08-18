@@ -274,7 +274,7 @@ static int pci_claim_resources(void)
 	    pci_read_config_dword(dev, r, &sz);
 	    pci_write_config_dword(dev, r, b);
 	    sz = (~(sz & ~1))+1;
-	    request_mem_region(dev->rom_address, sz, "pci");
+	    request_mem_region(dev->rom_address & ~1, sz, name);
 	}
 	pci_write_config_word(dev, PCI_COMMAND, cmd);
 #endif

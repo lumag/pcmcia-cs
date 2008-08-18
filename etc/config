@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.101 1999/11/24 21:22:40 (David Hinds)
+# config 1.103 1999/12/11 04:07:29 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -460,6 +460,10 @@ card "National Semiconductor InfoMover 4100 Ethernet"
 
 card "National Semiconductor InfoMover NE4100 Ethernet"
   version "National Semiconductor", "InfoMover NE4100"
+  bind "pcnet_cs"
+
+card "NEC PC-9801N-J12 Ethernet"
+  version "NEC", "PC-9801N-J12"
   bind "pcnet_cs"
 
 card "New Media Ethernet"
@@ -1334,6 +1338,10 @@ card "Freecom IQ-drive"
   version "FREECOM", "PCCARD-IDE"
   bind "ide_cs"
 
+card "Generic ATAPI CD-ROM"
+  version "PCMCIA", "CD-ROM"
+  bind "ide_cs"
+
 card "IBM Max Portable CD-ROM"
   manfid 0x00a4, 0x002d
   bind "ide_cs"
@@ -1350,8 +1358,8 @@ card "IO DATA CBIDE"
   version "WIT", "IDE16"
   bind "ide_cs"
 
-card "Generic ATAPI CD-ROM"
-  version "PCMCIA", "CD-ROM"
+card "MCD601p CD-ROM"
+  version "CDROM", "IDE", "MCD-601p"
   bind "ide_cs"
 
 card "Ninja ATA"
@@ -1509,6 +1517,10 @@ card "Xircom CardBus 10/100 Ethernet"
 card "Xircom CardBus 10/100 Ethernet + 56K Modem"
   version "Xircom", "*", "CBEM56G"
   bind "tulip_cb" to 0, "serial_cb" to 1
+
+# Include configuration files for add-on drivers
+
+source ./*.conf
 
 # Include local configuration settings
 

@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.20, 08 November 1999
+  v2.21, 07 December 1999
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -1344,6 +1344,13 @@
      CS_IN_USE
         RequestWindow was unable to find a free window of system memory.
 
+     CS_BAD_SIZE
+        ,
+
+     CS_BAD_BASE
+        Either Base or Size does not satisfy the alignment rules for
+        this socket.
+
   33..55..22..  MMooddiiffyyWWiinnddooww
 
        int CardServices(ModifyWindow, window_handle_t handle, modwin_t *mod);
@@ -1416,10 +1423,10 @@
 
   The memreq_t structure is given by:
 
-  typedef struct memreq_t {
-          u_int           CardOffset;
-          page_t          Page;
-  } memreq_t;
+       typedef struct memreq_t {
+               u_int           CardOffset;
+               page_t          Page;
+       } memreq_t;
 
   MapMemPage sets the address of card memory that is mapped to the base
   of a memory window to CardOffset.  The window should have been created
@@ -1768,13 +1775,12 @@
        int CardServices(AccessConfigurationRegister, client_handle_t handle, conf_reg_t *reg);
 
   The conf_reg_t structure is given by:
-
-  typedef struct conf_reg_t {
-          u_char          Function;
-          u_int           Action;
-          off_t           Offset;
-          u_int           Value;
-  } conf_reg_t;
+       typedef struct conf_reg_t {
+               u_char          Function;
+               u_int           Action;
+               off_t           Offset;
+               u_int           Value;
+       } conf_reg_t;
 
   For normal clients bound to a specific card function, the Function
   field is ignored.  For clients bound to BIND_FN_ALL, this field

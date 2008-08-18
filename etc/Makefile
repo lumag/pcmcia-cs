@@ -1,5 +1,5 @@
 #
-# etc/Makefile $Revision: 1.50 $ $Date: 1999/11/22 18:22:03 $ (David Hinds)
+# etc/Makefile 1.51 1999/12/11 04:24:21 (David Hinds)
 #
 
 # Include site dependent options
@@ -79,6 +79,7 @@ install-sysv: $(RC_DIRS)
 
 install-clients:
 	for f in $(CLIENTS) ; do				\
+	    [ -r $$f.conf ] && cp $$f.conf $(ETC)/$$f.conf ;	\
 	    cmp -s $$f $(ETC)/$$f && continue ;			\
 	    [ -r $(ETC)/$$f ] && mv $(ETC)/$$f $(ETC)/$$f.O ;	\
 	    cp $$f $(ETC)/$$f ;					\

@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.99 1999/11/23 20:10:34
+ * k_compat.h 1.100 1999/12/09 20:55:59
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -106,6 +106,8 @@ typedef struct wait_queue *wait_queue_head_t;
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,18))
 #define MODULE_PARM(a,b)	extern int __bogus_decl
+#define MODULE_AUTHOR(a)	extern int __bogus_decl
+#define MODULE_DESCRIPTION(a)	extern int __bogus_decl
 #undef  GET_USE_COUNT
 #define GET_USE_COUNT(m)	mod_use_count_
 #endif

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.30 1999/10/25 18:17:36 (David Hinds)
+# rc.pcmcia 1.31 1999/12/11 03:59:04 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -33,7 +33,7 @@ elif [ -f /etc/sysconfig/pcmcia ] ; then
     # Red Hat startup option file
     . /etc/sysconfig/pcmcia
 else
-    # Slackware startup options go right here
+    # Slackware startup options go right here:
     # Should be either i82365 or tcic
     PCIC=i82365
     # Put socket driver timing parameters here
@@ -78,13 +78,13 @@ for x in "1" ; do
 	echo -n "Starting PCMCIA services:"
 	if [ -d /var/state/pcmcia ] ; then
 	    SC=/var/state/pcmcia/scheme
-	    STAB=/var/state/pcmcia/stab
+	    RUN=/var/state/pcmcia
 	elif [ -d /var/lib/pcmcia ] ; then
 	    SC=/var/lib/pcmcia/scheme
-	    STAB=/var/lib/pcmcia/stab
+	    RUN=/var/lib/pcmcia
 	else
 	    SC=/var/run/pcmcia-scheme
-	    STAB=/var/run/stab
+	    RUN=/var/run
 	fi
 	if [ -L $SC -o ! -O $SC ] ; then rm -f $SC ; fi
 	if [ ! -f $SC ] ; then umask 022 ; touch $SC ; fi
@@ -110,8 +110,8 @@ for x in "1" ; do
 	    kill -0 `cat /var/run/cardmgr.pid` 2>/dev/null ; then
 	    echo " cardmgr is already running."
 	else
-	    if [ -r $STAB ] ; then
-		cat $STAB | cleanup
+	    if [ -r $RUN/stab ] ; then
+		cat $RUN/stab | cleanup
 	    fi
 	    echo " cardmgr."
 	    /sbin/cardmgr $CARDMGR_OPTS
@@ -123,14 +123,16 @@ for x in "1" ; do
 
     stop)
 	echo -n "Shutting down PCMCIA services:"
-	PID=`cat /var/run/cardmgr.pid`
-	kill $PID
-	echo -n " cardmgr"
-	# Give cardmgr a few seconds to handle the signal
-	kill -0 $PID 2>/dev/null && sleep 2 && \
-	kill -0 $PID 2>/dev/null && sleep 2 && \
-	kill -0 $PID 2>/dev/null && sleep 2 && \
-	kill -0 $PID 2>/dev/null 
+	if [ -s /var/run/cardmgr.pid ] ; then
+	    PID=`cat /var/run/cardmgr.pid`
+	    kill $PID
+	    echo -n " cardmgr"
+	    # Give cardmgr a few seconds to handle the signal
+	    kill -0 $PID 2>/dev/null && sleep 2 && \
+	    kill -0 $PID 2>/dev/null && sleep 2 && \
+	    kill -0 $PID 2>/dev/null && sleep 2 && \
+	    kill -0 $PID 2>/dev/null
+	fi
 	if fgrep -q "ds  " /proc/modules ; then
 	    echo -n " modules"
 	    /sbin/rmmod ds

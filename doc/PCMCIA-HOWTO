@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.46, 01 December 1999
+  v2.47, 11 December 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -2871,7 +2871,8 @@
        # Sample Makefile for contributed client driver
        FILES = sample_cs.mk README.sample_cs \
                modules/sample_cs.c modules/sample_cs.h \
-               etc/sample etc/sample.opts man/sample_cs.4
+               etc/sample.conf etc/sample etc/sample.opts \
+               man/sample_cs.4
        all:
                $(MAKE) -C modules MODULES=sample_cs.o
        install:
@@ -2887,11 +2888,11 @@
   probably want to add a version number to the final package filename
   (for example, sample_cs-1.5.tar.gz).  A complete distribution could
   look like:
-
        sample_cs.mk
        README.sample_cs
        modules/sample_cs.c
        modules/sample_cs.h
+       etc/sample.conf
        etc/sample
        etc/sample.opts
        man/sample_cs.4
@@ -2901,6 +2902,13 @@
   of the PCMCIA header files, as well as the machinery for checking the
   user's system configuration, and automatic dependency checking, just
   like a ``normal'' client driver.
+
+  In this example, etc/sample and etc/sample.opts would be the new
+  driver's configuration scripts (if needed), and etc/sample.conf would
+  contain any additions to the PCMCIA card configuration file.  Starting
+  with the 3.1.6 release, cardmgr will automatically process any *.conf
+  files installed in /etc/pcmcia, so installation of contributed drivers
+  should no longer require hand editing configuration files.
 
   I will accept client drivers prepared according to this specification
   and place them in the /pcmcia/contrib directory on sourceforge.org.
