@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.8 2001/02/07 00:41:40
+# Makefile 1.9 2001/03/17 00:54:50
 #
 
 # Include site dependent options and kernel configuration
@@ -25,10 +25,10 @@ wvlan_hcf.o wvlan_hcfio.o: %.o: %.c
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
 wvlan_cs.o: wvlan_cs.c wvlan_hcf.o wvlan_hcfio.o
-	$(CC) -c -MD $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	$(CC) -c -MD $(CFLAGS) $(CPPFLAGS) $<
 	@mkdir -p .depfiles ; mv $*.d .depfiles
-	$(LD) -r -o $@ .$@ wvlan_hcf.o wvlan_hcfio.o
-	rm -f .$@ ; chmod -x $@
+	$(LD) -r -o .$@ $@ wvlan_hcf.o wvlan_hcfio.o
+	mv .$@ $@ ; chmod -x $@
 
 clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d

@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.133 2001/02/07 00:41:40
+# Makefile 1.134 2001/03/17 00:54:42
 #
 
 # Include site dependent options and kernel configuration
@@ -91,10 +91,10 @@ all:	$(MODULES) $(EXTRA)
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
 ibmtr_cs.o: ibmtr_cs.c ibmtr.o
-	$(CC) -c -MD $(CFLAGS) $(CPPFLAGS) $< -o .$@
+	$(CC) -c -MD $(CFLAGS) $(CPPFLAGS) $<
 	@mkdir -p .depfiles ; mv $*.d .depfiles
-	$(LD) -r -o $@ .$@ ibmtr.o
-	rm -f .$@ ; chmod -x $@
+	$(LD) -r -o .$@ $@ ibmtr.o
+	mv .$@ $@ ; chmod -x $@
 
 ibmtr.o qlogicfas.o aha152x.o fdomain.o: %.o: %.c
 	$(CC) -MD -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<

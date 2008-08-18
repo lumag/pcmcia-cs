@@ -2,7 +2,7 @@
 
     Utility to create an FTL partition in a memory region
 
-    ftl_format.c 1.14 2000/06/12 21:33:50
+    ftl_format.c 1.15 2001/04/03 00:04:25
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <time.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>

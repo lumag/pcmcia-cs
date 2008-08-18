@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2001/03/09 01:19:25
+		Last updated: 2001/05/10 03:17:47
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -25,6 +25,7 @@ Ethernet cards:
 	3Com 3c589, 3c589B, 3c589C, 3c589D
 	3Com Megahertz 3CXE589D, 3CXE589EC, 3CCE589ET, 3CCE589EC
 	Farallon EtherWave, EtherMac
+	Hitachi HT-4840-13
 
 	[fmvj18x_cs driver] [x86,ppc]
 	Access/CARD Ethernet
@@ -35,7 +36,7 @@ Ethernet cards:
 	Fujitsu Towa LA501, FMV-1080, FM50N-183
 	Hitachi HT-4840-11 EtherCard
 	NextCom NC5310
-	RATOC REX-9822, REX-5588A/W, REX-R280
+	RATOC REX-9822, REX-5588A/W, REX-4886, REX-R280
 	TDK LAC-CD02x, LAK-CD021, LAK-CD022A, LAK-CD021AX, LAK-CD021BX
 	TDK LAC-CF010 Compact Flash
 
@@ -78,7 +79,7 @@ Ethernet cards:
 	Digital DEPCM-AA, PCP78-AC Ethernet
 	Digital EtherWORKS Turbo Ethernet
 	D-Link DE-650, DE-660, DE-660+
-	DynaLink L10C Ethernet
+	DynaLink L10C, L10BC Ethernet
 	Edimax Technology Ethernet Combo
 	EFA InfoExpress 205, 207 Combo
 	Eiger Labs EPX-ET10T2 Combo
@@ -115,7 +116,7 @@ Ethernet cards:
 	Maxtech PCN2000 Ethernet
 	Melco LPC-TJ, LPC-TS, LPC-T, LPC2-T
 	Microdyne NE4200 Ethernet
-	Micronet SP122
+	Micronet SP122, SP125
 	Midori LANNER LT-PCMT
 	NDC Instant-Link
 	NEC PC-9801N-J12
@@ -133,10 +134,10 @@ Ethernet cards:
 	Relia RE2408T Ethernet
 	Reliasys 2400A Ethernet
 	RPTI EP400, EP401, 1625B Ethernet
-	SCM Ethernet		[ Yes, SCM != SMC ]
+	SCM Ethernet
 	Sky Link Express
 	Skymaster DPP216
-	SMC 8022 EZCard-10
+	SMC 8022 EZCard-10, 8040TX
 	Socket Communications EA LAN Adapter
 	Socket Communications LP-E Ethernet
 	Socket Communications LP-E CF+ Ethernet
@@ -174,6 +175,7 @@ Fast Ethernet (10/100baseT) adapters:
 
 	[pcnet_cs driver] [x86,ppc,axp]
 	Abocom LinkMate FE1000, FE1500
+	Allied Telesis CentreCOM LA100-PCM-T V2
 	AnyCom ECO Ethernet 10/100
 	Apollo Fast Ethernet
 	Ark Sky Link Express PA2600
@@ -193,7 +195,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Laneed LD-10/100CD
 	LevelOne FPC-0100TX
 	Linksys PCMPC100 EtherFast	[ NOT the v3 cards! ]
-	Linksys PCM100H1 HomeLink 10/100
+	Linksys PCM100H1 HomeLink 10/100 [ HPNA is not supported! ]
 	Linksys NP100 Network Everywhere [ NOT the v2 ones! ]
 	Logitec LPM-LN100TX
 	Melco LPC2-TX
@@ -240,13 +242,13 @@ Fast Ethernet (10/100baseT) adapters:
 	[tulip_cb driver] [x86,ppc]
 	Accton EN2220 CardBus
 	Allied Telesyn AT-2800
-	AmbiCom AMB8100
+	AmbiCom AMB8100, CB100-EZ EzPort
 	Apollo FE2000
 	Asante FriendlyNET CardBus
 	Billionton LND-100B
 	Compex Linkport TX
 	Corega FEther CB-TXL
-	D-Link DFE-660TX
+	D-Link DFE-660TX, DFE-680TX
 	Farallon EtherTX
 	Fujitsu FMV-J184
 	Genius MF3000
@@ -342,7 +344,7 @@ Modem and serial cards:
 	Trimble Mobile GPS
 
 	[serial_cb driver] [x86]
-	Xircom RBM56G	[ note: some are WinModems! ]
+	Xircom RBM56G, CBM56G
 
 	[ The following cards are WinModems and are NOT supported ]
 	3Com/Megahertz 3CXM356/3CCM356, 3CXM656/3CCM656
@@ -358,7 +360,7 @@ Modem and serial cards:
 	Motorola Montana
 	New Media WinSurfer
 	Paradise CW56K HSP
-	Xircom CBM56G, R2BM56W
+	Xircom R2BM56W, R2BM56WB
 
 Parallel port cards:
 
@@ -439,6 +441,8 @@ IEEE 1394 (FireWire) cards:
 	[ohci1394_cb driver] [ppc]
 	[requires kernel ieee1394 patches, experimental!]
 	Cherri IEEE-1394
+	Evergreen Technologies fireLINE CardBus Kit
+	Western Digital 1394 Adapter
 
 Multifunction ethernet/modem cards:
 
@@ -503,7 +507,7 @@ Multifunction ethernet/modem cards:
 	Silicom FEM56 Fast Ethernet
 	[ Not recommended: support is experimental and unreliable ]
 	IBM EtherJet CardBus with 56K Modem
-	Xircom RBEM56G-100BTX, CBEM56G-100BTX
+	Xircom RBEM56G-100BTX, CBEM56G-100BTX, R2BEM56G-100
 
 ATA/IDE card drives:
 
@@ -521,7 +525,7 @@ ATA/IDE Interface Cards:
 	[ide_cs driver] [x86,ppc,smp]
 	Apricorn ATA card, EZ-GIG transfer kit
 	Archos Zip100 MiniDrive
-	Argosy HD530 HardDisk
+	Argosy PnPIDE card, HD530 HardDisk
 	Microtech International XpressDock
 	DataStor Technology PCMCIA ATA/ATAPI Card
 	Creo DNBoy

@@ -1114,12 +1114,12 @@ static int wvlan_hw_config (struct net_device *dev)
  			 * Jean II */
 			/* Tested CableTron 4.32 - Anton */
  			break;
+		case 0x2:
  		case 0x6:
- 			/* This is a LinkSys/D-Link card. This is not a Lucent
- 			 * card, but a PrismII card. It is is *very* similar
+ 			/* This is a PrismII card. It is is *very* similar
  			 * to the Lucent, and the driver work 95%,
  			 * therefore, we attempt to support it... */
- 			printk(KERN_NOTICE "%s: This is LinkSys/D-Link card, not a Wavelan IEEE card :-(
+ 			printk(KERN_NOTICE "%s: This is a PrismII card, not a Wavelan IEEE card :-(
 You may want report firmare revision (0x%X) and what the card support.
 I will try to make it work, but you should look for a better driver.\n", dev_info, firmware);
  			local->has_port3  = 1;
@@ -1902,7 +1902,20 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				rc = verify_area(VERIFY_WRITE, wrq->u.data.pointer, sizeof(struct iw_range));
 				if (rc)
 					break;
+				/* Set the length (very important for
+				 * backward compatibility) */
 				wrq->u.data.length = sizeof(range);
+
+				/* Set all the info we don't care or
+				 * don't know about to zero */
+				memset(&range, 0, sizeof(range));
+
+#if WIRELESS_EXT > 10
+				/* Set the Wireless Extension versions */
+				range.we_version_compiled = WIRELESS_EXT;
+				range.we_version_source = 10;
+#endif /* WIRELESS_EXT > 10 */
+
 				// Throughput is no way near 2 Mb/s !
 				// This value should be :
 				//	1.6 Mb/s for the 2 Mb/s card
@@ -2891,12 +2904,8 @@ static int wvlan_config (dev_link_t *link)
 			link->conf.Status = CCSR_AUDIO_ENA;
 		}
 	
-		// Use power settings for Vcc and Vpp if present
+		// Use power settings for Vpp if present
 		// Note that the CIS values need to be rescaled
-		if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vcc = cfg->vcc.param[CISTPL_POWER_VNOM]/10000;
-		else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vcc = dflt.vcc.param[CISTPL_POWER_VNOM]/10000;
 
 		if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
 			link->conf.Vpp1 = link->conf.Vpp2 = cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;

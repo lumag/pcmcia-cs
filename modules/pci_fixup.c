@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.25 2001/01/18 03:03:34
+    pci_fixup.c 1.26 2001/03/16 02:27:17
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -354,7 +354,7 @@ static void scan_pirq_table(void)
     struct routing_table *r;
     struct pci_dev *router, *dev;
     u8 pin, fn, *p;
-    int i;
+    int i, j;
     struct slot_entry *e;
 
     /* Scan the BIOS for the routing table signature */
@@ -367,7 +367,13 @@ static void scan_pirq_table(void)
     pirq = r = (struct routing_table *)p;
     printk(KERN_INFO "PCI routing table version %d.%d at %#06x\n",
 	   r->major, r->minor, (u32)r & 0xfffff);
-    pci_irq_mask |= r->pci_mask;
+    for (i = j = 0; i < 16; i++)
+	j += (r->pci_mask >> i) & 1;
+    if (j > 4)
+	printk(KERN_NOTICE "  bogus PCI irq mask %#04x!\n",
+	       r->pci_mask);
+    else
+	pci_irq_mask |= r->pci_mask;
 
     router_dev = router = pci_find_slot(r->bus, r->devfn);
     if (router) {

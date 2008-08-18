@@ -138,9 +138,17 @@ static const char *version = "Version 0.03, 14-Feb-2000, Magnus Damm";
 #endif
 
 #ifdef CONFIG_BD_IS_MHZ
+#ifdef CONFIG_CPU_PPC_8xx
+#define M8XX_BUSFREQ ((((bd_t *)&(__res))->bi_busfreq) * 1000000)
+#else
 #define M8XX_BUSFREQ ((mpc8xx_bdinfo->bi_busfreq) * 1000000)
+#endif
+#else
+#ifdef CONFIG_CPU_PPC_8xx
+#define M8XX_BUSFREQ ((((bd_t *)&(__res))->bi_busfreq))
 #else
 #define M8XX_BUSFREQ (mpc8xx_bdinfo->bi_busfreq)
+#endif
 #endif
 
 static int pcmcia_schlvl = PCMCIA_SCHLVL;
@@ -229,7 +237,7 @@ static socket_info_t socket[PCMCIA_SOCKETS_NO];
 static socket_cap_t capabilities = {
     /* only 16-bit cards, memory windows must be size-aligned */
     SS_CAP_PCCARD | SS_CAP_MEM_ALIGN | SS_CAP_STATIC_MAP,
-    0x200,		/* SIU_LEVEL 7 -> 0          */
+    0x000,		/* SIU_LEVEL 7 -> 0          */
     0x1000,		/* 4K minimum window size    */
     9, 0		/* No PCI or CardBus support */
 };

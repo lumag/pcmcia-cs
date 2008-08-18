@@ -13,11 +13,13 @@ xirc2ps_cs \- Xircom CE2ps (and newer) device driver
 .IR n ]
 .RB [ irq_list=\c
 .IR i,j,... ]
+.RB [ if_port=\c
+.IR n ]
 .RB [ lockup_hack=\c
 .IR n ]
 
 .SH DESCRIPTION
-/fBxirc2ps_cs/fR is the low-level Card Services driver for the Xircom
+\fBxirc2ps_cs\fR is the low-level Card Services driver for the Xircom
 16-bit PCMCIA ethernet adapters.  When this driver is attached to a
 card, it allocates the next available ethernet device.
 
@@ -27,6 +29,11 @@ card, it allocates the next available ethernet device.
 Selects the PCMCIA debugging level.  This parameter is only available
 if the module is compiled with debugging enabled.  A non-zero value
 enables debugging.
+.TP
+.BI if_port= n
+Selects the transceiver type, for some CE3B-100 cards that lack the
+ability to autonegotiate.  For such cards, a value of 1 selects
+10baseT, and 4 selects 100baseT.
 .TP
 .BI full_duplex= n
 Selects full duplex mode.  The default is 0 (half duplex).

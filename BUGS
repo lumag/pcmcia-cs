@@ -1,4 +1,4 @@
-Known problems and limitations for the 3.1.25 PCMCIA release
+Known problems and limitations for the 3.1.26 PCMCIA release
 ============================================================
 
 Bug summaries:
@@ -75,8 +75,8 @@ o All of the SCSI drivers, and most of the CardBus drivers, do not
   to be fixed since we're more dependent on kernel code.
 
 o The Iomega Clik! drive is incompatible with the kernel ide-floppy
-  driver.  A kernel patch for 2.2.14 and later 2.2 kernels is
-  available at http://paulbristow.net/linux/clik.html.
+  driver.  Kernel updates for 2.2 and 2.4 kernels are available at
+  http://paulbristow.net/linux/clik.html.
 
 o The token ring driver tweaks a problem in the memory management
   code.  To work around the problem, remove all high memory windows

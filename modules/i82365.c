@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.333 2001/02/27 14:55:32
+    i82365.c 1.334 2001/04/19 02:27:45
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -82,7 +82,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.333 2001/02/27 14:55:32 (David Hinds)";
+"i82365.c 1.334 2001/04/19 02:27:45 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -2311,13 +2311,11 @@ static int cb_set_bridge(socket_info_t *s, struct cb_bridge_map *m)
 	    return -EINVAL;
 	map += 2;
     } else {
-	u_short bcr;
 	if ((m->start & 0x0fff) || ((m->stop & 0x0fff) != 0x0fff))
 	    return -EINVAL;
-	pci_readw(s, CB_BRIDGE_CONTROL, &bcr);
-	bcr &= ~CB_BCR_PREFETCH(map);
-	bcr |= (m->flags & MAP_PREFETCH) ? CB_BCR_PREFETCH(map) : 0;
-	pci_writew(s, CB_BRIDGE_CONTROL, bcr);
+	s->bcr &= ~CB_BCR_PREFETCH(map);
+	s->bcr |= (m->flags & MAP_PREFETCH) ? CB_BCR_PREFETCH(map) : 0;
+	pci_writew(s, CB_BRIDGE_CONTROL, s->bcr);
     }
     if (m->flags & MAP_ACTIVE) {
 	pci_writel(s, CB_MEM_BASE(map), m->start);

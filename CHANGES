@@ -1,3 +1,20 @@
+[12-May-01] Version 3.1.26
+-- Added support for TI 4410, 4410A, and 1451A bridges.
+-- Changed cardmgr, cardinfo, cardctl not to use tempnam().
+-- Tweaked wvlan_cs to also identify "vendor 2" cards as PrismII.
+-- Wireless extension updates from Jean Tourrilhes.
+-- Updated airo_cs driver to version 1.8: big-endian and 2.4.x fixes.
+-- Added check for interrupt routing tables with bogus PCI irq masks.
+-- Fixed a bug in Configure check for 2.4.x in-kernel PCMCIA.
+-- Fixed CardBus memory window prefetch configuration bug.
+-- Fixed epic_cb eject bug, and serial_cb probe timing problem with
+   SMC 83c175 based CardBus ethernet/modem cards, from Robert Fries.
+-- Fixed m8xx socket driver for 2.4 kernels, from Matthew Locke.
+-- Fixed Configure script to detect and handle kernel debugging flags.
+-- Fixed several Makefiles for gcc 3.0, from H.J. Lu.
+-- Fixed install test for Debian systems.
+-- Fixed fmvj18x_cs driver to work with RATOC cards, from Komuro.
+
 [08-Mar-01] Version 3.1.25
 -- Fixed a few kernel compatibility glitches.
 -- Fixed a bug in /proc/bus/pnp/devices.

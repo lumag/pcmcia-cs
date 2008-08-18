@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.156 2001/03/04 21:36:40
+    cardmgr.c 1.158 2001/05/12 22:45:59
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -161,12 +161,14 @@ int open_dev(dev_t dev, int mode)
     static char *paths[] = {
 	"/var/lib/pcmcia", "/var/run", "/dev", "/tmp", NULL
     };
-    char **p, *fn;
+    char **p, fn[64];
     int fd;
 
-    for (p = paths; *p; p++)
-	if ((fn = tempnam(*p, "cm")) && (mknod(fn, mode, dev) == 0))
+    for (p = paths; *p; p++) {
+	sprintf(fn, "%s/cm-%d", *p, getpid());
+	if (mknod(fn, mode, dev) == 0)
 	    break;
+    }
     if (!*p)
 	return -1;
     fd = open(fn, (mode&S_IWRITE)?O_RDWR:O_RDONLY);
@@ -936,7 +938,7 @@ static void bind_mtd(int sn)
 		    mtd->refs++;
 		    nr++;
 		}
-		syslog(LOG_INFO, "  %s memory region at 0x%lx: %s",
+		syslog(LOG_INFO, "  %s memory region at 0x%x: %s",
 		       attr ? "Attribute" : "Common", region.CardOffset,
 		       mtd->name);
 		/* Bind MTD to this region */
@@ -945,7 +947,7 @@ static void bind_mtd(int sn)
 		mtd_info.CardOffset = region.CardOffset;
 		if (ioctl(s->fd, DS_BIND_MTD, &mtd_info) != 0) {
 		    syslog(LOG_INFO,
-			   "bind MTD '%s' to region at 0x%lx failed: %m",
+			   "bind MTD '%s' to region at 0x%x failed: %m",
 			   (char *)mtd_info.dev_info, region.CardOffset);
 		}
 	    }

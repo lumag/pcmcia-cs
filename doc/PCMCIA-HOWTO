@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.87, 04 March 2001
+  v2.90, 10 May 2001
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -209,7 +209,8 @@
 
   +o  Texas Instruments PCI1031, PCI1130, PCI1131, PCI1210, PCI1211,
      PCI1220, PCI1221, PCI1225, PCI1250A, PCI1251A, PCI1251B, PCI1410,
-     PCI1420, PCI1450, PCI4450, PCI4451
+     PCI1410A, PCI1420, PCI1450, PCI1451A, PCI4410, PCI4410A, PCI4450,
+     PCI4451
 
   +o  Toshiba ToPIC95, ToPIC97, ToPIC100 (experimental, incomplete)
 
@@ -328,6 +329,7 @@
   cardmgr daemon will generally be swapped out except when cards are
   inserted or removed.  The total package size is comparable to
   DOS/Windows Card Services implementations.
+
   Compared to DOS ``point enablers'', this may still seem like a lot of
   overhead, especially for people that don't plan on using many of the
   features of PCMCIA, such as power management or hot swapping.  Point
@@ -393,6 +395,7 @@
   configuration options (like SLIP compression) for a loadable module,
   so it is probably better to just link SLIP into the kernel if you need
   it.
+
   In order to use a PCMCIA token ring adapter, your kernel should be
   configured with ``Token Ring driver support'' (CONFIG_TR) enabled,
   though you should leave CONFIG_IBMTR off.
@@ -616,6 +619,8 @@
   +o  On the ARM Pentium-90 or Midwest Micro Soundbook Plus, use
      ``freq_bypass=1 cmd_time=8''.
 
+  +o  On a Compaq Presario 1220, try ``setup_time=1''.
+
   +o  On a Midwest Micro Soundbook Elite, use ``cmd_time=12''.
 
   +o  On a Gateway Liberty, try ``cmd_time=16''.
@@ -753,10 +758,12 @@
   22..55..11..  DDeebbiiaann
 
   Debian uses a System V boot script arrangement.  The PCMCIA startup
-  script is installed as /etc/init.d/pcmcia, and startup options are
-  specified in /etc/pcmcia.conf.  Debian's syslog configuration will
+  script is installed as /etc/init.d/pcmcia.  New packages use
+  /etc/default/pcmcia for startup options; older versions used
+  /etc/pcmcia.conf for this purpose.  Debian's syslog configuration will
   place kernel messages in /var/log/messages and cardmgr messages in
   /var/log/daemon.log.
+
   Debian distributes the PCMCIA system in two packages: the ``pcmcia-
   cs'' package contains cardmgr and other tools, man pages, and
   configuration scripts; and the ``pcmcia-modules'' package contains the
@@ -1001,6 +1008,7 @@
 
   +o  The system log shows a successful host controller probe just before
      the lock-up, but does not show interrupt probe results.
+
   After identifying the host controller type, the socket driver probes
   for free interrupts.  The probe involves programming the controller
   for each apparently free interrupt, then generating a ``soft''
@@ -1239,6 +1247,7 @@
   be mapped anywhere in the host's PCI address space (rather than just
   in the 640K-1MB ``hole'' in PC systems), it is helpful to specify
   large memory windows in high memory, such as 0xa0000000-0xa0ffffff.
+
   33..99..  RReessoouurrccee ccoonnfflliicctt oonnllyy wwiitthh ttwwoo ccaarrddss iinnsseerrtteedd
 
   Symptoms:
@@ -1291,10 +1300,10 @@
   If the modules are all loaded correctly, the output of the lsmod
   command should look like the following, when no cards are inserted:
 
-  Module                  Size  Used by
-  ds                      5640   2
-  i82365                 15452   2
-  pcmcia_core            30012   3  [ds i82365]
+       Module                  Size  Used by
+       ds                      5640   2
+       i82365                 15452   2
+       pcmcia_core            30012   3  [ds i82365]
 
   The system log should also include output from the socket driver
   describing the host controller(s) found and the number of sockets
@@ -1636,10 +1645,10 @@
   ifport command can be used to check or set the current transceiver
   type.  For example:
 
-  # ifport eth0 10base2
-  #
-  # ifport eth0
-  eth0    2 (10base2)
+       # ifport eth0 10base2
+       #
+       # ifport eth0
+       eth0    2 (10base2)
 
   The current (3.0.10 or later) 3c589 driver should quickly autodetect
   transceiver changes at any time.  Earlier releases of the 3c589 driver
@@ -1811,8 +1820,8 @@
   driver as a module, you must edit /etc/pcmcia/config to indicate that
   this module must be loaded.  Edit the serial device entry to read:
 
-  device "serial_cs"
-    class "serial" module "misc/serial", "serial_cs"
+       device "serial_cs"
+         class "serial" module "misc/serial", "serial_cs"
 
   44..44..11..  SSeerriiaall ddeevviiccee ppaarraammeetteerrss
 
@@ -1862,6 +1871,7 @@
      to your /etc/pcmcia/config file so that it will be identified
      properly.  See the ``Configuring unrecognized cards'' section for
      details.
+
   +o  Is the modem configured successfully by serial_cs?  Again, check
      the system log and look for messages from the serial_cs driver.  If
      you see ``register_serial() failed'', you may have an I/O port
@@ -1920,16 +1930,16 @@
   one such card, you may want to specify different settings based on
   socket position, as in:
 
-  case "$ADDRESS" in
-  *,0,*)
-      # Options for card in socket 0
-      LINK=/dev/printer0
-      ;;
-  *,1,*)
-      # Options for card in socket 1
-      LINK=/dev/printer1
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,0,*)
+           # Options for card in socket 0
+           LINK=/dev/printer0
+           ;;
+       *,1,*)
+           # Options for card in socket 1
+           LINK=/dev/printer1
+           ;;
+       esac
 
   If you configure your kernel to load the basic Linux parallel port
   driver as a module, you must edit /etc/pcmcia/config to indicate that
@@ -2030,8 +2040,8 @@
   to tell cardmgr which extra modules need to be loaded when your
   adapter is configured.  For example:
 
-  device "aha152x_cs"
-    class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
+       device "aha152x_cs"
+         class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
 
   would say to load the core SCSI module and the top-level disk driver
   module before loading the regular PCMCIA driver module.  The PCMCIA

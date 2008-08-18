@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.59 2001/02/14 03:25:48
+    cardctl.c 1.60 2001/05/12 22:45:59
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -104,13 +104,14 @@ static int open_sock(int sock)
 	"/var/lib/pcmcia", "/var/run", "/dev", "/tmp", NULL
     };
     int fd;
-    char **p, *fn;
+    char **p, fn[64];
     dev_t dev = (major<<8) + sock;
 
-    for (p = paths; *p; p++)
-	if ((fn = tempnam(*p, "cc")) &&
-	    (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) == 0))
+    for (p = paths; *p; p++) {
+	sprintf(fn, "%s/cc-%d", *p, getpid());
+	if (mknod(fn, (S_IFCHR|S_IREAD|S_IWRITE), dev) == 0)
 	    break;
+    }
     if (!*p)
 	return -1;
     fd = open(fn, O_RDONLY);

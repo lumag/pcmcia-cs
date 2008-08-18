@@ -2,7 +2,7 @@
 
     X Windows PCMCIA device control program
 
-    cardinfo.c 1.33 2001/02/14 03:25:48
+    cardinfo.c 1.35 2001/05/12 22:45:59
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -40,6 +40,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
+#include <time.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -139,13 +140,14 @@ static int open_dev(dev_t dev)
     static char *paths[] = {
 	"/var/lib/pcmcia", "/var/run", "/dev", "/tmp", NULL
     };
-    char **p, *fn;
+    char **p, fn[64];
     int fd;
 
-    for (p = paths; *p; p++)
-	if ((fn = tempnam(*p, "ci")) &&
-	    (mknod(fn, (S_IFCHR|S_IREAD), dev) == 0))
+    for (p = paths; *p; p++) {
+	sprintf(fn, "%s/ci-%d", *p, getpid());
+	if (mknod(fn, (S_IFCHR|S_IREAD), dev) == 0)
 	    break;
+    }
     if (!*p)
 	return -1;
     if ((fd = open(fn, O_RDONLY)) < 0) {

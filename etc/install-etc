@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# etc/install-etc 1.16 2001/02/28 03:39:42 (David Hinds)
+# etc/install-etc 1.17 2001/03/16 14:10:24 (David Hinds)
 #
 # This handles updating the PCMCIA startup and device configuration
 # scripts.  I used to do this in the Makefile, but it is really much
@@ -40,7 +40,7 @@ install_clients ()
 	cat network.rh >> $ETC/network.opts
     fi
     # Tweak network.opts for Debian
-    if [ -f /etc/debian-release ] && \
+    if [ -f /etc/debian_version ] && \
 	cmp -s network.opts $ETC/network.opts ; then
 	echo "->   Configuring /etc/pcmcia/network.opts for Debian"
 	cat network.deb >> $ETC/network.opts

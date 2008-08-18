@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.27 2001/01/18 00:56:52
+ * ti113x.h 1.28 2001/05/10 03:01:59
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -43,8 +43,11 @@
 #ifndef PCI_DEVICE_ID_TI_1131
 #define PCI_DEVICE_ID_TI_1131		0xac15
 #endif
-#ifndef PCI_DEVICE_ID_TI_1250A
-#define PCI_DEVICE_ID_TI_1250A		0xac16
+#ifndef PCI_DEVICE_ID_TI_1210
+#define PCI_DEVICE_ID_TI_1210		0xac1a
+#endif
+#ifndef PCI_DEVICE_ID_TI_1211
+#define PCI_DEVICE_ID_TI_1211		0xac1e
 #endif
 #ifndef PCI_DEVICE_ID_TI_1220
 #define PCI_DEVICE_ID_TI_1220		0xac17
@@ -52,20 +55,14 @@
 #ifndef PCI_DEVICE_ID_TI_1221
 #define PCI_DEVICE_ID_TI_1221		0xac19
 #endif
-#ifndef PCI_DEVICE_ID_TI_1210
-#define PCI_DEVICE_ID_TI_1210		0xac1a
-#endif
-#ifndef PCI_DEVICE_ID_TI_1450
-#define PCI_DEVICE_ID_TI_1450		0xac1b
+#ifndef PCI_DEVICE_ID_TI_1250A
+#define PCI_DEVICE_ID_TI_1250A		0xac16
 #endif
 #ifndef PCI_DEVICE_ID_TI_1225
 #define PCI_DEVICE_ID_TI_1225		0xac1c
 #endif
 #ifndef PCI_DEVICE_ID_TI_1251A
 #define PCI_DEVICE_ID_TI_1251A		0xac1d
-#endif
-#ifndef PCI_DEVICE_ID_TI_1211
-#define PCI_DEVICE_ID_TI_1211		0xac1e
 #endif
 #ifndef PCI_DEVICE_ID_TI_1251B
 #define PCI_DEVICE_ID_TI_1251B		0xac1f
@@ -75,6 +72,15 @@
 #endif
 #ifndef PCI_DEVICE_ID_TI_1420
 #define PCI_DEVICE_ID_TI_1420		0xac51
+#endif
+#ifndef PCI_DEVICE_ID_TI_1450
+#define PCI_DEVICE_ID_TI_1450		0xac1b
+#endif
+#ifndef PCI_DEVICE_ID_TI_1451
+#define PCI_DEVICE_ID_TI_1451		0xac52
+#endif
+#ifndef PCI_DEVICE_ID_TI_4410
+#define PCI_DEVICE_ID_TI_4410		0xac41
 #endif
 #ifndef PCI_DEVICE_ID_TI_4450
 #define PCI_DEVICE_ID_TI_4450		0xac40
@@ -203,18 +209,20 @@ typedef struct ti113x_state_t {
 #define TI_PCIC_INFO \
     { "TI 1130",  IS_TI|IS_CARDBUS, ID(TI, 1130) }, \
     { "TI 1131",  IS_TI|IS_CARDBUS, ID(TI, 1131) }, \
-    { "TI 1250A", IS_TI|IS_CARDBUS, ID(TI, 1250A) }, \
+    { "TI 1031",  IS_TI|IS_CARDBUS, ID(TI, 1031) }, \
+    { "TI 1210",  IS_TI|IS_CARDBUS, ID(TI, 1210) }, \
+    { "TI 1211",  IS_TI|IS_CARDBUS, ID(TI, 1211) }, \
     { "TI 1220",  IS_TI|IS_CARDBUS, ID(TI, 1220) }, \
     { "TI 1221",  IS_TI|IS_CARDBUS, ID(TI, 1221) }, \
-    { "TI 1210",  IS_TI|IS_CARDBUS, ID(TI, 1210) }, \
+    { "TI 1225",  IS_TI|IS_CARDBUS, ID(TI, 1225) }, \
+    { "TI 1250A", IS_TI|IS_CARDBUS, ID(TI, 1250A) }, \
     { "TI 1251A", IS_TI|IS_CARDBUS, ID(TI, 1251A) }, \
     { "TI 1251B", IS_TI|IS_CARDBUS, ID(TI, 1251B) }, \
-    { "TI 1450",  IS_TI|IS_CARDBUS, ID(TI, 1450) }, \
-    { "TI 1225",  IS_TI|IS_CARDBUS, ID(TI, 1225) }, \
-    { "TI 1211",  IS_TI|IS_CARDBUS, ID(TI, 1211) }, \
-    { "TI 1420",  IS_TI|IS_CARDBUS, ID(TI, 1420) }, \
-    { "TI 1031",  IS_TI|IS_CARDBUS, ID(TI, 1031) }, \
     { "TI 1410",  IS_TI|IS_CARDBUS, ID(TI, 1410) }, \
+    { "TI 1420",  IS_TI|IS_CARDBUS, ID(TI, 1420) }, \
+    { "TI 1450",  IS_TI|IS_CARDBUS, ID(TI, 1450) }, \
+    { "TI 1451",  IS_TI|IS_CARDBUS, ID(TI, 1451) }, \
+    { "TI 4410",  IS_TI|IS_CARDBUS, ID(TI, 4410) }, \
     { "TI 4450",  IS_TI|IS_CARDBUS, ID(TI, 4450) }, \
     { "TI 4451",  IS_TI|IS_CARDBUS, ID(TI, 4451) }
 

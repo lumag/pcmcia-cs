@@ -317,7 +317,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.23 2001/02/28 03:41:13 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.24 2001/04/05 02:40:06 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -1527,9 +1527,15 @@ static int ray_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	  struct iw_range	range;
 	  memset((char *) &range, 0, sizeof(struct iw_range));
 
-	  /* Set the length (useless : its constant...) */
+	  /* Set the length (very important for backward compatibility) */
 	  wrq->u.data.length = sizeof(struct iw_range);
 
+#if WIRELESS_EXT > 10
+	   /* Set the Wireless Extension versions */
+	   range.we_version_compiled = WIRELESS_EXT;
+	   range.we_version_source = 9;
+#endif /* WIRELESS_EXT > 10 */
+		   
 	  /* Set information in the range struct */
 	  range.throughput = 1.1 * 1000 * 1000;	/* Put the right number here */
 	  range.num_channels = hop_pattern_length[(int)country]; 

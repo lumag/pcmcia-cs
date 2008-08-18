@@ -1185,6 +1185,8 @@ static int epic_close(struct net_device *dev)
 
 	epic_pause(dev);
 	del_timer(&ep->timer);
+	/* Disable interrupts by clearing the interrupt mask. */
+	outl(0, ioaddr + INTMASK);
 	free_irq(dev->irq, dev);
 
 	/* Free all the skbuffs in the Rx queue. */

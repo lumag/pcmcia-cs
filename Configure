@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.182 2001/02/27 14:47:45
+# Configure 1.184 2001/05/12 04:47:59
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -354,7 +354,7 @@ symcheck () {
     eval "$1=n"
     if $KSYMS | grep "$2" >/dev/null ; then eval "$1=y" ; fi
     if [ "$3" ] ; then
-	insmod $3 > /dev/null 2>&1
+	/sbin/insmod $3 > /dev/null 2>&1
 	if $KSYMS | grep "$2" > /dev/null ; then
 	    eval "$1=y"
 	fi
@@ -413,6 +413,10 @@ printconfig () {
     printflag " Fast switching" CONFIG_NET_FASTROUTE
     printflag " Frame Diverter" CONFIG_NET_DIVERT
     printflag "Module version checking" CONFIG_MODVERSIONS
+    printflag "Kernel debugging support" CONFIG_KERNEL_DEBUGGING
+    if [ $CONFIG_KERNEL_DEBUGGING = "y" ] ; then
+	printflag " Memory leak detection support" CONFIG_MEMLEAK
+    fi
     if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
     fi
@@ -486,7 +490,7 @@ case $CONF_SRC in
 		CONFIG_PCMCIA=y
 	    fi
 	else
-	    symcheck CONFIG_PCMCIA CardServices pcmcia_core
+	    symcheck CONFIG_PCMCIA dead_socket pcmcia_core
 	fi
 	symcheck CONFIG_SMP smp_invalidate_needed
 	symcheck CONFIG_PCI pcibios
@@ -520,6 +524,13 @@ case $CONF_SRC in
 	    symcheck CONFIG_3GB ^401
 	fi
 	symcheck CONFIG_PROC_FS proc_root
+	symcheck CONFIG_KDB kdb_
+	symcheck CONFIG_DEBUG_MCOUNT mcount
+	symcheck CONFIG_MEMLEAK kmalloc_wrap
+	if [ $CONFIG_KDB = "y" -o $CONFIG_DEBUG_MCOUNT = "y" -o \
+	     $CONFIG_MEMLEAK = "y" ] ; then
+	    CONFIG_KERNEL_DEBUGGING=y
+	fi
 	echo "#ifndef __LINUX_MODVERSIONS_H" > $MODVER
 	echo "#define __LINUX_MODVERSIONS_H" >> $MODVER
 	H='[0-9a-f][0-9a-f]'
@@ -564,8 +575,9 @@ case $CONF_SRC in
 	for C in CONFIG_PCI CONFIG_SCSI CONFIG_SERIAL CONFIG_INET \
 	    CONFIG_NET_FASTROUTE CONFIG_NET_RADIO CONFIG_NET_DIVERT \
 	    CONFIG_TR CONFIG_MODVERSIONS CONFIG_PROC_FS CONFIG_PARPORT \
-	    CONFIG_PARPORT_PC CONFIG_PARPORT_PC_PCMCIA \
-	    CONFIG_NET_PCMCIA_RADIO CONFIG_IEEE1394 ; do
+	    CONFIG_PARPORT_PC CONFIG_PARPORT_PC_PCMCIA CONFIG_IEEE1394 \
+	    CONFIG_NET_PCMCIA_RADIO CONFIG_KERNEL_DEBUGGING \
+	    CONFIG_MEMLEAK ; do
 	    configcheck $C
 	done
 	if grep "^CONFIG_PARPORT_PC=y" $AUTOCONF >/dev/null ; then

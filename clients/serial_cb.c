@@ -2,7 +2,7 @@
 
     A driver for CardBus serial devices
 
-    serial_cb.c 1.21 2000/11/28 21:35:47
+    serial_cb.c 1.22 2001/04/18 01:11:54
 
     Copyright 1998, 1999 by Donald Becker and David Hinds
     
@@ -32,6 +32,7 @@
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/major.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <asm/io.h>
 
@@ -42,7 +43,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cb.c 1.21 2000/11/28 21:35:47 (David Hinds)";
+"serial_cb.c 1.22 2001/04/18 01:11:54 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -64,6 +65,7 @@ static void device_setup(struct pci_dev *pdev, u_int ioaddr)
 	/* Ositech, Psion 83c175-based cards */
 	DEBUG(0, "  83c175 NVCTL_m = 0x%4.4x.\n", inl(ioaddr+0x80));
 	outl(0x4C00, ioaddr + 0x80);
+	mdelay(10);
 	outl(0x4C80, ioaddr + 0x80);
     }
     DEBUG(0, "  modem registers are %2.2x %2.2x %2.2x "

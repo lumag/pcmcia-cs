@@ -1,5 +1,5 @@
 /*======================================================================
-    fmvj18x_cs.c 2.2 2001/01/07
+    fmvj18x_cs.c 2.4 2001/03/10
 
     A fmvj18x (and its compatibles) PCMCIA client driver
 
@@ -90,7 +90,7 @@ MODULE_PARM(sram_config, "i");
    driver version infomation 
  */
 #ifdef PCMCIA_DEBUG
-static char *version = "fmvj18x_cs.c 2.2 2001/01/07";
+static char *version = "fmvj18x_cs.c 2.4 2001/03/10";
 #endif
 
 /*====================================================================*/
@@ -458,7 +458,9 @@ static void fmvj18x_config(dev_link_t *link)
 	    break;
 	case MANFID_FUJITSU:
 	    if (le16_to_cpu(buf[1]) == PRODID_FUJITSU_MBH10302)
-		cardtype = MBH10302;
+                /* RATOC REX-5588/9822/4886's PRODID are 0004(=MBH10302),
+                   but these are MBH10304 based card. */ 
+		cardtype = MBH10304;
 	    else if (le16_to_cpu(buf[1]) == PRODID_FUJITSU_MBH10304)
 		cardtype = MBH10304;
 	    else
@@ -480,7 +482,7 @@ static void fmvj18x_config(dev_link_t *link)
 		cardtype = XXX10304;    /* MBH10304 with buggy CIS */
 	        link->conf.ConfigIndex = 0x20;
 	    } else {
-		cardtype = MBH10302;
+		cardtype = MBH10302;    /* NextCom NC5310, etc. */
 		link->conf.ConfigIndex = 1;
 	    }
 	    break;

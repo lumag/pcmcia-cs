@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.159 2001/03/09 01:19:20 (David Hinds)
+# config 1.167 2001/05/10 03:17:35 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -110,7 +110,7 @@ device "pcilynx_cb"
   
 device "ohci1394_cb"
   class "ieee1394" module "cb_enabler", "ohci1394_cb"
-  
+
 #
 # Ethernet adapter definitions
 #
@@ -285,6 +285,10 @@ card "D-Link DE-650 Ethernet"
 
 card "DynaLink L10C Ethernet"
   version "DYNALINK", "L10C"
+  bind "pcnet_cs"
+
+card "DynaLink L10BC Ethernet"
+  version "DYNALINK", "L10BC"
   bind "pcnet_cs"
 
 card "E2000 NE2000-Compatible Ethernet"
@@ -697,6 +701,11 @@ card "Accton Fast EtherCard-16"
   manfid 0x01bf, 0x010a
   bind "xirc2ps_cs"
 
+card "Allied Telesis CentreCOM LA100-PCM-T V2"
+  version "Allied Telesis, K.K.",
+    "CentreCOM LA100-PCM-T V2 100/10M LAN PC Card"
+  bind "pcnet_cs"
+
 card "AmbiCom AMB8110 Fast Ethernet"
   manfid 0x021b, 0x0202
   bind "pcnet_cs"
@@ -856,6 +865,10 @@ card "Xircom XE2000 10/100 Fast Ethernet"
 #
 # Wireless network adapters
 #
+card "350 Series Wireless LAN Adapter"
+  manfid 0x015f, 0x000a
+  bind "airo_cs"
+
 card "Aironet PC4500"
   manfid 0x015f, 0x0005
   bind "airo_cs"
@@ -1290,12 +1303,16 @@ card "Toshiba SCSC200B SCSI"
 #
 # IEEE1394/FireWire cards
 #
+card "Cherri IEEE-1394"
+  pci 0x104c, 0x8019
+  bind "ohci1394_cb"
+
 card "Newer Technology FireWire 2 Go"
   pci 0x104c, 0x8000
   bind "pcilynx_cb"
 
-card "Cherri IEEE-1394"
-  pci 0x104c, 0x8019
+card "Western Digital 1394 Adapter"
+  pci 0x1033, 0x00cd
   bind "ohci1394_cb"
 
 #
@@ -1526,7 +1543,7 @@ card "Argosy EIDE CD-ROM"
   version "ARGOSY", "CD-ROM"
   bind "ide_cs"
 
-card "Argosy HD530 HardDisk"
+card "Argosy PnPIDE"
   version "ARGOSY", "PnPIDE"
   bind "ide_cs"
 
@@ -1548,6 +1565,10 @@ card "Digital Mobile Media CD-ROM"
 
 card "EXP CD940 CD-ROM"
   version "EXP   ", "CD-ROM"
+  bind "ide_cs"
+
+card "EXP PnPIDE"
+  version "EXP   ", "PnPIDE"
   bind "ide_cs"
 
 card "EXP Traveler 620 CD-ROM"
@@ -1594,7 +1615,7 @@ card "Ninja ATA"
   version " ", "NinjaATA-"
   bind "ide_cs"
 
-card "Novac DVD Powerstation"
+card "PCMCIA PnPIDE"
   version "PCMCIA", "PnPIDE"
   bind "ide_cs"
 
@@ -1686,6 +1707,10 @@ card "Ambicom AMB8100 Fast Ethernet"
   manfid 0x9513, 0x0081
   bind "tulip_cb"
 
+card "AmbiCom CB100-EZ EzPort Fast Ethernet"
+  manfid 0x022d, 0x2103
+  bind "tulip_cb"
+
 card "Asante FriendlyNET 10/100 CardBus"
   version "Asante", "FriendlyNET 10/100 CardBus"
   bind "tulip_cb"
@@ -1720,7 +1745,7 @@ card "IBM 10/100 EtherJet CardBus"
 
 card "IBM 10/100 EtherJet 56K CardBus"
   manfid 0x00a4, 0x0103
-  bind "tulip_cb", "serial_cb"
+  bind "tulip_cb" to 0, "serial_cb" to 1
 
 card "Intel EtherExpress PRO/100 CardBus"
   manfid 0x0089, 0x0102
@@ -1840,6 +1865,10 @@ card "Xircom R2BE-100BTX CardBus 10/100 Ethernet"
 
 card "Xircom CBEM56G-100 CardBus 10/100 Ethernet + 56K Modem"
   version "Xircom", "*", "CBEM56G"
+  bind "tulip_cb" to 0, "serial_cb" to 1
+
+card "Xircom R2BEM56G-100 CardBus 10/100 Ethernet + 56K Modem"
+  version "Xircom", "*", "R2BEM56G"
   bind "tulip_cb" to 0, "serial_cb" to 1
 
 card "Xircom RBM56G Modem"
