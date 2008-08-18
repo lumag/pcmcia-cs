@@ -2,7 +2,7 @@
 
     A driver for Future Domain-compatible PCMCIA SCSI cards
 
-    fdomain_cs.c 1.40 1999/10/25 20:03:16
+    fdomain_cs.c 1.41 1999/11/15 06:05:48
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -62,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"fdomain_cs.c 1.40 1999/10/25 20:03:16 (David Hinds)";
+"fdomain_cs.c 1.41 1999/11/15 06:05:48 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -81,8 +81,9 @@ MODULE_PARM(irq_list, "1-4i");
 /*====================================================================*/
 
 typedef struct scsi_info_t {
-    int		ndev;
-    dev_node_t	node[8];
+    dev_link_t		link;
+    int			ndev;
+    dev_node_t		node[8];
 } scsi_info_t;
 
 extern void fdomain_setup(char *str, int *ints);
@@ -112,6 +113,7 @@ static void cs_error(client_handle_t handle, int func, int ret)
 
 static dev_link_t *fdomain_attach(void)
 {
+    scsi_info_t *info;
     client_reg_t client_reg;
     dev_link_t *link;
     int i, ret;
@@ -119,10 +121,10 @@ static dev_link_t *fdomain_attach(void)
     DEBUG(0, "fdomain_attach()\n");
 
     /* Create new SCSI device */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    memset(link, 0, sizeof(struct dev_link_t));
-    link->priv = kmalloc(sizeof(struct scsi_info_t), GFP_KERNEL);
-    memset(link->priv, 0, sizeof(struct scsi_info_t));
+    info = kmalloc(sizeof(*info), GFP_KERNEL);
+    if (!info) return NULL;
+    memset(info, 0, sizeof(*info));
+    link = &info->link; link->priv = info;
     link->release.function = &fdomain_release;
     link->release.data = (u_long)link;
 
@@ -190,9 +192,7 @@ static void fdomain_detach(dev_link_t *link)
     
     /* Unlink device structure, free bits */
     *linkp = link->next;
-    if (link->priv)
-	kfree_s(link->priv, sizeof(struct scsi_info_t));
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(link->priv);
     
 } /* fdomain_detach */
 
@@ -206,8 +206,8 @@ if (CardServices(fn, args) != 0) goto next_entry
 
 static void fdomain_config(dev_link_t *link)
 {
-    client_handle_t handle;
-    scsi_info_t *info;
+    client_handle_t handle = link->handle;
+    scsi_info_t *info = link->priv;
     tuple_t tuple;
     cisparse_t parse;
     int i, last_ret, last_fn, ints[3];
@@ -217,9 +217,6 @@ static void fdomain_config(dev_link_t *link)
 #if (LINUX_VERSION_CODE >= VERSION(2,1,75))
     struct Scsi_Host *host;
 #endif
-    
-    handle = link->handle;
-    info = link->priv;
 
     DEBUG(0, "fdomain_config(0x%p)\n", link);
 

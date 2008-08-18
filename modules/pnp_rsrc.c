@@ -15,6 +15,12 @@
 /* From rsrc_mgr.c */
 void request_io_region(u_long base, u_long num, char *name);
 
+/*======================================================================
+
+    PnP interrupt table manager
+
+======================================================================*/
+
 struct irq_entry {
     char *name;
     struct irq_entry *next;
@@ -43,17 +49,24 @@ int proc_read_irq(char *buf, char **start, off_t pos,
     return (p - buf);
 }
 
-void alloc_irq(int n, char *name)
+void alloc_pnp_irq(int n, char *name)
 {
     struct irq_entry **e = &irq[n];
     while (*e != NULL)
 	e = &((*e)->next);
     *e = kmalloc(sizeof(*e), GFP_KERNEL);
-    (*e)->name = name;
-    (*e)->next = NULL;
+    if (*e) {
+	(*e)->name = name;
+	(*e)->next = NULL;
+    }
 }
 
-void free_irqs(void)
+int check_pnp_irq(int n)
+{
+    return (irq[n] ? -EBUSY : 0);
+}
+
+void free_pnp_irqs(void)
 {
     int n;
     struct irq_entry *e, *f;
@@ -204,7 +217,7 @@ static void scan_pirq_table(void)
 
 static char *pci_names = NULL;
 
-static void pci_claim_resources(void)
+static int pci_claim_resources(void)
 {
     struct pci_dev *dev;
     int r;
@@ -218,6 +231,7 @@ static void pci_claim_resources(void)
     
     for (r = 0, dev=pci_devices; dev; dev=dev->next, r++) ;
     name = pci_names = kmalloc(r*12, GFP_KERNEL);
+    if (!name) return -ENOMEM;
     
     save_flags(flags);
     cli();
@@ -225,7 +239,7 @@ static void pci_claim_resources(void)
 	sprintf(name, "pci %02x:%02x.%1x", dev->bus->number,
 		PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 	if (dev->irq)
-	    alloc_irq(dev->irq, name);
+	    alloc_pnp_irq(dev->irq, name);
 #if (LINUX_VERSION_CODE < VERSION(2,3,13))
 	/* Disable IO and memory while we fiddle */
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
@@ -266,6 +280,7 @@ static void pci_claim_resources(void)
 #endif
     }
     restore_flags(flags);
+    return 0;
 }
 
 #endif /* CONFIG_PCI */
@@ -317,7 +332,7 @@ static void pnp_scan_node(char *name, u8 *buf, int len)
 	    switch (tag) {
 	    case PNP_RES_SMTAG_IRQ:
 		if (r->irq.mask && !(r->irq.mask & (r->irq.mask-1)))
-		    alloc_irq(ffs(flip16(r->irq.mask))-1, name);
+		    alloc_pnp_irq(ffs(flip16(r->irq.mask))-1, name);
 		break;
 	    case PNP_RES_SMTAG_IO:
 		if (r->io.len && (r->io.min == r->io.max))
@@ -338,19 +353,26 @@ static void pnp_scan_node(char *name, u8 *buf, int len)
 
 static char *pnp_names = NULL;
 
-static void pnp_claim_resources(void)
+static int pnp_claim_resources(void)
 {
     struct pnp_bios_node *node;
     char *name;
     u8 num;
     
     node = kmalloc(node_info.max_node_size, GFP_KERNEL);
+    if (!node) return -ENOMEM;
     pnp_names = kmalloc(node_info.no_nodes*7, GFP_KERNEL);
+    if (!pnp_names) {
+	kfree(node);
+	return -ENOMEM;
+    }
     for (name = pnp_names, num = 0; num != 0xff; name += 7) {
 	pnp_bios_get_dev_node(&num, 0, node);
 	sprintf(name, "pnp %02x", node->handle);
 	pnp_scan_node(name, node->data, node->size - sizeof(*node));
     }
+    kfree(node);
+    return 0;
 }
 
 /*====================================================================*/
@@ -378,5 +400,5 @@ void pnp_rsrc_done(void)
     if (pci_names)
 	kfree(pci_names);
 #endif
-    free_irqs();
+    free_pnp_irqs();
 }

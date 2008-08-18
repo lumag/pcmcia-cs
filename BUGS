@@ -1,4 +1,4 @@
-Known problems with the 3.1.4 PCMCIA release
+Known problems with the 3.1.5 PCMCIA release
 =============================================
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
@@ -91,3 +91,11 @@ o The 2.3.6 kernel update broke the PCMCIA parport_cs driver.
   Prognosis: we're working on a better way of interfacing the
   parport_cs driver with the kernel parallel port code, for a future
   kernel release.
+
+o Recent 2.3.* kernels may make mistakes when autoconfiguring CardBus
+  bridges.  Specifically, the kernel may memory map bridges at invalid
+  addresses.
+
+  Prognosis: the PCI driver layer is taking on a job that it can't
+  quite handle yet.  There is no trivial workaround, other than 
+  reverting to a 2.2.* kernel.

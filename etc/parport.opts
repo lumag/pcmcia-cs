@@ -4,6 +4,7 @@
 #
 case "$ADDRESS" in
 *,*,*)
+    #INFO="Sample parport setup"
     # Symbolic link?
     #LINK="/dev/printer"
     # Options for 'tunelp'

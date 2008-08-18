@@ -2,7 +2,7 @@
 
     Cardbus device enabler
 
-    cb_enabler.c 1.25 1999/10/25 20:03:33
+    cb_enabler.c 1.27 1999/11/29 19:03:18
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.25 1999/10/25 20:03:33 (David Hinds)";
+"cb_enabler.c 1.27 1999/11/29 19:03:18 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -136,10 +136,11 @@ struct dev_link_t *cb_attach(int n)
     
     DEBUG(0, "cb_attach(%d)\n", n);
 
-    MOD_INC_USE_COUNT;
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    memset(link, 0, sizeof(struct dev_link_t));
+    if (!link) return NULL;
 
+    MOD_INC_USE_COUNT;
+    memset(link, 0, sizeof(struct dev_link_t));
     link->conf.IntType = INT_CARDBUS;
     link->conf.Vcc = 33;
 
@@ -152,7 +153,7 @@ struct dev_link_t *cb_attach(int n)
     client_reg.dev_info = &driver[n].dev_info;
     client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
     client_reg.event_handler = &cb_event;
-    client_reg.EventMask =
+    client_reg.EventMask = CS_EVENT_RESET_PHYSICAL |
 	CS_EVENT_RESET_REQUEST | CS_EVENT_CARD_RESET |
 	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
 	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
@@ -196,7 +197,7 @@ static void cb_detach(dev_link_t *link)
 	CardServices(DeregisterClient, link->handle);
     
     *linkp = link->next;
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(link);
     MOD_DEC_USE_COUNT;
 }
 

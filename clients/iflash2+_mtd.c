@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2+ Flash devices
 
-    iflash2+_mtd.c 1.57 1999/10/25 20:03:17
+    iflash2+_mtd.c 1.58 1999/11/15 06:08:09
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -71,7 +71,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"iflash2+_mtd.c 1.57 1999/10/25 20:03:17 (David Hinds)";
+"iflash2+_mtd.c 1.58 1999/11/15 06:08:09 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -126,6 +126,7 @@ typedef struct flash_region_t {
 } flash_region_t;
 
 typedef struct flash_dev_t {
+    dev_link_t		link;
     caddr_t		Base;
     u_int		Size;
     window_handle_t	ESRwin;
@@ -473,16 +474,17 @@ static dev_link_t *flash_attach(void)
     DEBUG(0, "iflash2+_mtd: flash_attach()\n");
 
     /* Create new memory card device */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    memset(link, 0, sizeof(*link));
+    dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+    if (!dev) return NULL;
+    memset(dev, 0, sizeof(*dev));
+    link = &dev->link; link->priv = dev;
+    
     link->release.function = &flash_release;
     link->release.data = (u_long)link;
     init_waitqueue_head(&link->pending);
-    dev = kmalloc(sizeof(struct flash_dev_t), GFP_KERNEL);
-    memset(dev, 0, sizeof(*dev));
+    
     dev->vpp_timeout.function = vpp_off;
     dev->vpp_timeout.data = (u_long)link;
-    link->priv = dev;
 
     /* Register with Card Services */
     link->next = dev_list;
@@ -543,8 +545,7 @@ static void flash_detach(dev_link_t *link)
     
     /* Unlink device structure, free bits */
     *linkp = link->next;
-    kfree_s(link->priv, sizeof(struct flash_dev_t));
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(link->priv);
     
 } /* flash_detach */
 
@@ -567,7 +568,8 @@ static void printk_size(u_int sz)
 
 static void flash_config(dev_link_t *link)
 {
-    flash_dev_t *dev;
+    client_handle_t handle = link->handle;
+    flash_dev_t *dev = link->priv;
     win_req_t req;
     mtd_reg_t reg;
     region_info_t region;
@@ -582,24 +584,23 @@ static void flash_config(dev_link_t *link)
 	req.Attributes = WIN_DATA_WIDTH_8;
     req.Base = req.Size = 0;
     req.AccessSpeed = mem_speed;
-    link->win = (window_handle_t)link->handle;
+    link->win = (window_handle_t)handle;
     ret = MTDHelperEntry(MTDRequestWindow, &link->win, &req);
     if (ret != 0) {
-	cs_error(link->handle, RequestWindow, ret);
+	cs_error(handle, RequestWindow, ret);
 	link->state &= ~DEV_CONFIG_PENDING;
 	flash_release((u_long)link);
 	return;
     }
-    dev = link->priv;
     dev->Base = ioremap(req.Base, req.Size);
     dev->Size = req.Size;
 
     /* Allocate a memory window for ESR accesses*/
     req.Base = 0;
-    dev->ESRwin = (window_handle_t)link->handle;
+    dev->ESRwin = (window_handle_t)handle;
     ret = MTDHelperEntry(MTDRequestWindow, &dev->ESRwin, &req);
     if (ret != 0) {
-	cs_error(link->handle, RequestWindow, ret);
+	cs_error(handle, RequestWindow, ret);
 	link->state &= ~DEV_CONFIG_PENDING;
 	flash_release((u_long)link);
 	return;
@@ -612,16 +613,17 @@ static void flash_config(dev_link_t *link)
     i = 0;
     for (attr = 0; attr < 2; attr++) {
 	region.Attributes = attr ? REGION_TYPE_AM : REGION_TYPE_CM;
-	ret = CardServices(GetFirstRegion, link->handle, &region);
+	ret = CardServices(GetFirstRegion, handle, &region);
 	while (ret == CS_SUCCESS) {
 	    reg.Attributes = region.Attributes;
 	    reg.Offset = region.CardOffset;
 	    dev->flash[i] = kmalloc(sizeof(struct flash_region_t),
 				    GFP_KERNEL);
+	    if (!dev->flash[i]) break;
 	    reg.MediaID = (u_long)dev->flash[i];
-	    ret = CardServices(RegisterMTD, link->handle, &reg);
+	    ret = CardServices(RegisterMTD, handle, &reg);
 	    if (ret != 0) {
-		kfree_s(dev->flash[i], sizeof(struct flash_region_t));
+		kfree(dev->flash[i]);
 		break;
 	    }
 	    printk(KERN_INFO "iflash2+_mtd: %s at 0x%x, ",
@@ -636,7 +638,7 @@ static void flash_config(dev_link_t *link)
 	    else
 		dev->flash[i]->cell_size = 0x400000; /* 4MB components */
 	    i++;
-	    ret = CardServices(GetNextRegion, link->handle, &region);
+	    ret = CardServices(GetNextRegion, handle, &region);
 	}
     }
     dev->flash[i] = NULL;
@@ -653,13 +655,12 @@ static void flash_config(dev_link_t *link)
 static void flash_release(u_long arg)
 {
     dev_link_t *link = (dev_link_t *)arg;
-    flash_dev_t *dev;
+    flash_dev_t *dev = link->priv;
     int i;
 
     DEBUG(0, "iflash2+_mtd: flash_release(0x%p)\n", link);
 
     link->state &= ~DEV_CONFIG;
-    dev = link->priv;
     if (link->win) {
 	iounmap(dev->Base);
 	i = MTDHelperEntry(MTDReleaseWindow, link->win);
@@ -675,10 +676,8 @@ static void flash_release(u_long arg)
     if (dev->vpp_usage == 0)
 	del_timer(&dev->vpp_timeout);
     vpp_off((u_long)link);
-    for (i = 0; i < 2*CISTPL_MAX_DEVICES; i++)
-	if (dev->flash[i])
-	    kfree_s(dev->flash[i], sizeof(struct flash_region_t));
-	else break;
+    for (i = 0; (i < 2*CISTPL_MAX_DEVICES) && dev->flash[i]; i++)
+	kfree(dev->flash[i]);
     
     if (link->state & DEV_STALE_LINK)
 	flash_detach(link);

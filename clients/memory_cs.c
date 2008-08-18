@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.64 1999/10/25 20:03:17
+    memory_cs.c 1.65 1999/11/16 02:14:54
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -91,7 +91,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.64 1999/10/25 20:03:17 (David Hinds)";
+"memory_cs.c 1.65 1999/11/16 02:14:54 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -150,6 +150,7 @@ typedef struct direct_dev_t {		/* For direct access */
 } direct_dev_t;
 
 typedef struct memory_dev_t {
+    dev_link_t		link;
     dev_node_t		node;
     eraseq_handle_t	eraseq_handle;
     eraseq_entry_t	eraseq[MAX_ERASE];
@@ -228,9 +229,9 @@ static void cs_error(client_handle_t handle, int func, int ret)
 
 static dev_link_t *memory_attach(void)
 {
-    client_reg_t client_reg;
-    dev_link_t *link;
     memory_dev_t *dev;
+    dev_link_t *link;
+    client_reg_t client_reg;
     eraseq_hdr_t eraseq_hdr;
     int i, ret;
     
@@ -244,16 +245,15 @@ static dev_link_t *memory_attach(void)
     }
     
     /* Create new memory card device */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    dev_table[i] = link;
-    memset(link, 0, sizeof(struct dev_link_t));
+    dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+    if (!dev) return NULL;
+    memset(dev, 0, sizeof(*dev));
+    link = &dev->link; link->priv = dev;
+
     link->release.function = &memory_release;
     link->release.data = (u_long)link;
-    
-    dev = kmalloc(sizeof(struct memory_dev_t), GFP_KERNEL);
-    memset(dev, 0, sizeof(memory_dev_t));
+    dev_table[i] = link;
     init_waitqueue_head(&dev->erase_pending);
-    link->priv = dev;
 
     /* Register with Card Services */
     client_reg.dev_info = &dev_info;
@@ -299,7 +299,7 @@ static dev_link_t *memory_attach(void)
 
 static void memory_detach(dev_link_t *link)
 {
-    memory_dev_t *dev;
+    memory_dev_t *dev = link->priv;
     int nd;
 
     DEBUG(0, "memory_detach(0x%p)\n", link);
@@ -318,7 +318,6 @@ static void memory_detach(dev_link_t *link)
 	}
     }
 
-    dev = (memory_dev_t *)link->priv;
     if (dev->eraseq_handle)
 	CardServices(DeregisterEraseQueue, dev->eraseq_handle);
     if (link->handle)
@@ -326,8 +325,7 @@ static void memory_detach(dev_link_t *link)
     
     /* Unlink device structure, free bits */
     dev_table[nd] = NULL;
-    kfree_s(dev, sizeof(struct memory_dev_t));
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(dev);
     
 } /* memory_detach */
 
@@ -405,7 +403,7 @@ while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 
 static void memory_config(dev_link_t *link)
 {
-    memory_dev_t *dev;
+    memory_dev_t *dev = link->priv;
     minor_dev_t *minor;
     region_info_t region;
     cs_status_t status;
@@ -420,8 +418,6 @@ static void memory_config(dev_link_t *link)
     for (nd = 0; nd < MAX_DEV; nd++)
 	if (dev_table[nd] == link) break;
     
-    dev = (memory_dev_t *)link->priv;
-
     /* Allocate a small memory window for direct access */
     if (word_width)
 	req.Attributes = WIN_DATA_WIDTH_16;
@@ -545,7 +541,7 @@ static int memory_event(event_t event, int priority,
 		       event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    memory_dev_t *dev;
+    memory_dev_t *dev = link->priv;
     eraseq_entry_t *erase;
 
     DEBUG(1, "memory_event(0x%06x)\n", event);
@@ -565,7 +561,6 @@ static int memory_event(event_t event, int priority,
     case CS_EVENT_ERASE_COMPLETE:
 	erase = (eraseq_entry_t *)(args->info);
 	wake_up((wait_queue_head_t *)&erase->Optional);
-	dev = (memory_dev_t *)(link->priv);
 	wake_up_interruptible(&dev->erase_pending);
 	break;
     case CS_EVENT_PM_SUSPEND:
@@ -1006,14 +1001,13 @@ static int memory_ioctl(struct inode *inode, struct file *file,
 
 static void do_direct_request(dev_link_t *link)
 {
+    memory_dev_t *dev = link->priv;
     int addr, len, from, nb, ret;
     char *buf;
-    memory_dev_t *dev;
     direct_dev_t *direct;
     modwin_t mod;
     memreq_t mem;
-    
-    dev = (memory_dev_t *)link->priv;
+
     direct = &dev->direct;
     
     addr = CURRENT->sector * SECTOR_SIZE;

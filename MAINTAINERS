@@ -1,6 +1,6 @@
 		Linux PCMCIA Maintainers List
 
-		Last updated: 1999/11/11 18:45:45
+		Last updated: 1999/11/30 04:49:20
 
 The following PCMCIA driver components have active maintainers.  Bug
 reports and questions are often best addressed to the maintainer of
@@ -29,7 +29,7 @@ Justin Seger <jseger@media.mit.edu>
 http://www.media.mit.edu/~jseger
 
 [xirc2ps_cs]
-Allan Baker <al527261@df1.telmex.net.mx>
+Allan Baker <al527261@prodigy.net.mx>
 Werner Koch <werner.koch@guug.de> is the ex-maintainer and has some
 info at http://www.d.shuttle.de/isil/xircom/xirc2ps.html
 

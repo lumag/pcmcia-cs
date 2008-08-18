@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.63 1999/11/08 20:47:02
+    cardbus.c 1.65 1999/11/30 22:46:15
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -128,7 +128,13 @@ typedef struct cb_config_t {
 
 /* There are three classes of bridge maps: IO ports,
    non-prefetchable memory, and prefetchable memory */
-typedef enum { B_IO, B_M1, B_M2 } bridge_type;
+typedef enum { B_IO, B_M1, B_M2 } map_type;
+
+static const u_int map_flags[] = {
+    PCI_BASE_ADDRESS_SPACE_IO,
+    PCI_BASE_ADDRESS_SPACE_MEMORY,
+    PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_PREFETCH
+};
 
 /*=====================================================================
 
@@ -447,8 +453,9 @@ int cb_config(socket_info_t *s)
     s->io[0].NumPorts = num[B_IO];
     s->io[0].BasePort = 0;
     if (num[B_IO]) {
+	for (align = 1; align < mask[B_IO]; align <<= 1) ;
 	if (find_io_region(&s->io[0].BasePort, num[B_IO],
-			   num[B_IO], name) != 0) {
+			   align, name) != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %d IO ports for"
 		   " CardBus socket %d\n", num[B_IO], s->sock);
 	    goto failed;
@@ -458,7 +465,8 @@ int cb_config(socket_info_t *s)
     s->win[0].size = num[B_M1];
     s->win[0].base = 0;
     if (num[B_M1]) {
-	if (find_mem_region(&s->win[0].base, num[B_M1], num[B_M1],
+	for (align = 1; align < mask[B_M1]; align <<= 1) ;
+	if (find_mem_region(&s->win[0].base, num[B_M1], align,
 			    0, name) != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %dK memory for"
 		   " CardBus socket %d\n", num[B_M1]/1024, s->sock);
@@ -469,7 +477,8 @@ int cb_config(socket_info_t *s)
     s->win[1].size = num[B_M2];
     s->win[1].base = 0;
     if (num[B_M2]) {
-	if (find_mem_region(&s->win[1].base, num[B_M2], num[B_M2],
+	for (align = 1; align < mask[B_M2]; align <<= 1) ;
+	if (find_mem_region(&s->win[1].base, num[B_M2], align,
 			    0, name) != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %dK memory for"
 		   " CardBus socket %d\n", num[B_M2]/1024, s->sock);
@@ -496,7 +505,7 @@ int cb_config(socket_info_t *s)
 			printk(KERN_INFO "  fn %d rom: ", i);
 		    printk("%s 0x%x-0x%x\n", (m) ? "mem" : "io",
 			   base[m], base[m]+sz-1);
-		    BASE(c[i].dev, j) = base[m];
+		    BASE(c[i].dev, j) = base[m] | map_flags[m];
 		}
 	    }
 	}

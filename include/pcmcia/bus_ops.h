@@ -1,5 +1,5 @@
 /*
- * bus_ops.h 1.8 1999/10/25 20:23:16
+ * bus_ops.h 1.9 1999/11/20 01:26:04
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -29,6 +29,8 @@
 
 #ifndef _LINUX_BUS_OPS_H
 #define _LINUX_BUS_OPS_H
+
+#include <linux/config.h>
 
 #ifdef CONFIG_VIRTUAL_BUS
 

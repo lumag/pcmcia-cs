@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.96 1999/10/30 01:02:19
+ * k_compat.h 1.99 1999/11/23 20:10:34
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -168,7 +168,7 @@ typedef struct wait_queue *wait_queue_head_t;
 #include <linux/spinlock.h>
 #endif
 #if defined(CONFIG_SMP) || (LINUX_VERSION_CODE > VERSION(2,3,6)) || \
-    (defined(__ppc__) && (LINUX_VERSION_CODE > VERSION(2,2,12)))
+    (defined(__powerpc__) && (LINUX_VERSION_CODE > VERSION(2,2,12)))
 #define USE_SPIN_LOCKS
 #endif
 #endif
@@ -234,7 +234,15 @@ typedef struct wait_queue *wait_queue_head_t;
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,93))
 #include <linux/bios32.h>
+#define _PCI(p) (p)->bus, (p)->devfn
+#define pci_read_config_dword(p,w,v) pcibios_read_config_dword(_PCI(p),w,v)
+#define pci_read_config_word(p,w,v) pcibios_read_config_word(_PCI(p),w,v)
+#define pci_read_config_byte(p,w,v) pcibios_read_config_byte(_PCI(p),w,v)
+#define pci_write_config_dword(p,w,v) pcibios_write_config_dword(_PCI(p),w,v)
+#define pci_write_config_word(p,w,v) pcibios_write_config_word(_PCI(p),w,v)
+#define pci_write_config_byte(p,w,v) pcibios_write_config_byte(_PCI(p),w,v)
 #endif
+
 #include <linux/pci.h>
 #ifndef PCI_FUNC
 #define PCI_FUNC(devfn)		((devfn)&7)
@@ -274,6 +282,10 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 
 #if (LINUX_VERSION_CODE < VERSION(2,3,14))
 #define net_device		device
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,2,0))
+#define in_interrupt()		(intr_count)
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

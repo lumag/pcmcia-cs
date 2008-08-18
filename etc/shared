@@ -1,5 +1,5 @@
 #
-# shared 1.14 1999/10/25 18:16:20 (David Hinds)
+# shared 1.15 1999/11/23 03:47:47 (David Hinds)
 #
 
 usage ()
@@ -17,6 +17,7 @@ is_true ()
 add_blkdev ()
 {
     # usage: add_blkdev [device]
+    if [ "$LINK" ] ; then ln -s $1 $LINK || return 1 ; fi
     if is_true $DO_FSTAB ; then
 	echo "$1 $MOUNTPT ${FSTYPE:-auto} ${OPTS:-defaults} 0 0" >> /etc/fstab
     fi
@@ -38,7 +39,7 @@ add_parts ()
 	# Get mount options for particular partitions
 	if [ "$PART" ] ; then
 	    ADDRESS="$1,$PART"
-	    unset DO_FSTAB DO_FSCK DO_MOUNT
+	    unset DO_FSTAB DO_FSCK DO_MOUNT LINK
 	    . $0.opts
 	fi
 	add_blkdev /dev/$DEVICE$PART || RET=1

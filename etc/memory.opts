@@ -4,9 +4,10 @@
 #
 case "$ADDRESS" in
 *,*)
+    #INFO="Sample memory setup"
     #DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
     #FSTYPE="ext2"
     #OPTS=""
-    #MOUNTPT="/mem"
+    #MOUNTPT="/mnt/mem"
     ;;
 esac

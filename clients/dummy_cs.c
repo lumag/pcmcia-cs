@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.22 1999/11/08 20:46:17
+    dummy_cs.c 1.24 1999/11/23 19:14:06
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -66,9 +66,9 @@
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"dummy_cs.c 1.22 1999/11/08 20:46:17 (David Hinds)";
+"dummy_cs.c 1.24 1999/11/23 19:14:06 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -149,6 +149,9 @@ static dev_link_t *dev_list = NULL;
    'priv' pointer in a dev_link_t structure can be used to point to
    a device-specific private data structure, like this.
 
+   To simplify the data structure handling, we actually include the
+   dev_link_t structure in the device's private data structure.
+
    A driver needs to provide a dev_node_t structure for each device
    on a card.  In some cases, there is only one device per card (for
    example, ethernet cards, modems).  In other cases, there may be
@@ -169,6 +172,7 @@ static dev_link_t *dev_list = NULL;
 */
    
 typedef struct local_info_t {
+    dev_link_t		link;
     dev_node_t		node;
     int			stop;
     struct bus_operations *bus;
@@ -196,16 +200,20 @@ static void cs_error(client_handle_t handle, int func, int ret)
 
 static dev_link_t *dummy_attach(void)
 {
-    client_reg_t client_reg;
-    dev_link_t *link;
     local_info_t *local;
+    dev_link_t *link;
+    client_reg_t client_reg;
     int ret, i;
     
     DEBUG(0, "dummy_attach()\n");
 
+    /* Allocate space for private device-specific data */
+    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+    if (!local) return NULL;
+    memset(local, 0, sizeof(local_info_t));
+    link = &local->link; link->priv = local;
+    
     /* Initialize the dev_link_t structure */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    memset(link, 0, sizeof(struct dev_link_t));
     link->release.function = &dummy_release;
     link->release.data = (u_long)link;
 
@@ -230,11 +238,6 @@ static dev_link_t *dummy_attach(void)
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    /* Allocate space for private device-specific data */
-    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
-    memset(local, 0, sizeof(local_info_t));
-    link->priv = local;
-    
     /* Register with Card Services */
     link->next = dev_list;
     dev_list = link;
@@ -248,7 +251,7 @@ static dev_link_t *dummy_attach(void)
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = CardServices(RegisterClient, &link->handle, &client_reg);
-    if (ret != 0) {
+    if (ret != CS_SUCCESS) {
 	cs_error(link->handle, RegisterClient, ret);
 	dummy_detach(link);
 	return NULL;
@@ -297,12 +300,10 @@ static void dummy_detach(dev_link_t *link)
     if (link->handle)
 	CardServices(DeregisterClient, link->handle);
     
-    /* Unlink device structure, free pieces */
+    /* Unlink device structure, and free it */
     *linkp = link->next;
-    if (link->priv) {
-	kfree_s(link->priv, sizeof(local_info_t));
-    }
-    kfree_s(link, sizeof(struct dev_link_t));
+    /* This points to the parent local_info_t struct */
+    kfree(link->priv);
     
 } /* dummy_detach */
 
@@ -322,19 +323,16 @@ if (CardServices(fn, args) != 0) goto next_entry
 
 static void dummy_config(dev_link_t *link)
 {
-    client_handle_t handle;
+    client_handle_t handle = link->handle;
+    local_info_t *dev = link->priv;
     tuple_t tuple;
     cisparse_t parse;
-    local_info_t *dev;
     int last_fn, last_ret;
     u_char buf[64];
     config_info_t conf;
     win_req_t req;
     memreq_t map;
     
-    handle = link->handle;
-    dev = link->priv;
-
     DEBUG(0, "dummy_config(0x%p)\n", link);
 
     /*

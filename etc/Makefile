@@ -1,14 +1,14 @@
 #
-# etc/Makefile 1.48 1999/10/16 04:56:49 (David Hinds)
+# etc/Makefile $Revision: 1.50 $ $Date: 1999/11/22 18:22:03 $ (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
 EXTRA = shared
-CLIENTS = config network memory serial ftl scsi ide cdrom parport
+CLIENTS = config network memory serial ftl scsi ide parport
 CLIENT_OPTS = config.opts network.opts memory.opts serial.opts \
-	ftl.opts scsi.opts ide.opts cdrom.opts parport.opts
+	ftl.opts scsi.opts ide.opts parport.opts
 
 ifdef SYSV_INIT
 INST = install-sysv
@@ -103,11 +103,12 @@ install-depmod:
 	if [ ! -r $$CONF -a -r $(PREFIX)/etc/conf.modules ] ; then \
 	    CONF=$(PREFIX)/etc/conf.modules ;			\
 	fi ;							\
-	grep -qs path $$CONF || echo keep >> $$CONF ;		\
-	grep -q pcmcia $$CONF || (				\
-	    echo 'path[pcmcia]=/lib/modules/`uname -r`' >> $$CONF && \
-	    echo 'path[pcmcia]=/lib/modules/default' >> $$CONF && \
-	    echo 'path[pcmcia]=/lib/modules/preferred' >> $$CONF )
+	if ! modprobe -c | grep -q 'path\[pcmcia\]' ; then	\
+	    grep -qs ^path $$CONF || grep -qs ^keep $$CONF ||	\
+		echo keep >> $$CONF ;				\
+	    modprobe -c | sed -ne '/path/s/\[net\]/\[pcmcia\]/p' \
+		>> $$CONF ;					\
+	fi
 	if [ "$(PREFIX)" = "" ] ; then depmod -a ; fi
 
 install: $(INST) $(ETC) install-extra install-clients

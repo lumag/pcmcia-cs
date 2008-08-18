@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.235 1999/11/11 17:52:05
+    cs.c 1.238 1999/11/24 21:07:09
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -49,7 +49,6 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
-#include <linux/compile.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #endif
@@ -75,7 +74,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.235 1999/11/11 17:52:05 (David Hinds)";
+"cs.c 1.238 1999/11/24 21:07:09 (David Hinds)";
 #endif
 
 #ifdef __BEOS__
@@ -83,7 +82,7 @@ static const char *release = "BeOS PCMCIA Card Services " CS_RELEASE;
 #endif
 #ifdef __LINUX__
 static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
-#ifdef MODULE
+#ifdef UTS_RELEASE
 static const char *kernel = "kernel build: " UTS_RELEASE " " UTS_VERSION;
 #endif
 #endif
@@ -345,17 +344,20 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 #ifdef HAS_PROC_BUS
 	if (proc_pccard) {
 	    char name[3];
-#ifdef PCMCIA_DEBUG
-	    struct proc_dir_entry *ent;
-#endif
 	    sprintf(name, "%02d", i);
 	    s->proc = create_proc_entry(name, S_IFDIR, proc_pccard);
+	    if (s->proc)
+		ss_entry(ns, SS_ProcSetup, s->proc);
 #ifdef PCMCIA_DEBUG
-	    ent = create_proc_entry("clients", 0, s->proc);
-	    ent->read_proc = proc_read_clients;
-	    ent->data = s;
+	    if (s->proc) {
+		struct proc_dir_entry *ent;
+		ent = create_proc_entry("clients", 0, s->proc);
+		if (ent) {
+		    ent->read_proc = proc_read_clients;
+		    ent->data = s;
+		}
+	    }
 #endif
-	    ss_entry(ns, SS_ProcSetup, s->proc);
 	}
 #endif
     }
@@ -733,11 +735,11 @@ static int alloc_io_space(socket_info_t *s, u_int attr, ioaddr_t *base,
 
     align = (*base) ? (1<<lines) : 1;
     if (align && (align < num)) {
-	printk(KERN_INFO "odd IO request: num %04x align %04x\n",
-	       num, align);
-	if (*base)
+	if (*base) {
+	    printk(KERN_INFO "odd IO request: num %04x align %04x\n",
+		   num, align);
 	    align = 0;
-	else
+	} else
 	    while (align && (align < num)) align <<= 1;
     }
     if (*base & ~(align-1)) {
@@ -859,6 +861,7 @@ static int bind_device(bind_req_t *req)
     s = SOCKET(req);
 
     client = (client_t *)kmalloc(sizeof(client_t), GFP_KERNEL);
+    if (!client) return CS_OUT_OF_RESOURCE;
     memset(client, '\0', sizeof(client_t));
     client->client_magic = CLIENT_MAGIC;
     strncpy(client->dev_info, (char *)req->dev_info, DEV_NAME_LEN);
@@ -2265,6 +2268,9 @@ static struct symbol_table cs_symtab = {
     X(request_mem_region),
     X(release_mem_region),
 #endif
+#ifdef CONFIG_PNP_BIOS
+    X(check_pnp_irq),
+#endif
 #include <linux/symtab_end.h>
 };
 
@@ -2281,13 +2287,16 @@ EXPORT_SYMBOL(proc_pccard);
 EXPORT_SYMBOL(request_mem_region);
 EXPORT_SYMBOL(release_mem_region);
 #endif
+#ifdef CONFIG_PNP_BIOS
+EXPORT_SYMBOL(check_pnp_irq);
+#endif
 
 #endif
 
 static int __init init_pcmcia_cs(void)
 {
     printk(KERN_INFO "%s\n", release);
-#ifdef MODULE
+#ifdef UTS_RELEASE
     printk(KERN_INFO "  %s\n", kernel);
 #endif
     printk(KERN_INFO "  %s\n", options);
@@ -2310,16 +2319,19 @@ static int __init init_pcmcia_cs(void)
     if (proc_pccard) {
 	struct proc_dir_entry *ent;
 	ent = create_proc_entry("ioport", 0, proc_pccard);
-	ent->read_proc = proc_read_io;
+	if (ent)
+	    ent->read_proc = proc_read_io;
 	ent = create_proc_entry("irq", 0, proc_pccard);
-	ent->read_proc = proc_read_irq;
+	if (ent)
+	    ent->read_proc = proc_read_irq;
     }
 #endif
 #ifndef HAVE_MEMRESERVE
     if (proc_pccard) {
 	struct proc_dir_entry *ent;
 	ent = create_proc_entry("memory", 0, proc_pccard);
-	ent->read_proc = proc_read_mem;
+	if (ent)
+	    ent->read_proc = proc_read_mem;
     }
 #endif
 #endif

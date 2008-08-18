@@ -28,6 +28,7 @@ static int proc_read_devices(char *buf, char **start, off_t pos,
 	char *p = buf;
 
 	node = kmalloc(node_info.max_node_size, GFP_KERNEL);
+	if (!node) return -ENOMEM;
 	for (num = 0; num != 0xff; ) {
 		pnp_bios_get_dev_node(&num, 0, node);
 		p += sprintf(p, "%02x\t%08x\t%02x:%02x:%02x\t%04x\n",
@@ -48,6 +49,7 @@ static int proc_read_node(char *buf, char **start, off_t pos,
 	int len;
 
 	node = kmalloc(node_info.max_node_size, GFP_KERNEL);
+	if (!node) return -ENOMEM;
 	pnp_bios_get_dev_node(&num, boot, node);
 	len = node->size - sizeof(struct pnp_bios_node);
 	memcpy(buf, node->data, len);
@@ -63,6 +65,7 @@ static int proc_write_node(struct file *file, const char *buf,
 	u8 num = (long)data;
 
 	node = kmalloc(node_info.max_node_size, GFP_KERNEL);
+	if (!node) return -ENOMEM;
 	pnp_bios_get_dev_node(&num, boot, node);
 	if (count != node->size - sizeof(struct pnp_bios_node))
 		return -EINVAL;
@@ -85,46 +88,45 @@ void pnp_proc_init(void)
 		return;
 	
 	proc_pnp = create_proc_entry("pnp", S_IFDIR, proc_bus);
-	proc_pnp_boot = create_proc_entry("boot", S_IFDIR, proc_pnp);
 	if (!proc_pnp) return;
+	proc_pnp_boot = create_proc_entry("boot", S_IFDIR, proc_pnp);
+	if (!proc_pnp_boot) return;
 	ent = create_proc_entry("devices", 0, proc_pnp);
-	ent->read_proc = proc_read_devices;
+	if (ent) ent->read_proc = proc_read_devices;
 	
 	node = kmalloc(node_info.max_node_size, GFP_KERNEL);
+	if (!node) return;
 	for (num = 0; num != 0xff; ) {
 		sprintf(name, "%02x", num);
 		if (pnp_bios_get_dev_node(&num, 0, node) != 0)
 			break;
 		ent = create_proc_entry(name, 0, proc_pnp);
-		ent->read_proc = proc_read_node;
-		ent->write_proc = proc_write_node;
-		ent->data = (void *)(long)(node->handle);
+		if (ent) {
+			ent->read_proc = proc_read_node;
+			ent->write_proc = proc_write_node;
+			ent->data = (void *)(long)(node->handle);
+		}
 		ent = create_proc_entry(name, 0, proc_pnp_boot);
-		ent->read_proc = proc_read_node;
-		ent->write_proc = proc_write_node;
-		ent->data = (void *)(long)(node->handle+0x100);
+		if (ent) {
+			ent->read_proc = proc_read_node;
+			ent->write_proc = proc_write_node;
+			ent->data = (void *)(long)(node->handle+0x100);
+		}
 	}
 	kfree(node);
 }
 
 void pnp_proc_done(void)
 {
-	struct pnp_bios_node *node;
 	u8 num;
 	char name[3];
 	
 	if (!proc_pnp) return;
-
-	node = kmalloc(node_info.max_node_size, GFP_KERNEL);
-	for (num = 0; num != 0xff; ) {
+	for (num = 0; num != 0xff; num++) {
 		sprintf(name, "%02x", num);
-		if (pnp_bios_get_dev_node(&num, 0, node) == 0) {
-			remove_proc_entry(name, proc_pnp);
-			remove_proc_entry(name, proc_pnp_boot);
-		}
+		remove_proc_entry(name, proc_pnp);
+		remove_proc_entry(name, proc_pnp_boot);
 	}
-	kfree(node);
-
 	remove_proc_entry("boot", proc_pnp);
 	remove_proc_entry("devices", proc_pnp);
 	remove_proc_entry("pnp", proc_bus);

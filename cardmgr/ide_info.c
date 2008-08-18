@@ -2,7 +2,7 @@
 
     Utility to look up information about IDE devices
 
-    ide_info.c 1.9 1999/11/07 01:39:16
+    ide_info.c 1.10 1999/11/30 04:48:34
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -37,13 +37,65 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <endian.h>
 #include <sys/ioctl.h>
 #include <dirent.h>
 
 #include <linux/major.h>
 #include <linux/hdreg.h>
 
+#if (__BYTE_ORDER == _BIG_ENDIAN)
+#define flip16(n)       (n)
+#else
+#define flip16(n) ((((n)&0x00ff)<<8) | (((n)&0xff00)>>8))
+#endif
+
 /*====================================================================*/
+
+#include <ctype.h>
+
+static void fix_string(char *s, int len)
+{
+    char *t = s, *x = s+len;
+
+    while (t < x) {
+	for (; t < x; t++)
+	    if (*t != ' ') break;
+	while (t < x) {
+	    *s++ = *t;
+	    if (*t++ == ' ') break;
+	}
+    }
+    if ((s > x-len) && (s[-1] == ' ')) s--;
+    if (s < t) *s = '\0';
+}
+
+
+static int read_proc_identify(char *dev, struct hd_driveid *id)
+{
+    char proc[] = "/proc/ide/hd#/identify";
+    char s[42];
+    int i;
+    
+    if ((strncmp(dev, "/dev/hd", 7) != 0) || (strlen(dev) != 8))
+	return -1;
+    proc[12] = dev[7];
+    if (access(proc, R_OK) == 0) {
+	FILE *f = fopen(proc, "r");
+	short *b = ((short *)&id) + 4;
+	while (fgets(s, 41, f)) {
+	    for (i = 0; i < 40; i += 5, b++) {
+		*b = flip16(strtol(s+i, NULL, 16));
+	    }
+	}
+	fclose(f);
+	fix_string(id->model, sizeof(id->model));
+	fix_string(id->fw_rev, sizeof(id->fw_rev));
+	fix_string(id->serial_no, sizeof(id->serial_no));
+	return 0;
+    }
+    return -1;
+}
 
 int main(int argc, char *argv[])
 {
@@ -54,15 +106,17 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "usage: %s [device]\n", argv[0]);
 	exit(EXIT_FAILURE);
     }
-    
-    fd = open(argv[1], O_RDONLY);
-    if (fd < 0) {
-	perror("open() failed");
-	exit(1);
-    }
-    if (ioctl(fd, HDIO_GET_IDENTITY, &id) != 0) {
-	perror("could not get IDE device info");
-	exit(1);
+
+    if (read_proc_identify(argv[1], &id) != 0) {
+	fd = open(argv[1], O_RDONLY);
+	if (fd < 0) {
+	    perror("open() failed");
+	    exit(1);
+	}
+	if (ioctl(fd, HDIO_GET_IDENTITY, &id) != 0) {
+	    perror("could not get IDE device info");
+	    exit(1);
+	}
     }
 
     printf("MODEL=\"%.40s\"\n", id.model);

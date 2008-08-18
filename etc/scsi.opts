@@ -9,10 +9,11 @@
 #
 case "$ADDRESS" in
 *,sr,*,*,*,*)
+    INFO="Default CD-ROM setup"
     PARTS=""
     DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="n"
     FSTYPE="iso9660"
     OPTS="ro,noauto"
-    MOUNTPT="/cdrom"
+    MOUNTPT="/mnt/cdrom"
     ;;
 esac

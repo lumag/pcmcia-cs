@@ -2,7 +2,7 @@
 
     A direct memory interface driver for CardBus cards
 
-    memory_cb.c 1.9 1999/10/25 20:03:17
+    memory_cb.c 1.10 1999/11/24 21:21:43
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -52,7 +52,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cb.c 1.9 1999/10/25 20:03:17 (David Hinds)";
+"memory_cb.c 1.10 1999/11/24 21:21:43 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -183,7 +183,7 @@ static ssize_t memory_read FOPS(struct inode *inode,
     int minor = MINOR(F_INODE(file)->i_rdev);
     memory_dev_t *dev = dev_table[minor>>3];
     int space = minor & 7;
-    size_t i, pos = FPOS;
+    size_t i, odd, pos = FPOS;
     
     DEBUG(2, "memory_read(%d, 0x%lx, 0x%lx)\n", minor,
 	  (u_long)pos, (u_long)count);
@@ -195,17 +195,50 @@ static ssize_t memory_read FOPS(struct inode *inode,
     if (count > dev->size[space] - pos)
 	count = dev->size[space] - pos;
 
+    odd = count & 3; count &= ~3;
+
     if (space == 0) {
-	for (i = 0; i < count; i++, pos++, buf++)
+
+	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
+	    pcibios_read_config_dword(dev->bus, dev->devfn, pos,
+				      (u_int *)buf);
+	if (odd & 2) {
+	    pcibios_read_config_word(dev->bus, dev->devfn, pos,
+				     (u_short *)buf);
+	    pos += 2; buf += 2;
+	}
+	if (odd & 1) {
 	    pcibios_read_config_byte(dev->bus, dev->devfn, pos, buf);
+	}
+
     } else if (dev->virt[space] != NULL) {
-	copy_pc_to_user(buf, dev->virt[space]+pos, count);
+
+	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
+	    *(u_int *)buf = readl_ns(dev->virt[space]+pos);
+	if (odd & 2) {
+	    *(u_short *)buf = readw_ns(dev->virt[space]+pos);
+	    pos += 2; buf += 2;
+	}
+	if (odd & 1) {
+	    *buf = readb(dev->virt[space]+pos);
+	}
+
     } else {
-	for (i = 0; i < count; i++, pos++, buf++)
+
+	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
+	    *(u_int *)buf = inl(dev->base[space]+pos);
+	if (odd & 2) {
+	    *(u_short *)buf = inw(dev->base[space]+pos);
+	    pos += 2; buf += 2;
+	}
+	if (odd & 1) {
 	    *buf = inb(dev->base[space]+pos);
+	}
+
     }
-    FPOS += count;
-    return count;
+
+    FPOS += count+odd;
+    return count+odd;
 }
 
 static ssize_t memory_write FOPS(struct inode *inode,
@@ -215,7 +248,7 @@ static ssize_t memory_write FOPS(struct inode *inode,
     int minor = MINOR(F_INODE(file)->i_rdev);
     memory_dev_t *dev = dev_table[minor>>3];
     int space = minor & 7;
-    size_t i, pos = FPOS;
+    size_t i, odd, pos = FPOS;
     
     DEBUG(2, "memory_read(%d, 0x%lx, 0x%lx)\n", minor,
 	  (u_long)pos, (u_long)count);
@@ -227,17 +260,51 @@ static ssize_t memory_write FOPS(struct inode *inode,
     if (count > dev->size[space] - pos)
 	count = dev->size[space] - pos;
 
+
+    odd = count & 3; count &= ~3;
+
     if (space == 0) {
-	for (i = 0; i < count; i++, pos++, buf++)
+
+	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
+	    pcibios_write_config_dword(dev->bus, dev->devfn, pos,
+				       *(u_int *)buf);
+	if (odd & 2) {
+	    pcibios_write_config_word(dev->bus, dev->devfn, pos,
+				      *(u_short *)buf);
+	    pos += 2; buf += 2;
+	}
+	if (odd & 1) {
 	    pcibios_write_config_byte(dev->bus, dev->devfn, pos, *buf);
+	}
+
     } else if (dev->virt[space] != NULL) {
-	copy_user_to_pc(dev->virt[space]+pos, buf, count);
+
+	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
+	    writel_ns(*(u_int *)buf, dev->virt[space]+pos);
+	if (odd & 2) {
+	    writew_ns(*(u_short *)buf, dev->virt[space]+pos);
+	    pos += 2; buf += 2;
+	}
+	if (odd & 1) {
+	    writeb(*buf, dev->virt[space]+pos);
+	}
+
     } else {
-	for (i = 0; i < count; i++, pos++, buf++)
+
+	for (i = 0; i < count; i += 4, pos += 4, buf += 4)
+	    outl(*(u_int *)buf, dev->base[space]+pos);
+	if (odd & 2) {
+	    outw(*(u_short *)buf, dev->base[space]+pos);
+	    pos += 2; buf += 2;
+	}
+	if (odd & 1) {
 	    outb(*buf, dev->base[space]+pos);
+	}
+
     }
-    FPOS += count;
-    return count;
+
+    FPOS += count+odd;
+    return count+odd;
 }
 
 /*====================================================================*/

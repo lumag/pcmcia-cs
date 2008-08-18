@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/11/11 18:45:45
+		Last updated: 1999/11/30 04:49:12
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -198,6 +198,7 @@ Fast Ethernet (10/100baseT) adapters:
 	[epic_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
 	Ositech Seven of Spades CardBus
+	Psion Gold Card Netglobal 56K+10/100Mb CardBus
 
 	[tulip_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
@@ -205,10 +206,12 @@ Fast Ethernet (10/100baseT) adapters:
 	Allied Telesyn AT-2800
 	AmbiCom AMB8100
 	Apollo FE2000
+	Asante FriendlyNET CardBus
 	Compex Linkport TX
 	D-Link DFE-660TX
 	Genius MF3000
 	Kingston KNE-CB4TX
+	Laneed LD-10/100CB
 	LevelOne FPC-0101TX 10/100Mbps CardBus
 	Linksys PCMPC200 EtherFast CardBus
 	SMC EZ CardBus 10/100 Ethernet
@@ -243,10 +246,10 @@ Wireless network adapters:
 Modem and serial cards:
 
 	[ Virtually all modem cards, simple serial port cards, and
-	digital cellular modems should work.  The only prominent
-	exceptions are the Compaq 192, the New Media WinSurfer, the
+	digital cellular modems should work.  The only exceptions are
+	the Compaq 192, New Media WinSurfer, Motorola Montana,
 	Megahertz XJ/CC2560, 3Com 3CXM356/3CCM356 and 3CXM656/3CCM656,
-	the Billionton 56K HSP, and other so-called "WinModems" that
+	Billionton 56K HSP, and other so-called "WinModems" that
 	require special Windows drivers.  ISDN modems that emulate a
 	standard UART are also supported. ]
 
@@ -311,7 +314,7 @@ SCSI adapters:
 	NEC PC-9801N-J03R
 	Qlogic FastSCSI
 	Panasonic KXL-D740, KXL-DN740A, KXL-DN740A-NB 4X CD-ROM
-	Panasonic KXL-810AN
+	Panasonic KXL-810AN, KXL-783A
 	Raven CD-Note 4X
 	RATOC REX-9530 SCSI-2
 	Toshiba NWB0107ABK, SCSC200A, SCSC200B
@@ -384,7 +387,7 @@ Multifunction ethernet/modem cards:
 	Psion Gold Card Netglobal 56K+10/100Mb [ ethernet only!! ]
 
 	[tulip_cb driver] [x86]
-	[ Not recommended: driver seems to be unreliable ]
+	[ Support for the following cards is experimental ]
 	Xircom RBEM56G-100BTX, CBEM56G-100BTX
 
 ATA/IDE card drives:
@@ -418,7 +421,7 @@ ATA/IDE CD-ROM adapters:
 	Creative Technology CD-ROM
 	Digital Mobile Media CD-ROM
 	EXP CD940 CD-ROM		[ Some work, some do NOT! ]
-	EXP Traveler 620 CD-ROM
+	EXP Traveler 620, 3220 CD-ROM
 	Freecom IQ Traveller CD-ROM
 	H45 Technologies Quick 2X CD-ROM
 	H45 Technologies QuickCD 16X
@@ -467,6 +470,11 @@ cannot test them.  All are available on the Linux PCMCIA FTP site, in
 	[mpsuni_cs driver]
 	MPS ISLINEnote ISDN adapter
 	  (Detlef Glaschick <glaschick@mps-software.de>)
+
+	[nin_cs driver]
+	IO Data PCSC-F SCSI adapter
+	  http://www.workbit.co.jp/workbit/products/nscsi-3.html
+	  (Yokota Hiroshi <yokota@netlab.is.tsukuba.ac.jp>)
 
 	[sedl_cs driver]
 	Sedlbauer Speed Star ISDN adapter
@@ -550,10 +558,11 @@ email just to ask if their status has changed.
 	New Media .WAVjammer and all other sound cards
 	New Media LiveWire+
 	Nikon CoolPix100
-	Panasonic KXL-D720, KXL-D745, KXL-D783
+	Panasonic KXL-D720, KXL-D745
 	SMC 8016 EliteCard
 	Xircom CE II Ethernet/Modem
 	Xircom CE-10BT Ethernet
+	Xircom CBE-10/100 CardBus
 
 The following vendors have assisted in the development of the Linux
 PCMCIA driver package by contributing hardware and/or technical

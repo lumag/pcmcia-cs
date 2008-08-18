@@ -145,9 +145,11 @@ extern struct timer_list tr_timer;
 /*====================================================================*/
 
 typedef struct ibmtr_dev_t {
-    struct net_device       *dev; /* Changed for 2.2.0 */ 
+    dev_link_t		link;
+    struct net_device	*dev; /* Changed for 2.2.0 */
     dev_node_t          node;
     window_handle_t     sram_win_handle;
+    struct tok_info	ti;
 } ibmtr_dev_t;
 
 /*======================================================================
@@ -186,19 +188,21 @@ static void cs_error(client_handle_t handle, int func, int ret)
 
 static dev_link_t *ibmtr_attach(void)
 {
-    client_reg_t client_reg;
-    dev_link_t *link;
     ibmtr_dev_t *info;
+    dev_link_t *link;
     struct net_device *dev;
-    struct tok_info *ti;
+    client_reg_t client_reg;
     int i, ret;
     
     DEBUG(0, "ibmtr_attach()\n");
     flush_stale_links();
 
     /* Create new token-ring device */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    memset(link, 0, sizeof(struct dev_link_t));
+    info = kmalloc(sizeof(*info), GFP_KERNEL);
+    if (!info) return NULL;
+    memset(info, 0, sizeof(*info));
+    link = &info->link; link->priv = info;
+
     link->release.function = &ibmtr_release;
     link->release.data = (u_long)link;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
@@ -217,25 +221,13 @@ static dev_link_t *ibmtr_attach(void)
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
 
-    info = kmalloc(sizeof(struct ibmtr_dev_t), GFP_KERNEL);
-    memset(info, 0, sizeof(struct ibmtr_dev_t));
-
 #if (LINUX_VERSION_CODE < VERSION(2,2,0))
     dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
     memset(dev,0,sizeof(struct net_device));
 #else
-    dev = NULL; /* Pass NULL pointers or kmallloc'ed pointers only */ 
-    dev = init_trdev(dev,0);
+    dev = init_trdev(NULL,0);
 #endif
-
-    /* Believe it or not, init_trdev does not set up the tok_info memory
-       allocation. Although it would do it we asked it to.  Why don't
-       we ? (ibmtr.c doesn't either)  */
-
-    ti = kmalloc(sizeof(struct tok_info), GFP_KERNEL);
-    memset(ti,0,sizeof(struct tok_info));
-    dev->priv = ti;
-
+    dev->priv = &info->ti;
     link->irq.Instance = info->dev = dev;
     
     if (dev == NULL) {
@@ -251,7 +243,6 @@ static dev_link_t *ibmtr_attach(void)
 #endif
 
     dev->tbusy = 1; 
-    link->priv = info;
 
     /* Register with Card Services */
     link->next = dev_list;
@@ -329,23 +320,13 @@ static void ibmtr_detach(dev_link_t *link)
 
     /* Unlink device structure, free bits */
     *linkp = link->next;
-    if (link->priv) {
-	dev = info->dev;
-	if (link->dev != NULL) {
+    if (link->dev)
 #if (LINUX_VERSION_CODE <= VERSION(2,1,16))
-	    unregister_netdev(dev);
+	unregister_netdev(info->dev);
 #else
-	    unregister_trdev(dev);
+	unregister_trdev(info->dev);
 #endif
-	}
-	if (dev) {
-	    if (dev->priv)
-		kfree_s(dev->priv, sizeof(struct tok_info));
-	    kfree_s(dev, sizeof(struct net_device));
-	}
-	kfree_s(info, sizeof(struct ibmtr_dev_t));
-    }
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(info);
 
 } /* ibmtr_detach */
 
@@ -362,22 +343,17 @@ while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 
 static void ibmtr_config(dev_link_t *link)
 {
-    client_handle_t handle;
+    client_handle_t handle = link->handle;
+    ibmtr_dev_t *info = link->priv;
+    struct net_device *dev = info->dev;
+    struct tok_info *ti = dev->priv;
     tuple_t tuple;
     cisparse_t parse;
     win_req_t req;
     memreq_t mem;
-    ibmtr_dev_t *info;
-    struct net_device *dev;
-    struct tok_info *ti;
     int i, last_ret, last_fn;
     u_char buf[64];
     unsigned char Shared_Ram_Base;
-
-    handle = link->handle;
-    info = link->priv;
-    dev = info->dev;
-    ti = dev->priv;
 
     DEBUG(0, "ibmtr_config(0x%p)\n", link);
 
@@ -590,14 +566,12 @@ static int ibmtr_event(event_t event, int priority,
 
 static void ibmtr_hw_setup(struct net_device *dev)
 {
-    struct tok_info *ti;
+    struct tok_info *ti = dev->priv;
     int i; 
 #if (LINUX_VERSION_CODE < VERSION(2,2,0))
     int j;
-    unsigned char  temp;
+    unsigned char temp;
 #endif
-
-    ti = dev->priv;
 
 #if (LINUX_VERSION_CODE >= VERSION(2,2,0)) 
 

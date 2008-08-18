@@ -7,10 +7,11 @@
 #
 case "$ADDRESS" in
 *,*,*,1)
+    #INFO="Sample IDE setup"
     #DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
     #FSTYPE="msdos"
     #OPTS=""
-    #MOUNTPT="/ide"
+    #MOUNTPT="/mnt/ide"
     ;;
 *,*,*)
     #PARTS="1"

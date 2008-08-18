@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.44 1999/10/25 19:57:59
+    dump_cis.c 1.45 1999/11/24 02:52:27
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -960,6 +960,10 @@ int main(int argc, char *argv[])
 	    strcpy(indent, "  ");
 	    fd = pfd = open_sock(i);
 	    if (fd < 0) break;
+	}
+	if (pfd < 0) {
+	    perror("open()");
+	    return -1;
 	}
 	if (!verbose && (i > 0)) putchar('\n');
 	if (!infile) printf("Socket %d:\n", i);

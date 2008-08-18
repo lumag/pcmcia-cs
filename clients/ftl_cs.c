@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.56 1999/10/25 20:03:17
+    ftl_cs.c 1.57 1999/11/16 02:14:55
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -118,7 +118,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.56 1999/10/25 20:03:17 (David Hinds)";
+"ftl_cs.c 1.57 1999/11/16 02:14:55 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -192,6 +192,7 @@ typedef struct partition_t {
 #define XFER_FAILED	0x04
 
 typedef struct ftl_dev_t {
+    dev_link_t		link;
     eraseq_handle_t	eraseq_handle;
     eraseq_entry_t	eraseq[MAX_ERASE];
     wait_queue_head_t	erase_pending;
@@ -281,16 +282,15 @@ static dev_link_t *ftl_attach(void)
     }
     
     /* Create new memory card device */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    dev_table[i] = link;
-    memset(link, 0, sizeof(struct dev_link_t));
+    dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+    if (!dev) return NULL;
+    memset(dev, 0, sizeof(*dev));
+    link = &dev->link; link->priv = dev;
+
     link->release.function = &ftl_release;
     link->release.data = (u_long)link;
-    
-    dev = kmalloc(sizeof(struct ftl_dev_t), GFP_KERNEL);
-    memset(dev, 0, sizeof(ftl_dev_t));
+    dev_table[i] = link;
     init_waitqueue_head(&dev->erase_pending);
-    link->priv = dev;
 
     /* Register with Card Services */
     client_reg.dev_info = &dev_info;
@@ -336,7 +336,7 @@ static dev_link_t *ftl_attach(void)
 
 static void ftl_detach(dev_link_t *link)
 {
-    ftl_dev_t *dev;
+    ftl_dev_t *dev = link->priv;
     int i;
 
     DEBUG(0, "ftl_cs: ftl_detach(0x%p)\n", link);
@@ -355,7 +355,6 @@ static void ftl_detach(dev_link_t *link)
 	}
     }
 
-    dev = (ftl_dev_t *)link->priv;
     if (dev->eraseq_handle)
 	CardServices(DeregisterEraseQueue, dev->eraseq_handle);
     if (link->handle)
@@ -363,8 +362,7 @@ static void ftl_detach(dev_link_t *link)
     
     /* Unlink device structure, free bits */
     dev_table[i] = NULL;
-    kfree_s(dev, sizeof(struct ftl_dev_t));
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(dev);
     
 } /* ftl_detach */
 
@@ -378,7 +376,7 @@ static void ftl_detach(dev_link_t *link)
 
 static void ftl_config(dev_link_t *link)
 {
-    ftl_dev_t *dev;
+    ftl_dev_t *dev = link->priv;
     partition_t *minor;
     region_info_t region;
     dev_node_t **tail;
@@ -391,7 +389,6 @@ static void ftl_config(dev_link_t *link)
 
     for (i = 0; i < MAX_DEV; i++)
 	if (dev_table[i] == link) break;
-    dev = (ftl_dev_t *)link->priv;
     tail = &link->dev;
     minor = dev->minor;
     nr = 0;
@@ -472,7 +469,7 @@ static int ftl_event(event_t event, int priority,
 		     event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    ftl_dev_t *dev;
+    ftl_dev_t *dev = link->priv;
 
     DEBUG(1, "ftl_cs: ftl_event()\n");
     
@@ -490,7 +487,6 @@ static int ftl_event(event_t event, int priority,
 	break;
     case CS_EVENT_ERASE_COMPLETE:
 	save_status((eraseq_entry_t *)(args->info));
-	dev = (ftl_dev_t *)link->priv;
 	wake_up(&dev->erase_pending);
 	break;
     case CS_EVENT_PM_SUSPEND:
@@ -563,11 +559,13 @@ static int build_maps(partition_t *part)
 	part->header.NumTransferUnits;
     part->EUNInfo = kmalloc(part->DataUnits * sizeof(struct eun_info_t),
 			    GFP_KERNEL);
+    if (!part->EUNInfo) return -1;
     for (i = 0; i < part->DataUnits; i++)
 	part->EUNInfo[i].Offset = 0xffffffff;
     part->XferInfo =
 	kmalloc(part->header.NumTransferUnits * sizeof(struct xfer_info_t),
 		GFP_KERNEL);
+    if (!part->XferInfo) return -1;
 
     req.Attributes = MEM_OP_BUFFER_KERNEL;
     req.Count = sizeof(header);
@@ -625,6 +623,7 @@ static int build_maps(partition_t *part)
 
     part->bam_cache = kmalloc(part->BlocksPerUnit * sizeof(u_int),
 			      GFP_KERNEL);
+    if (!part->bam_cache) return -1;
     part->bam_index = 0xffff;
     part->FreeTotal = 0;
     for (i = 0; i < part->DataUnits; i++) {

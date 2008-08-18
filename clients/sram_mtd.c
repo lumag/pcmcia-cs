@@ -2,7 +2,7 @@
 
     A simple MTD for accessing static RAM
 
-    sram_mtd.c 1.44 1999/10/25 20:03:18
+    sram_mtd.c 1.45 1999/11/15 06:06:36
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -64,7 +64,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"sram_mtd.c 1.44 1999/10/25 20:03:18 (David Hinds)";
+"sram_mtd.c 1.45 1999/11/15 06:06:36 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -90,6 +90,7 @@ static dev_link_t *sram_attach(void);
 static void sram_detach(dev_link_t *);
 
 typedef struct sram_dev_t {
+    dev_link_t		link;
     caddr_t		Base;
     u_int		Size;
     int			nregion;
@@ -138,12 +139,13 @@ static dev_link_t *sram_attach(void)
     DEBUG(0, "sram_attach()\n");
 
     /* Create new memory card device */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    memset(link, 0, sizeof(struct dev_link_t));
+    dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+    if (!dev) return NULL;
+    memset(dev, 0, sizeof(*dev));
+    link = &dev->link; link->priv = dev;
+    
     link->release.function = &sram_release;
     link->release.data = (u_long)link;
-    dev = kmalloc(sizeof(struct sram_dev_t), GFP_KERNEL);
-    link->priv = dev;
 
     /* Register with Card Services */
     link->next = dev_list;
@@ -203,8 +205,7 @@ static void sram_detach(dev_link_t *link)
     
     /* Unlink device structure, free bits */
     *linkp = link->next;
-    kfree_s(link->priv, sizeof(struct sram_dev_t));
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(link->priv);
     
 } /* sram_detach */
 
@@ -227,7 +228,8 @@ static void printk_size(u_int sz)
 
 static void sram_config(dev_link_t *link)
 {
-    sram_dev_t *dev;
+    client_handle_t handle = link->handle;
+    sram_dev_t *dev = link->priv;
     win_req_t req;
     mtd_reg_t reg;
     region_info_t region;
@@ -242,10 +244,10 @@ static void sram_config(dev_link_t *link)
 	req.Attributes = WIN_DATA_WIDTH_8;
     req.Base = req.Size = 0;
     req.AccessSpeed = mem_speed;
-    link->win = (window_handle_t)link->handle;
+    link->win = (window_handle_t)handle;
     ret = MTDHelperEntry(MTDRequestWindow, &link->win, &req);
     if (ret != 0) {
-	cs_error(link->handle, RequestWindow, ret);
+	cs_error(handle, RequestWindow, ret);
 	link->state &= ~DEV_CONFIG_PENDING;
 	sram_release((u_long)link);
 	return;
@@ -254,25 +256,24 @@ static void sram_config(dev_link_t *link)
     link->state |= DEV_CONFIG;
 
     /* Grab info for all the memory regions we can access */
-    dev = link->priv;
     dev->Base = ioremap(req.Base, req.Size);
     dev->Size = req.Size;
     i = 0;
     for (attr = 0; attr < 2; attr++) {
 	region.Attributes = attr ? REGION_TYPE_AM : REGION_TYPE_CM;
-	ret = CardServices(GetFirstRegion, link->handle, &region);
+	ret = CardServices(GetFirstRegion, handle, &region);
 	while (ret == CS_SUCCESS) {
 	    reg.Attributes = region.Attributes;
 	    reg.Offset = region.CardOffset;
 	    reg.MediaID = (u_long)&dev->region[i];
-	    ret = CardServices(RegisterMTD, link->handle, &reg);
+	    ret = CardServices(RegisterMTD, handle, &reg);
 	    if (ret != 0) break;		
 	    printk(KERN_INFO "sram_mtd: %s at 0x%x, ",
 		   attr ? "attr" : "common", region.CardOffset);
 	    printk_size(region.RegionSize);
 	    printk(", %d ns\n", region.AccessSpeed);
 	    dev->region[i] = region; i++;
-	    ret = CardServices(GetNextRegion, link->handle, &region);
+	    ret = CardServices(GetNextRegion, &region);
 	}
     }
     dev->nregion = i;
@@ -289,12 +290,11 @@ static void sram_config(dev_link_t *link)
 static void sram_release(u_long arg)
 {
     dev_link_t *link = (dev_link_t *)arg;
-    sram_dev_t *dev;
+    sram_dev_t *dev = link->priv;
     int ret;
     
     DEBUG(0, "sram_release(0x%p)\n", link);
 
-    dev = link->priv;
     if (link->win) {
 	iounmap(dev->Base);
 	ret = MTDHelperEntry(MTDReleaseWindow, link->win);

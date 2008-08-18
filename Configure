@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.125 1999/11/03 18:21:44
+# Configure 1.127 1999/11/16 20:05:53
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -265,9 +265,9 @@ else
 fi
 ask_str "  Module install directory" MODDIR
 
-ask_str "Compiler flags for debugging" PCDEBUG
 write_str KFLAGS
 write_str UFLAGS
+write_str PCDEBUG
 write_bool USE_APM
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
@@ -361,6 +361,7 @@ printconfig () {
     printflag "Networking support" CONFIG_INET
     printflag " Radio network interface support" CONFIG_NET_RADIO
     printflag " Token Ring device support" CONFIG_TR
+    printflag " Fast switching" CONFIG_NET_FASTROUTE
     printflag "Module version checking" CONFIG_MODVERSIONS
     if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
@@ -417,6 +418,7 @@ case $CONF_SRC in
 	modcheck parport CONFIG_PARPORT
 	modcheck parport_pc CONFIG_PARPORT_PC
 	symcheck register_netdev CONFIG_INET
+	symcheck dev_fastroute_stat CONFIG_NET_FASTROUTE
 	if [ -r /proc/net/wireless ] ; then
 	    CONFIG_NET_RADIO=y
 	else
@@ -467,8 +469,8 @@ case $CONF_SRC in
 	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	    configcheck CONFIG_BLK_DEV_IDE_PCMCIA
 	fi
-	for C in CONFIG_PCI CONFIG_APM CONFIG_SCSI \
-	    CONFIG_INET CONFIG_NET_RADIO CONFIG_TR \
+	for C in CONFIG_PCI CONFIG_APM CONFIG_SCSI CONFIG_INET \
+	    CONFIG_NET_FASTROUTE CONFIG_NET_RADIO CONFIG_TR \
 	    CONFIG_MODVERSIONS CONFIG_PROC_FS CONFIG_SERIAL ; do
 	    configcheck $C
 	done

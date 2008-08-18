@@ -5,7 +5,7 @@
     (specifically, for the Quatech SPP-100 EPP card: other cards will
     probably require driver tweaks)
     
-    parport_cs.c 1.13 1999/11/08 20:46:17
+    parport_cs.c 1.15 1999/11/23 19:14:14
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -62,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.13 1999/11/08 20:46:17 (David Hinds)";
+"parport_cs.c 1.15 1999/11/23 19:14:14 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -85,6 +85,7 @@ MODULE_PARM(epp_mode, "i");
 #define FORCE_EPP_MODE	0x08
 
 typedef struct parport_info_t {
+    dev_link_t		link;
     int			ndev;
     dev_node_t		node;
     struct parport	*port;
@@ -121,15 +122,19 @@ static void cs_error(client_handle_t handle, int func, int ret)
 
 static dev_link_t *parport_attach(void)
 {
-    client_reg_t client_reg;
+    parport_info_t *info;
     dev_link_t *link;
+    client_reg_t client_reg;
     int i, ret;
     
     DEBUG(0, "parport_attach()\n");
 
     /* Create new parport device */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    memset(link, 0, sizeof(struct dev_link_t));
+    info = kmalloc(sizeof(*info), GFP_KERNEL);
+    if (!info) return NULL;
+    memset(info, 0, sizeof(*info));
+    link = &info->link; link->priv = info;
+
     link->release.function = &parport_cs_release;
     link->release.data = (u_long)link;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
@@ -144,8 +149,6 @@ static dev_link_t *parport_attach(void)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
-    link->priv = kmalloc(sizeof(struct parport_info_t), GFP_KERNEL);
-    memset(link->priv, 0, sizeof(struct parport_info_t));
     
     /* Register with Card Services */
     link->next = dev_list;
@@ -209,10 +212,9 @@ static void parport_detach(dev_link_t *link)
 	    cs_error(link->handle, DeregisterClient, ret);
     }
     
-    /* Unlink device structure, free bits */
+    /* Unlink, free device structure */
     *linkp = link->next;
-    kfree_s(link->priv, sizeof(parport_info_t));
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(link->priv);
     
 } /* parport_detach */
 
@@ -240,8 +242,8 @@ static struct { u_int flag; char *name; } mode[] = {
 
 void parport_config(dev_link_t *link)
 {
-    client_handle_t handle;
-    parport_info_t *info;
+    client_handle_t handle = link->handle;
+    parport_info_t *info = link->priv;
     tuple_t tuple;
     u_short buf[128];
     cisparse_t parse;
@@ -250,9 +252,6 @@ void parport_config(dev_link_t *link)
     cistpl_cftable_entry_t dflt = { 0 };
     struct parport *p;
     int i, last_ret, last_fn;
-
-    handle = link->handle;
-    info = link->priv;
     
     DEBUG(0, "parport_config(0x%p)\n", link);
     
@@ -399,7 +398,7 @@ void parport_cs_release(u_long arg)
 ======================================================================*/
 
 int parport_event(event_t event, int priority,
-	      event_callback_args_t *args)
+		  event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
 

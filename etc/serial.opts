@@ -4,6 +4,7 @@
 #
 case "$ADDRESS" in
 *,*,*)
+    INFO="Default modem setup"
     # Symbolic link to dialout device
     LINK="/dev/modem"
     # Options for 'setserial'

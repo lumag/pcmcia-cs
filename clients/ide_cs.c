@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.25 1999/11/08 20:46:17
+    ide_cs.c 1.26 1999/11/16 02:10:49
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -62,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.25 1999/11/08 20:46:17 (David Hinds)";
+"ide_cs.c 1.26 1999/11/16 02:10:49 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -88,6 +88,7 @@ static const char ide_major[] = {
 };
 
 typedef struct ide_info_t {
+    dev_link_t	link;
     int		ndev;
     dev_node_t	node;
     int		hd;
@@ -123,15 +124,19 @@ static void cs_error(client_handle_t handle, int func, int ret)
 
 static dev_link_t *ide_attach(void)
 {
-    client_reg_t client_reg;
+    ide_info_t *info;
     dev_link_t *link;
+    client_reg_t client_reg;
     int i, ret;
     
     DEBUG(0, "ide_attach()\n");
 
     /* Create new ide device */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    memset(link, 0, sizeof(struct dev_link_t));
+    info = kmalloc(sizeof(*info), GFP_KERNEL);
+    if (!info) return NULL;
+    memset(info, 0, sizeof(*info));
+    link = &info->link; link->priv = info;
+
     link->release.function = &ide_release;
     link->release.data = (u_long)link;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -147,8 +152,6 @@ static dev_link_t *ide_attach(void)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
-    link->priv = kmalloc(sizeof(struct ide_info_t), GFP_KERNEL);
-    memset(link->priv, 0, sizeof(struct ide_info_t));
     
     /* Register with Card Services */
     link->next = dev_list;
@@ -212,10 +215,9 @@ static void ide_detach(dev_link_t *link)
 	    cs_error(link->handle, DeregisterClient, ret);
     }
     
-    /* Unlink device structure, free bits */
+    /* Unlink, free device structure */
     *linkp = link->next;
-    kfree_s(link->priv, sizeof(ide_info_t));
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(link->priv);
     
 } /* ide_detach */
 
@@ -235,8 +237,8 @@ if (CardServices(fn, args) != 0) goto next_entry
 
 void ide_config(dev_link_t *link)
 {
-    client_handle_t handle;
-    ide_info_t *info;
+    client_handle_t handle = link->handle;
+    ide_info_t *info = link->priv;
     tuple_t tuple;
     u_short buf[128];
     cisparse_t parse;
@@ -245,9 +247,6 @@ void ide_config(dev_link_t *link)
     cistpl_cftable_entry_t dflt = { 0 };
     int i, pass, last_ret, last_fn, hd, io_base, ctl_base;
 
-    handle = link->handle;
-    info = link->priv;
-    
     DEBUG(0, "ide_config(0x%p)\n", link);
     
     tuple.TupleData = (cisdata_t *)buf;

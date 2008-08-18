@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.46 1999/11/08 20:46:49
+ * cs_internal.h 1.48 1999/11/24 21:07:32
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -21,6 +21,10 @@
 
 #ifdef __BEOS__
 #include "wchan.h"
+#endif
+
+#ifdef __LINUX__
+#include <linux/config.h>
 #endif
 
 typedef struct erase_busy_t {
@@ -269,6 +273,7 @@ int proc_read_mem(char *buf, char **start, off_t pos,
 /* in pnp components */
 int proc_read_irq(char *buf, char **start, off_t pos,
 		  int count, int *eof, void *data);
+int check_pnp_irq(int n);
 void pnp_bios_init(void);
 void pnp_proc_init(void);
 void pnp_proc_done(void);

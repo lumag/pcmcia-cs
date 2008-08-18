@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.265 1999/11/10 18:36:21
+    i82365.c 1.267 1999/11/24 21:07:09
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.265 1999/11/10 18:36:21 (David Hinds)";
+"i82365.c 1.267 1999/11/24 21:07:09 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -99,6 +99,11 @@ typedef void irq_ret_t;
 static void irq_count(int, void *, struct pt_regs *);
 static inline int _check_irq(int irq, int flags)
 {
+#ifdef CONFIG_PNP_BIOS
+    extern int check_pnp_irq(int);
+    if ((flags != SA_SHIRQ) && check_pnp_irq(irq))
+	return -1;
+#endif
     if (request_irq(irq, irq_count, flags, "x", NULL) != 0)
 	return -1;
     free_irq(irq, NULL);
@@ -1298,8 +1303,13 @@ static irq_ret_t irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
 static u_int __init test_irq(u_short sock, int irq, int pci)
 {
     u_char csc = (pci) ? 0 : irq;
+
+#ifdef CONFIG_PNP_BIOS
+    extern int check_pnp_irq(int);
+    if (!pci && check_pnp_irq(irq)) return 1;
+#endif
+
     DEBUG(2, "  testing %s irq %d\n", pci ? "PCI" : "ISA", irq);
-    
     if (_request_irq(irq, irq_count, (pci?SA_SHIRQ:0), "scan") != 0)
 	return 1;
     irq_hits = 0; irq_sock = sock;
@@ -1508,11 +1518,12 @@ static int __init is_alive(u_short sock)
     stat = i365_get(sock, I365_STATUS);
     start = i365_get_pair(sock, I365_IO(0)+I365_W_START);
     stop = i365_get_pair(sock, I365_IO(0)+I365_W_STOP);
-    if ((stat & I365_CS_DETECT) && (stat & I365_CS_POWERON) &&
+    if ((stop - start < 0x40) && (stop - start >= 0x07) &&
+	((start & 0xfeef) != 0x02e8) && (start >= 0x100) &&
+	(stat & I365_CS_DETECT) && (stat & I365_CS_POWERON) &&
 	(i365_get(sock, I365_INTCTL) & I365_PC_IOCARD) &&
 	(i365_get(sock, I365_ADDRWIN) & I365_ENA_IO(0)) &&
-	(check_region(start, stop-start+1) != 0) &&
-	((start & 0xfeef) != 0x02e8))
+	(check_region(start, stop-start+1) != 0))
 	return 1;
     else
 	return 0;
@@ -1574,7 +1585,7 @@ static void __init add_pcic(int ns, int type)
 #endif
     
 #ifdef CONFIG_PCI
-    /* Can we use a PCI interrupt for card status changes? */
+    /* Can we use PCI interrupts for card status changes? */
     if (pci_csc && t->cap.pci_irq) {
 	for (i = 0; i < ns; i++)
 	    if (_check_irq(t[i].cap.pci_irq, SA_SHIRQ)) break;
@@ -1760,6 +1771,14 @@ static void __init add_cb_bridge(int type, u_char bus, u_char devfn,
 	    cb_mem_base[0] = cb_mem_base[i] + PAGE_SIZE;
 	} else {
 	    s->cb_virt = ioremap(s->cb_phys, 0x1000);
+	    if ((readb(s->cb_virt+0x800+I365_IDENT) & 0x70) ||
+		(readb(s->cb_virt+0x800+I365_CSC) &&
+		 readb(s->cb_virt+0x800+I365_CSC) &&
+		 readb(s->cb_virt+0x800+I365_CSC))) {
+		printk(KERN_NOTICE "  Bad bridge mapping at 0x%08x!\n",
+		       s->cb_phys);
+		break;
+	    }
 	}
 	
 	request_mem_region(s->cb_phys, 0x1000, "i82365");
@@ -2686,23 +2705,31 @@ static void pcic_proc_setup(u_short sock, struct proc_dir_entry *base)
     socket_info_t *s = &socket[sock];
     struct proc_dir_entry *ent;
     ent = create_proc_entry("info", 0, base);
-    ent->read_proc = proc_read_info;
-    ent->data = s;
+    if (ent) {
+	ent->read_proc = proc_read_info;
+	ent->data = s;
+    }
     ent = create_proc_entry("exca", 0, base);
-    ent->read_proc = proc_read_exca;
-    ent->data = s;
+    if (ent) {
+	ent->read_proc = proc_read_exca;
+	ent->data = s;
+    }
 #ifdef CONFIG_PCI
     if (s->flags & (IS_PCI|IS_CARDBUS)) {
 	ent = create_proc_entry("pci", 0, base);
-	ent->read_proc = proc_read_pci;
-	ent->data = s;
+	if (ent) {
+	    ent->read_proc = proc_read_pci;
+	    ent->data = s;
+	}
     }
 #endif
 #ifdef CONFIG_CARDBUS
     if (s->flags & IS_CARDBUS) {
 	ent = create_proc_entry("cardbus", 0, base);
-	ent->read_proc = proc_read_cardbus;
-	ent->data = s;
+	if (ent) {
+	    ent->read_proc = proc_read_cardbus;
+	    ent->data = s;
+	}
     }
 #endif
     s->proc = base;

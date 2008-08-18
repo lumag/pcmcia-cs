@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.43, 11 November 1999
+  v2.46, 01 December 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -188,7 +188,7 @@
 
   +o  O2Micro OZ6729, OZ6730, OZ6832, OZ6833, OZ6836, OZ6860, OZ6812
 
-  +o  Omega Micro 82C092G
+  +o  Omega Micro 82C365G, 82C092G
 
   +o  Ricoh RF5C296, RF5C396, RL5C465, RL5C466, RL5C475, RL5C476, RL5C478
 
@@ -449,10 +449,6 @@
         relative to its root directory to install everything in the
         proper places.
 
-     CCoommppiilleerr ffllaaggss ffoorr ddeebbuuggggiinngg??
-        See the section on ``Low level PCMCIA debugging aids'' for more
-        information about this option.
-
      BBuuiilldd ''ttrruussttiinngg'' vveerrssiioonnss ooff ccaarrdd uuttiilliittiieess??
         Some of the support utilities (cardctl and cardinfo) can be
         compiled either in ``safe'' or ``trusting'' forms.  The ``safe''
@@ -473,7 +469,8 @@
         parallel ports, sound, etc), to help avoid resource conflicts.
         If enabled, some extra resource files will be created under
         /proc/bus/pccard, and the lspnp and setpnp tools can be used to
-        view and manipulate PnP BIOS devices.
+        view and manipulate PnP BIOS devices.  However, this setting
+        causes problems on some laptops and is not turned on by default.
 
      HHooww ttoo sseett kkeerrnneell--ssppeecciiffiicc ooppttiioonnss??
         There are a few kernel configuration options that affect the
@@ -510,6 +507,7 @@
   it has a TCIC-2 controller at an unusual location: you'll need to edit
   rc.pcmcia to load the tcic module, and also set the PCIC_OPTS
   parameter to ``tcic_base=0x02c0''.
+
   On some systems using Cirrus controllers, including the NEC Versa M,
   the BIOS puts the controller in a special suspended state at system
   startup time.  On these systems, the probe command will fail to find
@@ -573,9 +571,9 @@
      the length of PCMCIA bus cycles.  Fast 486 systems (i.e., DX4-100)
      seem to often benefit from increasing this from 6 (the default) to
      12 or 16.
+
   +o  The Cirrus PD6729 PCI controller has the fast_pci flag, which
      should be set if the PCI bus speed is greater than 25 MHz.
-
   +o  For Vadem VG-468 controllers and Databook TCIC-2 controllers, the
      async_clock flag changes the relative clocking of PCMCIA bus and
      host bus cycles.  Setting this flag adds extra wait states to some
@@ -636,9 +634,9 @@
 
   +o  On IBM ThinkPad 600 and 770 models with internal modems, exclude
      port 0x2f8-0x2ff.
+
   +o  On the IBM ThinkPad 600E and 770Z, change the high memory window to
      0x60000000-0x60ffffff.
-
   +o  On the Micron Millenia Transport, exclude irq 5, irq 9.
 
   +o  On the NEC Versa M, exclude irq 9, port 0x2e0-2ff.
@@ -721,8 +719,13 @@
   parameters blank.  Setting these parameters may interfere with proper
   operation of the PCMCIA subsystem.
 
+  At boot time, when the Red Hat network subsystem starts up, it may say
+  ``Delaying eth0 initialization'' and ``[FAILED]''.  This is actually
+  not a failure: it means that this network interface will not be
+  initialized until after the PCMCIA network device is configured.
+
   Red Hat bundles their slightly modified PCMCIA source distribution in
-  their kernel SRPM, rather than as a separate package.
+  their kernel SRPM, rather than as a separate source package.
 
   22..55..33..  SSllaacckkwwaarree
 
@@ -880,6 +883,7 @@
   Module paths are specified relative to the top-level module directory
   for the current kernel version; if no relative path is given, then the
   path defaults to the pcmcia subdirectory.
+
   33..33..  IInntteerrrruupptt ssccaann ffaaiilluurreess
 
   Symptoms:
@@ -935,6 +939,7 @@
   the information in /proc/interrupts.  Depending on system design, an
   inactive device can still occupy an interrupt and cause trouble if it
   is probed for PCMCIA.
+
   33..44..  IIOO ppoorrtt ssccaann ffaaiilluurreess
 
   Symptoms:
@@ -991,13 +996,13 @@
   it may help to restrict the scan to a narrower range.  Reasonable
   ranges to try include 0xd0000-0xdffff, 0xc0000-0xcffff,
   0xc8000-0xcffff, or 0xd8000-0xdffff.
-
   If you have DOS or Windows PCMCIA drivers, you may be able to deduce
   what memory region those drivers use.  Note that DOS memory addresses
   are often specified in ``segment'' form, which leaves off the final
   hex digit (so an absolute address of 0xd0000 might be given as
   0xd000).  Be sure to add the extra digit back when making changes to
   config.opts.
+
   In unusual cases, a memory probe failure can indicate a timing
   register setup problem with the host controller.  See the ``Startup
   options'' section for information about dealing with common timing
@@ -1118,6 +1123,7 @@
   resources that appear to be available, cards are assigned resources in
   the order they are configured.  In this case, the card configured last
   is being assigned a resource that in fact is not free.
+
   Check the system log to see what resources are used by the non-working
   card.  Exclude these in /etc/pcmcia/config.opts, and restart the
   cardmgr daemon to reload the resource database.
@@ -1208,18 +1214,18 @@
   configuration status of a card.  Here is an example of the output of
   the ``cardctl config'' command:
 
-       Socket 0:
-         not configured
-       Socket 1:
-         Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
-         Card type is memory and I/O
-         IRQ 3 is dynamic shared, level mode, enabled
-         Speaker output is enabled
-         Function 0:
-           Config register base = 0x0800
-             Option = 0x63, status = 0x08
-           I/O window 1: 0x0280 to 0x02bf, auto sized
-           I/O window 2: 0x02f8 to 0x02ff, 8 bit
+  Socket 0:
+    not configured
+  Socket 1:
+    Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
+    Card type is memory and I/O
+    IRQ 3 is dynamic shared, level mode, enabled
+    Speaker output is enabled
+    Function 0:
+      Config register base = 0x0800
+        Option = 0x63, status = 0x08
+      I/O window 1: 0x0280 to 0x02bf, auto sized
+      I/O window 2: 0x02f8 to 0x02ff, 8 bit
 
   Or ``cardctl ident'', to get card identification information:
 
@@ -1339,6 +1345,7 @@
   device configuration tools.  In that case, some of the following
   sections may not apply; ideally, this will be documented by the
   distribution maintainers.
+
   44..33..  PPCCMMCCIIAA nneettwwoorrkk aaddaapptteerrss
 
   Linux ethernet-type network interfaces normally have names like eth0,
@@ -1380,21 +1387,22 @@
   Alternatively, they could be configured using their hardware
   addresses, as in:
 
-       case "$ADDRESS" in
-       *,*,*,00:80:C8:76:00:B1)
-           # definitions for a D-Link card
-           ;;
-       *,*,*,08:00:5A:44:80:01)
-           # definitions for an IBM card
-       esac
+  case "$ADDRESS" in
+  *,*,*,00:80:C8:76:00:B1)
+      # definitions for a D-Link card
+      ;;
+  *,*,*,08:00:5A:44:80:01)
+      # definitions for an IBM card
+  esac
 
   44..33..11..  NNeettwwoorrkk ddeevviiccee ppaarraammeetteerrss
 
   The following parameters can be defined in network.opts:
 
      IF_PORT
-        Specifies the ethernet transceiver type, for cards that do not
-        autodetect.  See ``man ifport'' for transceiver names.
+        Specifies the ethernet transceiver type, for certain 16-bit
+        cards that do not autodetect.  See ``man ifport'' for more
+        information.
 
      PUMP
         A boolean (y/n) value: indicates if the host's IP address and
@@ -1446,19 +1454,19 @@
 
   For example:
 
-  case "$ADDRESS" in
-  *,*,*,*)
-      IF_PORT="10base2"
-      BOOTP="n"
-      IPADDR="10.0.0.1"
-      NETMASK="255.255.255.0"
-      NETWORK="10.0.0.0"
-      BROADCAST="10.0.0.255"
-      GATEWAY="10.0.0.1"
-      DOMAIN="domain.org"
-      DNS_1="dns1.domain.org"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,*,*,*)
+           IF_PORT="10base2"
+           BOOTP="n"
+           IPADDR="10.0.0.1"
+           NETMASK="255.255.255.0"
+           NETWORK="10.0.0.0"
+           BROADCAST="10.0.0.255"
+           GATEWAY="10.0.0.1"
+           DOMAIN="domain.org"
+           DNS_1="dns1.domain.org"
+           ;;
+       esac
 
   To automatically mount and unmount NFS filesystems, first add all
   these filesystems to /etc/fstab, but include noauto in the mount
@@ -1477,12 +1485,12 @@
   only) argument.  Similarly, if it is defined, stop_fn will be invoked
   before shutting down an interface.
 
-  The transceiver type can be selected using the IF_PORT setting.  This
-  can either be a numeric value as in previous PCMCIA releases, or a
-  keyword identifying the transceiver type.  All the network drivers
-  default to either autodetect the interface if possible, or 10baseT
-  otherwise.  The ifport command can be used to check or set the current
-  transceiver type.  For example:
+  The transceiver type for some cards can be selected using the IF_PORT
+  setting.  This can either be a numeric value, or a keyword identifying
+  the transceiver type.  All the network drivers default to either
+  autodetect the interface if possible, or 10baseT otherwise.  The
+  ifport command can be used to check or set the current transceiver
+  type.  For example:
 
        # ifport eth0 10base2
        #
@@ -1504,11 +1512,6 @@
      10baseT, AUI) needs to be set when the network device is
      configured.  Make sure that the transceiver type reported in the
      system log matches your connection.
-
-  +o  The drivers for SMC, Megahertz, Ositech, and 3Com cards should
-     autodetect the attached network type (10base2 or 10baseT).  Setting
-     the transceiver type when the driver is loaded serves to define the
-     card's ``first guess''.
 
   +o  The Farallon EtherWave is actually based on the 3Com 3c589, with a
      special transceiver.  Though the EtherWave uses 10baseT-style
@@ -1808,10 +1811,11 @@
   All the currently supported PCMCIA SCSI cards are work-alikes of one
   of the following ISA bus cards: the Qlogic, the Adaptec AHA-152X, or
   the Future Domain TMC-16x0.  The PCMCIA drivers are built by linking
-  some PCMCIA-specific code (in qlogic_cs.c, toaster_cs.c, or
-  fdomain_cs.c) with the normal Linux SCSI driver.  Due to limitations
-  in the Linux SCSI driver model, only one removable card per driver is
-  supported.
+  some PCMCIA-specific code (in qlogic_cs.c, aha152x_cs.c, or
+  fdomain_cs.c) with the normal Linux SCSI driver, pulled from the Linux
+  kernel source tree.  The Adaptec APA1480 CardBus driver is based on
+  the kernel aic7xxx PCI driver.  Due to limitations in the Linux SCSI
+  driver model, only one removable card per driver is supported.
 
   When a new SCSI host adapter is detected, the SCSI drivers will probe
   for devices.  Check the system log to make sure your devices are
@@ -1907,7 +1911,6 @@
 
   For example, here is a script for configuring a disk device at SCSI ID
   3, with two partitions, and a CD-ROM at SCSI ID 6:
-
        case "$ADDRESS" in
        *,sd,*,0,3,0)
            # This device has two partitions...
@@ -2615,9 +2618,9 @@
   can see current problems (and fixes or workarounds, if available).
   Here are some things that should be included in all bug reports:
 
-  +o  Your system type, and the output of the probe command.
+  +o  Your system brand and model.
 
-  +o  What PCMCIA cards you are using.
+  +o  What PCMCIA card(s) you are using.
 
   +o  Your Linux kernel version (i.e., ``uname -rv''), and PCMCIA driver
      version (i.e., ``cardctl -V'').
@@ -2625,7 +2628,9 @@
   +o  Any changes you have made to the startup files in /etc/pcmcia, or
      to the PCMCIA startup script.
 
-  +o  All PCMCIA-related messages in your system log file.
+  +o  All PCMCIA-related messages in your system log file.  That includes
+     startup messages, and messages generated when your cards are
+     configured.
 
   All the PCMCIA modules and the cardmgr daemon send status messages to
   the system log.  This will usually be something like /var/log/messages

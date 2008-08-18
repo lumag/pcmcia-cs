@@ -1,3 +1,22 @@
+[02-Dec-99] Version 3.1.5
+-- Minor updates to default *.opts files.
+-- Fixed CardBus setup code to initialize the address space bits in a
+   new pci_dev structure properly.
+-- Fixed reset bug in cb_enabler module.
+-- Updated ide_info to use /proc/ide when possible.
+-- Added a couple more sanity checks to i82365 driver, and fixed it to
+   exclude interrupts reserved for PnP devices.
+-- In xirc2ps_cs, added back ability to force 100baseT with newer
+   cards, and changed busy loop to sleep whenever possible.
+-- Fixed memory_cb driver to use 32-bit transfers whenever possible.
+-- Added CONFIG_NET_FASTROUTE check to Configure script.
+-- Removed "compiler flags for debugging?" from interactive Configure
+   options: now you have to set it using a command-line option.
+-- General cleanup: added checks for kmalloc() failure, and simplified
+   some client driver data structure handling.
+-- Fixed a bug in the CardBus resource allocator, related to the 3.1.4
+   IO allocation change, but also sometimes affecting memory windows.
+
 [11-Nov-99] Version 3.1.4
 -- Relaxed the IO port allocation rules to do a better job with cards
    that don't decode all 16 address lines.
@@ -46,7 +65,7 @@
    /var/state/pcmcia or /var/lib/pcmcia, depending on /var layout.
 -- Added O2Micro OZ6812 bridge info.
 -- Switched on PCI card status irq's in i82365 module, by default.
--- Changed module Makefiles to use "install", set ownership to root.
+-- Changed module Makefiles to use "cp" instead of "cp -p".
 -- Better argument checking for 'setpnp'.
 -- Fixed NFS mount unwinding bug in network script.
 -- Fixed duplex selection and tx/rx byte counts in 3c575_cb driver.
