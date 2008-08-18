@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.36, 23 June 1999
+  v2.38, 30 July 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -31,7 +31,7 @@
      2.4 System resource settings
      2.5 Notes about specific Linux distributions
         2.5.1 Debian
-        2.5.2 Red Hat, and Caldera Open Desktop
+        2.5.2 Red Hat, Caldera, Mandrake
         2.5.3 Slackware
         2.5.4 SuSE
 
@@ -214,11 +214,15 @@
   between when a new model appears on the market, and when driver
   support becomes available.
 
-  Toshiba has made available specifications for their ToPIC95 and
-  ToPIC97 chipsets, however the information is somewhat sparse.  Work
-  has been hindered by the fact that much of the documentation
-  apparently exists only in Japanese.  Full support for these chipsets
-  is still experimental, and there are still some serious bugs.
+  Toshiba has made available some documentation for their ToPIC95 and
+  ToPIC97 chipsets, however the information they have provided has not
+  really been adequate.  Despite conflicting reports to the contrary,
+  Toshiba has not made any effective effort to remedy this situation.
+  There are serious bugs in Linux support for the ToPIC chipsets, that
+  cannot be resolved until better documentation or help from Toshiba
+  becomes available.  I do not recommend use of Toshiba laptops at this
+  time.  For use of 16-bit cards, I recommend setting the bridge mode to
+  ``PCIC'' in the BIOS setup; for CardBus cards, you are on your own.
 
   The Motorola 6AHC05GA controller used in some Hyundai laptops is not
   supported.  The custom host controller in the HP Omnibook 600 is also
@@ -659,7 +663,7 @@
   configuration scripts; and the ``pcmcia-modules'' package contains the
   kernel driver modules.
 
-  22..55..22..  RReedd HHaatt,, aanndd CCaallddeerraa OOppeenn DDeesskkttoopp
+  22..55..22..  RReedd HHaatt,, CCaallddeerraa,, MMaannddrraakkee
 
   These distributions use a System V boot script organization.  The
   PCMCIA startup script is installed as /etc/rc.d/init.d/pcmcia, and
@@ -1115,6 +1119,7 @@
 
   If the modules are all loaded correctly, the output of the lsmod
   command should look like the following, when no cards are inserted:
+
        Module                  Size  Used by
        ds                      5640   2
        i82365                 15452   2
@@ -1165,18 +1170,18 @@
   configuration status of a card.  Here is an example of the output of
   the ``cardctl config'' command:
 
-  Socket 0:
-    not configured
-  Socket 1:
-    Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
-    Card type is memory and I/O
-    IRQ 3 is dynamic shared, level mode, enabled
-    Speaker output is enabled
-    Function 0:
-      Config register base = 0x0800
-        Option = 0x63, status = 0x08
-      I/O window 1: 0x0280 to 0x02bf, auto sized
-      I/O window 2: 0x02f8 to 0x02ff, 8 bit
+       Socket 0:
+         not configured
+       Socket 1:
+         Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
+         Card type is memory and I/O
+         IRQ 3 is dynamic shared, level mode, enabled
+         Speaker output is enabled
+         Function 0:
+           Config register base = 0x0800
+             Option = 0x63, status = 0x08
+           I/O window 1: 0x0280 to 0x02bf, auto sized
+           I/O window 2: 0x02f8 to 0x02ff, 8 bit
 
   Or ``cardctl ident'', to get card identification information:
 
@@ -1329,13 +1334,13 @@
   Alternatively, they could be configured using their hardware
   addresses, as in:
 
-       case "$ADDRESS" in
-       *,*,*,00:80:C8:76:00:B1)
-           # definitions for a D-Link card
-           ;;
-       *,*,*,08:00:5A:44:80:01)
-           # definitions for an IBM card
-       esac
+  case "$ADDRESS" in
+  *,*,*,00:80:C8:76:00:B1)
+      # definitions for a D-Link card
+      ;;
+  *,*,*,08:00:5A:44:80:01)
+      # definitions for an IBM card
+  esac
 
   44..33..11..  NNeettwwoorrkk ddeevviiccee ppaarraammeetteerrss
 
@@ -1488,8 +1493,8 @@
      <ftp://hyper.stanford.edu/pub/pcmcia/extras/dlport.c>.
 
   +o  For WaveLAN wireless network adapters, Jean Tourrilhes
-     (jt@hplb.hpl.hp.com) has put together a wireless HOWTO at
-     <http://www-uk.hpl.hp.com/people/jt/Linux/Wavelan.html>.
+     (jt@hpl.hp.com) has put together a wireless HOWTO at
+     <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/>.
 
   44..33..33..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh nneettwwoorrkk aaddaapptteerrss
 

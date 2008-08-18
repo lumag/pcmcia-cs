@@ -1,5 +1,5 @@
 #
-# cardmgr/Makefile 1.68 1999/03/09 07:46:32 (David Hinds)
+# cardmgr/Makefile 1.70 1999/07/24 15:03:04 (David Hinds)
 #
 
 # Include site dependent options
@@ -10,9 +10,10 @@ CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 XFLAGS = -O -pipe
 endif
 CPPFLAGS = -I../include -I$(LINUX)/include -I../modules
-
 COFLAGS = -kv
 YFLAGS = -d
+
+CC := $(CC) $(UFLAGS)
 
 SRCS = cardmgr.c cardctl.c yacc_config.c lex_config.c probe.c
 HDRS = cardmgr.h yacc_config.h

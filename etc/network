@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.52 1999/06/09 16:54:24 (David Hinds)
+# network 1.54 1999/07/28 17:55:14 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -21,7 +21,7 @@ if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 
 # Get device attributes
 get_info $DEVICE
-HWADDR=`/sbin/ifconfig $DEVICE | sed -n -e 's/.*addr \([^ ]*\)/\1/p'`
+HWADDR=`/sbin/ifconfig $DEVICE | sed -n -e 's/.*addr \([^ ]*\) */\1/p'`
 
 # Load site-specific settings
 ADDRESS="$SCHEME,$SOCKET,$INSTANCE,$HWADDR"
@@ -53,7 +53,7 @@ case "$ACTION" in
 	/sbin/ifconfig $DEVICE up 0.0.0.0
 	/sbin/route add default dev $DEVICE
 	if /sbin/dhcpcd -V 2>&1 | grep -q DHCP ; then
-	    /sbin/dhcpcd $DEVICE >/dev/null 2>&1
+	    /sbin/dhcpcd $DEVICE >/dev/null 2>&1 || exit 1
 	else
 	    # Jump through hoops for lame 0.70-era dhcpcd
 	    L=/var/run/dhcp-lock-$DEVICE
@@ -144,6 +144,7 @@ case "$ACTION" in
 
 	if is_true $DHCP ; then
 	    kill -TERM `cat /var/run/dhcpcd-$DEVICE.pid`
+	    sleep 2
 	    /sbin/dhcpcd -V 2>&1 | grep -q DHCP || \
 		rm -f /var/run/dhcpcd-$DEVICE.pid
 	fi

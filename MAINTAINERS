@@ -1,6 +1,6 @@
 		Linux PCMCIA Maintainers List
 
-		Last updated: 1999/06/11 04:08:34
+		Last updated: 1999/07/30 05:37:18
 
 The following PCMCIA driver components have active maintainers.  Bug
 reports and questions are often best addressed to the maintainer of
@@ -23,8 +23,8 @@ http://www.linuxtr.org
 Dag Brattli <dagb@cs.uit.no>
 
 [wavelan_cs]
-Jean Tourrilhes <jt@hplb.hpl.hp.com>
-http://www-uk.hpl.hp.com/people/jt/Linux/Wavelan.html
+Jean Tourrilhes <jt@hpl.hp.com>
+http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/
 Justin Seger <jseger@media.mit.edu>
 http://www.media.mit.edu/~jseger
 

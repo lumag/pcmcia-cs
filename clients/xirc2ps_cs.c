@@ -432,7 +432,7 @@ static void hardreset(struct device *dev);
 static void do_reset(struct device *dev, int full);
 static int init_mii(struct device *dev);
 static void do_powerdown(struct device *dev);
-static int do_close(struct device *dev);
+static int do_stop(struct device *dev);
 
 
 /*=============== Helper functions =========================*/
@@ -734,7 +734,7 @@ xirc2ps_attach(void)
     dev->name = local->node.dev_name;
     dev->init = &do_init;
     dev->open = &do_open;
-    dev->stop = &do_close;
+    dev->stop = &do_stop;
     dev->tbusy = 1;
     link->priv = dev;
 
@@ -2347,14 +2347,14 @@ do_powerdown(struct device *dev)
 
 
 static int
-do_close( struct device *dev)
+do_stop( struct device *dev)
 {
     u_short ioaddr = dev->base_addr;
     dev_link_t *link;
 
   #ifdef PCMCIA_DEBUG
     if(pc_debug)
-	printk(KDBG_XIRC "do_close(%p)\n", dev );
+	printk(KDBG_XIRC "do_stop(%p)\n", dev );
   #endif
 
     for(link = dev_list; link; link = link->next)

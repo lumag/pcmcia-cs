@@ -4,7 +4,7 @@
     
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    3c589_cs.c 1.126 1999/06/14 17:35:34
+    3c589_cs.c 1.128 1999/07/30 15:17:50
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -55,8 +55,9 @@
 #define EL3_TIMER	0x0a
 #define EL3_CMD		0x0e
 #define EL3_STATUS	0x0e
-#define ID_PORT		0x100
-#define	EEPROM_READ	0x80
+
+#define EEPROM_READ	0x0080
+#define EEPROM_BUSY	0x8000
 
 #define EL3WINDOW(win_num) outw(SelectWindow + (win_num), ioaddr + EL3_CMD)
 
@@ -115,7 +116,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.126 1999/06/14 17:35:34 (David Hinds)";
+"3c589_cs.c 1.128 1999/07/30 15:17:50 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -446,14 +447,15 @@ static void tc589_config(dev_link_t *link)
     else
 	printk(KERN_NOTICE "3c589_cs: invalid if_port requested\n");
     
-    printk(KERN_INFO "%s: 3Com 3c%s, io %#3lx, irq %d, %s xcvr, "
-	   "hw_addr ", dev->name, (multi ? "562" : "589"),
-	   dev->base_addr, dev->irq, if_names[dev->if_port]);
+    printk(KERN_INFO "%s: 3Com 3c%s, io %#3lx, irq %d, hw_addr ",
+	   dev->name, (multi ? "562" : "589"), dev->base_addr,
+	   dev->irq);
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
     i = inl(ioaddr);
-    printk(KERN_INFO "  %dK FIFO split %s Rx:Tx\n",
-	   (i & 7) ? 32 : 8, ram_split[(i >> 16) & 3]);
+    printk(KERN_INFO "  %dK FIFO split %s Rx:Tx, %s xcvr\n",
+	   (i & 7) ? 32 : 8, ram_split[(i >> 16) & 3],
+	   if_names[dev->if_port]);
     return;
 
 cs_failed:
@@ -576,7 +578,7 @@ static ushort read_eeprom(short ioaddr, int index)
     outw(EEPROM_READ + index, ioaddr + 10);
     /* Reading the eeprom takes 162 us */
     for (i = 1620; i >= 0; i--)
-	if ((inw(ioaddr + 10) & 0x8000) == 0)
+	if ((inw(ioaddr + 10) & EEPROM_BUSY) == 0)
 	    break;
     return inw(ioaddr + 12);
 }
@@ -602,8 +604,10 @@ static void tc589_set_xcvr(struct device *dev, int if_port)
     EL3WINDOW(4);
     outw(MEDIA_LED | ((if_port < 2) ? MEDIA_TP : 0), ioaddr + WN4_MEDIA);
     EL3WINDOW(1);
-    lp->media_status = (if_port < 2) ? 0x8800 : 0x4800;
-    lp->last_irq = jiffies;
+    if (if_port == 2)
+	lp->media_status = ((dev->if_port == 0) ? 0x8000 : 0x4000);
+    else
+	lp->media_status = ((dev->if_port == 0) ? 0x4010 : 0x8800);
 }
 
 static void dump_status(struct device *dev)
@@ -931,8 +935,9 @@ static void media_check(u_long arg)
 	errs = inb(ioaddr + 0);
 	outw(StatsEnable, ioaddr + EL3_CMD);
 	lp->stats.tx_carrier_errors += errs;
-	if (errs) media |= 0x0010;
+	if (errs || (lp->media_status & 0x0010)) media |= 0x0010;
     }
+
     if (media != lp->media_status) {
 	if ((media & lp->media_status & 0x8000) &&
 	    ((lp->media_status ^ media) & 0x0800))
@@ -940,8 +945,8 @@ static void media_check(u_long arg)
 		   (lp->media_status & 0x0800 ? "lost" : "found"));
 	else if ((media & lp->media_status & 0x4000) &&
 		 ((lp->media_status ^ media) & 0x0010))
-	    printk(KERN_INFO "%s: cable %s\n", dev->name,
-		   (lp->media_status & 0x0010 ? "fixed" : "problem"));
+	    printk(KERN_INFO "%s: coax cable %s\n", dev->name,
+		   (lp->media_status & 0x0010 ? "ok" : "problem"));
 	if (dev->if_port == 0) {
 	    if (media & 0x8000) {
 		if (media & 0x0800)
@@ -949,8 +954,7 @@ static void media_check(u_long arg)
 			   dev->name);
 		else
 		    tc589_set_xcvr(dev, 2);
-	    }
-	    if (media & 0x4000) {
+	    } else if (media & 0x4000) {
 		if (media & 0x0010)
 		    tc589_set_xcvr(dev, 1);
 		else

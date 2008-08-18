@@ -2,10 +2,10 @@
 
     X Windows PCMCIA device control program
 
-    cardinfo.c 1.25 1998/06/05 00:09:34
+    cardinfo.c 1.27 1999/07/20 16:02:22
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -450,10 +450,8 @@ int main(int argc, char *argv[])
     }
 
     if (ioctl(st[0].fd, DS_GET_CARD_SERVICES_INFO, &serv) == 0) {
-	if (serv.Revision != CS_RELEASE_CODE) {
+	if (serv.Revision != CS_RELEASE_CODE)
 	    fprintf(stderr, "Card Services release does not match!\n");
-	    exit(EXIT_FAILURE);
-	}
     } else {
 	fprintf(stderr, "could not get CS revision info!\n");
 	exit(EXIT_FAILURE);

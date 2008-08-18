@@ -2,10 +2,10 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.221 1999/06/18 17:48:02
+    cs.c 1.222 1999/07/20 16:01:24
     
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -60,7 +60,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.221 1999/06/18 17:48:02 (David Hinds)";
+"cs.c 1.222 1999/07/20 16:01:24 (David Hinds)";
 #endif
 
 #ifdef __BEOS__

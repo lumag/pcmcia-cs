@@ -5,10 +5,10 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.47 1999/06/10 17:44:34
+    ftl_cs.c 1.50 1999/07/30 03:49:13
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -98,14 +98,14 @@ MODULE_PARM(shuffle_freq, "i");
 #define PART_NR(minor)		((minor)&7)
 #define MINOR_NR(dev,reg,part)	(((dev)<<5)+((reg)<<3)+(part))
 
-#include BLK_DEV_HDR
+#include <linux/blk.h>
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.47 1999/06/10 17:44:34 (David Hinds)";
+"ftl_cs.c 1.50 1999/07/30 03:49:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -1480,7 +1480,7 @@ static void do_ftl_request(void)
 	sti();
 	INIT_REQUEST;
 
-	minor = MINOR(DEVICE(CURRENT));
+	minor = MINOR(CURRENT->rq_dev);
 	
 	link = dev_table[DEVICE_NR(minor)];
 	dev = (ftl_dev_t *)link->priv;
@@ -1528,10 +1528,12 @@ int init_module(void)
     register_pcmcia_driver(&dev_info, &ftl_attach, &ftl_detach);
 
     major_dev = register_blkdev(major_dev, "ftl", &ftl_blk_fops);
-    if (major_dev == 0)
+    if (major_dev == 0) {
 	printk(KERN_NOTICE "ftl_cs: unable to grab major "
 	       "device number!\n");
-    
+	return -ENODEV;
+    }
+
     for (i = 0; i < MINOR_NR(MAX_DEV, 0, 0); i++)
 	ftl_blocksizes[i] = 1024;
     for (i = 0; i < MAX_DEV*MAX_PART; i++) {
@@ -1556,8 +1558,11 @@ void cleanup_module(void)
 
     DEBUG(0, "ftl_cs: unloading\n");
     unregister_pcmcia_driver(&dev_info);
-    if (major_dev != 0)
+    if (major_dev != 0) {
 	unregister_blkdev(major_dev, "ftl");
+	blk_dev[major_dev].request_fn = NULL;
+	blksize_size[major_dev] = NULL;
+    }
     for (i = 0; i < MAX_DEV; i++) {
 	link = dev_table[i];
 	if (link) {
@@ -1566,8 +1571,6 @@ void cleanup_module(void)
 	    ftl_detach(link);
 	}
     }
-    blk_dev[major_dev].request_fn = NULL;
-    blksize_size[major_dev] = NULL;
     for (gdp = &gendisk_head; *gdp; gdp = &((*gdp)->next))
 	if (*gdp == &ftl_gendisk) {
 	    gd = *gdp; *gdp = gd->next;

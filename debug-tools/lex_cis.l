@@ -3,10 +3,10 @@
 
 %{
 /*
- * lex_cis.l 1.9 1999/05/03 04:59:02
+ * lex_cis.l 1.10 1999/07/20 16:03:27
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.0 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *

@@ -2,10 +2,10 @@
 
     A simple MTD for Intel Series 2 and Series 100 Flash devices
 
-    iflash2_mtd.c 1.42 1998/11/16 05:02:25
+    iflash2_mtd.c 1.43 1999/07/20 15:59:13
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -65,7 +65,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static char *version =
-"iflash2_mtd.c 1.42 1998/11/16 05:02:25 (David Hinds)";
+"iflash2_mtd.c 1.43 1999/07/20 15:59:13 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif

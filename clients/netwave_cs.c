@@ -1506,8 +1506,7 @@ static int netwave_rx(struct device *dev) {
 	    return 0;
 	}
 		
-	/* Use the pcmcia_cs k_compat.h version */
-	skb = ALLOC_SKB( rcvLen+3);		
+	skb = dev_alloc_skb(rcvLen+5);
 	if (skb == NULL) {
 	    DEBUG(1, "netwave_rx: Could not allocate an sk_buff of "
 		  "length %d\n", rcvLen);

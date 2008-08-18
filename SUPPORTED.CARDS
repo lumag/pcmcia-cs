@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/06/23 17:57:48
+		Last updated: 1999/07/30 06:09:07
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -13,16 +13,20 @@ some cards have 16-bit and CardBus versions with very similar names.
 If the CardBus version is not specifically listed as supported here,
 then you should not expect it to work.
 
-	-- David Hinds <dhinds@hyper.stanford.edu>
+Next to each driver, I've tried to indicate which system architectures
+(x86,ppc,axp) are known to be supported.  This information is likely
+to be incomplete, and additions/corrections would be very welcome.
+
+	-- David Hinds <dhinds@zen.stanford.edu>
 
 Ethernet cards:
 
-	[3c589_cs driver]
+	[3c589_cs driver] [x86,ppc]
 	3Com 3c589, 3c589B, 3c589C, 3c589D
 	3Com Megahertz 3CCE589E, 3CXE589D, 3CXE589EC
 	Farallon EtherWave, EtherMac
 
-	[fmvj18x_cs driver]
+	[fmvj18x_cs driver] [x86,ppc]
 	CONTEC C-NET(PC)C
 	Eagle NE200 Ethernet
 	Eiger Labs EPX-10BT, EPX-ET 10BT, EPX-ET 10TZ
@@ -33,21 +37,21 @@ Ethernet cards:
 	RATOC REX-9822, REX-5588A/W, REX-R280
 	TDK LAC-CD02x, LAK-CD021, LAK-CD022A, LAK-CD021AX, LAK-CD021BX
 
-	[nmclan_cs driver]
+	[nmclan_cs driver] [x86]
 	New Media EthernetLAN
 	New Media LiveWire	[ NOT the LiveWire+ ]
 
-	[pcnet_cs driver]
+	[pcnet_cs driver] [x86,axp]
 	Accton EN2212, EN2216 EtherCard
 	Accton SOHO BASIC EN220
 	Addtron Ethernet
 	AIBrain EPCM-T
 	Allied Telesis CentreCOM CE6001, LA-PCM, LA-PCM V2
-	AmbiCom AMB8002
+	AmbiCom AMB8002, AMB8002T
 	AnyCom ECO Ethernet
 	Apollo RE450CT
 	Argosy EN210
-	Asante FriendlyNet
+	Asante FriendlyNet	[ new cards seem to not work!! ]
 	AST 1082 Ethernet
 	Billionton LNT-10TB, LNT-10TN
 	California Access LAN Adapter
@@ -92,6 +96,7 @@ Ethernet cards:
 	LANEED LD-CDW Ethernet
 	LanPro EP4000A
 	Lantech Ethernet
+	Level One EPC-0100TB
 	Linksys EtherCard
 	Logitec LPM-LN10T, LPM-LN10BA, LPM-LN20T Ethernet
 	Longshine ShineNet LCS-8534TB Ethernet
@@ -103,6 +108,7 @@ Ethernet cards:
 	NDC Instant-Link
 	Network General "Sniffer"
 	New Media LanSurfer
+	UNEX NexNIC MA010
 	Novell/National NE4100 InfoMover
 	OvisLink Ethernet
 	Panasonic CF-VEL211P-B
@@ -127,22 +133,22 @@ Ethernet cards:
 	Trust Ethernet Combo
 	Volktek NPL-402CT Ethernet
 
-	[smc91c92_cs driver]
+	[smc91c92_cs driver] [x86]
 	Megahertz XJ10BT, XJ10BC, CC10BT Ethernet
 	New Media BASICS Ethernet
 	Ositech Four of Diamonds
 	SMC 8020BT EtherEZ	[ NOT the EliteCard! ]
 
-	[xirc2ps_cs driver]
+	[xirc2ps_cs driver] [x86,axp]
 	Compaq Ethernet Adapter
 	Xircom CreditCard CE2
 
 Fast Ethernet (10/100baseT) adapters:
 
-	[3c574_cs driver: has performance problems]
+	[3c574_cs driver] [x86]
 	3Com 3c574TX, 3CCFE574BT
 
-	[pcnet_cs driver]
+	[pcnet_cs driver] [x86]
 	Abocom LinkMate FE1000
 	AnyCom ECO Ethernet 10/100
 	Apollo Fast Ethernet
@@ -154,9 +160,9 @@ Fast Ethernet (10/100baseT) adapters:
 	Hamlet FE1000 10/100
 	IO DATA PCET/TX
 	KTI KF-C16
-	Level One EPC-0100TB
 	Laneed LD-10/100CD
-	Linksys EtherFast 10/100
+	LevelOne FPC-0100TX
+	Linksys PCMPC100 EtherFast 10/100 
 	Logitec LPM-LN100TX
 	Melco LPC2-TX
 	Microcom TravelCard 10/100
@@ -164,36 +170,47 @@ Fast Ethernet (10/100baseT) adapters:
 	NetGear FA410TXC
 	Planet FNW-3600T
 
-	[smc91c92_cs driver]
+	[smc91c92_cs driver] [x86]
 	Argosy EN220
 	Dynalink L100C
 	Lantech FastNet/TX
+	Ositech Seven of Diamonds
 	Melco/SMC LPC-TX
 	WiseCom WC-PC400
 	
-	[xirc2ps_cs driver]
+	[xirc2ps_cs driver] [x86,axp]
 	Accton Fast EtherCard-16
 	Compaq Netelligent 10/100
 	Intel EtherExpress PRO/100 [ 16-bit, NOT 32-bit ]
 	Toshiba IPC5008A, Advanced Network 10/100
 	Xircom CreditCard CE3 [ beware: new cards may not work ]
 
-	[3c575_cb driver: experimental!]
+	[3c575_cb driver] [x86]
 	3Com 3c575TX, 3CCFE575BT, 3CXFE575BT CardBus
 
-	[epic_cb driver: requires a 2.2 kernel, experimental!]
+	[epic_cb driver] [x86]
+	[requires a 2.2 kernel, experimental!]
 	Ositech Seven of Spades CardBus
 
-	[tulip_cb driver: requires a 2.2 kernel, experimental!]
+	[tulip_cb driver] [x86]
+	[requires a 2.2 kernel, experimental!]
 	Accton EN2220 CardBus
+	Allied Telesyn AT-2800
 	AmbiCom AMB8100
+	Compex Linkport TX
+	D-Link DFE-660TX
+	Kingston KNE-CB4TX
 	LevelOne FPC-0101TX 10/100Mbps CardBus
-	Linksys EtherFast CardBus
+	Linksys PCMPC200 EtherFast CardBus
+	SMC EZ CardBus 10/100 Ethernet
+	SVEC FD606 10/100 Ethernet
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
+	UMAX Technologies UMAX250
+	Xircom CBEII-10/100
 
 Token-ring adapters:
 
-	[ibmtr_cs driver]
+	[ibmtr_cs driver] [x86]
 	3Com 3c389 TokenLink Velocity
 	3Com 3c689 TokenLink III
 	IBM Token Ring Adapter
@@ -201,11 +218,11 @@ Token-ring adapters:
 
 Wireless network adapters:
 
-	[wavelan_cs driver]
+	[wavelan_cs driver] [x86]
 	AT&T / NCR / Lucent WaveLAN version 2.0
 	DEC RoamAbout/DS
 
-	[netwave_cs driver]
+	[netwave_cs driver] [x86]
 	Xircom CreditCard Netwave
 
 Modem and serial cards:
@@ -218,7 +235,7 @@ Modem and serial cards:
 	drivers.  ISDN modems that emulate a standard UART are also
 	supported. ]
 
-	[serial_cs driver]
+	[serial_cs driver] [x86,axp]
 	Advantech COMpad-32/85 dual serial
 	Argosy dual serial
 	Black Box I114A RS-422/485
@@ -232,7 +249,8 @@ Modem and serial cards:
 
 Parallel port cards:
 
-	 [parport_cs driver: requires a 2.2 or later kernel]
+	 [parport_cs driver] [x86]
+	 [requires a 2.2 or later kernel]
 	 Quatech SPP-100
 	 IOtech DBK35, WBK20A
 
@@ -241,6 +259,7 @@ Memory cards:
 	[ All SRAM cards should work.  Unsupported flash cards can be
 	read but not written. ]
 
+	[memory_cs driver] [x86,axp,ppc]
 	Intel Series 2, Series 2+, and Value Series 100 Flash
 	Maxtor MobileMax 16MB Flash
 	IBM 8MB Flash
@@ -256,20 +275,20 @@ SCSI adapters:
 	distinguishable from the current Symbios-based cards, which
 	use the sym53c500_cs driver, distributed separately. ]
 
-	[aha152x_cs driver]
-	Adaptec APA-1460, APA-1450A, APA-1460A/B/C SlimSCSI
+	[aha152x_cs driver] [x86]
+	Adaptec APA-1460, APA-1450A, APA-1460A/B/C/D SlimSCSI
 	Iomega Zip and Jaz Cards
 	New Media Bus Toaster SCSI	[ older cards ]
 	New Media Toast 'n Jam		[ SCSI only ]
 	Noteworthy Bus Toaster SCSI
 	Sony CD-ROM Discman PRD-250
 
-	[fdomain_cs driver]
+	[fdomain_cs driver] [x86]
 	Future Domain SCSI2GO
 	IBM SCSI
 	Simple Technologies SCSI
 
-	[qlogic_cs driver]
+	[qlogic_cs driver] [x86]
 	Eiger Labs SCSI			[ only cards w/FCC ID LXL... ]
 	Epson SC200
 	MACNICA mPS110, mPS110-LP SCSI
@@ -291,21 +310,21 @@ SCSI adapters:
 	Pioneer PCP-PR1W, PCP-PR2W CD-ROM
 	Taxan ICD-400PN
 
-	[apa1480_cb driver -- works for kernels 2.1.90-2.1.124, and
-	 2.1.132 and later.  Also experimental!]
+	[apa1480_cb driver] [x86]
+	[recommend 2.2 or later kernel, experimental!]
 	Adaptec SlimSCSI 1480 CardBus
 
 Multifunction ethernet/modem cards:
 
-	[3c589_cs driver]
+	[3c589_cs driver] [x86]
 	3Com 3c562, 3c562B/C/D, 3c563B/C/D
 	3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B
 	Motorola Marquis
 
-	[3c574_cs driver: has performance problems]
+	[3c574_cs driver] [x86]
 	3Com Megahertz 3CCFEM556B
 
-	[pcnet_cs driver]
+	[pcnet_cs driver] [x86,axp]
 	Accton UE2218
 	ActionTec ComNet 33.6
 	AnyCom Fast Ethernet + 56K Combo
@@ -327,23 +346,31 @@ Multifunction ethernet/modem cards:
 	TDK 3000/3400/5670
 	Telecom Device SuperSocket LM336
 
-	[smc91c92_cs driver]
+	[smc91c92_cs driver] [x86]
 	Gateway Telepath Combo
 	Megahertz/U.S. Robotics EM1144, EM3288, EM3336
 	Motorola Mariner
 	Ositech Jack of Diamonds, Jack of Hearts
 
-	[xirc2ps_cs driver]
+	[xirc2ps_cs driver] [x86]
 	Compaq Microcom CPQ550 Modem + 10/100 LAN
 	Intel EtherExpress PRO/100 LAN/Modem
 	Xircom CreditCard CEM28, CEM33, CEM56
 	Xircom RealPort REM10BT, REM56G-100
 
-	[epic_cb driver: requires a 2.2 kernel, experimental!]
+	[3c575_cb driver] [x86]
+	3Com 3CCFEM656B			[ ethernet only!! ]
+
+	[epic_cb driver] [x86]
+	[requires a 2.2 kernel, experimental!]
 	Ositech Jack of Spades CardBus
-	
+
+	[tulip_cb driver] [x86]
+	Xircom RBEM56G-100BTX, CBEM56G-100BTX
+
 ATA/IDE card drives:
 
+	[ide_cs driver] [x86]
 	Most cards should work fine, including adapters for external
 	IDE devices.  Both Flash-ATA cards and 	rotating-media cards
 	are supported, including "Smartmedia" flash cards.
@@ -353,17 +380,21 @@ ATA/IDE card drives:
 
 ATA/IDE Interface Cards:
 
+	[ide_cs driver] [x86]
+	Archos Zip100 MiniDrive
 	Microtech International XpressDock
 	DataStor Technology PCMCIA ATA/ATAPI Card
 	Creo DNBoy
 	GREYSTONE DD-25
-	Shining Technology DitiDISK 250PE
+	Shining Technology CitiDISK 250PE
 	Sicon Periperal Micro Mate
 
 ATA/IDE CD-ROM adapters:
 
+	[ide_cs driver] [x86]
 	Argosy EIDE CD-ROM
 	Caravelle CD-36N
+	CNF CARDport CD-ROM
 	Creative Technology CD-ROM
 	Digital Mobile Media CD-ROM
 	EXP CD940 CD-ROM		[ Some work, some do NOT! ]

@@ -2,10 +2,10 @@
 
     A driver for the Adaptec APA1480 CardBus SCSI Host Adapter
 
-    apa1480_cb.c 1.10 1999/02/22 06:13:23
+    apa1480_cb.c 1.12 1999/07/30 03:49:13
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -31,8 +31,8 @@
 #include <linux/ioport.h>
 #include <scsi/scsi.h>
 #include <linux/major.h>
+#include <linux/blk.h>
 
-#include BLK_DEV_HDR
 #include "drivers/scsi/scsi.h"
 #include "drivers/scsi/hosts.h"
 #include <scsi/scsi_ioctl.h>
@@ -45,7 +45,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"apa1480_cb.c 1.10 1999/02/22 06:13:23 (David Hinds)";
+"apa1480_cb.c 1.12 1999/07/30 03:49:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

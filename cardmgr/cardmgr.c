@@ -2,10 +2,10 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.124 1999/05/14 16:40:49
+    cardmgr.c 1.125 1999/07/20 16:02:23
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 

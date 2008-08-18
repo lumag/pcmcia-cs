@@ -2,10 +2,10 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.66 1999/06/18 17:48:02
+    cistpl.c 1.68 1999/07/20 16:01:23
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -88,7 +88,7 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 	memset(ptr, 0xff, len);
 	return;
     }
-    mem->flags &= ~MAP_ATTRIB;
+    mem->flags |= MAP_ACTIVE; mem->flags &= ~MAP_ATTRIB;
     if (attr) { mem->flags |= MAP_ATTRIB; inc++; addr *= 2; }
     sys = s->cis_virt + (addr & (s->cap.map_size-1));
     mem->card_start = addr & ~(s->cap.map_size-1);

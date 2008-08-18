@@ -1,4 +1,4 @@
-Known problems with the 3.0.13 PCMCIA release
+Known problems with the 3.0.14 PCMCIA release
 =============================================
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
@@ -24,8 +24,8 @@ o The 3c574_cs driver has performance problems, particularly with
   Prognosis: 3Com says that the read fifo buffer hardware is broken.
   I'll try fiddling with some of the other stuff.
 
-o None of the CardBus drivers or SCSI drivers implement suspend/resume
-  handling.
+o All of the SCSI drivers, and most of the CardBus drivers, do not
+  implement suspend/resume handling.
   
   Prognosis: CardBus Network cards will probably be fixed eventually,
   but it has not been a high priority.  SCSI drivers are less likely
@@ -56,12 +56,18 @@ o Interrupt routing on O2Micro CardBus bridges seems to have problems.
   work on it: data sheets are available, and I can make suggestions of
   things to try, but I can't debug the problems by email.
 
-o Newer Ositech Jack of Diamonds cards don't work.
+  With ToPIC chipsets, some systems seem to work better if the bridge
+  mode is changed to either "PCIC" or "CardBus", rather than "Auto",
+  in the BIOS setup menu.
 
-  Prognosis: It would be helpful for someone with a not-working card
-  to send me the output of "dump_cis".
+o Newer Ositech Jack of Diamonds cards don't work for some people.
+
+  Prognosis: I'm not sure what's going on here.  I have a newer JoD
+  card now, and it works fine on my systems.
 
 o Newer Xircom CE3 cards appear to not work.
+
+  Prognosis: The Xircom driver is currently unmaintained.
 
 o The 2.2.*/2.3.* serial driver has a bug that interferes with
   interrupt sharing for multifunction cards.  The effect is that
@@ -78,6 +84,10 @@ o The kernel aha152x driver, used for Adaptec 16-bit SCSI adapters,
 
 o The kernel IDE driver has a bug that causes shutdown of some PCMCIA
   IDE cards to cause a kernel trap.  It was introduced in 2.2.9/2.3.1
-  and fixed in 2.3.4.
+  and fixed in 2.2.10/2.3.4.
 
 o The 2.3.6 kernel update broke the PCMCIA parport_cs driver.
+
+  Prognosis: we're working on a better way of interfacing the
+  parport_cs driver with the kernel parallel port code, for a future
+  kernel release.

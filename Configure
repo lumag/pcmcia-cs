@@ -1,9 +1,9 @@
 #!/bin/sh
 #
-# Configure 1.110 1999/06/24 17:37:36
+# Configure 1.114 1999/07/27 18:34:13
 #
 # The contents of this file are subject to the Mozilla Public License
-# Version 1.0 (the "License"); you may not use this file except in
+# Version 1.1 (the "License"); you may not use this file except in
 # compliance with the License. You may obtain a copy of the License at
 # http://www.mozilla.org/MPL/
 #
@@ -55,6 +55,7 @@ arg () {
 usage () {
     echo "usage: $0 [-n|--noprompt] [--kernel=src-dir] [--target=dir]"
     echo "    [--moddir=dir] [--cc=path] [--ld=path] [--debug=debug-flags]"
+    echo "    [--uflags=user-flags] [--kflags=kernel-flags]"
     echo "    [--{no}trust] [--{no}cardbus] [--current] [--srctree] [--manual]"
     exit 1
 }
@@ -68,6 +69,8 @@ while [ $# -gt 0 ] ; do
     --cc=*)		arg CC "$1"		;;
     --ld=*)		arg LD "$1"		;;
     --debug=*)		arg PCDEBUG "$1"	;;
+    --kflags=*)		arg KFLAGS "$1"		;;
+    --uflags=*)		arg UFLAGS "$1"		;;
     --trust)		UNSAFE_TOOLS=y		;;
     --notrust)		UNSAFE_TOOLS=n		;;
     --cardbus)		CONFIG_CARDBUS=y	;;
@@ -130,6 +133,7 @@ prompt () {
     if [ "$PROMPT" = "y" ] ; then
 	/bin/echo "$1 [$2]: \c"
 	read tmp
+	if [ ! -t 1 ] ; then echo $tmp ; fi
 	if [ -n "$tmp" ] ; then eval $3=\"$tmp\" ; fi
     else
 	/bin/echo "$1 [$2]"
@@ -235,6 +239,8 @@ ask_str "  Module install directory" MODDIR
 ask_str "C compiler name" CC
 ask_str "Linker name" LD
 ask_str "Compiler flags for debugging" PCDEBUG
+write_str KFLAGS
+write_str UFLAGS
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
 ask_bool "Include 32-bit (CardBus) card support" CONFIG_CARDBUS
@@ -607,9 +613,6 @@ if [ "$CONFIG_SCSI" = "y" ] ; then
 fi
 
 if [ "$CONFIG_CARDBUS" = "y" ] ; then
-    if grep CARDBUS ${LINUX}/drivers/net/tulip.c >/dev/null ; then
-	echo DO_TULIP_CB=y >> $CONFIG_MK
-    fi
     if grep CARDBUS ${LINUX}/drivers/net/epic100.c >/dev/null ; then
 	echo DO_EPIC_CB=y >> $CONFIG_MK
     fi

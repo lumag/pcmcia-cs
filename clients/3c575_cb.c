@@ -469,7 +469,8 @@ struct vortex_private {
 		bus_master:1,				/* Vortex can only do a fragment bus-m. */
 		full_bus_master_tx:1, full_bus_master_rx:2, /* Boomerang  */
 		hw_csums:1,				/* Has hardware checksums. */
-		tx_full:1;
+		tx_full:1,
+		open:1;
 	u16 status_enable;
 	u16 intr_enable;
 	u16 available_media;				/* From Wn3_Options. */
@@ -509,6 +510,8 @@ static struct media_table {
 #ifndef CARDBUS
 static int vortex_scan(struct device *dev, struct pci_id_info pci_tbl[]);
 #endif
+static void vortex_up(struct device *dev);
+static void vortex_down(struct device *dev);
 static int vortex_open(struct device *dev);
 static void mdio_sync(long ioaddr, int bits);
 static int mdio_read(long ioaddr, int phy_id, int location);
@@ -615,8 +618,36 @@ static void vortex_detach(dev_node_t *node)
 	}
 }
 
+static void vortex_suspend(dev_node_t *node)
+{
+	struct device *dev, *next;
+	printk(KERN_INFO "vortex_suspend(%s)\n", node->dev_name);
+	for (dev = root_vortex_dev; dev; dev = next) {
+		next = ((struct vortex_private *)dev->priv)->next_module;
+		if (strcmp(dev->name, node->dev_name) == 0) break;
+	}
+	if (dev && dev->priv) {
+		struct vortex_private *vp = (struct vortex_private *)dev->priv;
+		if (vp->open) vortex_down(dev);
+	}
+}
+
+static void vortex_resume(dev_node_t *node)
+{
+	struct device *dev, *next;
+	printk(KERN_INFO "vortex_resume(%s)\n", node->dev_name);
+	for (dev = root_vortex_dev; dev; dev = next) {
+		next = ((struct vortex_private *)dev->priv)->next_module;
+		if (strcmp(dev->name, node->dev_name) == 0) break;
+	}
+	if (dev && dev->priv) {
+		struct vortex_private *vp = (struct vortex_private *)dev->priv;
+		if (vp->open) vortex_up(dev);
+	}
+}
+
 struct driver_operations vortex_ops = {
-	"3c575_cb", vortex_attach, NULL, NULL, vortex_detach
+	"3c575_cb", vortex_attach, vortex_suspend, vortex_resume, vortex_detach
 };
 
 #endif  /* Cardbus support */
@@ -895,8 +926,6 @@ static struct device *vortex_probe1(int pci_bus, int pci_devfn,
 			vp->cb_fn_base = ioremap(fn_st_addr & ~3, 128);
 		printk(KERN_INFO "%s: CardBus functions mapped %8.8x->%p\n",
 			   dev->name, fn_st_addr, vp->cb_fn_base);
-		EL3WINDOW(2);
-		outw(0x10 | inw(ioaddr + Wn2_ResetOptions), ioaddr + Wn2_ResetOptions);
 	}
 
 	/* Extract our information from the EEPROM data. */
@@ -991,15 +1020,27 @@ static struct device *vortex_probe1(int pci_bus, int pci_devfn,
 	return dev;
 }
 
+static void wait_for_completion(struct device *dev, int cmd)
+{
+	int i = 2000;
+	outw(cmd, dev->base_addr + EL3_CMD);
+	while (--i > 0)
+		if (!(inw(dev->base_addr + EL3_STATUS) & CmdInProgress))
+			break;
+	if (i == 0)
+		printk(KERN_NOTICE "%s: command 0x%04x did not complete!\n",
+			   dev->name, cmd);
+}
+
 
-static int
-vortex_open(struct device *dev)
+static void
+vortex_up(struct device *dev)
 {
 	long ioaddr = dev->base_addr;
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	union wn3_config config;
 	int i;
-
+	
 	/* Should be if(HAS_ACPI) */
 	acpi_wake(vp->pci_bus, vp->pci_devfn);
 
@@ -1067,23 +1108,10 @@ vortex_open(struct device *dev)
 			dev->name, config.i);
 	}
 
-	outw(TxReset, ioaddr + EL3_CMD);
-	for (i = 2000; i >= 0 ; i--)
-		if ( ! (inw(ioaddr + EL3_STATUS) & CmdInProgress))
-			break;
-
-	outw(RxReset, ioaddr + EL3_CMD);
-	/* Wait a few ticks for the RxReset command to complete. */
-	for (i = 2000; i >= 0 ; i--)
-		if ( ! (inw(ioaddr + EL3_STATUS) & CmdInProgress))
-			break;
+	wait_for_completion(dev, TxReset);
+	wait_for_completion(dev, RxReset);
 
 	outw(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
-
-	/* Use the now-standard shared IRQ implementation. */
-	if (request_irq(dev->irq, &vortex_interrupt, SA_SHIRQ, dev->name, dev)) {
-		return -EAGAIN;
-	}
 
 	if (vortex_debug > 1) {
 		EL3WINDOW(4);
@@ -1097,6 +1125,15 @@ vortex_open(struct device *dev)
 		outb(dev->dev_addr[i], ioaddr + i);
 	for (; i < 12; i+=2)
 		outw(0, ioaddr + i);
+	if (vp->cb_fn_base) {
+		/* Inverted LED polarity */
+		u_short n = inw(ioaddr + Wn2_ResetOptions) | 0x0010;
+		/* Inverted polarity of MII power bit */
+		if ((pci_tbl[vp->chip_id].device_id == 0x6560) ||
+			(pci_tbl[vp->chip_id].device_id == 0x6562))
+			n |= 0x4000;
+		outw(n, ioaddr + Wn2_ResetOptions);
+	}
 
 	if (dev->if_port == XCVR_10base2)
 		/* Start the thinnet transceiver. We should really wait 50ms...*/
@@ -1128,27 +1165,6 @@ vortex_open(struct device *dev)
 		/* Initialize the RxEarly register as recommended. */
 		outw(SetRxThreshold + (1536>>2), ioaddr + EL3_CMD);
 		outl(0x0020, ioaddr + PktStatus);
-		if (vortex_debug > 2)
-			printk(KERN_DEBUG "%s:  Filling in the Rx ring.\n", dev->name);
-		for (i = 0; i < RX_RING_SIZE; i++) {
-			struct sk_buff *skb;
-			vp->rx_ring[i].next = cpu_to_le32(virt_to_bus(&vp->rx_ring[i+1]));
-			vp->rx_ring[i].status = 0;	/* Clear complete bit. */
-			vp->rx_ring[i].length = cpu_to_le32(PKT_BUF_SZ | LAST_FRAG);
-			skb = dev_alloc_skb(PKT_BUF_SZ);
-			vp->rx_skbuff[i] = skb;
-			if (skb == NULL)
-				break;			/* Bad news!  */
-			skb->dev = dev;			/* Mark as being used by this device. */
-#if LINUX_VERSION_CODE >= 0x10300
-			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-			vp->rx_ring[i].addr = cpu_to_le32(virt_to_bus(skb->tail));
-#else
-			vp->rx_ring[i].addr = virt_to_bus(skb->data);
-#endif
-		}
-		/* Wrap the ring. */
-		vp->rx_ring[i-1].next = cpu_to_le32(virt_to_bus(&vp->rx_ring[0]));
 		outl(virt_to_bus(&vp->rx_ring[0]), ioaddr + UpListPtr);
 	}
 	if (vp->full_bus_master_tx) { 		/* Boomerang bus master Tx. */
@@ -1160,7 +1176,7 @@ vortex_open(struct device *dev)
 			vp->tx_skbuff[i] = 0;
 		outl(0, ioaddr + DownListPtr);
 	}
-	/* Set reciever mode: presumably accept b-case and phys addr only. */
+	/* Set receiver mode: presumably accept b-case and phys addr only. */
 	set_rx_mode(dev);
 	outw(StatsEnable, ioaddr + EL3_CMD); /* Turn on statistics. */
 
@@ -1186,7 +1202,49 @@ vortex_open(struct device *dev)
 	outw(vp->intr_enable, ioaddr + EL3_CMD);
 	if (vp->cb_fn_base)			/* The PCMCIA people are idiots.  */
 		writel(0x8000, vp->cb_fn_base + 4);
+}
 
+static int
+vortex_open(struct device *dev)
+{
+	long ioaddr = dev->base_addr;
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
+	union wn3_config config;
+	int i;
+
+	/* Use the now-standard shared IRQ implementation. */
+	if (request_irq(dev->irq, &vortex_interrupt, SA_SHIRQ, dev->name, dev)) {
+		return -EAGAIN;
+	}
+
+	if (vp->full_bus_master_rx) { /* Boomerang bus master. */
+		if (vortex_debug > 2)
+			printk(KERN_DEBUG "%s:  Filling in the Rx ring.\n", dev->name);
+		for (i = 0; i < RX_RING_SIZE; i++) {
+			struct sk_buff *skb;
+			vp->rx_ring[i].next = cpu_to_le32(virt_to_bus(&vp->rx_ring[i+1]));
+			vp->rx_ring[i].status = 0;	/* Clear complete bit. */
+			vp->rx_ring[i].length = cpu_to_le32(PKT_BUF_SZ | LAST_FRAG);
+			skb = dev_alloc_skb(PKT_BUF_SZ);
+			vp->rx_skbuff[i] = skb;
+			if (skb == NULL)
+				break;			/* Bad news!  */
+			skb->dev = dev;			/* Mark as being used by this device. */
+#if LINUX_VERSION_CODE >= 0x10300
+			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
+			vp->rx_ring[i].addr = cpu_to_le32(virt_to_bus(skb->tail));
+#else
+			vp->rx_ring[i].addr = virt_to_bus(skb->data);
+#endif
+		}
+		/* Wrap the ring. */
+		vp->rx_ring[i-1].next = cpu_to_le32(virt_to_bus(&vp->rx_ring[0]));
+	}
+	if (vp->full_bus_master_tx)
+		dev->hard_start_xmit = &boomerang_start_xmit;
+
+	vortex_up(dev);
+	vp->open = 1;
 	MOD_INC_USE_COUNT;
 
 	return 0;
@@ -1331,10 +1389,7 @@ static void vortex_tx_timeout(struct device *dev)
 		}
 	}
 #endif
-	outw(TxReset, ioaddr + EL3_CMD);
-	for (j = 200; j >= 0 ; j--)
-		if ( ! (inw(ioaddr + EL3_STATUS) & CmdInProgress))
-			break;
+	wait_for_completion(dev, TxReset);
 
 	vp->stats.tx_errors++;
 	if (vp->full_bus_master_tx) {
@@ -1422,20 +1477,14 @@ vortex_error(struct device *dev, int status)
 				   dev->name, fifo_diag);
 		/* Adapter failure requires Tx/Rx reset and reinit. */
 		if (vp->full_bus_master_tx) {
-			outw(TotalReset | 0xff, ioaddr + EL3_CMD);
-			for (i = 2000; i >= 0 ; i--)
-				if ( ! (inw(ioaddr + EL3_STATUS) & CmdInProgress))
-					break;
+			wait_for_completion(dev, TotalReset | 0xff);
 			/* Re-enable the receiver. */
 			outw(RxEnable, ioaddr + EL3_CMD);
 			outw(TxEnable, ioaddr + EL3_CMD);
 		} else if (fifo_diag & 0x0400)
 			do_tx_reset = 1;
 		if (fifo_diag & 0x3000) {
-			outw(RxReset, ioaddr + EL3_CMD);
-			for (i = 2000; i >= 0 ; i--)
-				if ( ! (inw(ioaddr + EL3_STATUS) & CmdInProgress))
-					break;
+			wait_for_completion(dev, RxReset);
 			/* Set the Rx filter to the current state. */
 			set_rx_mode(dev);
 			outw(RxEnable, ioaddr + EL3_CMD); /* Re-enable the receiver. */
@@ -1443,11 +1492,7 @@ vortex_error(struct device *dev, int status)
 		}
 	}
 	if (do_tx_reset) {
-		int j;
-		outw(TxReset, ioaddr + EL3_CMD);
-		for (j = 200; j >= 0 ; j--)
-			if ( ! (inw(ioaddr + EL3_STATUS) & CmdInProgress))
-				break;
+		wait_for_completion(dev, TxReset);
 		outw(TxEnable, ioaddr + EL3_CMD);
 	}
 
@@ -1501,11 +1546,7 @@ vortex_start_xmit(struct sk_buff *skb, struct device *dev)
 				if (tx_status & 0x04) vp->stats.tx_fifo_errors++;
 				if (tx_status & 0x38) vp->stats.tx_aborted_errors++;
 				if (tx_status & 0x30) {
-					int j;
-					outw(TxReset, ioaddr + EL3_CMD);
-					for (j = 200; j >= 0 ; j--)
-						if ( ! (inw(ioaddr + EL3_STATUS) & CmdInProgress))
-							break;
+					wait_for_completion(dev, TxReset);
 				}
 				outw(TxEnable, ioaddr + EL3_CMD);
 			}
@@ -1550,11 +1591,8 @@ boomerang_start_xmit(struct sk_buff *skb, struct device *dev)
 
 		save_flags(flags);
 		cli();
-		outw(DownStall, ioaddr + EL3_CMD);
 		/* Wait for the stall to complete. */
-		for (i = 600; i >= 0 ; i--)
-			if ( (inw(ioaddr + EL3_STATUS) & CmdInProgress) == 0)
-				break;
+		wait_for_completion(dev, DownStall);
 		prev_entry->next = cpu_to_le32(virt_to_bus(&vp->tx_ring[entry]));
 		if (inl(ioaddr + DownListPtr) == 0) {
 			outl(virt_to_bus(&vp->tx_ring[entry]), ioaddr + DownListPtr);
@@ -1874,23 +1912,14 @@ boomerang_rx(struct device *dev)
 	return 0;
 }
 
-static int
-vortex_close(struct device *dev)
+static void
+vortex_down(struct device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
-	int i;
 
 	dev->start = 0;
 	dev->tbusy = 1;
-
-	if (vortex_debug > 1) {
-		printk(KERN_DEBUG"%s: vortex_close() status %4.4x, Tx status %2.2x.\n",
-			   dev->name, inw(ioaddr + EL3_STATUS), inb(ioaddr + TxStatus));
-		printk(KERN_DEBUG "%s: vortex close stats: rx_nocopy %d rx_copy %d"
-			   " tx_queued %d Rx pre-checksummed %d.\n",
-			   dev->name, rx_nocopy, rx_copy, queued_packet, rx_csumhits);
-	}
 
 	del_timer(&vp->timer);
 
@@ -1905,13 +1934,39 @@ vortex_close(struct device *dev)
 		/* Turn off thinnet power.  Green! */
 		outw(StopCoax, ioaddr + EL3_CMD);
 
-	free_irq(dev->irq, dev);
-
 	outw(SetIntrEnb | 0x0000, ioaddr + EL3_CMD);
 
 	update_stats(ioaddr, dev);
-	if (vp->full_bus_master_rx) { /* Free Boomerang bus master Rx buffers. */
+	if (vp->full_bus_master_rx)
 		outl(0, ioaddr + UpListPtr);
+	if (vp->full_bus_master_tx)
+		outl(0, ioaddr + DownListPtr);
+
+	if (vp->capabilities & CapPwrMgmt)
+		acpi_set_WOL(dev);
+}
+
+static int
+vortex_close(struct device *dev)
+{
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
+	long ioaddr = dev->base_addr;
+	int i;
+
+	if (dev->start)
+		vortex_down(dev);
+
+	if (vortex_debug > 1) {
+		printk(KERN_DEBUG"%s: vortex_close() status %4.4x, Tx status %2.2x.\n",
+			   dev->name, inw(ioaddr + EL3_STATUS), inb(ioaddr + TxStatus));
+		printk(KERN_DEBUG "%s: vortex close stats: rx_nocopy %d rx_copy %d"
+			   " tx_queued %d Rx pre-checksummed %d.\n",
+			   dev->name, rx_nocopy, rx_copy, queued_packet, rx_csumhits);
+	}
+
+	free_irq(dev->irq, dev);
+
+	if (vp->full_bus_master_rx) { /* Free Boomerang bus master Rx buffers. */
 		for (i = 0; i < RX_RING_SIZE; i++)
 			if (vp->rx_skbuff[i]) {
 #if LINUX_VERSION_CODE < 0x20100
@@ -1922,7 +1977,6 @@ vortex_close(struct device *dev)
 			}
 	}
 	if (vp->full_bus_master_tx) { /* Free Boomerang bus master Tx buffers. */
-		outl(0, ioaddr + DownListPtr);
 		for (i = 0; i < TX_RING_SIZE; i++)
 			if (vp->tx_skbuff[i]) {
 				DEV_FREE_SKB(vp->tx_skbuff[i]);
@@ -1930,10 +1984,8 @@ vortex_close(struct device *dev)
 			}
 	}
 
-	if (vp->capabilities & CapPwrMgmt)
-		acpi_set_WOL(dev);
 	MOD_DEC_USE_COUNT;
-
+	vp->open = 0;
 	return 0;
 }
 

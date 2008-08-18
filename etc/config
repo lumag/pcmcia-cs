@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.92 1999/06/23 17:53:05 (David Hinds)
+# config 1.94 1999/07/30 06:09:12 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -128,7 +128,11 @@ card "Allied Telesis Ethernet"
   bind "pcnet_cs"
 
 card "AmbiCom AMB8002 Ethernet"
-  version "AmbiCom Inc", "AMB8002", "Ethernet Combo"
+  version "AmbiCom Inc", "AMB8002"
+  bind "pcnet_cs"
+
+card "AmbiCom AMB8002T Ethernet"
+  version "AmbiCom Inc", "AMB8002T"
   bind "pcnet_cs"
 
 card "AnyCom ECO Ethernet"
@@ -683,6 +687,10 @@ card "NetGear FA410TXC Fast Ethernet"
   version "NETGEAR", "FA410TX"
   bind "pcnet_cs"
 
+card "Ositech Seven of Diamonds Fast Ethernet"
+  version "Ositech", "Trumpcard:Seven of Diamonds Ethernet"
+  bind "smc91c92_cs"
+
 card "Planet FNW-3600 Fast Ethernet"
   version "Fast Ethernet", "Adapter"
   bind "pcnet_cs"
@@ -788,6 +796,36 @@ card "MultiTech V.34 Modem"
   version "Multi-Tech", "MT2834LT"
   bind "serial_cs"
 
+card "Toshiba T144PF Modem"
+  version "TOSHIBA", "T144PF", "*", "PCMCIA MODEM"
+  bind "serial_cs"
+
+card "Advantech COMpad-32/85"
+  version "ADVANTECH", "COMpad-32/85", "1.0"
+  cis "cis/COMpad.dat"
+  bind "serial_cs"
+
+card "Advantech COMpad-32/85"
+  version "ADV", "*", "TECH", "COMpad-32/85"
+  bind "serial_cs"
+
+card "Argosy Dual Serial I/O"
+  version "*", "RS-COM 2P"
+  cis "cis/RS-COM-2P.dat"
+  bind "serial_cs"
+
+card "Computerboards PCM-COM422"
+  version "Computerboards, Inc.", "PCM-COM422"
+  bind "serial_cs"
+
+card "Fujitsu FMV-JMD711"
+  version "FUJITSU", "FC14F ", "MBH10213"
+  bind "serial_cs"
+
+card "IOTech Dual RS-232"
+  version "IOTech Inc ", "PCMCIA Dual RS-232 Serial Port Card"
+  bind "serial_cs"
+
 card "National Instruments PCMCIA-232"
   manfid 0x10b, 0x0d50
   bind "serial_cs"
@@ -808,31 +846,6 @@ card "National Instruments PCMCIA-232/4"
   manfid 0x10b, 0xd180
   bind "serial_cs"
 
-card "Toshiba T144PF Modem"
-  version "TOSHIBA", "T144PF", "*", "PCMCIA MODEM"
-  bind "serial_cs"
-
-card "Computerboards PCM-COM422"
-  version "Computerboards, Inc.", "PCM-COM422"
-  bind "serial_cs"
-
-card "Fujitsu FMV-JMD711"
-  version "FUJITSU", "FC14F ", "MBH10213"
-  bind "serial_cs"
-
-card "Advantech COMpad-32/85"
-  version "ADVANTECH", "COMpad-32/85", "1.0"
-  cis "cis/COMpad.dat"
-  bind "serial_cs"
-
-card "Advantech COMpad-32/85"
-  version "ADV", "*", "TECH", "COMpad-32/85"
-  bind "serial_cs"
-
-card "IOTech Dual RS-232"
-  version "IOTech Inc ", "PCMCIA Dual RS-232 Serial Port Card"
-  bind "serial_cs"
-
 card "Omega Engineering QSP-100"
   manfid 0x0137, 0x0025
   bind "serial_cs"
@@ -845,9 +858,8 @@ card "Quatech Quad RS-232"
   manfid 0x0137, 0x001b
   bind "serial_cs"
 
-card "Argosy Dual Serial I/O"
-  version "*", "RS-COM 2P"
-  cis "cis/RS-COM-2P.dat"
+card "Silicom 2S100 Dual Serial"
+  manfid 0x0089, 0x0301
   bind "serial_cs"
 
 card "Socket Communications Dual RS-232"
@@ -883,6 +895,10 @@ card "Intel Series 2 2MB Flash"
 
 card "Intel Series 2 4MB Flash"
   version "intel", "SERIES2-04 "
+  bind "memory_cs", "ftl_cs"
+
+card "Intel Series 2 20MB Flash"
+  version "intel", "SERIES2-20 "
   bind "memory_cs", "ftl_cs"
 
 card "Intel Series 2+ 8MB Flash"
@@ -1084,7 +1100,7 @@ card "Apex MultiCard Ethernet/Modem"
 
 card "Billionton LM5LT-10B Ethernet/Modem"
   manfid 0x021b, 0x0101
-  bind "pcnet_cs"
+  bind "pcnet_cs", "serial_cs"
 
 card "Compaq Microcom CPQ550 Ethernet/Modem"
   manfid 0x0138, 0x110a
@@ -1258,6 +1274,10 @@ card "Caravelle CD-36N/CD-36E CD-ROM"
   version "Caravelle", "PSC-IDE ", "PSC000"
   bind "ide_cs"
 
+card "CNF CARDport CD-ROM"
+  version "CNF CD-M", "CD-ROM"
+  bind "ide_cs"
+
 card "Creative Technology CD-ROM"
   version "Creative Technology Ltd.", "PCMCIA CD-ROM Interface Card"
   bind "ide_cs"
@@ -1323,7 +1343,7 @@ card "IBM Smart Capture Card"
   bind "iscc_cs"
 
 card "Parallel Port Card"
-  function parallel
+  function parallel_port
   bind "parport_cs"
 
 card "Quatech SPP-100 Parallel Port Card"
@@ -1345,9 +1365,13 @@ card "3Com 3CCFE575B/3CXFE575B Fast EtherLink XL"
   manfid 0x0101, 0x5157
   bind "3c575_cb"
 
-card "3Com 3CCFEM656B"
+card "3Com 3CCFEM656B w/Winmodem"
+  manfid 0x0102, 0x6560
+  bind "3c575_cb"
+
+card "3Com 3CCFEM656B w/Winmodem"
   manfid 0x0102, 0x6562
-  bind "3c575_cb" to 0
+  bind "3c575_cb"
 
 card "Accton EN2220 Fast Ethernet"
   version "Accton", "EN2220 CardBus Fast Ethernet Card"
@@ -1357,12 +1381,24 @@ card "Adaptec APA-1480 SCSI Host Adapter"
   manfid 0x012f, 0xcb01
   bind "apa1480_cb"
 
+card "Allied Telesyn AT-2800 10/100 Fast Ethernet"
+  manfid 0xc00f, 0x0000
+  bind "tulip_cb"
+
 card "Ambicom AMB8100 Fast Ethernet"
   manfid 0x9513, 0x0081
   bind "tulip_cb"
 
-card "D-Link DFE-660"
+card "Compex Linkport TX Ethernet"
+  manfid 0x8a01, 0x0100
+  bind "tulip_cb"
+
+card "D-Link DFE-660 Fast Ethernet"
   manfid 0x50c7, 0xcafe
+  bind "tulip_cb"
+
+card "Kingston KNE-CB4TX Fast Ethernet"
+  manfid 0x0186, 0x0101
   bind "tulip_cb"
 
 card "Linksys EtherFast 10/100"
@@ -1373,21 +1409,41 @@ card "Linksys EtherFast 10/100"
   manfid 0x0149, 0xc2ab
   bind "tulip_cb"
 
-card "TDK NetworkFlyer 10/100"
+card "SMC EZ 10/100 Fast Ethernet"
+  manfid 0x01bf, 0x2225
+  bind "tulip_cb"
+
+card "SVEC 10/100 Fast Ethernet"
+  manfid 0x8a01, 0x0100
+  bind "tulip_cb"
+
+card "TDK NetworkFlyer 10/100 Fast Ethernet"
   manfid 0x0105, 0x0500
   bind "tulip_cb"
 
-card "Ositech Seven of Spades Ethernet"
+card "UMAX Technologies UMAX250 Fast Ethernet"
+  manfid 0x9513, 0x0081
+  bind "tulip_cb"
+
+card "Ositech Seven of Spades Fast Ethernet"
   manfid 0x0140, 0x0011
   bind "epic_cb"
 
-card "Ositech Jack of Spades Ethernet/Modem"
+card "Ositech Jack of Spades Fast Ethernet/Modem"
   manfid 0x0140, 0x000f
   bind "epic_cb" to 0, "serial_cb" to 1
 
-card "Ositech Jack of Spades Ethernet/Modem"
+card "Ositech Jack of Spades Fast Ethernet/Modem"
   manfid 0x0140, 0x0012
   bind "epic_cb" to 0, "serial_cb" to 1
+
+card "Xircom CardBus 10/100 Ethernet"
+  version "Xircom", "*", "CBEII-10/100"
+  bind "tulip_cb"
+
+card "Xircom CardBus 10/100 Ethernet + 56K Modem"
+  version "Xircom", "*", "CBEM56G"
+  bind "tulip_cb" to 0, "serial_cb" to 1
 
 # Include local configuration settings
 

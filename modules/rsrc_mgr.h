@@ -1,8 +1,8 @@
 /*
- * rsrc_mgr.h 1.15 1999/06/18 17:48:15
+ * rsrc_mgr.h 1.17 1999/07/20 16:01:30
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.0 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -18,12 +18,6 @@
 
 #ifndef _RSRC_MGR_H
 #define _RSRC_MGR_H
-
-#if defined(__LINUX__) && !defined(HAVE_MEMRESERVE)
-int check_mem_region(u_long base, u_long num);
-void request_mem_region(u_long base, u_long num, char *name);
-void release_mem_region(u_long base, u_long num);
-#endif
 
 #ifdef __BEOS__
 int check_resource(int type, u_long base, u_long num);

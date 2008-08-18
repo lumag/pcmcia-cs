@@ -7,10 +7,10 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.55 1999/06/12 07:02:44
+    memory_cs.c 1.59 1999/07/30 05:36:15
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -72,14 +72,14 @@ static int major_dev = 0;
 #define MINOR_NR(dev,dir,attr,rgn) \
 (((dev)<<4)+((dir)<<3)+((attr)<<2)+(rgn))
 
-#include BLK_DEV_HDR
+#include <linux/blk.h>
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.55 1999/06/12 07:02:44 (David Hinds)";
+"memory_cs.c 1.59 1999/07/30 05:36:15 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -795,7 +795,7 @@ static int memory_erase(int minor, u_long f_pos, U_FS_SIZE_T count)
     }
 
     /* Wait for request to complete */
-    init_waitqueue((wait_queue_head_t *)&dev->eraseq[i].Optional);
+    init_waitqueue_head((wait_queue_head_t *)&dev->eraseq[i].Optional);
     if (ERASE_IN_PROGRESS(dev->eraseq[i].State))
 	sleep_on((wait_queue_head_t *)&dev->eraseq[i].Optional);
     if (dev->eraseq[i].State != ERASE_PASSED)
@@ -1060,7 +1060,7 @@ static void do_memory_request(void)
     do {
 	INIT_REQUEST;
 
-	minor = MINOR(DEVICE(CURRENT));
+	minor = MINOR(CURRENT->rq_dev);
 	link = dev_table[DEVICE_NR(minor)];
 	dev = (memory_dev_t *)link->priv;
 
@@ -1123,11 +1123,12 @@ int init_module(void)
 		unregister_chrdev(i, "memory");
 	}
     }
-    if (i == 0)
+    if (i == 0) {
 	printk(KERN_NOTICE "memory_cs: unable to grab a device #\n");
-    else
-	major_dev = i;
+	return -ENODEV;
+    }
 
+    major_dev = i;
     blk_dev[major_dev].request_fn = DEVICE_REQUEST;
     for (i = 0; i < MINOR_NR(MAX_DEV, 0, 0, 0); i++)
 	memory_blocksizes[i] = 1024;
@@ -1146,6 +1147,8 @@ void cleanup_module(void)
     if (major_dev != 0) {
 	unregister_chrdev(major_dev, "memory");
 	unregister_blkdev(major_dev, "memory");
+	blk_dev[major_dev].request_fn = NULL;
+	blksize_size[major_dev] = NULL;
     }
     for (i = 0; i < MAX_DEV; i++) {
 	link = dev_table[i];

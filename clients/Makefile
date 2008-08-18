@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.101 1999/05/28 06:07:25
+# Makefile 1.103 1999/07/30 04:11:53
 #
 
 # Include site dependent options and kernel configuration
@@ -9,10 +9,10 @@ include ../config.mk
 
 ifndef CFLAGS
 # Don't remove "-O2" or bad things will happen!
-CFLAGS = -O2 -Wall -Wstrict-prototypes -Winline -pipe
+CFLAGS = -O2 -Wall -Wstrict-prototypes -pipe
 endif
 
-CC := $(CC) $(AFLAGS)
+CC := $(CC) $(AFLAGS) $(KFLAGS)
 
 CPPFLAGS = $(PCDEBUG) -D__KERNEL__ -DMODULE -I../include \
 	   -I$(LINUX)/include -I$(LINUX)
@@ -35,16 +35,13 @@ MODULES = \
 EXTRA =
 
 ifdef CONFIG_CARDBUS
-SRCS := $(SRCS) 3c575_cb.c memory_cb.c serial_cb.c
-MODULES := $(MODULES) 3c575_cb.o memory_cb.o serial_cb.o
+SRCS := $(SRCS) 3c575_cb.c tulip_cb.c memory_cb.c serial_cb.c
+MODULES := $(MODULES) 3c575_cb.o tulip_cb.o memory_cb.o serial_cb.o
 ifdef CONFIG_SCSI
 ifdef DO_APA1480
 MODULES := ${MODULES} apa1480_cb.o
 SRCS := ${SRCS} apa1480_cb.c
 endif
-endif
-ifdef DO_TULIP_CB
-MODULES := ${MODULES} tulip_cb.o
 endif
 ifdef DO_EPIC_CB
 MODULES := ${MODULES} epic_cb.o
@@ -116,9 +113,9 @@ qlogic_cs.o: qlogic_cs.c qlogic.o
 	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS -o $@ $<
 	@mkdir -p .depfiles ; mv 3c575_cb.d .depfiles
 
-tulip_cb.o: $(LINUX)/drivers/net/tulip.c
+tulip_cb.o: tulip_cb.c
 	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS -o $@ $<
-	@mkdir -p .depfiles ; mv tulip.d .depfiles
+	@mkdir -p .depfiles ; mv tulip_cb.d .depfiles
 
 epic_cb.o: $(LINUX)/drivers/net/epic100.c
 	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS -o $@ $<

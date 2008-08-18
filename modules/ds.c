@@ -2,10 +2,10 @@
 
     PC Card Driver Services
     
-    ds.c 1.91 1999/05/14 16:40:31
+    ds.c 1.94 1999/07/30 04:27:15
     
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -49,7 +49,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.91 1999/05/14 16:40:31 (David Hinds)";
+"ds.c 1.94 1999/07/30 04:27:15 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -560,7 +560,7 @@ static FS_SIZE_T ds_read FOPS(struct inode *inode,
 /*====================================================================*/
 
 static FS_SIZE_T ds_write FOPS(struct inode *inode,
-			       struct file *file, CONST char *buf,
+			       struct file *file, const char *buf,
 			       U_FS_SIZE_T count, loff_t *ppos)
 {
     socket_t i = MINOR(F_INODE(file)->i_rdev);

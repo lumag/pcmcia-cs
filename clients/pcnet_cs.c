@@ -11,7 +11,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.93 1999/06/05 16:24:36
+    pcnet_cs.c 1.94 1999/07/29 06:04:49
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.93 1999/06/05 16:24:36 (David Hinds)";
+"pcnet_cs.c 1.94 1999/07/29 06:04:49 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -998,6 +998,8 @@ static void dma_get_8390_hdr(struct device *dev,
 
     insw_ns(nic_base + PCNET_DATAPORT, hdr,
 	    sizeof(struct e8390_pkt_hdr)>>1);
+    /* Fix for big endian systems */
+    hdr->count = le16_to_cpu(hdr->count);
 
     outb_p(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
     ei_status.dmaing &= ~0x01;
@@ -1214,6 +1216,8 @@ static void shmem_get_8390_hdr(struct device *dev,
 				- (ei_status.rx_start_page << 8));
     
     copyin((void *)hdr, xfer_start, sizeof(struct e8390_pkt_hdr));
+    /* Fix for big endian systems */
+    hdr->count = le16_to_cpu(hdr->count);
 }
 
 /*====================================================================*/

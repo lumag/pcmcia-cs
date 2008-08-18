@@ -3,10 +3,10 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.244 1999/06/24 16:14:12
+    i82365.c 1.246 1999/07/20 16:01:27
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -72,7 +72,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static const char *version =
-"i82365.c 1.244 1999/06/24 16:14:12 (David Hinds)";
+"i82365.c 1.246 1999/07/20 16:01:27 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
@@ -1719,7 +1719,8 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
 	    pci_writel(bus, devfn, PCI_BASE_ADDRESS_0, s->cb_phys);
 	    cb_mem_base += PAGE_SIZE;
 	}
-	
+
+	request_mem_region(s->cb_phys, 0x1000, "i82365");
 	s->cb_virt = ioremap(s->cb_phys, 0x1000);
 	if (s->cb_virt == NULL)
 	    printk(KERN_NOTICE "i82365: ioremap failed: bad kernel!\n");
@@ -1926,8 +1927,10 @@ static void pcic_finish(void)
 	i365_set(i, I365_CSCINT, 0);
 	release_region(socket[i].ioaddr, 2);
 #ifdef CONFIG_PCI
-	if (socket[i].cb_virt)
+	if (socket[i].cb_virt) {
 	    iounmap(socket[i].cb_virt);
+	    release_mem_region(socket[i].cb_phys, 0x1000);
+	}
 #endif
     }
 } /* pcic_finish */

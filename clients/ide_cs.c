@@ -2,10 +2,10 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.17 1999/05/27 06:31:08
+    ide_cs.c 1.18 1999/07/20 15:59:40
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -50,7 +50,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.17 1999/05/27 06:31:08 (David Hinds)";
+"ide_cs.c 1.18 1999/07/20 15:59:40 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

@@ -2,10 +2,10 @@
 
     Cardbus device enabler
 
-    cb_enabler.c 1.16 1999/05/27 06:19:47
+    cb_enabler.c 1.19 1999/07/24 15:48:06
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -50,7 +50,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.16 1999/05/27 06:19:47 (David Hinds)";
+"cb_enabler.c 1.19 1999/07/24 15:48:06 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -271,7 +271,10 @@ static void cb_release(u_long arg)
 	link->dev = NULL;
     }
     if (link->state & DEV_CONFIG) {
-	if ((b->flags & DID_CONFIG) && (--b->ncfg == 0)) {
+	/* If we're suspended, config was already released */
+	if (link->state & DEV_SUSPEND)
+	    b->flags &= ~DID_CONFIG;
+	else if ((b->flags & DID_CONFIG) && (--b->ncfg == 0)) {
 	    CardServices(ReleaseConfiguration, b->owner->handle,
 			 &b->owner->conf);
 	    b->flags &= ~DID_CONFIG;
@@ -281,7 +284,7 @@ static void cb_release(u_long arg)
 	    b->flags &= ~DID_REQUEST;
 	}
 	if (b->flags == 0) {
-	    if (b->owner->state & DEV_STALE_LINK)
+	    if (b->owner && (b->owner->state & DEV_STALE_LINK))
 		cb_detach(b->owner);
 	    b->bus = 0; b->owner = NULL;
 	}

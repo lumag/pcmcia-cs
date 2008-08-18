@@ -1,8 +1,8 @@
 /*
- * ti113x.h 1.12 1999/06/11 06:55:39
+ * ti113x.h 1.13 1999/07/20 16:01:34
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.0 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *

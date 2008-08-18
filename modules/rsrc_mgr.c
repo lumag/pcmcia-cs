@@ -2,10 +2,10 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.64 1999/06/24 16:14:12
+    rsrc_mgr.c 1.67 1999/07/30 03:48:44
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -130,8 +130,8 @@ static resource_entry_t *find_gap(resource_entry_t *root,
     return p;
 }
 
-static int register_resource(resource_entry_t *list,
-			     u_long base, u_long num, char *name)
+static int register_my_resource(resource_entry_t *list,
+				u_long base, u_long num, char *name)
 {
     u_long flags;
     resource_entry_t *p, *entry;
@@ -154,8 +154,8 @@ static int register_resource(resource_entry_t *list,
     return 0;
 }
 
-static void release_resource(resource_entry_t *list,
-			     u_long base, u_long num)
+static void release_my_resource(resource_entry_t *list,
+				u_long base, u_long num)
 {
     u_long flags;
     resource_entry_t *p, *q;
@@ -175,26 +175,26 @@ static void release_resource(resource_entry_t *list,
     return;
 }
 
-static int check_resource(resource_entry_t *list,
-			  u_long base, u_long num)
+static int check_my_resource(resource_entry_t *list,
+			     u_long base, u_long num)
 {
-    if (register_resource(list, base, num, NULL) != 0)
+    if (register_my_resource(list, base, num, NULL) != 0)
 	return -EBUSY;
-    release_resource(list, base, num);
+    release_my_resource(list, base, num);
     return 0;
 }
 
 int check_mem_region(u_long base, u_long num)
 {
-    return check_resource(&mem_list, base, num);
+    return check_my_resource(&mem_list, base, num);
 }
 void request_mem_region(u_long base, u_long num, char *name)
 {
-    register_resource(&mem_list, base, num, name);
+    register_my_resource(&mem_list, base, num, name);
 }
 void release_mem_region(u_long base, u_long num)
 {
-    release_resource(&mem_list, base, num);
+    release_my_resource(&mem_list, base, num);
 }
 
 #endif /* __LINUX__ && !HAVE_MEMRESOURCE */
@@ -477,7 +477,7 @@ static u_long inv_probe(int (*is_valid)(u_long),
 void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 		  int force_low)
 {
-    resource_map_t *m;
+    resource_map_t *m, *n;
     static u_char order[] = { 0xd0, 0xe0, 0xc0, 0xf0 };
     static int hi = 0, lo = 0;
     u_long b, i, ok = 0;
@@ -491,7 +491,8 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 	       "available!\n");
     }
     if (lo++) return;
-    for (m = mem_db.next; m != &mem_db; m = m->next) {
+    for (m = mem_db.next; m != &mem_db; m = n) {
+	n = m->next;
 	/* Only probe < 1 MB */
 	if (m->base >= 0x100000) continue;
 	if ((m->base | m->num) & 0xffff) {

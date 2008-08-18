@@ -8,7 +8,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    smc91c92_cs.c 1.66 1999/06/23 17:51:56
+    smc91c92_cs.c 1.71 1999/07/26 17:08:05
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -53,6 +53,9 @@
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
 
+/* Ositech Seven of Diamonds firmware */
+#include "ositech.h"
+
 /*====================================================================*/
 
 #ifdef PCMCIA_DEBUG
@@ -71,10 +74,11 @@ static char *if_names[] = { "auto", "10baseT", "10base2"};
 
 /*
   Transceiver/media type.
+   0 = auto
    1 = 10baseT (and autoselect if #define AUTOSELECT),
    2 = AUI/10base2,
 */
-static int if_port = 1;
+static int if_port = 0;
 
 /* Bit map of interrupts to choose from. */
 static u_int irq_mask = 0xdeb8;
@@ -116,6 +120,11 @@ struct smc_private {
     int				packets_waiting;
     caddr_t			base;
     u_short			cfg;
+    struct timer_list		media;
+    int				watchdog, tx_err;
+    u_short			media_status;
+    u_short			fast_poll;
+    u_long			last_rx;
 };
 
 /* Special definitions for Megahertz multifunction cards */
@@ -157,6 +166,21 @@ struct smc_private {
 #define	 TCR_NORMAL TCR_ENABLE | TCR_PAD_EN
 
 #define EPH		2	/* Ethernet Protocol Handler report. */
+#define  EPH_TX_SUC	0x0001
+#define  EPH_SNGLCOL	0x0002
+#define  EPH_MULCOL	0x0004
+#define  EPH_LTX_MULT	0x0008
+#define  EPH_16COL	0x0010
+#define  EPH_SQET	0x0020
+#define  EPH_LTX_BRD	0x0040
+#define  EPH_TX_DEFR	0x0080
+#define  EPH_LAT_COL	0x0200
+#define  EPH_LOST_CAR	0x0400
+#define  EPH_EXC_DEF	0x0800
+#define  EPH_CTR_ROL	0x1000
+#define  EPH_RX_OVRN	0x2000
+#define  EPH_LINK_OK	0x4000
+#define  EPH_TX_UNRN	0x8000
 #define MEMINFO		8	/* Memory Information Register */
 #define MEMCFG		10	/* Memory Configuration Register */
 
@@ -179,6 +203,9 @@ struct smc_private {
 #define  CTL_STORE		0x0001
 #define  CTL_RELOAD		0x0002
 #define  CTL_EE_SELECT		0x0004
+#define  CTL_TE_ENABLE		0x0020
+#define  CTL_CR_ENABLE		0x0040
+#define  CTL_LE_ENABLE		0x0080
 #define  CTL_AUTO_RELEASE	0x0800
 #define	 CTL_POWERDOWN		0x2000
 
@@ -262,7 +289,9 @@ static void smc_rx(struct device *dev);
 static struct net_device_stats *smc91c92_get_stats(struct device *dev);
 static void set_rx_mode(struct device *dev);
 static int s9k_config(struct device *dev, struct ifmap *map);
+static void smc_set_xcvr(struct device *dev, int if_port);
 static void smc_reset(struct device *dev);
+static void media_check(u_long arg);
 
 /*======================================================================
 
@@ -776,7 +805,7 @@ static int osi_config(dev_link_t *link)
     return i;
 }
 
-static int osi_setup(dev_link_t *link, u_short manfid)
+static int osi_setup(dev_link_t *link, u_short manfid, u_short cardid)
 {
     client_handle_t handle = link->handle;
     struct device *dev = link->priv;
@@ -804,14 +833,22 @@ static int osi_setup(dev_link_t *link, u_short manfid)
 	dev->dev_addr[i] = buf[i+2];
 
     if (manfid != MANFID_OSITECH) return 0;
-    
-    /* Make sure both functions are powered up */
-    set_bits(0x300, link->io.BasePort1 + OSITECH_AUI_PWR);
-    /* Now, turn on the interrupt for both card functions */
-    set_bits(0x300, link->io.BasePort1 + OSITECH_RESET_ISR);
-    DEBUG(2, "AUI/PWR: %4.4x RESET/ISR: %4.4x\n",
-	  inw(link->io.BasePort1 + OSITECH_AUI_PWR),
-	  inw(link->io.BasePort1 + OSITECH_RESET_ISR));
+
+    if (cardid == PRODID_OSITECH_SEVEN) {
+	/* Download the Seven of Diamonds firmware */
+	for (i = 0; i < sizeof(__Xilinx7OD); i++) {
+	    outb(__Xilinx7OD[i], link->io.BasePort1+2);
+	    udelay(50);
+	}
+    } else {
+	/* Make sure both functions are powered up */
+	set_bits(0x300, link->io.BasePort1 + OSITECH_AUI_PWR);
+	/* Now, turn on the interrupt for both card functions */
+	set_bits(0x300, link->io.BasePort1 + OSITECH_RESET_ISR);
+	DEBUG(2, "AUI/PWR: %4.4x RESET/ISR: %4.4x\n",
+	      inw(link->io.BasePort1 + OSITECH_AUI_PWR),
+	      inw(link->io.BasePort1 + OSITECH_RESET_ISR));
+    }
 
     return 0;
 }
@@ -935,7 +972,7 @@ static void smc91c92_config(dev_link_t *link)
 
     dev->irq = link->irq.AssignedIRQ;
 
-    if ((if_port == 1) || (if_port == 2))
+    if ((if_port >= 0) && (if_port <= 2))
 	dev->if_port = if_port;
     else
 	printk(KERN_NOTICE "smc91c92_cs: invalid if_port requested\n");
@@ -949,7 +986,7 @@ static void smc91c92_config(dev_link_t *link)
     switch (lp->manfid) {
     case MANFID_OSITECH:
     case MANFID_PSION:
-	i = osi_setup(link, lp->manfid); break;
+	i = osi_setup(link, lp->manfid, lp->cardid); break;
     case MANFID_SMC:
     case MANFID_NEW_MEDIA:
 	i = smc_setup(link); break;
@@ -975,18 +1012,18 @@ static void smc91c92_config(dev_link_t *link)
     if (rev > 0)
 	switch (rev >> 4) {
 	case 3: name = "92"; break;
-	case 4: name = ((rev & 15) > 6) ? "96" : "94"; break;
+	case 4: name = ((rev & 15) >= 6) ? "96" : "94"; break;
 	case 5: name = "95"; break;
 	case 7: name = "100"; break;
 	case 8: name = "100-FD"; break;
 	}
-    printk(KERN_INFO "%s: smc91c%s rev %d: io %#3lx, irq %d, %s port,"
-	   " hw_addr ", dev->name, name, (rev & 0x0f), dev->base_addr,
-	   dev->irq, if_names[dev->if_port]);
+    printk(KERN_INFO "%s: smc91c%s rev %d: io %#3lx, irq %d, "
+	   "hw_addr ", dev->name, name, (rev & 0x0f), dev->base_addr,
+	   dev->irq);
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
     if (rev > 0) {
-	u_long mir, mcr;
+	u_long mir, mcr, mii;
 	u_short ioaddr = dev->base_addr;
 	SMC_SELECT_BANK(0);
 	mir = inw(ioaddr + MEMINFO) & 0xff;
@@ -995,9 +1032,12 @@ static void smc91c92_config(dev_link_t *link)
 	mcr = ((rev >> 4) > 3) ? inw(ioaddr + MEMCFG) : 0x0200;
 	mir *= 128 * (1<<((mcr >> 9) & 7));
 	if (mir & 0x3ff)
-	    printk(KERN_INFO "  %lu byte buffer\n", mir);
+	    printk(KERN_INFO "  %lu byte", mir);
 	else
-	    printk(KERN_INFO "  %lu kb buffer\n", mir>>10);
+	    printk(KERN_INFO "  %lu kb", mir>>10);
+	SMC_SELECT_BANK(1);
+	mii = inw(ioaddr + CONFIG) & CFG_MII_SELECT;
+	printk(" buffer, %s xcvr\n", mii ? "MII" : if_names[dev->if_port]);
     }
     
     return;
@@ -1099,7 +1139,8 @@ static int smc91c92_event(event_t event, int priority,
 	    CardServices(RequestConfiguration, link->handle, &link->conf);
 	    if (lp->manfid == MANFID_MOTOROLA)
 		mot_config(link);
-	    if (lp->manfid == MANFID_OSITECH) {
+	    if ((lp->manfid == MANFID_OSITECH) &&
+		(lp->cardid != PRODID_OSITECH_SEVEN)) {
 		/* Power up the card and enable interrupts */
 		set_bits(0x0300, dev->base_addr-0x10+OSITECH_AUI_PWR);
 		set_bits(0x0300, dev->base_addr-0x10+OSITECH_RESET_ISR);
@@ -1124,16 +1165,15 @@ static int smc91c92_event(event_t event, int priority,
 #ifdef PCMCIA_DEBUG
 static void smc_dump(struct device *dev)
 {
-    u_short window, save, ioaddr;
+    u_short i, w, save, ioaddr;
     ioaddr = dev->base_addr;
     save = inw(ioaddr + BANK_SELECT);
-    for (window = 0; window < 4; window++) {
-	SMC_SELECT_BANK(window);
-	printk(KERN_DEBUG "%s:  bank %d  %4.4x %4.4x %4.4x %4.4x "
-	       "%4.4x %4.4x %4.4x %4.4x\n", dev->name, window,
-	       inw(ioaddr), inw(ioaddr+2), inw(ioaddr+4),
-	       inw(ioaddr+6), inw(ioaddr+8), inw(ioaddr+10),
-	       inw(ioaddr+12), inw(ioaddr+14));
+    for (w = 0; w < 4; w++) {
+	SMC_SELECT_BANK(w);
+	printk(KERN_DEBUG "bank %d: ", w);
+	for (i = 0; i < 14; i += 2)
+	    printk(" %04x", inw(ioaddr + i));
+	printk("\n");
     }
     outw(save, ioaddr + BANK_SELECT);
 }
@@ -1168,6 +1208,10 @@ static int smc91c92_open(struct device *dev)
     lp->packets_waiting = 0;
     
     smc_reset(dev);
+    lp->media.function = &media_check;
+    lp->media.data = (u_long)dev;
+    lp->media.expires = RUN_AT(HZ);
+    add_timer(&lp->media);
     
     return 0;
 } /* smc91c92_open */
@@ -1203,6 +1247,7 @@ static int smc91c92_close(struct device *dev)
 	return -ENODEV;
     
     link->open--; dev->start = 0;
+    del_timer(&((struct smc_private *)dev->priv)->media);
     if (link->state & DEV_STALE_CONFIG) {
 	link->release.expires = RUN_AT(HZ/20);
 	link->state |= DEV_RELEASE_PENDING;
@@ -1402,11 +1447,14 @@ static void smc_tx_err( struct device * dev )
     outw( PTR_AUTOINC | PTR_READ | 0, ioaddr + POINTER );
     
     tx_status = inw(ioaddr + DATA_1);
-    
+
     lp->stats.tx_errors++;
-    if (tx_status & TS_LOSTCAR ) lp->stats.tx_carrier_errors++;
-    if (tx_status & TS_LATCOL )  lp->stats.tx_window_errors++;
-    if ( tx_status & TS_16COL ) lp->stats.tx_aborted_errors++;
+    if (tx_status & TS_LOSTCAR) lp->stats.tx_carrier_errors++;
+    if (tx_status & TS_LATCOL)  lp->stats.tx_window_errors++;
+    if (tx_status & TS_16COL) {
+	lp->stats.tx_aborted_errors++;
+	lp->tx_err++;
+    }
     
     if ( tx_status & TS_SUCCESS ) {
 	printk(KERN_NOTICE "%s: Successful packet caused error "
@@ -1451,22 +1499,12 @@ static void smc_eph_irq(struct device *dev)
 #endif
     /* If we had a transmit error we must re-enable the transmitter. */
     outw( inw(ioaddr + TCR) | TCR_ENABLE, ioaddr + TCR);
-    /* Ack potential Link Error status. */
-    SMC_SELECT_BANK(1);
-    if ((dev->if_port == 1) && !(ephs & 0x4000)) {
-	printk(KERN_INFO "%s: Link beat lost\n", dev->name);
-	if (lp->stats.rx_packets < 10) {
-	    printk(KERN_INFO "%s: switching to 10base2.\n", dev->name);
-	    dev->if_port = 2;
-	    outw(lp->cfg | CFG_AUI_SELECT, ioaddr + CONFIG);
-	    if (lp->manfid == MANFID_OSITECH)
-		set_bits(OSI_AUI_PWR, ioaddr - 0x10 + OSITECH_AUI_PWR);
-	}
-    }
 
     /* Clear a link error interrupt. */
-    outw( CTL_AUTO_RELEASE | 0x0000, ioaddr + CONTROL);
-    outw( CTL_AUTO_RELEASE | 0x00E0, ioaddr + CONTROL);
+    SMC_SELECT_BANK(1);
+    outw(CTL_AUTO_RELEASE | 0x0000, ioaddr + CONTROL);
+    outw(CTL_AUTO_RELEASE | CTL_TE_ENABLE | CTL_CR_ENABLE,
+	 ioaddr + CONTROL);
     SMC_SELECT_BANK(2);
 }
 
@@ -1498,6 +1536,7 @@ static void smc_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 #endif
     
     lp = (struct smc_private *)dev->priv;
+    lp->watchdog = 0;
     saved_bank = inw(ioaddr + BANK_SELECT);
     if ((saved_bank & 0xff00) != 0x3300) {
 	/* The device does not exist -- the card could be off-line, or
@@ -1527,6 +1566,7 @@ static void smc_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 	if (status & IM_RCV_INT) {
 	    /* Got a packet(s). */
 	    smc_rx(dev);
+	    lp->last_rx = jiffies;
 	}
 	if (status & IM_TX_INT) {
 	    smc_tx_err(dev);
@@ -1575,7 +1615,8 @@ static void smc_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 
 irq_done:
     
-    if (lp->manfid == MANFID_OSITECH) {
+    if ((lp->manfid == MANFID_OSITECH) &&
+	(lp->cardid != PRODID_OSITECH_SEVEN)) {
 	/* Retrigger interrupt if needed */
 	mask_bits(0x00ff, ioaddr-0x10+OSITECH_RESET_ISR);
 	set_bits(0x0300, ioaddr-0x10+OSITECH_RESET_ISR);
@@ -1776,14 +1817,14 @@ static void set_rx_mode(struct device *dev)
 static int s9k_config(struct device *dev, struct ifmap *map)
 {
     if ((map->port != (u_char)(-1)) && (map->port != dev->if_port)) {
-	if ((map->port == 1) || (map->port == 2)) {
+	if (map->port <= 2) {
 	    dev->if_port = map->port;
 	    printk(KERN_INFO "%s: switched to %s port\n",
 		   dev->name, if_names[dev->if_port]);
-	}
-	else
+	} else
 	    return -EINVAL;
     }
+    smc_reset(dev);
     return 0;
 }
 
@@ -1792,6 +1833,33 @@ static int s9k_config(struct device *dev, struct ifmap *map)
     Reset the chip, reloading every register that might be corrupted.
 
 ======================================================================*/
+
+/*
+  Set transceiver type, perhaps to something other than what the user
+  specified in dev->if_port.
+*/
+static void smc_set_xcvr(struct device *dev, int if_port)
+{
+    struct smc_private *lp = (struct smc_private *)dev->priv;
+    ushort saved_bank, ioaddr = dev->base_addr;
+
+    saved_bank = inw(ioaddr + BANK_SELECT);
+    SMC_SELECT_BANK(1);
+    if (if_port == 2) {
+	outw(lp->cfg | CFG_AUI_SELECT, ioaddr + CONFIG);
+	if ((lp->manfid == MANFID_OSITECH) &&
+	    (lp->cardid != PRODID_OSITECH_SEVEN))
+	    set_bits(OSI_AUI_PWR, ioaddr - 0x10 + OSITECH_AUI_PWR);
+	lp->media_status = ((dev->if_port == 0) ? 0x0001 : 0x0002);
+    } else {
+	outw(lp->cfg, ioaddr + CONFIG);
+	if ((lp->manfid == MANFID_OSITECH) &&
+	    (lp->cardid != PRODID_OSITECH_SEVEN))
+	    mask_bits(~OSI_AUI_PWR, ioaddr - 0x10 + OSITECH_AUI_PWR);
+	lp->media_status = ((dev->if_port == 0) ? 0x0012 : 0x4001);
+    }
+    SMC_SELECT_BANK(saved_bank);
+}
 
 static void smc_reset(struct device *dev)
 {
@@ -1817,12 +1885,14 @@ static void smc_reset(struct device *dev)
     SMC_SELECT_BANK(1);
     /* Automatically release succesfully transmitted packets,
        Accept link errors, counter and Tx error interrupts. */
-    outw(CTL_AUTO_RELEASE | 0x00e0, ioaddr + CONTROL);
-    lp->cfg = inw(ioaddr + CONFIG);
+    outw(CTL_AUTO_RELEASE | CTL_TE_ENABLE | CTL_CR_ENABLE,
+	 ioaddr + CONTROL);
+    lp->cfg = inw(ioaddr + CONFIG) & ~CFG_AUI_SELECT;
     lp->cfg |= CFG_NO_WAIT | CFG_16BIT | CFG_STATIC |
 	(lp->manfid == MANFID_OSITECH ? (CFG_IRQ_SEL_1 | CFG_IRQ_SEL_0) : 0);
-    outw(lp->cfg | (dev->if_port == 2 ? CFG_AUI_SELECT : 0), ioaddr + CONFIG);
-    if (lp->manfid == MANFID_OSITECH)
+    smc_set_xcvr(dev, dev->if_port);
+    if ((lp->manfid == MANFID_OSITECH) &&
+	(lp->cardid != PRODID_OSITECH_SEVEN))
 	outw((dev->if_port == 2 ? OSI_AUI_PWR : 0) |
 	     (inw(ioaddr-0x10+OSITECH_AUI_PWR) & 0xff00),
 	     ioaddr - 0x10 + OSITECH_AUI_PWR);
@@ -1841,11 +1911,94 @@ static void smc_reset(struct device *dev)
     SMC_SELECT_BANK(0);
     outw(TCR_ENABLE | TCR_PAD_EN | TCR_MONCSN, ioaddr + TCR);
     set_rx_mode(dev);
-    
+
     /* Enable interrupts. */
     SMC_SELECT_BANK( 2 );
     outw( (IM_EPH_INT | IM_RX_OVRN_INT | IM_RCV_INT) << 8,
 	  ioaddr + INTERRUPT );
+}
+
+/*======================================================================
+
+    Media selection timer routine
+    
+======================================================================*/
+
+static void media_check(u_long arg)
+{
+    struct device *dev = (struct device *)(arg);
+    struct smc_private *lp = (struct smc_private *)dev->priv;
+    int ioaddr = dev->base_addr;
+    u_short i, media, saved_bank;
+
+    if (dev->start == 0) goto reschedule;
+    
+    lp = (struct smc_private *)dev->priv;
+    saved_bank = inw(ioaddr + BANK_SELECT);
+    SMC_SELECT_BANK(2);
+    i = inw(ioaddr + INTERRUPT);
+    SMC_SELECT_BANK(0);
+    media = inw(ioaddr + EPH) & EPH_LINK_OK;
+    SMC_SELECT_BANK(1);
+    media |= (inw(ioaddr + CONFIG) & CFG_AUI_SELECT) ? 2 : 1;
+    SMC_SELECT_BANK(saved_bank);
+    
+    /* Check for pending interrupt with watchdog flag set: with
+       this, we can limp along even if the interrupt is blocked */
+    if (lp->watchdog++ && ((i>>8) & i)) {
+	if (!lp->fast_poll)
+	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+	printk(KERN_INFO "status %04x\n", i);
+	smc_interrupt IRQ(dev->irq, dev, NULL);
+	lp->fast_poll = HZ;
+    }
+    if (lp->fast_poll) {
+	lp->fast_poll--;
+	lp->media.expires = RUN_AT(2);
+	add_timer(&lp->media);
+	return;
+    }
+
+    if (lp->cfg & CFG_MII_SELECT)
+	goto reschedule;
+
+    /* Ignore collisions unless we've had no rx's recently */
+    if (jiffies - lp->last_rx > HZ) {
+	if (lp->tx_err || (lp->media_status & EPH_16COL))
+	    media |= EPH_16COL;
+    }
+    lp->tx_err = 0;
+
+    if (media != lp->media_status) {
+	if ((media & lp->media_status & 1) &&
+	    ((lp->media_status ^ media) & EPH_LINK_OK))
+	    printk(KERN_INFO "%s: %s link beat\n", dev->name,
+		   (lp->media_status & EPH_LINK_OK ? "lost" : "found"));
+	else if ((media & lp->media_status & 2) &&
+		 ((lp->media_status ^ media) & EPH_16COL))
+	    printk(KERN_INFO "%s: coax cable %s\n", dev->name,
+		   (media & EPH_16COL ? "problem" : "ok"));
+	if (dev->if_port == 0) {
+	    if (media & 1) {
+		if (media & EPH_LINK_OK)
+		    printk(KERN_INFO "%s: flipped to 10baseT\n",
+			   dev->name);
+		else
+		    smc_set_xcvr(dev, 2);
+	    } else {
+		if (media & EPH_16COL)
+		    smc_set_xcvr(dev, 1);
+		else
+		    printk(KERN_INFO "%s: flipped to 10base2\n",
+			   dev->name);
+	    }
+	}
+	lp->media_status = media;
+    }
+    
+reschedule:
+    lp->media.expires = RUN_AT(HZ);
+    add_timer(&lp->media);
 }
 
 /*====================================================================*/

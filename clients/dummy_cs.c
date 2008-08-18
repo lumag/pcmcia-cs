@@ -6,10 +6,10 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.13 1999/05/28 02:50:58
+    dummy_cs.c 1.14 1999/07/20 15:59:33
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -56,7 +56,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"dummy_cs.c 1.13 1999/05/28 02:50:58 (David Hinds)";
+"dummy_cs.c 1.14 1999/07/20 15:59:33 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

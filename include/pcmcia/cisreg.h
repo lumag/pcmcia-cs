@@ -1,8 +1,8 @@
 /*
- * cisreg.h 1.11 1998/09/11 08:54:47
+ * cisreg.h 1.12 1999/07/20 16:07:50
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.0 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *

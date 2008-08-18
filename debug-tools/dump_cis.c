@@ -2,10 +2,10 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.41 1999/05/02 16:15:16
+    dump_cis.c 1.42 1999/07/20 16:03:46
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 

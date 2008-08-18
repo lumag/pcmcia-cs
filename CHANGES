@@ -1,3 +1,23 @@
+[30-Jul-99] Version 3.0.14
+-- Updated license to version 1.1 of MPL.
+-- Updated for 2.3.12 kernel.
+-- Added --kflags, --uflags options for Configure script.
+-- Added Ositech Seven of Diamonds support.
+-- Added delay to serial_cb initialization sequence.
+-- Rewrite of smc91c92_cs transceiver detection code.
+-- Incorporated 0.91 tulip driver, with Xircom CardBus tweaks.
+-- The usual handful of config file updates.
+-- Tweaked 3c589_cs transceiver detection algorithm.
+-- Fixed endianness problem in pcnet_cs driver.
+-- Fixed memory allocation bug in rsrc_mgr that was exposed under
+   recent *-ac kernels.
+-- Fixed small error in formatted size calculation in ftl_format.
+-- Fixed memory probe problem introduced in 3.0.13.
+-- Fixed cardinfo to be less picky about version checking.
+-- Fixed bug in cb_enabler cleanup code when a card config fails.
+-- Implemented suspend/resume support for 3c575_cb driver, and fixed
+   3CCFEM656B network operation... but modem is a Winmodem :(
+
 [24-Jun-99] Version 3.0.13
 -- Updated spin lock code to deal with 2.3.7 kernel update.
 -- Updated resource management code to fit with new kernel resource

@@ -2,10 +2,10 @@
 
     PCMCIA card configuration register dump
 
-    dump_cisreg.c 1.18 1998/08/01 13:25:40
+    dump_cisreg.c 1.19 1999/07/20 16:03:48
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 

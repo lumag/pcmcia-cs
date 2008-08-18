@@ -1,8 +1,8 @@
 /*
- * k_compat.h 1.80 1999/06/24 16:12:36
+ * k_compat.h 1.85 1999/07/30 03:48:09
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.0 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -22,11 +22,12 @@
 #define __LINUX__
 #define VERSION(v,p,s)		(((v)<<16)+(p<<8)+s)
 
+/* These are deprecated: should not use any more */
 #define RUN_AT(x)		(jiffies+(x))
 #define CONST			const
 #define ALLOC_SKB(len)		dev_alloc_skb(len+2)
 #define DEVICE(req)		((req)->rq_dev)
-#define GET_PACKET(dev, skb, count) \
+#define GET_PACKET(dev, skb, count)\
 		skb_reserve((skb), 2); \
 		BLOCK_INPUT(skb_put((skb), (count)), (count)); \
 		(skb)->protocol = eth_type_trans((skb), (dev))
@@ -263,9 +264,13 @@ typedef unsigned long k_time_t;
 #define RELEASE_RESOURCE_LOCK do {} while (0)
 
 #include <linux/ioport.h>
-#ifndef vacate_region
+#ifndef HAVE_MEMRESERVE
 #define vacate_region		release_region
 #define vacate_mem_region	release_mem_region
+extern int check_mem_region(unsigned long base, unsigned long num);
+extern void request_mem_region(unsigned long base, unsigned long num,
+			       char *name);
+extern void release_mem_region(unsigned long base, unsigned long num);
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

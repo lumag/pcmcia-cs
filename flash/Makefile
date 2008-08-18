@@ -1,5 +1,5 @@
 #
-# flash/Makefile 1.10 1999/02/28 18:01:47 (David Hinds)
+# flash/Makefile 1.12 1999/07/24 15:03:39 (David Hinds)
 #
 
 # Include site dependent options
@@ -10,6 +10,8 @@ CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 #endif
 CPPFLAGS = -I../include -I$(LINUX)/include
 COFLAGS = -kv
+
+CC := $(CC) $(UFLAGS)
 
 SRCS = ftl_format.c ftl_check.c
 TOOLS = ftl_format ftl_check

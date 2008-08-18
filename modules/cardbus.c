@@ -2,10 +2,10 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.51 1999/06/18 17:48:02
+    cardbus.c 1.52 1999/07/20 16:01:21
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 

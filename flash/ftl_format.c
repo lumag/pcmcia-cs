@@ -2,10 +2,10 @@
 
     Utility to create an FTL partition in a memory region
 
-    ftl_format.c 1.9 1998/05/10 12:15:28
+    ftl_format.c 1.11 1999/08/04 06:14:10
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -62,7 +62,7 @@ static void build_header(erase_unit_header_t *hdr, u_int RegionSize,
 			 u_int BlockSize, u_int Spare, int Reserve,
 			 u_int BootSize)
 {
-    u_int BootUnits;
+    u_int i, BootUnits, nbam;
     
     /* Default everything to the erased state */
     memset(hdr, 0xff, sizeof(*hdr));
@@ -75,25 +75,28 @@ static void build_header(erase_unit_header_t *hdr, u_int RegionSize,
     /* We only support 512-byte blocks */
     hdr->BlockSize = 9;
     hdr->EraseUnitSize = 0;
-    while (BlockSize > 1) {
+    for (i = BlockSize; i > 1; i >>= 1)
 	hdr->EraseUnitSize++;
-	BlockSize >>= 1;
-    }
     hdr->EraseCount = 0;
     hdr->FirstPhysicalEUN = BootUnits;
-    hdr->FormattedSize =
-	RegionSize - ((Spare + BootUnits) << hdr->EraseUnitSize);
-    hdr->FormattedSize -= ((hdr->FormattedSize * Reserve / 100) & ~0xfff);
     hdr->NumEraseUnits = (RegionSize - BootSize) >> hdr->EraseUnitSize;
     hdr->NumTransferUnits = Spare;
+    hdr->FormattedSize =
+	RegionSize - ((Spare + BootUnits) << hdr->EraseUnitSize);
+    /* Leave a little bit of space between the CIS and BAM */
+    hdr->BAMOffset = 0x80;
+    /* Adjust size to account for BAM space */
+    nbam = ((1 << (hdr->EraseUnitSize - hdr->BlockSize)) * sizeof(u_int)
+	    + hdr->BAMOffset + (1 << hdr->BlockSize) - 1) >> hdr->BlockSize;
+    hdr->FormattedSize -=
+	(hdr->NumEraseUnits - Spare) * (nbam << hdr->BlockSize);
+    hdr->FormattedSize -= ((hdr->FormattedSize * Reserve / 100) & ~0xfff);
     hdr->FirstVMAddress = 0xffffffff;
     hdr->NumVMPages = 0;
     hdr->Flags = 0;
     /* hdr->Code defaults to erased state */
     hdr->SerialNumber = time(NULL);
     /* hdr->AltEUHOffset defaults to erased state */
-    /* Leave a little bit of space between the CIS and BAM */
-    hdr->BAMOffset = 0x80;
 
 } /* build_header */
 
@@ -251,7 +254,7 @@ int main(int argc, char *argv[])
     errflg = 0;
     bootsize = 0;
     
-    while ((optch = getopt(argc, argv, "qirs:b:")) != -1) {
+    while ((optch = getopt(argc, argv, "qir:s:b:")) != -1) {
 	switch (optch) {
 	case 'q':
 	    quiet = 1; break;

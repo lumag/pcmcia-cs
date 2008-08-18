@@ -1,8 +1,8 @@
 /*
- * topic.h 1.6 1998/12/09 17:27:39
+ * topic.h 1.7 1999/07/20 16:01:35
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.0 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -14,7 +14,7 @@
  * The initial developer of the original code is David A. Hinds
  * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
  * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
- * topic.h $Release$ 1998/12/09 17:27:39
+ * topic.h $Release$ 1999/07/20 16:01:35
  */
 
 #ifndef _LINUX_TOPIC_H

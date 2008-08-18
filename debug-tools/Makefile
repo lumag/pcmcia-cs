@@ -1,5 +1,5 @@
 #
-# debug-tools/Makefile 1.27 1999/02/28 18:01:39 (David Hinds)
+# debug-tools/Makefile 1.29 1999/07/24 15:03:24 (David Hinds)
 #
 
 # Include site dependent options
@@ -12,6 +12,8 @@ endif
 CPPFLAGS = -I../include -I$(LINUX)/include -I../modules
 COFLAGS = -kv
 YFLAGS = -d
+
+CC := $(CC) $(UFLAGS)
 
 SRCS = dump_cis.c dump_cisreg.c pack_cis.c
 HDRS = pack_cis.h
