@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.21 2000/07/18 22:17:14
+    pci_fixup.c 1.22 2000/07/27 18:34:26
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -263,6 +263,15 @@ static void ali_init(struct pci_dev *router, u8 link, u8 irq)
 #ifndef PCI_DEVICE_ID_INTEL_82443MX_1
 #define PCI_DEVICE_ID_INTEL_82443MX_1 0x7198
 #endif
+#ifndef PCI_DEVICE_ID_INTEL_82443MX_1
+#define PCI_DEVICE_ID_INTEL_82443MX_1 0x7198
+#endif
+#ifndef PCI_DEVICE_ID_INTEL_82801AA_0
+#define PCI_DEVICE_ID_INTEL_82801AA_0 0x2410
+#endif
+#ifndef PCI_DEVICE_ID_INTEL_82801AB_0
+#define PCI_DEVICE_ID_INTEL_82801AB_0 0x2420
+#endif
 #ifndef PCI_DEVICE_ID_VIA_82C586_0
 #define PCI_DEVICE_ID_VIA_82C586_0 0x0586
 #endif
@@ -293,6 +302,8 @@ struct router {
     { ID(INTEL, 82371SB_0),	&pIIx_link,	&pIIx_init },
     { ID(INTEL, 82371AB_0),	&pIIx_link,	&pIIx_init },
     { ID(INTEL, 82443MX_1),	&pIIx_link,	&pIIx_init },
+    { ID(INTEL, 82801AA_0),	&pIIx_link,	&pIIx_init },
+    { ID(INTEL, 82801AB_0),	&pIIx_link,	&pIIx_init },
     { ID(VIA, 82C586_0),	&via_link,	&via_init },
     { ID(VIA, 82C596),		&via_link,	&via_init },
     { ID(VIA, 82C686),		&via_link,	&via_init },

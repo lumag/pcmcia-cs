@@ -1,12 +1,12 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dahinds@users.sourceforge.net.
-  v2.26, 22 June 2000
+  v2.28, 29 August 2000
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
   user-mode utilities for communicating with Card Services.  The latest
-  version of this document can always be found at <ftp://pcmcia-
-  cs.sourceforge.net/pub/pcmcia-cs>.  An HTML version is at
+  version of this document can always be found at <ftp://pro-
+  jects.sourceforge.net/pub/pcmcia-cs>.  An HTML version is at
   <http://pcmcia-cs.sourceforge.net>.
   ______________________________________________________________________
 
@@ -189,7 +189,7 @@
   Driver Services modules, and the user interface to Driver Services.
   It is intended for use by client device driver developers.  The Linux
   PCMCIA-HOWTO describes how to install and use Linux PCMCIA support.
-  It is available from pcmcia-cs.sourceforge.net in /pub/pcmcia-cs.
+  It is available from projects.sourceforge.net in /pub/pcmcia-cs.
 
   11..11..  CCooppyyrriigghhtt nnoottiiccee aanndd ddiissccllaaiimmeerr
 
@@ -1029,12 +1029,17 @@
   } config_info_t;
 
   GetConfigurationInfo returns the current socket configuration as it
-  was set up by RequestIO, RequestIRQ, and RequestConfiguration.  It can
-  only be applied to a fully configured socket.  For normal clients
-  bound to a single card function, the Function field is ignored, and
-  data for that client's assigned function is returned.  For clients
-  bound to BIND_FN_ALL, this field specifies which function's
-  configuration data should be returned.
+  was set up by RequestIO, RequestIRQ, and RequestConfiguration.  Most
+  fields will only be filled in if the socket is fully configured; the
+  CONF_VALID_CLIENT flag in Attributes indicates this fact.  For normal
+  clients bound to a single card function, the Function field is
+  ignored, and data for that client's assigned function is returned.
+  For clients bound to BIND_FN_ALL, this field specifies which
+  function's configuration data should be returned.
+
+  For CardBus cards, the ConfigBase field is set to the card's PCI
+  vendor/device ID, and the Option field is set to the CardBus PCI bus
+  number.
 
   Return codes:
 

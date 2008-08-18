@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.75 2000/06/12 21:29:36
+    cardbus.c 1.76 2000/07/27 18:40:24
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -531,7 +531,7 @@ int cb_config(socket_info_t *s)
     for (i = 0; i < fn; i++) {
 	pci_readb(&c[i].dev, PCI_INTERRUPT_PIN, &j);
 	if (j == 0) continue;
-	if ((irq == 0) && (s->cap.irq_mask & (1 << s->cap.pci_irq)))
+	if ((irq == 0) && s->cap.pci_irq)
 	    irq = s->cap.pci_irq;
 #ifdef CONFIG_ISA
 	if (irq == 0) {

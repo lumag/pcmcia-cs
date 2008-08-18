@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.140 2000/07/12 01:28:37
+    cardmgr.c 1.145 2000/08/30 00:09:15
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -324,8 +324,9 @@ static void write_stab(void)
 		for (k = 0, bind = s->bind[j];
 		     bind != NULL;
 		     k++, bind = bind->next) {
+		    char *class = s->card->device[j]->class;
 		    fprintf(f, "%d\t%s\t%s\t%d\t%s",
-			    i, s->card->device[j]->class,
+			    i, (class ? class : "none"),
 			    bind->dev_info, k, bind->name);
 		    if (bind->major)
 			fprintf(f, "\t%d\t%d\n",
@@ -366,9 +367,14 @@ static int get_tuple(int ns, cisdata_t code, ds_ioctl_arg_t *arg)
 
 /*====================================================================*/
 
+typedef struct {
+    u_short vendor, device;
+} pci_id_t;
+
 static void log_card_info(cistpl_vers_1_t *vers,
 			  cistpl_manfid_t *manfid,
-			  cistpl_funcid_t *funcid)
+			  cistpl_funcid_t *funcid,
+			  pci_id_t *pci_id)
 {
     char v[256] = "";
     int i;
@@ -393,17 +399,22 @@ static void log_card_info(cistpl_vers_1_t *vers,
 	sprintf(v+strlen(v), "  function: %d (%s)", funcid->func,
 		fn[funcid->func]);
     if (strlen(v) > 0) syslog(LOG_INFO, "%s", v);
+    if (pci_id->vendor != 0)
+	syslog(LOG_INFO, "  PCI id: 0x%04x, 0x%04x",
+	       pci_id->vendor, pci_id->device);
 }
 
 static card_info_t *lookup_card(int ns)
 {
     socket_info_t *s = &socket[ns];
-    card_info_t *card;
+    card_info_t *card = NULL;
     ds_ioctl_arg_t arg;
     cistpl_vers_1_t *vers = NULL;
     cistpl_manfid_t manfid = { 0, 0 };
+    pci_id_t pci_id = { 0, 0 };
     cistpl_funcid_t funcid = { 0xff, 0xff };
     cs_status_t status;
+    config_info_t config;
     int i, ret, match;
     int has_cis = 0;
 
@@ -474,35 +485,45 @@ static card_info_t *lookup_card(int ns)
 	    }
 	    if (match) break;
 	}
-	if (match) {
-	    syslog(LOG_INFO, "socket %d: %s", ns, card->name);
-	    beep(BEEP_TIME, BEEP_OK);
-	    if (verbose) log_card_info(vers, &manfid, &funcid);
-	    return card;
-	}
     }
 
+    /* Check PCI vendor/device info */
+    status.Function = config.Function = config.ConfigBase = 0;
+    if ((ioctl(s->fd, DS_GET_STATUS, &status) == 0) &&
+	(status.CardState & CS_EVENT_CB_DETECT) &&
+	(ioctl(s->fd, DS_GET_CONFIGURATION_INFO, &config) == 0)) {
+	pci_id.vendor = config.ConfigBase & 0xffff;
+	pci_id.device = config.ConfigBase >> 16;
+	if (!card) {
+	    for (card = root_card; card; card = card->next)
+		if ((card->ident_type == PCI_IDENT) &&
+		    (pci_id.vendor == card->id.manfid.manf) &&
+		    (pci_id.device == card->id.manfid.card))
+		    break;
+	}
+    }
+    
     /* Try for a FUNCID match */
-    if (funcid.func != 0xff) {
+    if (!card && (funcid.func != 0xff)) {
 	for (card = root_func; card; card = card->next)
 	    if (card->id.func.funcid == funcid.func)
 		break;
-	if (card) {
-	    syslog(LOG_INFO, "socket %d: %s", ns, card->name);
-	    beep(BEEP_TIME, BEEP_OK);
-	    if (verbose) log_card_info(vers, &manfid, &funcid);
-	    return card;
-	}
+    }
+
+    if (card) {
+	syslog(LOG_INFO, "socket %d: %s", ns, card->name);
+	beep(BEEP_TIME, BEEP_OK);
+	if (verbose) log_card_info(vers, &manfid, &funcid, &pci_id);
+	return card;
     }
 
     status.Function = 0;
-    if ((ioctl(s->fd, DS_GET_STATUS, &status) != 0) ||
-	(status.CardState & CS_EVENT_CB_DETECT) ||
+    if ((status.CardState & CS_EVENT_CB_DETECT) ||
 	manfid.manf || manfid.card || vers || !blank_card) {
 	syslog(LOG_INFO, "unsupported card in socket %d", ns);
 	if (one_pass) return NULL;
 	beep(BEEP_TIME, BEEP_ERR);
-	log_card_info(vers, &manfid, &funcid);
+	log_card_info(vers, &manfid, &funcid, &pci_id);
 	return NULL;
     } else {
 	card = blank_card;
@@ -638,7 +659,8 @@ static int execute(char *msg, char *cmd)
 
 static int execute_on_dev(char *action, char *class, char *dev)
 {
-    char msg[128], cmd[512];
+    /* Fixed length strings are ok here */
+    char msg[128], cmd[128];
 
     sprintf(msg, "%s cmd", action);
     sprintf(cmd, "./%s %s %s", class, action, dev);
@@ -651,7 +673,7 @@ static int execute_on_all(char *cmd, char *class, int sn, int fn)
     bind_info_t *bind;
     int ret = 0;
     for (bind = s->bind[fn]; bind != NULL; bind = bind->next)
-	if (bind->name[2] != '#')
+	if (bind->name[0] && (bind->name[2] != '#'))
 	    ret |= execute_on_dev(cmd, class, bind->name);
     return ret;
 }
@@ -670,32 +692,43 @@ static module_list_t *module_list = NULL;
 
 static int try_insmod(char *mod, char *opts)
 {
-    char path[128], cmd[128];
+    char *cmd = malloc(strlen(mod) + strlen(modpath) +
+		       (opts ? strlen(opts) : 0) + 20);
+    int ret;
+
+    strcpy(cmd, "insmod ");
     if (strchr(mod, '/') != NULL)
-	sprintf(path, "%s/%s.o", modpath, mod);
+	sprintf(cmd+7, "%s/%s.o", modpath, mod);
     else
-	sprintf(path, "%s/pcmcia/%s.o", modpath, mod);
-    if (access(path, R_OK) != 0) {
-	syslog(LOG_INFO, "module %s not available", path);
+	sprintf(cmd+7, "%s/pcmcia/%s.o", modpath, mod);
+    if (access(cmd+7, R_OK) != 0) {
+	syslog(LOG_INFO, "module %s not available", cmd+7);
+	free(cmd);
 	return -1;
     }
-    sprintf(cmd, "insmod %s", path);
     if (opts) {
 	strcat(cmd, " ");
 	strcat(cmd, opts);
     }
-    return execute("insmod", cmd);
+    ret = execute("insmod", cmd);
+    free(cmd);
+    return ret;
 }
 
 static int try_modprobe(char *mod, char *opts)
 {
-    char cmd[128], *s = strrchr(mod, '/');
+    char *cmd = malloc(strlen(mod) + (opts ? strlen(opts) : 0) + 20);
+    char *s = strrchr(mod, '/');
+    int ret;
+
     sprintf(cmd, "modprobe %s", (s) ? s+1 : mod);
     if (opts) {
 	strcat(cmd, " ");
 	strcat(cmd, opts);
     }
-    return execute("modprobe", cmd);
+    ret = execute("modprobe", cmd);
+    free(cmd);
+    return ret;
 }
 
 static void install_module(char *mod, char *opts)

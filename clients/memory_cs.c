@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.74 2000/07/11 01:27:12
+    memory_cs.c 1.76 2000/08/22 04:38:30
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -91,7 +91,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.74 2000/07/11 01:27:12 (David Hinds)";
+"memory_cs.c 1.76 2000/08/22 04:38:30 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -401,9 +401,6 @@ static void memory_config(dev_link_t *link)
     region_info_t region;
     cs_status_t status;
     win_req_t req;
-    tuple_t tuple;
-    cisparse_t parse;
-    u_char buf[64];
     int nd, i, last_ret, last_fn, attr, ret, nr[2];
 
     DEBUG(0, "memory_config(0x%p)\n", link);
@@ -445,18 +442,26 @@ static void memory_config(dev_link_t *link)
     link->dev = &dev->node;
     link->state &= ~DEV_CONFIG_PENDING;
 
+#ifdef CISTPL_FORMAT_MEM
     /* This is a hack, not a complete solution */
-    tuple.Attributes = 0;
-    tuple.TupleData = (cisdata_t *)buf;
-    tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
-    tuple.DesiredTuple = CISTPL_FORMAT;
-    if (CardServices(GetFirstTuple, link->handle, &tuple) == CS_SUCCESS) {
-	CS_CHECK(GetTupleData, link->handle, &tuple);
-	CS_CHECK(ParseTuple, link->handle, &tuple, &parse);
-	dev->direct.offset = dev->minor[0].offset =
-	    parse.format.offset;
+    {
+	tuple_t tuple;
+	cisparse_t parse;
+	u_char buf[64];
+	tuple.Attributes = 0;
+	tuple.TupleData = (cisdata_t *)buf;
+	tuple.TupleDataMax = sizeof(buf);
+	tuple.TupleOffset = 0;
+	tuple.DesiredTuple = CISTPL_FORMAT;
+	if (CardServices(GetFirstTuple, link->handle, &tuple)
+	    == CS_SUCCESS) {
+	    CS_CHECK(GetTupleData, link->handle, &tuple);
+	    CS_CHECK(ParseTuple, link->handle, &tuple, &parse);
+	    dev->direct.offset = dev->minor[0].offset =
+		parse.format.offset;
+	}
     }
+#endif
 
     printk(KERN_INFO "memory_cs: mem%d:", nd);
     if ((nr[0] == 0) && (nr[1] == 0)) {
@@ -702,8 +707,6 @@ static ssize_t direct_read FOPS(struct inode *inode,
     direct = &dev->direct;
     
     /* Boundary checks */
-    if (count < 0)
-	return -EINVAL;
     pos = FPOS;
     size = (IS_DIRECT(minor)) ? HIGH_ADDR : direct->cardsize;
     if (pos >= size)
@@ -852,8 +855,6 @@ static ssize_t direct_write FOPS(struct inode *inode,
 	return -EROFS;
 
     /* Boundary checks */
-    if (count < 0)
-	return -EINVAL;
     size = (IS_DIRECT(minor)) ? HIGH_ADDR : direct->cardsize;
     pos = FPOS;
     if (pos >= size)

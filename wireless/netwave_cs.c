@@ -1151,7 +1151,7 @@ static int netwave_hw_xmit(unsigned char* data, int len,
     netwave_private *priv = (netwave_private *) dev->priv;
     u_char* ramBase = priv->ramBase;
     ioaddr_t iobase = dev->base_addr;
-	
+
     /* Disable interrupts & save flags */
     save_flags(flags);
     cli();
@@ -1162,6 +1162,7 @@ static int netwave_hw_xmit(unsigned char* data, int len,
 	/* No buffers available */
 	printk(KERN_DEBUG "netwave_hw_xmit: %s - no xmit buffers available.\n",
 	       dev->name);
+	restore_flags(flags);
 	return 1;
     }
 

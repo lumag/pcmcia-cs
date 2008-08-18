@@ -1,3 +1,34 @@
+[30-Aug-00] Version 3.1.20
+-- Backed out the 16-bit CIS window changes, added cis_width parameter
+   to pcmcia_core module.
+-- Finished adding support for identifying CardBus cards by their PCI
+   vendor and device ID's.
+-- Added support for Advantech COMpad-32/85B-4 quad port card.
+-- Documentation updates: added PCI interrupt discussion to HOWTO, and
+   a README for 2.4 kernel issues.
+-- Changed etc/Makefile so that "make PREFIX=..." works.
+-- Changed config scripts to use either /var/lib/pcmcia/scheme or
+   /var/run/pcmcia-scheme, whichever is available, instead of only
+   checking /var/lib/pcmcia if it is present.
+-- Minor airo_cs driver update from Ben Reed.
+-- Added more consistency checks to test_network script.
+-- Fix for a transmitter problem with some 3CCFE575CT cards usually
+   only affecting congested 10baseT half duplex links.
+-- Fix for a transmitter bug in some 3CCFE575BT, 3CCFEM656B cards.
+-- Added down_poll_rate option to 3c575_cb driver.
+-- Fixed bug in wvlan_cs driver that prevented rarp from working.
+-- Fixed serial_cs to not treat the Nokia Card Phone as a dual port
+   device, and to be more conservative about IO port assignments.
+-- Changed dump_pirq to deduce more information about unknown routers.
+-- Fixed the CIS validation heuristics to be a bit more lenient.
+-- Fixed epic_cb driver initialization bug.
+-- Added Psion NetGlobal 10/100 support.
+-- Fixed cardmgr bug for drivers with no class info.
+-- Tweaked interrupt management code to fix a PowerBook problem.
+-- Updated pcnet_cs to report MII status for DL10019, DL10022 cards.
+-- Fix to Configure script to accommodate SuSE init script layout.
+-- Fixed cardmgr buffer overrun with long module option lists.
+
 [20-Jul-00] Version 3.1.19
 -- Fixed an i82365 setup issue created by the 16-bit memory window
    change in 3.1.18, affecting the ray_cs driver with ISA bridges.

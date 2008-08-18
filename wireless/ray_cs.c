@@ -317,7 +317,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.20 2000/07/20 00:15:42 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.21 2000/07/27 17:56:04 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -390,7 +390,7 @@ static dev_link_t *ray_attach(void)
     /* Allocate space for private device-specific data */
     dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
     if (dev == NULL) {
-	kfree_s(link, sizeof(struct dev_link_t));
+	kfree(link);
 	return NULL;
     }
     memset(dev, 0, sizeof(struct net_device));
@@ -399,8 +399,8 @@ static dev_link_t *ray_attach(void)
     
     local = kmalloc(sizeof(ray_dev_t), GFP_KERNEL);
     if (local == NULL) {
-	kfree_s(dev, sizeof(struct dev_link_t));
-	kfree_s(link, sizeof(struct dev_link_t));
+	kfree(dev);
+	kfree(link);
 	return NULL;
     }
     memset(local, 0, sizeof(ray_dev_t));

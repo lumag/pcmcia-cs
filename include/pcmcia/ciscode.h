@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.43 2000/06/22 20:02:27
+ * ciscode.h 1.45 2000/08/12 02:08:23
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -78,6 +78,9 @@
 
 #define MANFID_NEW_MEDIA		0x0057
 
+#define MANFID_NOKIA			0x0124
+#define PRODID_NOKIA_CARDPHONE		0x0900
+
 #define MANFID_OLICOM			0x0121
 #define PRODID_OLICOM_OC2231		0x3122
 #define PRODID_OLICOM_OC2232		0x3222
@@ -94,6 +97,7 @@
 #define MANFID_PIONEER			0x000b
 
 #define MANFID_PSION			0x016c
+#define PRODID_PSION_NET100		0x0023
 
 #define MANFID_QUATECH			0x0137
 #define PRODID_QUATECH_SPP100		0x0003

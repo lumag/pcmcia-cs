@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# dump_pirq 1.15 2000/07/20 00:15:47
+# dump_pirq 1.16 2000/08/08 20:05:03
 #
 # A utility to parse the BIOS PCI IRQ Routing Table
 #
@@ -43,9 +43,14 @@ sub parse_pirq
 	# Parse a table entry describing a single PCI device
 	($bus, $devfn, $la, $ma, $lb, $mb, $lc, $mc, $ld, $md, $slot) =
 	    unpack "CCCSCSCSCSC", substr($buf, $p+$ofs, 15);
-	printf "\nDevice %02x:%s (slot $slot):\n", $bus, dev($devfn);
+	$s = sprintf "%02x:%s", $bus, dev($devfn);
+	print "\nDevice $s (slot $slot):\n";
 	row("A", $la, $ma); row("B", $lb, $mb);
 	row("C", $lc, $mc); row("D", $ld, $md);
+	push(@{$dev{$la}}, $s . "1");
+	push(@{$dev{$lb}}, $s . "2");
+	push(@{$dev{$lc}}, $s . "3");
+	push(@{$dev{$ld}}, $s . "4");
 	$ofs += 16;
     }
     return ($rbus, $rdev, $cvd);
@@ -202,7 +207,23 @@ sub dump_router
 
 	printf("unknown vendor 0x%04x device 0x%04x\n",
 	       ($vd & 0xffff), ($vd >> 16));
-
+	foreach $k (sort keys %dev) {
+	    next if ($k == 0);
+	    printf "  PIRQ? (link 0x%02x): ", $k;
+	    $irq = 0;
+	    foreach $d (@{$dev{$k}}) {
+		$d =~ /(..):(..)\..(.)/;
+		($bus,$dev,$pin) = ($1,$2,$3);
+		for ($fn = 0; $fn < 8; $fn++) {
+		    open(IN, "/proc/bus/pci/$bus/$dev.$fn") || last;
+		    sysread(IN, $buf, 0x100);
+		    close(IN);
+		    ($i,$p) = unpack "CC", substr($buf, 0x3c, 2);
+		    $irq = $i if (($p == $pin) && $i && ($i != 255));
+		}
+	    }
+	    print ($irq ? "irq $irq\n" : "unrouted?\n");
+	}
     }
 
 }

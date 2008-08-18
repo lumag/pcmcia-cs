@@ -16,6 +16,13 @@ sub irq_count
     return $1 if ($s =~ /^ +\d+:\s+(\d+)/);
 }
 
+sub cvt_addr
+{
+    my($addr) = @_;
+    $addr =~ /(\d+)\.(\d+)\.(\d+)\.(\d+)/;
+    return ($1<<24)+($2<<16)+($3<<8)+$4;
+}
+
 sub checkout
 {
     my($dev,$driver,$card) = @_;
@@ -31,6 +38,15 @@ sub checkout
     $conf =~ s/\n$//;
     print "  Current ifconfig settings:\n", indent($conf), "\n";
 
+    @line = split(/\n/, $conf);
+    ($x,$ipaddr,$bcast,$netmask) = split(/ [a-zA-Z ]+:/, $line[1]);
+    $ip = cvt_addr($ipaddr);
+    $bc = cvt_addr($bcast);
+    $nm = cvt_addr($netmask);
+    if ((($bc | $nm) != 0xffffffff) || (($ip & $nm) != ($bc & $nm))) {
+	print "  The broadcast address and netmask are inconsistent!\n";
+    }
+
     if ($conf !~ /Mask/) {
 	print "  The interface is not configured!\n";
     } elsif ($conf !~ /RUNNING/) {
@@ -40,8 +56,6 @@ sub checkout
     }
 
     $irq = $1 if ($conf =~ /Interrupt:(\d+)/);
-    @line = split(/\n/, $conf);
-    ($x,$ipaddr,$bcast,$netmask) = split(/ [a-zA-Z ]+:/, $line[1]);
     @rx = split(/ [a-zA-Z ]+:/, $1) if ($conf =~ /RX(.*)\n/);
     @tx = split(/ [a-zA-Z ]+:/, $1) if ($conf =~ /TX(.*)\n/);
     shift(@rx); shift(@tx);
@@ -49,7 +63,7 @@ sub checkout
     $tx_ok = ($tx[0] > 5*($tx[1]+$tx[2]+$tx[3]+$tx[4])+1);
     $rx_any = $rx[0]+$rx[1]+$rx[2]+$rx[3]+$rx[4];
     $tx_any = $tx[0]+$rx[1]+$rx[2]+$rx[3]+$rx[4];
-    
+
     if ($conf =~ /RUNNING/) {
 	if ($rx_ok && $tx_ok) {
 	    print "  RX and TX traffic both look ok.\n";
@@ -72,7 +86,11 @@ sub checkout
 	next if (!/$dev/);
 	if ($s[1] ne "0.0.0.0") {
 	    print "\n  There is a route to a gateway at $s[1].\n";
-	    $addr = $s[1];
+	    if ($s[1] eq $ipaddr) {
+		print "  Your gateway address is set to your IP address!\n";
+	    } else {
+		$addr = $s[1];
+	    }
 	    last;
 	}
     }

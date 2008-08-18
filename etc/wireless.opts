@@ -35,6 +35,8 @@ case "$ADDRESS" in
     MODE="Managed"
     RATE="auto"
     KEY="s:secu1"
+# To set all four keys, use :
+# KEY="s:secu1 [1] key s:secu2 [2] key s:secu3 [3] key s:secu4 [4] key [1]"
     ;;
 
 # Raytheon Raylink/WebGear Aviator2.4 (end with 8F or F1 !)

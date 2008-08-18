@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/07/20 23:03:27
+		Last updated: 2000/08/30 21:32:48
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -118,6 +118,7 @@ Ethernet cards:
 	NDC Instant-Link
 	NEC PC-9801N-J12
 	Network General "Sniffer"
+	Network Everywhere NP10T
 	New Media LanSurfer
 	UNEX NexNIC MA010
 	Novell/National NE4100 InfoMover
@@ -162,7 +163,8 @@ Ethernet cards:
 Fast Ethernet (10/100baseT) adapters:
 
 	[3c574_cs driver] [x86]
-	3Com 3c574TX, 3CCFE574BT, 3CXFE574BT, 3CCSH572BT, 3CXSH572BT
+	3Com 3c574TX
+	3Com Megahertz 3CCFE574BT, 3CXFE574BT, 3CCSH572BT, 3CXSH572BT
 
 	[pcnet_cs driver] [x86]
 	Abocom LinkMate FE1000, FE1500
@@ -184,6 +186,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Melco LPC2-TX
 	Microcom TravelCard 10/100
 	Micronet EtherFast Adapter
+	Micronet SP162A
 	NetGear FA410TXC
 	New Media LiveWire 10/100
 	Planex FNW-3600T
@@ -196,7 +199,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Lantech FastNet/TX
 	Melco/SMC LPC-TX
 	Ositech Seven of Diamonds
-	Psion Gold Card Netglobal
+	Psion Gold Card NetGlobal 10/100
 	WiseCom WC-PC400
 	
 	[xirc2ps_cs driver] [x86,axp]
@@ -204,10 +207,12 @@ Fast Ethernet (10/100baseT) adapters:
 	Compaq Netelligent 10/100
 	Intel EtherExpress PRO/100 16-bit
 	Toshiba IPC5008A, Advanced Network 10/100
-	Xircom CreditCard CE3-100, CE3B, RE-100, R2E-100BTX
+	Xircom CreditCard CE3-100, CE3B, RE-100, R2E-100BTX, XE2000
 
 	[3c575_cb driver] [x86]
-	3Com 3c575TX, 3CCFE575BT, 3CXFE575BT, 3CCFE575CT, 3CXFE575CT
+	3Com 3c575TX
+	3Com Megahertz 3CCFE575BT, 3CXFE575BT, 3CCFE575CT, 3CXFE575CT
+	3Com Megahertz 3C3FE575CT
 
 	[eepro100_cb driver] [x86]
 	[experimental]
@@ -288,8 +293,8 @@ Modem and serial cards:
 	For more information about WinModems and current lists, see
 	http://www.o2.net/~gromitkc/winmodem.html ]
 
-	[serial_cs driver] [x86,axp]
-	Advantech COMpad-32/85 dual serial
+	[serial_cs driver] [x86,axp,ppc]
+	Advantech COMpad-32/85 dual port, COMpad-32/85B-4 quad port
 	Argosy dual serial
 	Black Box I114A RS-422/485
 	Brain Boxes 2-Port RS-232
@@ -333,7 +338,6 @@ Memory cards:
 	Intel Series 2, Series 2+, and Value Series 100 Flash
 	Maxtor MobileMax 16MB Flash
 	IBM 8MB Flash
-	RATOC SmartMedia Adapter
 	TDK Flash Memory SFM20W/C 20MB
 
 SCSI adapters:
@@ -383,7 +387,7 @@ SCSI adapters:
 	Pioneer PCP-PR1W, PCP-PR2W CD-ROM
 	Taxan ICD-400PN
 
-	[apa1480_cb driver] [x86]
+	[apa1480_cb driver] [x86,ppc]
 	[recommend 2.2 or later kernel, experimental!]
 	Adaptec SlimSCSI 1480 CardBus
 
@@ -391,7 +395,7 @@ Multifunction ethernet/modem cards:
 
 	[3c589_cs driver] [x86]
 	3Com 3c562, 3c562B/C/D, 3c563B/C/D
-	3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B
+	3Com Megahertz 3CCEM556, 3CXEM556, 3CCEM556B, 3C3FEM556C
 	Motorola Marquis
 
 	[3c574_cs driver] [x86]
@@ -429,12 +433,15 @@ Multifunction ethernet/modem cards:
 	[xirc2ps_cs driver] [x86]
 	Compaq Microcom CPQ550 Modem + 10/100 LAN
 	Intel EtherExpress PRO/100 LAN/Modem
-	Xircom CreditCard CEM28, CEM33, CEM56
+	Xircom CreditCard CEM28, CEM33, CEM56, XEM5600
 	Xircom RealPort REM10BT, REM56G-100
 
 	[3c575_cb driver] [x86]
 	[ ethernet only: the modem is a WinModem! ]
 	3Com 3CCFEM656B, 3CXFEM656C
+
+	[eepro100_cb driver] [x86]
+	Intel EtherExpress Pro/100 LAN+Modem 56K
 
 	[epic_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
@@ -448,7 +455,7 @@ Multifunction ethernet/modem cards:
 
 ATA/IDE card drives:
 
-	[ide_cs driver] [x86]
+	[ide_cs driver] [x86,ppc]
 	Most cards should work fine, including adapters for external
 	IDE devices.  Both Flash-ATA cards and 	rotating-media cards
 	are supported, including "Smartmedia" flash and Compact flash

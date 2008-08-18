@@ -2576,10 +2576,6 @@ wavelan_get_wireless_stats(device *	dev)
   printk(KERN_DEBUG "%s: ->wavelan_get_wireless_stats()\n", dev->name);
 #endif
 
-  /* Paranoia */
-  if(lp == (net_local *) NULL)
-    return (iw_stats *) NULL;
-
   /* Disable interrupts & save flags */
   wv_splhi(lp, &flags);
 
@@ -4478,6 +4474,7 @@ wavelan_attach(void)
 
   /* Initialize the dev_link_t structure */
   link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
+  if (!link) return NULL;
   memset(link, 0, sizeof(struct dev_link_t));
 
   /* Unused for the Wavelan */
@@ -4510,11 +4507,20 @@ wavelan_attach(void)
 
   /* Allocate the generic data structure */
   dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+  if (!dev) {
+      kfree(link);
+      return NULL;
+  }
   memset(dev, 0x00, sizeof(struct net_device));
   link->priv = link->irq.Instance = dev;
 
   /* Allocate the wavelan-specific data structure. */
   dev->priv = lp = (net_local *) kmalloc(sizeof(net_local), GFP_KERNEL);
+  if (!lp) {
+      kfree(link);
+      kfree(dev);
+      return NULL;
+  }
   memset(lp, 0x00, sizeof(net_local));
 
   /* Init specific data */

@@ -1364,7 +1364,7 @@ static dev_node_t *epic_attach(dev_locator_t *loc)
 			   io == 0 ? "I/O address" : "IRQ");
 		return NULL;
 	}
-	dev = epic_probe1(bus, devfn, NULL, io, irq, 2, -1);
+	dev = epic_probe1(bus, devfn, NULL, io, irq, 1, -1);
 	if (dev) {
 		dev_node_t *node = kmalloc(sizeof(dev_node_t), GFP_KERNEL);
 		strcpy(node->dev_name, dev->name);

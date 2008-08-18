@@ -30,6 +30,7 @@
 #endif
 
 #include <linux/config.h>
+#include <asm/segment.h>
 #ifdef CONFIG_MODVERSIONS
 #define MODVERSIONS
 #include <linux/modversions.h>
@@ -76,7 +77,7 @@ static struct {
    of statistics in the /proc filesystem */
 
 #define IGNLABEL 0&(int)
-char *statsLabels[] = {
+static char *statsLabels[] = {
 	"RxOverrun",
 	IGNLABEL "RxPlcpCrcErr",
 	IGNLABEL "RxPlcpFormatErr",
@@ -190,19 +191,43 @@ static char *ssids[3] = {0,0,0};
 static int io[4]={ 0,};
 static int irq[4]={ 0,};
 
-static int auto_wep = 0; /* If set, it tries to figure out the wep mode */
-static int aux_bap = 0; /* Checks to see if the aux ports are needed to read
-                           the bap, needed on some older cards and buses. */   
+static
+int maxencrypt = 0; /* The highest rate that the card can encrypt at.
+		       0 means no limit.  For old cards this was 4 */
+
+static
+int auto_wep = 0; /* If set, it tries to figure out the wep mode */
+static
+int aux_bap = 0; /* Checks to see if the aux ports are needed to read
+		    the bap, needed on some older cards and buses. */   
+static
+int adhoc = 0;
 
 #if (LINUX_VERSION_CODE > 0x20155)
 /* new kernel */
+MODULE_AUTHOR("Benjamin Reed");
+MODULE_DESCRIPTION("Support for Cisco/Aironet 802.11 wireless ethernet \
+                   cards.  Direct support for ISA/PCI cards and support \
+		   for PCMCIA when used with airo_cs.");
+MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340");
 MODULE_PARM(io,"1-4i");
 MODULE_PARM(irq,"1-4i");
 MODULE_PARM(basic_rate,"i");
 MODULE_PARM(rates,"1-8i");
 MODULE_PARM(ssids,"1-3s");
 MODULE_PARM(auto_wep,"i");
+MODULE_PARM_DESC(auto_wep, "If non-zero, the driver will keep looping through \
+the authentication options until an association is made.");
 MODULE_PARM(aux_bap,"i");
+MODULE_PARM_DESC(aux_bap, "If non-zero, the driver will switch into a mode \
+than seems to work better for older cards with some older buses.  Before \
+switching it checks that the switch is needed.");
+MODULE_PARM(maxencrypt, "i");
+MODULE_PARM_DESC(maxencrypt, "The maximum speed that the card can do \
+encryption.  Units are in 512kbs.  Zero (default) means there is no limit. \
+Older cards used to be limited to 2mbs (4).");
+MODULE_PARM(adhoc, "i");
+MODULE_PARM_DESC(adhoc, "If non-zero, the card will start in adhoc mode.");
 
 #include <asm/uaccess.h>
 
@@ -291,8 +316,6 @@ static int do8bitIO = 0;
 #define BAP_BUSY 0x8000
 #define BAP_ERR 0x4000
 #define BAP_DONE 0x2000
-
-#define PROMISC 0xffff
 
 #define EV_CMD 0x10
 #define EV_CLEARCOMMANDBUSY 0x4000
@@ -532,7 +555,7 @@ typedef struct {
 #define BUSY_FID 0x10000
 
 static char *version =
-"airo.c 0.99zz 2000/05/26 09:40:55 (Benjamin Reed)";
+"airo.c 1.0 2000/08/04 14:49:53 (Benjamin Reed)";
 
 struct airo_info;
 
@@ -594,7 +617,6 @@ struct airo_info {
         spinlock_t aux_lock;
         spinlock_t cmd_lock;
         int flags;
-#define FLAG_PROMISC 0x01
 #define FLAG_RADIO_OFF 0x02
 	int (*bap_read)(struct airo_info*, u16 *pu16Dst, int bytelen, 
 		int whichbap);
@@ -622,7 +644,6 @@ static int airo_open(struct net_device *dev) {
 
 	netif_start_queue(dev);
 	netif_mark_up(dev);
-	
 	return 0;
 }
 
@@ -677,12 +698,7 @@ static struct net_device_stats *airo_get_stats(struct net_device *dev) {
 }
 
 static void airo_set_multicast_list(struct net_device *dev) {
-        struct airo_info *ai = (struct airo_info*)dev->priv;
-
-        ai->flags &= ~FLAG_PROMISC;
-	if (dev->flags&IFF_PROMISC) {
-	        ai->flags |= FLAG_PROMISC;
-	} else if ((dev->flags&IFF_ALLMULTI)||dev->mc_count>0) {
+	if ((dev->flags&IFF_ALLMULTI)||dev->mc_count>0) {
 		/* Turn on multicast.  (Should be already setup...) */
 	}
 }
@@ -705,7 +721,7 @@ static int airo_close(struct net_device *dev) {
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	ai->open--;
 	netif_stop_queue(dev);
-	netif_mark_down(dev);
+        netif_mark_down(dev);
 	if ( !ai->open ) {
 		disable_interrupts( ai );
 	}
@@ -727,7 +743,9 @@ void stop_airo_card( struct net_device *dev )
 	release_region( dev->base_addr, 64 );
 	free_irq( dev->irq, dev );
 	del_airo_dev( dev );
-	if (dev->priv)
+        /* This goofy + 1 thing is because sometimes init_ethernet will
+           do a separate allocation for priv and sometimes not... */
+	if (dev->priv && dev->priv != dev + 1)
 		kfree(dev->priv);
 	kfree( dev );
 	if (auto_wep) del_timer(&(ai)->timer);
@@ -742,13 +760,13 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 	int i;
 	
 	/* Create the network device object. */
-	dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
-	memset(dev, 0, sizeof(struct net_device));
-	
-	/* Space for the info structure. */
-	dev->priv = kmalloc(sizeof(struct airo_info), GFP_KERNEL);
-	memset(dev->priv, 0, sizeof(struct airo_info));
+        dev = init_etherdev(0, sizeof(*ai));
+        if (!dev) {
+            printk(KERN_ERR "airo:  Couldn't init_etherdev\n");
+            return NULL;
+        }
 	ai = (struct airo_info *)dev->priv;
+	ai->registered = 1;
         ai->dev = dev;
 	ai->bap0_lock = SPIN_LOCK_UNLOCKED;
 	ai->bap1_lock = SPIN_LOCK_UNLOCKED;
@@ -761,10 +779,6 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 	dev->get_stats = &airo_get_stats;
 	dev->set_multicast_list = &airo_set_multicast_list;
 	dev->do_ioctl = &private_ioctl;
-#if (LINUX_VERSION_CODE < 0x020363)
-	dev->name = ((struct airo_info *)dev->priv)->name;
-#endif
-	ether_setup(dev);
 	dev->change_mtu = &airo_change_mtu;
 	dev->open = &airo_open;
 	dev->stop = &airo_close;
@@ -802,14 +816,7 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 		}
 	}
 	
-	if (register_netdev(dev) != 0) {
-		printk(KERN_ERR "airo: register_netdev() failed\n");
-		goto init_undo;
-	}
-	((struct airo_info*)dev->priv)->registered = 1;
-	
 	setup_proc_entry( dev, (struct airo_info*)dev->priv );
-	
 	netif_start_queue(dev);
 	return dev;
  init_undo:
@@ -1035,14 +1042,6 @@ static int enable_MAC( struct airo_info *ai, Resp *rsp ) {
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd = MAC_ENABLE; // disable in case already enabled
 	status = issuecommand(ai, &cmd, rsp);
-	if (status == SUCCESS && ai->flags|FLAG_PROMISC) {
-	        Cmd cmd;
-		Resp rsp;
-		memset(&cmd, 0, sizeof(cmd));
-		cmd.cmd=CMD_SETMODE;
-		cmd.parm1=PROMISC;
-		issuecommand(ai, &cmd, &rsp);
-	}
 	return status;
 }
 
@@ -1112,7 +1111,7 @@ static u16 setup_card(struct airo_info *ai, u8 *mac,
 		// general configuration (read/modify/write)
 		status = PC4500_readrid(ai, RID_CONFIG, &cfg, sizeof(cfg));
 		if ( status != SUCCESS ) return ERROR;
-		cfg.opmode = MODE_STA_ESS; // station in ESS mode
+		cfg.opmode = adhoc ? MODE_STA_IBSS : MODE_STA_ESS;
     
 		/* Save off the MAC */
 		for( i = 0; i < 6; i++ ) {
@@ -2053,6 +2052,18 @@ static int get_dec_u16( char *buffer, int *start, int limit ) {
 	return value;
 }
 
+static void checkThrottle(ConfigRid *config) {
+	int i;
+	/* Old hardware had a limit on encryption speed */
+	if (config->authType != AUTH_OPEN && maxencrypt) {
+		for(i=0; i<8; i++) {
+			if (config->rates[i] > maxencrypt) {
+				config->rates[i] = 0;
+			}
+		}
+	}
+}
+
 static void proc_config_on_close( struct inode *inode, struct file *file ) {
 	struct proc_data *data = file->private_data;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
@@ -2219,6 +2230,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 		if ( line[0] ) line++;
 	}
 	ai->config = config;
+	checkThrottle(&config);
 	PC4500_writerid(ai, RID_CONFIG, &config,
 			sizeof(config));
 	enable_MAC(ai, &rsp);
@@ -2505,41 +2517,27 @@ static void timer_func( u_long data ) {
 	u16 linkstat = IN4500(apriv, LINKSTAT);
 	
 	if (linkstat != 0x400 ) {
+		/* We don't have a link so try changing the authtype */
 		struct timer_list *timer = &apriv->timer;
 		ConfigRid config = apriv->config;
-		int i;
-		
+
 		switch(apriv->authtype) {
 		case AUTH_ENCRYPT:
-			/* So escalate to SHAREDKEY */
-			config.authType = AUTH_SHAREDKEY;
-			/* The current hardware can't do more than
-			   2mbs with encryption */
-			for(i=0; i<8; i++) {
-				if (config.rates[i] > 4) {
-					config.rates[i] = 0;
-				}
-			}
-			apriv->authtype = AUTH_SHAREDKEY;
-			break;
-		case AUTH_SHAREDKEY:
-			/* Drop to open */
+			/* So drop to OPEN */
 			config.authType = AUTH_OPEN;
 			apriv->authtype = AUTH_OPEN;
 			break;
-		default:  /* We'll default to open */
-			/* So escalate to ENCRYPT */
+		case AUTH_SHAREDKEY:
+			/* Drop to ENCRYPT */
 			config.authType = AUTH_ENCRYPT;
-			/* The current hardware can't do more than
-			   2mbs with encryption */
-			for(i=0; i<8; i++) {
-				if (config.rates[i] > 4) {
-					config.rates[i] = 0;
-				}
-			}
 			apriv->authtype = AUTH_ENCRYPT;
+			break;
+		default:  /* We'll escalate to SHAREDKEY */
+			config.authType = AUTH_SHAREDKEY;
+			apriv->authtype = AUTH_SHAREDKEY;
 		}
-		setup_card(apriv, dev->dev_addr, &config);
+		checkThrottle(&config);
+		do_writerid(apriv, RID_CONFIG, &config, sizeof(config));
 		timer->expires = RUN_AT(HZ*5);  /*Check every 5 secs
 						  until everything is OK*/
 	} else {

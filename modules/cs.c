@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.263 2000/07/14 23:25:19
+    cs.c 1.266 2000/08/29 01:19:23
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -50,6 +50,7 @@
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/pm.h>
+#include <linux/pci.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #endif
@@ -70,7 +71,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.263 2000/07/14 23:25:19 (David Hinds)";
+"cs.c 1.266 2000/08/29 01:19:23 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -967,8 +968,10 @@ static int deregister_client(client_handle_t handle)
 	client = &s->clients;
 	while ((*client) && ((*client) != handle))
 	    client = &(*client)->next;
-	if (*client == NULL)
+	if (*client == NULL) {
+	    spin_unlock_irqrestore(&s->lock, flags);
 	    return CS_BAD_HANDLE;
+	}
 	*client = handle->next;
 	handle->client_magic = 0;
 	kfree(handle);
@@ -1013,6 +1016,8 @@ static int get_configuration_info(client_handle_t handle,
 	config->Vcc = s->socket.Vcc;
 	config->Vpp1 = config->Vpp2 = s->socket.Vpp;
 	config->Option = s->cap.cardbus;
+	/* This is a nasty hack */
+	pcibios_read_config_dword(s->cap.cardbus, 0, 0, &config->ConfigBase);
 	if (s->cb_config) {
 	    config->Attributes = CONF_VALID_CLIENT;
 	    config->IntType = INT_CARDBUS;
@@ -1804,8 +1809,8 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
     if (c->state & CONFIG_IRQ_REQ)
 	return CS_IN_USE;
     
-    /* Short cut: if the interrupt is PCI, there are no options */
-    if (s->cap.irq_mask == (1 << s->cap.pci_irq))
+    /* Short cut: if there are no ISA interrupts, then it is PCI */
+    if (!s->cap.irq_mask)
 	irq = s->cap.pci_irq;
 #ifdef CONFIG_ISA
     else if (s->irq.AssignedIRQ != 0) {
@@ -1820,7 +1825,6 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 	ret = CS_IN_USE;
 	if (req->IRQInfo1 & IRQ_INFO2_VALID) {
 	    mask = req->IRQInfo2 & s->cap.irq_mask;
-	    mask &= ~(1 << s->cap.pci_irq);
 	    for (try = 0; try < 2; try++) {
 		for (irq = 0; irq < 32; irq++)
 		    if ((mask >> irq) & 1) {

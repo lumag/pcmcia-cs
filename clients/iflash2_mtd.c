@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2 and Series 100 Flash devices
 
-    iflash2_mtd.c 1.56 2000/06/12 21:27:26
+    iflash2_mtd.c 1.57 2000/07/24 20:41:31
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"iflash2_mtd.c 1.56 2000/06/12 21:27:26 (David Hinds)";
+"iflash2_mtd.c 1.57 2000/07/24 20:41:31 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -836,7 +836,7 @@ done:
     
 ======================================================================*/
 
-static int flash_erase(dev_link_t *link, char *buf, mtd_request_t *req)
+static int flash_erase(dev_link_t *link, mtd_request_t *req)
 {
     flash_dev_t *dev = (flash_dev_t *)link->priv;
     cs_status_t status;
@@ -961,7 +961,7 @@ static int flash_request(dev_link_t *link, void *buf, mtd_request_t *req)
 	ret = flash_write(link, buf, req);
 	break;
     case MTD_REQ_ERASE:
-	ret = flash_erase(link, buf, req);
+	ret = flash_erase(link, req);
 	break;
     case MTD_REQ_COPY:
 	ret = CS_UNSUPPORTED_FUNCTION;

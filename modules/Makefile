@@ -1,7 +1,7 @@
 #
 # Copyright (C) 2000 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.115 2000/06/12 21:29:21
+# Makefile 1.118 2000/08/23 20:22:47
 #
 
 # Include site dependent options and kernel configuration
@@ -19,6 +19,11 @@ CC += $(AFLAGS) $(KFLAGS)
 SRCS    = cs.c cistpl.c rsrc_mgr.c bulkmem.c ds.c
 CORE    = cs.o cistpl.o rsrc_mgr.o bulkmem.o
 MODULES = pcmcia_core.o ds.o
+
+ifdef CONFIG_PCMCIA
+all:
+	@echo "Your kernel is already configured with PCMCIA support."
+else
 
 ifdef CONFIG_CARDBUS
 SRCS    += cardbus.c cb_enabler.c
@@ -56,11 +61,13 @@ pcmcia_core.o: $(CORE)
 	$(LD) -r -o $@ $(CORE)
 	chmod -x $@
 
-clean:
-	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d
-
 install install-modules: $(MODULES)
 	@mkdir -p $(PREFIX)$(MODDIR)/pcmcia
 	cp $(MODULES) $(PREFIX)$(MODDIR)/pcmcia
 
 include ../rules.mk
+
+endif
+
+clean:
+	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d

@@ -1,11 +1,11 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.69, 10 July 2000
+  v2.73, 22 August 2000
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
-  version of this document can always be found at <ftp://pcmcia-
-  cs.sourceforge.net/pub/pcmcia-cs/doc>.  An HTML version is at
+  version of this document can always be found at <ftp://pro-
+  jects.sourceforge.net/pub/pcmcia-cs/doc>.  An HTML version is at
   <http://pcmcia-cs.sourceforge.net>.
   ______________________________________________________________________
 
@@ -28,6 +28,7 @@
      2.1 Prerequisites and kernel setup
      2.2 Installation
      2.3 Startup options
+        2.3.1 Card readers for desktop systems
      2.4 System resource settings
         2.4.1 PowerBook specific settings
      2.5 Notes about specific Linux distributions
@@ -85,11 +86,18 @@
   5. Advanced topics
 
      5.1 Resource allocation for PCMCIA devices
-     5.2 How can I have separate device setups for home and work?
-     5.3 Booting from a PCMCIA device
-        5.3.1 The pcinitrd helper script
-        5.3.2 Creating an initrd boot floppy
-        5.3.3 Installing an initrd image on a non-Linux drive
+     5.2 PCI interrupt configuration problems and solutions
+        5.2.1 An overview of PCI interrupt routing issues
+        5.2.2 CardBus bridge is not detected by the PCI BIOS
+        5.2.3 PCI interrupt delivery problems
+        5.2.4 No PCI interrupt assignment; valid routing table
+        5.2.5 No PCI interrupt assignment; unknown interrupt router
+        5.2.6 No PCI interrupt assignment; no routing table
+     5.3 How can I have separate device setups for home and work?
+     5.4 Booting from a PCMCIA device
+        5.4.1 The pcinitrd helper script
+        5.4.2 Creating an initrd boot floppy
+        5.4.3 Installing an initrd image on a non-Linux drive
 
   6. Dealing with unsupported cards
 
@@ -154,8 +162,8 @@
   The current major release of Card Services is version 3.1, and minor
   updates or bug fixes are numbered 3.1.1, 3.1.2, and so on.
 
-  Source code for the latest version is available from pcmcia-
-  cs.sourceforge.net in the /pub/pcmcia-cs directory, as pcmcia-
+  Source code for the latest version is available by FTP at
+  projects.sourceforge.net in the /pub/pcmcia-cs directory, as pcmcia-
   cs-3.1.?.tar.gz.  There will usually be several versions here.  I
   generally only keep the latest minor release for a given major
   release.  New major releases may contain relatively untested code, so
@@ -164,7 +172,7 @@
   to you to decide which version is more appropriate, but the CHANGES
   file will summarize the most important differences.
 
-  pcmcia-cs.sourceforge.net is mirrored at sunsite.unc.edu (and all
+  The Linux PCMCIA FTP site is mirrored at sunsite.unc.edu (and all
   sunsite mirror sites) in /pub/Linux/kernel/pcmcia.
 
   If you do not feel up to compiling the drivers from scratch, pre-
@@ -330,6 +338,7 @@
   modem enabler, it would end up incorporating much of the functionality
   of Card Services, to handle cards from different vendors and the full
   range of host controller variants.
+
   22..  CCoommppiillaattiioonn aanndd iinnssttaallllaattiioonn
 
   22..11..  PPrreerreeqquuiissiitteess aanndd kkeerrnneell sseettuupp
@@ -442,7 +451,6 @@
   accept all the default configuration options.  Be sure to carefully
   check the output of this command in case there are problems.  The
   following options are available:
-
      AAlltteerrnnaattee ttaarrggeett iinnssttaallll ddiirreeccttoorryy??
         If you are compiling the package for installation on another
         machine, specify an alternate target directory when prompted.
@@ -602,11 +610,6 @@
      extra_sockets parameter set to 1.  This should not be necessary for
      detection of PCI-to-PCMCIA or PCI-to-CardBus bridges.
 
-  +o  With SCM Microsystems SBP series PCI card readers (which are also
-     being distributed with Lucent WaveLan cards), it is necessary to
-     specify irq_mode=0 for the i82365 module, to force use of PCI
-     interrupts.
-
   Here are some timing settings for specific systems:
 
   +o  On the ARM Pentium-90 or Midwest Micro Soundbook Plus, use
@@ -617,6 +620,29 @@
   +o  On a Gateway Liberty, try ``cmd_time=16''.
 
   +o  On a Samsung SENS 810, use ``fast_pci=1''.
+
+  22..33..11..  CCaarrdd rreeaaddeerrss ffoorr ddeesskkttoopp ssyysstteemmss
+
+  While almost all PCMCIA card readers and card docks work fine under
+  Linux, some require special startup options because they do not behave
+  exactly like laptop PCMCIA bridges.  PCI card readers, in particular,
+  handle interrupts differently.
+
+  +o  The Linksys ProConnect PCMRDWR and Antec DataChute card readers are
+     ``ISA Plug and Play'' devices.  To use these, you must first
+     activate them with the Linux isapnp tools.  See the man pages for
+     pnpdump and isapnp for more information.
+
+  +o  For Elan P-series PCI card readers based on the Cirrus PD6729 PCI-
+     to-PCMCIA bridge chip, the i82365 driver requires a ``irq_mode=1''
+     parameter.
+  +o  For the Sycard PCChost1200 host adapter, the i82365 driver requires
+     a ``p2cclk=1'' parameter.
+
+  +o  With SCM Microsystems SBP series PCI card readers (which are also
+     being distributed with Lucent WaveLAN IEEE cards), it is necessary
+     to specify ``irq_mode=0'' for the i82365 module, to force use of
+     PCI interrupts.
 
   22..44..  SSyysstteemm rreessoouurrccee sseettttiinnggss
 
@@ -641,6 +667,7 @@
 
   +o  On the Compaq Presario 1020, exclude port 0x2f8-0x2ff, irq 3, irq
      5.
+
   +o  On the Dell Inspiron 7000, exclude irq 3, irq 5.
 
   +o  On the Fujitsu C series, exclude port 0x200-0x27f.
@@ -737,9 +764,9 @@
   If you prefer using the Red Hat tools, either use only Red Hat RPM's,
   or replace /etc/pcmcia/network.opts with the following:
 
-       if [ -f /etc/sysconfig/network-scripts/ifcfg-eth0 ] ; then
+       if [ -f /etc/sysconfig/network-scripts/ifcfg-$1 ] ; then
            start_fn () {
-               /sbin/ifup $1
+               if [ "$ONBOOT" = "yes" ] ; then /sbin/ifup $1 ; fi
            }
            stop_fn () {
                /sbin/ifdown $1
@@ -997,6 +1024,7 @@
 
   +o  In some cases, the IO probe will succeed, but report large numbers
      of random exclusions.
+
   When cardmgr processes IO port ranges listed in
   /etc/pcmcia/config.opts, the kernel probes these ranges to detect
   latent devices that occupy IO space but are not associated with a
@@ -1088,7 +1116,6 @@
   some IBM ThinkPads.  If a device is inactive at probe time, its
   interrupt may also appear to be available.  In these cases, the socket
   driver may pick an interrupt that is used by another device.
-
   With the i82365 and tcic drivers, the irq_list option can be used to
   limit the interrupts that will be tested.  This list limits the set of
   interrupts that can be used by PCMCIA cards as well as for monitoring
@@ -1125,36 +1152,9 @@
   of interrupts.  If no interrupts work, then device conflicts are
   probably not the problem.
 
-  CardBus bridges usually support two types of interrupts, PCI and ISA.
-  Partly for historical reasons, it has become conventional to use PCI
-  interrupts for signaling card insertion and removal events, and for
-  CardBus card interrupts; and ISA interrupts for 16-bit cards.  Since
-  version 3.1.9, this is the scheme that the Linux PCMCIA system will
-  use by default.  Most CardBus bridges support multiple methods for
-  delivering interrupts to the host CPU.  Methods include ``parallel''
-  interrupts, where each supported irq has a dedicated pin on the
-  bridge; various serial interrupt protocols, where one or two pins are
-  used to communicate with an interrupt controller; and hybrids, where,
-  for instance, PCI interrupts may be signalled using dedicated pins,
-  while ISA interrupts are delivered via a serial controller.
-
-  In general, it is the responsibility of the BIOS to program a bridge
-  for the appropriate interrupt delivery method.  However, there are
-  systems that do this incorrectly, and in some cases, there is no way
-  for software to safely detect the correct delivery method.  The i82365
-  module reports the bridge mode at startup time, and has a parameter,
-  irq_mode, that can be used to reconfigure it.  Not all bridges support
-  this parameter, and the meaning of irq_mode depends on the bridge
-  type.  See the i82365 man page for a description of what values are
-  supported by your bridge.  In some cases, a bridge may function
-  correctly in more than one interrupt mode.
-
-  Most PCMCIA card readers that fit in a PCI bus slot only provide PCI
-  interrupt routing.  The Linux drivers assume that all bridges have ISA
-  interrupt capability, since that is usually correct.  In this case, it
-  will be necessary to use the irq_mode parameter to specify a ``PCI
-  only'' interrupt delivery mode; the value of the parameter depends on
-  the bridge type, so check the i82365 man page.
+  For CardBus bridges, a variety of other interrupt delivery issues may
+  come into play.  For a complete discussion, see ``PCI interrupt
+  delivery problems''.
 
   33..88..  SSyysstteemm rreessoouurrccee ssttaarrvvaattiioonn
 
@@ -1181,19 +1181,20 @@
 
   If the interrupt probe is not working properly, the socket driver may
   allocate an interrupt for monitoring card insertions, even when
-  interrupts are too scarce for this to be a good idea.  In that case,
-  you can switch the controller to polled mode by setting PCIC_OPTS to
-  ``poll_interval=100'.  Or, if you have a CardBus controller, try
-  ``pci_csc=1'', which selects a PCI interrupt (if available) for card
-  status changes.
+  interrupts are too scarce for this to be a good idea.  You can switch
+  the controller to polled mode by setting PCIC_OPTS to
+  ``poll_interval=100'.  Or, if you have a CardBus controller and an
+  older version of the PCMCIA drivers, try ``pci_csc=1'', which selects
+  a PCI interrupt (if available) for card status changes.
 
   IO port starvation is fairly uncommon, but sometimes happens with
   cards that require large, contiguous, aligned regions of IO port
   space, or that only recognize a few specific IO port positions.  The
   default IO port ranges in /etc/pcmcia/config.opts are normally
-  sufficient, but may be extended.  In rare cases, starvation may
-  indicate that the IO port probe failed (see ``IO port scan
-  failures'').
+  sufficient, but may be extended.  If this is the problem, try
+  uncommenting the ``include port 0x1000-0x17ff'' line in config.opts.
+  In rare cases, starvation may indicate that the IO port probe failed
+  (see ``IO port scan failures'').
 
   Memory starvation is also uncommon with the default memory window
   settings in config.opts.  CardBus cards may require larger memory
@@ -1244,6 +1245,7 @@
   example, if the system log shows that the command ``./network start
   eth0'' was the last command executed by cardmgr, the following command
   would trace the script:
+
        sh -x /etc/pcmcia/network start eth0
 
   44..  UUssaaggee aanndd ffeeaattuurreess
@@ -1285,7 +1287,6 @@
 
   Cardmgr records device information for each socket in
   /var/lib/pcmcia/stab.  Here is a sample stab listing:
-
        Socket 0: Adaptec APA-1460 SlimSCSI
        0       scsi    aha152x_cs      0       sda     8       0
        0       scsi    aha152x_cs      1       scd0    11      0
@@ -1644,7 +1645,7 @@
      the Linux drivers.  One workaround is to boot DOS and use the
      vendor-supplied utility to select the transceiver, then warm boot
      Linux.  Alternatively, a Linux utility to perform this function is
-     available at  <ftp://pcmcia-cs.sourceforge.net/pub/pcmcia-
+     available at  <ftp://projects.sourceforge.net/pub/pcmcia-
      cs/extras/dlport.c>.
 
   +o  16-bit PCMCIA cards have a maximum performance of 1.5-2 MB/sec.
@@ -1743,16 +1744,16 @@
   one modem, you may want to specify different settings based on socket
   position, as in:
 
-       case "$ADDRESS" in
-       *,0,*)
-           # Options for modem in socket 0
-           LINK=/dev/modem0
-           ;;
-       *,1,*)
-           # Options for modem in socket 1
-           LINK=/dev/modem1
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,0,*)
+      # Options for modem in socket 0
+      LINK=/dev/modem0
+      ;;
+  *,1,*)
+      # Options for modem in socket 1
+      LINK=/dev/modem1
+      ;;
+  esac
 
   If a PCMCIA modem is already configured when Linux boots, it may be
   incorrectly identified as an ordinary built-in serial port.  This is
@@ -1858,7 +1859,6 @@
   devices are accessed via the /dev/lp* special device files.  The
   configuration of a printer device can be examined and modified with
   the tunelp command.
-
   The parport_cs module depends on the parport and parport_pc drivers,
   which may be either compiled into the kernel or compiled as modules.
   The layered driver structure means that any top-level parallel drivers
@@ -1972,7 +1972,6 @@
   device, with a five-field address.  The script should set the PARTS
   variable to a list of partitions.  Then, scsi.opts will be called for
   each partition, with the longer seven-field addresses.
-
   If your kernel does not have a top-level driver (disk, tape, etc) for
   a particular SCSI device, then the device will not be configured by
   the PCMCIA drivers.  As a side effect, the device's name in stab will
@@ -2033,7 +2032,6 @@
      DO_FSCK
         A boolean (y/n) setting: specifies if the filesystem should be
         checked before being mounted, with ``fsck -Ta''.
-
      DO_MOUNT
         A boolean (y/n) setting: specifies if this device should be
         automatically mounted at card insertion time.
@@ -2047,6 +2045,7 @@
         true, then ``cardctl eject'' will shut down a device even if it
         is busy.  If NO_FUSER is true, then the script will not try to
         kill processes using an ejected device.
+
   For example, here is a script for configuring a disk device at SCSI ID
   3, with two partitions, and a CD-ROM at SCSI ID 6:
 
@@ -2146,7 +2145,6 @@
   used for disk-like access (creating and mounting filesystems, etc).
   The character devices are for "raw" unbuffered reads and writes at
   arbitrary locations.
-
   The device address passed to memory.opts consists of two fields: the
   scheme, and the socket number.  The options are applied to the first
   common memory partition on the corresponding memory card.
@@ -2203,20 +2201,20 @@
   Here is an example of a script that will automatically mount memory
   cards based on which socket they are inserted into:
 
-       case "$ADDRESS" in
-       *,0,0)
-           # Mount filesystem, but don't update /etc/fstab
-           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="ext2" ; OPTS=""
-           MOUNTPT="/mem0"
-           ;;
-       *,1,0)
-           # Mount filesystem, but don't update /etc/fstab
-           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="ext2" ; OPTS=""
-           MOUNTPT="/mem1"
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,0,0)
+      # Mount filesystem, but don't update /etc/fstab
+      DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="ext2" ; OPTS=""
+      MOUNTPT="/mem0"
+      ;;
+  *,1,0)
+      # Mount filesystem, but don't update /etc/fstab
+      DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="ext2" ; OPTS=""
+      MOUNTPT="/mem1"
+      ;;
+  esac
 
   44..77..22..  UUssiinngg lliinneeaarr ffllaasshh mmeemmoorryy ccaarrddss
 
@@ -2416,27 +2414,256 @@
   interrupt that is already in use by another device, or an interrupt
   that is excluded in the config file.
 
-  55..22..  HHooww ccaann II hhaavvee sseeppaarraattee ddeevviiccee sseettuuppss ffoorr hhoommee aanndd wwoorrkk??
+  55..22..  PPCCII iinntteerrrruupptt ccoonnffiigguurraattiioonn pprroobblleemmss aanndd ssoolluuttiioonnss
+
+  55..22..11..  AAnn oovveerrvviieeww ooff PPCCII iinntteerrrruupptt rroouuttiinngg iissssuueess
+
+  Each PCI slot has four PCI interrupt pins, INTA through INTD.  Single
+  function devices will only use the INTA pin; multifunction devices may
+  use multiple INT pins.  On the processor side, on x86 single processor
+  systems, incoming hardware interrupts are directed to interrupt
+  requests (irq's) numbered 0..15.  The PCI interrupt router, usually
+  part of the PCI-to-ISA host bridge, determines how incoming PCI
+  interrupts are mapped to CPU irq numbers.  Most modern bridge chips
+  have several PCI interrupt inputs, known as PIRQ1, PIRQ2, etc, each of
+  which can be routed to any CPU irq number.  So we might have something
+  like:
+
+       PCI slot 1 INTA --> router PIRQ1 --> CPU irq 9
+       PCI slot 1 INTB --> router PIRQ2 --> CPU irq 10
+
+       PCI slot 2 INTA --> router PIRQ2 --> CPU irq 10
+       PCI slot 2 INTB --> router PIRQ1 --> CPU irq 9
+
+  Multiple INT pins are often connected to the same PIRQ pin.  Usually,
+  the connections from INT pins to PIRQ pins are arranged to spread
+  installed devices out as much as possible, to give the OS the most
+  flexibility for choosing how interrupts are shared.  The mapping from
+  bridge PIRQ pins to CPU irq numbers can be obtained by reading
+  registers in the interrupt router.  The mapping from INT pins to the
+  router's PIRQ pins, however, depends on how the board designer decided
+  to connect things up, and cannot be directly determined by driver
+  software.
+
+  For most PCI devices, the OS does not need to understand the interrupt
+  router details.  Each PCI device has a configuration register, the PCI
+  Interrupt Line Register, that the BIOS initializes with the
+  appropriate CPU irq number for that device.  Unfortunately, the BIOS
+  generally will not configure PCI interrupts for CardBus bridge
+  devices.
+
+  The PCI BIOS's Interrupt Routing Table is a data structure that
+  contains information about the mapping from PCI INT pins to the PIRQ
+  pins on the PCI interrupt router.  The routing information in the
+  table is stored in a somewhat unhelpful form, however.  For each
+  device's INT pins, the table specifies a ``link value''.  All
+  interrupts with the same link value are wired to the same PIRQ pin;
+  however, the meaning of the link values is defined by the chipset
+  vendor.
+
+  Several tools are available for examining PCI interrupt routing
+  information:
+
+     lspci, /proc/pci
+        These will show you resource information (including interrupt
+        assignments, where they are known) for all your PCI devices.
+
+     dump_pirq
+        This is in the debug-tools directory of the PCMCIA source
+        distribution.  It dumps the contents of your PCI interrupt
+        routing table, if available.  It also scans for known interrupt
+        routers and dumps their current interrupt steering settings.
+
+  Several PCMCIA module parameters affect PCI interrupt routing:
+
+     pcmcia_core module: cb_pci_irq=n
+        This option specifies one interrupt number to be used to program
+        the PCI interrupt router for all CardBus sockets that do not
+        already have an interrupt assignment. It only has any effect on
+        systems that have a PCI irq routing table, and a known interrupt
+        router.
+
+     i82365 module: irq_mode=n
+        Most CardBus bridges offer several methods for delivering
+        interrupts to the host.  The i82365 module by default assumes
+        that a bridge can deliver both PCI and ISA interrupts, since
+        this is normal for laptops.  A setting of ``irq_mode=0'' can be
+        used to force a bridge to use only PCI interrupts.  See the man
+        page for the i82365 module for a description of what other
+        values mean for different bridge types.
+
+     i82365 module: pci_irq_list=n,n,...
+        This option specifies a list of PCI interrupt numbers to use for
+        CardBus sockets.  It differs from cb_pci_irq, because it does
+        not actually program the PCI interrupt router; it can be used
+        when you know the PCI interrupts are already set up a certain
+        way, even if you do not know how the router works.
+
+  If you are having problems that you think may be related to PCI
+  interrupt configuration, you should first verify that you have a
+  reasonably current PCMCIA driver package.  Also carefully look at the
+  startup messages when the PCMCIA kernel modules are loaded.  You
+  should see something like:
+
+       Linux PCMCIA Card Services 3.1.18
+         kernel build: 2.2.14-5.0 #1 Tue May 9 10:44:24 PDT 2000
+         options:  [pci] [cardbus] [apm] [pnp]
+       PCI routing table version 1.0 at 0xfdf30
+       Intel PCIC probe:
+         TI 1125 rev 02 PCI-to-CardBus at slot 00:07, mem 0x20000000
+           host opts [0]: [ring] [serial pci & irq] [pci irq 11] ...
+           host opts [0]: [ring] [serial pci & irq] [pci irq 11] ...
+         ISA irqs (scanned) = 3,4,7 PCI status changes
+
+  The ``PCI routing table'' message indicates that a valid routing table
+  was found.  The ``host opts'' lines indicate the interrupt delivery
+  mode and whether or not a PCI interrupt could be determined for each
+  socket.  And the final line indicates the results of the scan for
+  available interrupts.
+
+  55..22..22..  CCaarrddBBuuss bbrriiddggee iiss nnoott ddeetteecctteedd bbyy tthhee PPCCII BBIIOOSS
+
+  Symptoms:
+
+  +o  Intel PCIC probe: not found.
+
+  +o  The bridge does not show up in lspci or in /proc/pci.
+
+  The Lucent/SCM PCI-to-CardBus adapters seem to confuse the PCI BIOS on
+  some older systems.  Lucent says that this card is only supported on
+  systems that have a BIOS that supports the PCI 2.2 specification, or
+  are PC99 compliant.  Some older systems will not detect the Lucent
+  card at all, and if the system can't detect it, the Linux drivers
+  cannot use it.  The only possible resolutions are a BIOS upgrade, or
+  using a different motherboard or CardBus adapter.
+  55..22..33..  PPCCII iinntteerrrruupptt ddeelliivveerryy pprroobblleemmss
+
+  Symptoms:
+
+  +o  Cards seem to be configured correctly, but do not work.
+
+  +o  /proc/interrupts shows a count of 0 for interrupts assigned to
+     PCMCIA drivers.
+
+  CardBus bridges usually support two types of interrupts, PCI and ISA.
+  Partly for historical reasons, it has become conventional to use PCI
+  interrupts for signaling card insertion and removal events, and for
+  CardBus card interrupts; and ISA interrupts for 16-bit cards.  Since
+  version 3.1.9, this is the scheme that the Linux PCMCIA system will
+  use by default.  Most CardBus bridges support multiple methods for
+  delivering interrupts to the host CPU.  Methods include ``parallel''
+  interrupts, where each supported irq has a dedicated pin on the
+  bridge; various serial interrupt protocols, where one or two pins are
+  used to communicate with an interrupt controller; and hybrids, where
+  PCI interrupts might be signalled using dedicated pins, while ISA
+  interrupts are delivered via a serial controller.
+
+  In general, it is the responsibility of the BIOS to program a bridge
+  for the appropriate interrupt delivery method.  However, there are
+  systems that do this incorrectly, and in some cases, there is no way
+  for software to safely detect the correct delivery method.  The i82365
+  module reports the bridge mode at startup time, and has a parameter,
+  irq_mode, that can be used to reconfigure it.  Not all bridges support
+  this parameter, and the meaning of irq_mode depends on the bridge
+  type.  See the i82365 man page for a description of what values are
+  supported by your bridge.  In some cases, a bridge may function
+  correctly in more than one interrupt mode.
+
+  Most PCMCIA card readers that fit in a PCI bus slot only provide PCI
+  interrupt routing.  The Linux drivers assume that all bridges have ISA
+  interrupt capability, since that is usually correct.  In this case, it
+  will be necessary to use the irq_mode parameter to specify a ``PCI
+  only'' interrupt delivery mode; the value of the parameter depends on
+  the bridge type, so check the i82365 man page.
+
+  Check the system log and verify that the CardBus bridge has a PCI
+  interrupt assignment.  If it does not, then resolve that problem
+  first, then return here if the symptoms persist.  Next, experiment
+  with different values for the irq_mode parameter.
+
+  55..22..44..  NNoo PPCCII iinntteerrrruupptt aassssiiggnnmmeenntt;; vvaalliidd rroouuttiinngg ttaabbllee
+
+  Symptoms:
+
+  +o  The Intel PCIC probe reports ``no pci irq'' for each socket.
+
+  +o  There is a routing table, and the router type is supported.
+
+  When a routing table is present, the pcmcia_core module will try to
+  automatically configure the PCI interrupt router, but only does so
+  when it has a safe and unambiguous choice for what PCI interrupt to
+  use.  If there are several valid choices, then you must use the
+  ``cb_pci_irq=...'' option to specify which interrupt to assign.  Your
+  best bet is to pick the most lightly used interrupt that is already
+  assigned to another PCI device.
+
+  Moving the card to another slot sometimes offers a quick solution.  If
+  that slot shares its interrupt with an already-configured device, then
+  the PCMCIA drivers will have no trouble figuring out the assignment.
+
+  55..22..55..  NNoo PPCCII iinntteerrrruupptt aassssiiggnnmmeenntt;; uunnkknnoowwnn iinntteerrrruupptt rroouutteerr
+
+  Symptoms:
+
+  +o  The Intel PCIC probe reports ``no pci irq'' for each socket.
+
+  +o  There is a routing table, but the router is an unknown type.
+
+  Adding support for a new interrupt router is tricky but not a big job.
+  First determine, from a datasheet, how your interrupt router steers
+  PCI interrupts.  Then, see if you can guess the meaning of the link
+  values from the output of dump_pirq.  Usually this is reasonably
+  obvious.  Most routers have four PIRQ pins, and the link values might
+  be something like 1,2,3,4, or 0x10,0x18,0x20,0x28, or
+  0x60,0x61,0x62,0x63.  The values are usually chosen so that they can
+  be easily converted to the location of the appropriate interrupt
+  steering register.  Finally, add small functions to
+  modules/pci_fixup.c to get/set the interrupt steering information for
+  this router, using the other routers as examples.
+
+  55..22..66..  NNoo PPCCII iinntteerrrruupptt aassssiiggnnmmeenntt;; nnoo rroouuttiinngg ttaabbllee
+
+  Symptoms:
+
+  +o  The Intel PCIC probe reports ``no pci irq'' for each socket.
+
+  +o  No interrupt routing table is found.
+
+  Without an interrupt routing table, we cannot tell how interrupts from
+  the CardBus bridge are directed to CPU irq numbers.  All hope is not
+  lost: you may be able to guess the PCI interrupt assignment and use
+  the ``pci_irq_list=...'' option to pass this information to the i82365
+  module.  Good guesses might include the interrupt(s) assigned to other
+  PCI devices, the interrupt(s) used under Windows, or any other
+  interrupts that are unaccounted for.
+
+  You may also want to experiment with putting the adapter in different
+  PCI slots, for each pci_irq_list you try.  You are trying to find a
+  slot that shares its interrupt with an already-configured device, and
+  might need to try several slots to find one.
+
+  55..33..  HHooww ccaann II hhaavvee sseeppaarraattee ddeevviiccee sseettuuppss ffoorr hhoommee aanndd wwoorrkk??
 
   This is fairly easy using ``scheme'' support.  Use two configuration
   schemes, called ``home'' and ``work''.  Here is an example of a
   network.opts script with scheme-specific settings:
 
-       case "$ADDRESS" in
-       work,*,*,*)
-           # definitions for network card in work scheme
-           ...
-           ;;
-       home,*,*,*|default,*,*,*)
-           # definitions for network card in home scheme
-           ...
-           ;;
-       esac
+  case "$ADDRESS" in
+  work,*,*,*)
+      # definitions for network card in work scheme
+      ...
+      ;;
+  home,*,*,*|default,*,*,*)
+      # definitions for network card in home scheme
+      ...
+      ;;
+  esac
 
   The first part of a device address is always the configuration scheme.
   In this example, the second ``case'' clause will select for both the
   ``home'' and ``default'' schemes.  So, if the scheme is unset for any
   reason, it will default to the ``home'' setup.
+
   Now, to select between the two sets of settings, run either:
 
        cardctl scheme home
@@ -2467,19 +2694,19 @@
   To save even more keystrokes, schemes can be specified in lilo's
   configuration file.  For instance, you could have:
 
-       root = /dev/hda1
-       read-only
-       image = /boot/vmlinuz
-         label  = home
-         append = "SCHEME=home"
-       image = /boot/vmlinuz
-         label  = work
-         append = "SCHEME=work"
+  root = /dev/hda1
+  read-only
+  image = /boot/vmlinuz
+    label  = home
+    append = "SCHEME=home"
+  image = /boot/vmlinuz
+    label  = work
+    append = "SCHEME=work"
 
   Typing ``home'' or ``work'' at the boot prompt would then boot into
   the appropriate scheme.
 
-  55..33..  BBoooottiinngg ffrroomm aa PPCCMMCCIIAA ddeevviiccee
+  55..44..  BBoooottiinngg ffrroomm aa PPCCMMCCIIAA ddeevviiccee
 
   Having the root filesystem on a PCMCIA device is tricky because the
   Linux PCMCIA system is not designed to be linked into the kernel.  Its
@@ -2532,7 +2759,7 @@
   will not work in the initrd context.  Do not mix components from
   different releases.
 
-  55..33..11..  TThhee ppcciinniittrrdd hheellppeerr ssccrriipptt
+  55..44..11..  TThhee ppcciinniittrrdd hheellppeerr ssccrriipptt
 
   The pcinitrd script creates a basic initrd image for booting with a
   PCMCIA root partition.  The image includes a minimal directory
@@ -2558,7 +2785,7 @@
   installed under /etc in the image, and can also be customized.  See
   the man page for pcinitrd for more information.
 
-  55..33..22..  CCrreeaattiinngg aann iinniittrrdd bboooott ffllooppppyy
+  55..44..22..  CCrreeaattiinngg aann iinniittrrdd bboooott ffllooppppyy
 
   After creating an image with pcinitrd, you can create a boot floppy by
   copying the kernel, the compressed initrd image, and a few support
@@ -2592,7 +2819,7 @@
   device files under /mnt/dev was that lilo will not be able to use the
   files in /dev when it is running in this alternate-root mode.
 
-  55..33..33..  IInnssttaalllliinngg aann iinniittrrdd iimmaaggee oonn aa nnoonn--LLiinnuuxx ddrriivvee
+  55..44..33..  IInnssttaalllliinngg aann iinniittrrdd iimmaaggee oonn aa nnoonn--LLiinnuuxx ddrriivvee
 
   One common use of the initrd facility would be on systems where the
   internal hard drive is dedicated to another operating system.  The
@@ -2677,9 +2904,9 @@
 
   or using the more compact product ID codes:
 
-  card "Megahertz XJ2288 V.34 Fax Modem"
-    manfid 0x0101, 0x1234
-    bind "serial_cs"
+       card "Megahertz XJ2288 V.34 Fax Modem"
+         manfid 0x0101, 0x1234
+         bind "serial_cs"
 
   You can use ``*'' to match strings that don't need to match exactly,
   like version numbers.  When making new config entries, be careful to
@@ -2835,13 +3062,13 @@
   on the module's load address.  Let's say that you have the following
   kernel fault:
 
-       Unable to handle kernel NULL pointer dereference
-       current->tss.cr3 = 014c9000, %cr3 = 014c9000
-       *pde = 00000000
-       Oops: 0002
-       CPU:    0
-       EIP:    0010:[<c2026081>]
-       EFLAGS: 00010282
+  Unable to handle kernel NULL pointer dereference
+  current->tss.cr3 = 014c9000, %cr3 = 014c9000
+  *pde = 00000000
+  Oops: 0002
+  CPU:    0
+  EIP:    0010:[<c2026081>]
+  EFLAGS: 00010282
 
   The fault address is 0xc2026081.  Looking at System.map, we see that
   this is past the end of the kernel, i.e., is in a kernel module.  To
@@ -2947,7 +3174,6 @@
   contents of a card's CIS (Card Information Structure), and decodes
   most of the important bits.  And the dump_cisreg utility displays a
   card's local configuration registers.
-
   The memory_cs memory card driver is also sometimes useful for
   debugging problems with 16-bit PC Cards.  It can be bound to any card,
   and does not interfere with other drivers.  It can be used to directly
@@ -2963,6 +3189,7 @@
   can only be interpreted using the data sheets for the PCMCIA host
   controller.  Its contents may depend on how the drivers were
   configured, but may include all or some of the following:
+
      /proc/bus/pccard/{irq,ioport,memory}
         If present, these files contain resource allocation information
         to supplement the normal kernel resource tables.  Recent
@@ -2991,7 +3218,7 @@
 
   The Linux PCMCIA Programmer's Guide is the best documentation for the
   client driver interface.  The latest version is always available from
-  pcmcia-cs.sourceforge.net in /pub/pcmcia-cs/doc, or on the web at
+  projects.sourceforge.net in /pub/pcmcia-cs/doc, or on the web at
   <http://pcmcia-cs.sourceforge.net>.
 
   For devices that are close relatives of normal ISA devices, you will
@@ -3060,14 +3287,14 @@
   (for example, sample_cs-1.5.tar.gz).  A complete distribution could
   look like:
 
-       sample_cs.mk
-       README.sample_cs
-       modules/sample_cs.c
-       modules/sample_cs.h
-       etc/sample.conf
-       etc/sample
-       etc/sample.opts
-       man/sample_cs.4
+  sample_cs.mk
+  README.sample_cs
+  modules/sample_cs.c
+  modules/sample_cs.h
+  etc/sample.conf
+  etc/sample
+  etc/sample.opts
+  man/sample_cs.4
 
   With this arrangement, when the contributed driver is unpacked, it
   becomes essentially part of the PCMCIA source tree.  It can make use
@@ -3081,10 +3308,11 @@
   with the 3.1.6 release, cardmgr will automatically process any *.conf
   files installed in /etc/pcmcia, so installation of contributed drivers
   should no longer require hand editing configuration files.
+
   I will accept client drivers prepared according to this specification
-  and place them in the /pub/pcmcia-cs/contrib directory on pcmcia-
-  cs.sourceforge.net.  The README in this directory will describe how to
-  unpack a contributed driver.
+  and place them in the /pub/pcmcia-cs/contrib directory on
+  projects.sourceforge.net.  The README in this directory will describe
+  how to unpack a contributed driver.
 
   The client driver interface has not changed much over time, and has
   almost always preserved backwards compatibility.  A client driver will

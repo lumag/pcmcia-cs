@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# etc/install-etc 1.8 2000/07/06 09:28:30 (David Hinds)
+# etc/install-etc 1.12 2000/08/25 19:21:46 (David Hinds)
 #
 # This handles updating the PCMCIA startup and device configuration
 # scripts.  I used to do this in the Makefile, but it is really much
@@ -9,6 +9,7 @@
 # Get configuration settings
 . ../config.out
 
+if [ $1 ] ; then PREFIX=$1 ; fi
 PROBE=../cardmgr/probe
 ETC=$PREFIX/etc/pcmcia
 
@@ -67,18 +68,21 @@ install_sysv ()
 	chmod +x $SYSV
     fi
 
-    for RUN in 0 6 ; do
+    if [ $RC_DIR = "/sbin/init.d" ] ; then
+	START=03 ; STOP=42 # SuSE init sequence
+    else
+	START=45 ; STOP=96 # Red Hat, etc
+    fi
+    # Set up PCMCIA links to mirror network init/shutdown
+    for RUN in 0 1 2 3 4 5 6 ; do
 	RC=$PREFIX$RC_DIR/rc$RUN.d
 	mkdir -p $RC
-	if [ ! -r $RC/*pcmcia ] ; then
-	    ln -vsf ../init.d/pcmcia $RC/K52pcmcia
+	if [ -r $RC/S*pcmcia -o -r $RC/K*pcmcia ] ; then continue ; fi
+	if [ -r $RC_DIR/rc$RUN.d/S*network ] ; then
+	    ln -vsf ../init.d/pcmcia $RC/S${START}pcmcia
 	fi
-    done
-    for RUN in 2 3 5 ; do
-	RC=$PREFIX$RC_DIR/rc$RUN.d
-	mkdir -p $RC
-	if [ ! -r $RC/*pcmcia ] ; then
-	    ln -vsf ../init.d/pcmcia $RC/S45pcmcia
+	if [ -r $RC_DIR/rc$RUN.d/K*network ] ; then
+	    ln -vsf ../init.d/pcmcia $RC/K${STOP}pcmcia
 	fi
     done
 }
@@ -105,15 +109,15 @@ install_depmod ()
     if [ ! -r $CONF -a -r $PREFIX/etc/conf.modules ] ; then
 	CONF=$PREFIX/etc/conf.modules
     fi
-    if ! modprobe -c | grep -q 'path\[pcmcia\]' ; then
+    if ! /sbin/modprobe -c | grep -q 'path\[pcmcia\]' ; then
 	echo "-> Updating $CONF"
 	grep -qs ^path $CONF || grep -qs ^keep $CONF ||
 	    echo keep >> $CONF
-	modprobe -c | sed -ne '/path/s/\[net\]/\[pcmcia\]/p' >> $CONF
+	/sbin/modprobe -c | sed -ne '/path[net]/s/\bnet\b/pcmcia/gp' >> $CONF
     fi
     if [ -x /sbin/depmod -a "$PREFIX" = "" -a "$CONF_SRC" != 2 ] ; then
 	echo "-> Running depmod..."
-	depmod -a
+	/sbin/depmod -a
     else
 	echo "-> *NOT* running depmod.  Run depmod by hand if necessary."
     fi

@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.126 2000/07/13 04:53:45 (David Hinds)
+# config 1.134 2000/08/28 18:13:01 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -705,10 +705,6 @@ card "IO DATA PCET/TX Fast Ethernet"
   version "IO DATA", "PCETTX"
   bind "pcnet_cs"
 
-card "KTI ETHER-C16 Fast ethernet"
-  manfid 0x0149, 0x0230
-  bind "pcnet_cs"
-
 card "Laneed LD-10/100CD Fast Ethernet"
   version "Laneed", "LD-10/100CD"
   bind "pcnet_cs"
@@ -741,9 +737,9 @@ card "NetGear FA410TXC Fast Ethernet"
   version "NETGEAR", "FA410TX"
   bind "pcnet_cs"
 
-card "Ositech Seven of Diamonds Fast Ethernet"
-  version "Ositech", "Trumpcard:Seven of Diamonds Ethernet"
-  bind "smc91c92_cs"
+card "NE2000 Compatible Fast Ethernet"
+  manfid 0x0149, 0x0230
+  bind "pcnet_cs"
 
 card "NE2000 Compatible Fast Ethernet"
   version "PCMCIA", "10/100 Ethernet Card"
@@ -753,9 +749,17 @@ card "NE2000 Compatible Fast Ethernet"
   version "PCMCIA", "FAST ETHERNET CARD"
   bind "pcnet_cs"
 
+card "Ositech Seven of Diamonds Fast Ethernet"
+  version "Ositech", "Trumpcard:Seven of Diamonds Ethernet"
+  bind "smc91c92_cs"
+
 card "Planex FNW-3600T Fast Ethernet"
   version "Fast Ethernet", "Adapter"
   bind "pcnet_cs"
+
+card "Psion Gold Card NetGlobal 10/100 Fast Ethernet"
+  manfid 0x016c, 0x0023
+  bind "smc91c92_cs"
 
 card "Toshiba Advanced Network Fast Ethernet"
   version "Toshiba Information Systems", "*", "TPCENET"
@@ -779,6 +783,10 @@ card "Xircom CE3-10/100 Fast Ethernet"
 
 card "Xircom RealPort2 10/100 Fast Ethernet"
   version "Xircom", "*", "R2E-100BTX"
+  bind "xirc2ps_cs"
+
+card "Xircom XE2000 10/100 Fast Ethernet"
+  manfid 0x0105, 0x010a
   bind "xirc2ps_cs"
 
 #
@@ -913,7 +921,12 @@ card "Toshiba T144PF Modem"
 
 card "Advantech COMpad-32/85"
   version "ADVANTECH", "COMpad-32/85", "1.0"
-  cis "cis/COMpad.dat"
+  cis "cis/COMpad2.dat"
+  bind "serial_cs"
+
+card "Advantech COMpad-32/85B-4"
+  version "ADVANTECH", "COMpad-32/85B-4"
+  cis "cis/COMpad4.dat"
   bind "serial_cs"
 
 card "Advantech COMpad-32/85"
@@ -1056,9 +1069,9 @@ card "Franklink/Rolodex REX-4100"
   version "Starfish, Inc.", "REX-4100"
   bind "memory_cs"
 
-card "RATOC SmartMedia Adapter"
-  version "RATOC Systems,Inc.", "SmartMedia ADAPTER PC Card"
-  bind "memory_cs", "ftl_cs"
+#card "RATOC SmartMedia Adapter"
+#  version "RATOC Systems,Inc.", "SmartMedia ADAPTER PC Card"
+#  bind "memory_cs", "ftl_cs"
 
 #
 # Memory Technology Drivers
@@ -1399,6 +1412,10 @@ card "Xircom RealPort REM10BT Ethernet/Modem"
   version "Xircom", "*", "REM10"
   bind "xirc2ps_cs", "serial_cs"
 
+card "Xircom XEM5600 Ethernet/Modem"
+  version "Xircom", "*", "XEM5600"
+  bind "xirc2ps_cs", "serial_cs"
+
 #
 # ATA/IDE fixed disk devices
 #
@@ -1597,6 +1614,10 @@ card "Intel EtherExpress PRO/100 CardBus"
 card "Intel EtherExpress PRO/100 CardBus II"
   manfid 0x0089, 0x0103
   bind "eepro100_cb"
+
+card "Intel EtherExpress PRO/100 LAN+Modem 56K CardBus II"
+  manfid 0x0089, 0x1103
+  bind "eepro100_cb" to 0, "serial_cb" to 1
 
 card "Kingston KNE-CB4TX Fast Ethernet"
   manfid 0x0186, 0x0101

@@ -277,7 +277,6 @@ static char network_name[IW_ESSID_MAX_SIZE+1] = "\0";	// Name of network []
 static int channel = 3;					// Channel [3]
 static int ap_density = 1;				// AP density [1]
 static int medium_reservation = 2347;			// RTS threshold [2347]
-static int frag_threshold = 2346;			// Fragmentation threshold [2346]
 static int transmit_rate = 3;				// Transmit rate [3]
 static int eth = 0;
 static int mtu = 1500;
@@ -289,7 +288,6 @@ MODULE_PARM(network_name, "c" __MODULE_STRING(IW_ESSID_MAX_SIZE));
 MODULE_PARM(channel, "i");
 MODULE_PARM(ap_density, "i");
 MODULE_PARM(medium_reservation, "i");
-MODULE_PARM(frag_threshold, "i");
 MODULE_PARM(transmit_rate, "i");
 MODULE_PARM(eth, "i");
 MODULE_PARM(mtu, "i");
@@ -2053,7 +2051,7 @@ int wvlan_tx (struct sk_buff *skb, struct net_device *dev)
 	struct net_local *local = (struct net_local *)dev->priv;
 	unsigned long flags;
 	int rc, len;
-	char *p;
+	u_char *p;
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_tx(%s)\n", dev->name);
 
@@ -2806,10 +2804,10 @@ static void wvlan_detach (dev_link_t *link)
 			DEBUG(DEBUG_INFO, "%s: Netdevice unregistered\n", dev_info);
 		}
 		if (dev->priv)
-			kfree_s(dev->priv, sizeof(struct net_local));
-		kfree_s(link->priv, sizeof(struct net_device));
+			kfree(dev->priv);
+		kfree(link->priv);
 	}
-	kfree_s(link, sizeof(struct dev_link_t));
+	kfree(link);
 
 	DEBUG(DEBUG_CALLTRACE, "<- wvlan_detach()\n");
 }

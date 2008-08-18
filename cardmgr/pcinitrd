@@ -4,11 +4,11 @@
 #
 # Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# pcinitrd 1.22 2000/06/12 21:34:39
+# pcinitrd 1.23 2000/07/25 18:31:31
 #
 RELEASE=""
 ALL=""
-SIZE=1440
+SIZE=2400
 MODULES="pcmcia/pcmcia_core.o pcmcia/ds.o"
 
 # Things to install when "all" is selected

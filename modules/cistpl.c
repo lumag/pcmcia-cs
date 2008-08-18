@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.86 2000/07/20 23:07:23
+    cistpl.c 1.90 2000/08/30 20:23:47
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,6 +81,14 @@ static const u_int exponent[] = {
 /* Upper limit on reasonable # of tuples */
 #define MAX_TUPLES		200
 
+/*====================================================================*/
+
+/* Parameters that can be set with 'insmod' */
+
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+INT_MODULE_PARM(cis_width,	0);		/* 16-bit CIS? */
+
 /*======================================================================
 
     Low-level functions to read and write CIS memory.  I think the
@@ -114,14 +122,15 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 	memset(ptr, 0xff, len);
 	return;
     }
-    mem->flags = MAP_ACTIVE | MAP_16BIT;
+    mem->flags = MAP_ACTIVE;
+    if (cis_width) mem->flags |= MAP_16BIT;
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
 	   locations in common memory */
 	u_char flags = ICTRL0_COMMON|ICTRL0_AUTOINC|ICTRL0_BYTEGRAN;
 	if (attr & IS_ATTR) { addr *= 2; flags = ICTRL0_AUTOINC; }
-	mem->card_start = 0;
+	mem->card_start = 0; mem->flags = MAP_ACTIVE;
 	set_cis_map(s, mem);
 	sys = s->cis_virt;
 	bus_writeb(s->cap.bus, flags, sys+CISREG_ICTRL0);
@@ -160,14 +169,15 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
     
     DEBUG(3, "cs: write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
     if (setup_cis_mem(s) != 0) return;
-    mem->flags = MAP_ACTIVE | MAP_16BIT;
+    mem->flags = MAP_ACTIVE;
+    if (cis_width) mem->flags |= MAP_16BIT;
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
 	   locations in common memory */
 	u_char flags = ICTRL0_COMMON|ICTRL0_AUTOINC|ICTRL0_BYTEGRAN;
 	if (attr & IS_ATTR) { addr *= 2; flags = ICTRL0_AUTOINC; }
-	mem->card_start = 0;
+	mem->card_start = 0; mem->flags = MAP_ACTIVE;
 	set_cis_map(s, mem);
 	sys = s->cis_virt;
 	bus_writeb(s->cap.bus, flags, sys+CISREG_ICTRL0);
@@ -1437,7 +1447,7 @@ int validate_cis(client_handle_t handle, cisinfo_t *info)
 {
     tuple_t tuple;
     cisparse_t p;
-    int ret, reserved;
+    int ret, reserved, dev_ok = 0, ident_ok = 0;
 
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
@@ -1451,17 +1461,20 @@ int validate_cis(client_handle_t handle, cisinfo_t *info)
 
     /* First tuple should be DEVICE; we should really have either that
        or a CFTABLE_ENTRY of some sort */
-    if ((tuple.TupleCode != CISTPL_DEVICE) &&
-	(read_tuple(handle, CISTPL_CFTABLE_ENTRY, &p) != CS_SUCCESS) &&
-	(read_tuple(handle, CISTPL_CFTABLE_ENTRY_CB, &p) != CS_SUCCESS))
-	return CS_SUCCESS;
+    if ((tuple.TupleCode == CISTPL_DEVICE) ||
+	(read_tuple(handle, CISTPL_CFTABLE_ENTRY, &p) == CS_SUCCESS) ||
+	(read_tuple(handle, CISTPL_CFTABLE_ENTRY_CB, &p) == CS_SUCCESS))
+	dev_ok++;
 
     /* All cards should have a MANFID tuple, and/or a VERS_1 or VERS_2
        tuple, for card identification.  Certain old D-Link and Linksys
        cards have only a broken VERS_2 tuple; hence the bogus test. */
-    if ((read_tuple(handle, CISTPL_MANFID, &p) != CS_SUCCESS) &&
-	(read_tuple(handle, CISTPL_VERS_1, &p) != CS_SUCCESS) &&
-	(read_tuple(handle, CISTPL_VERS_2, &p) == CS_NO_MORE_ITEMS))
+    if ((read_tuple(handle, CISTPL_MANFID, &p) == CS_SUCCESS) ||
+	(read_tuple(handle, CISTPL_VERS_1, &p) == CS_SUCCESS) ||
+	(read_tuple(handle, CISTPL_VERS_2, &p) != CS_NO_MORE_ITEMS))
+	ident_ok++;
+
+    if (!dev_ok && !ident_ok)
 	return CS_SUCCESS;
 
     for (info->Chains = 1; info->Chains < MAX_TUPLES; info->Chains++) {
@@ -1472,7 +1485,8 @@ int validate_cis(client_handle_t handle, cisinfo_t *info)
 	    ((tuple.TupleCode > 0x90) && (tuple.TupleCode < 0xff)))
 	    reserved++;
     }
-    if ((info->Chains == MAX_TUPLES) || (reserved > 5))
+    if ((info->Chains == MAX_TUPLES) || (reserved > 5) ||
+	((!dev_ok || !ident_ok) && (info->Chains > 10)))
 	info->Chains = 0;
 
     return CS_SUCCESS;

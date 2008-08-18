@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.123 2000/06/12 21:27:26
+    pcnet_cs.c 1.124 2000/07/21 19:47:31
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.123 2000/06/12 21:27:26 (David Hinds)";
+"pcnet_cs.c 1.124 2000/07/21 19:47:31 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -1126,15 +1126,24 @@ static void ei_watchdog(u_long arg)
 
     link = mdio_read(dev->base_addr + DLINK_GPIO, 0, 1) & 0x0004;
     if (link != info->link_status) {
+	u_short p = mdio_read(dev->base_addr + DLINK_GPIO, 0, 5);
 	printk(KERN_INFO "%s: %s link beat\n", dev->name,
 	       (link) ? "found" : "lost");
-	if (link && info->flags & IS_DL10022) {
+	if (link && (info->flags & IS_DL10022)) {
 	    /* Disable collision detection on full duplex links */
-	    u_short p = mdio_read(dev->base_addr + DLINK_GPIO, 0, 5);
 	    outb((p & 0x0140) ? 4 : 0, dev->base_addr + DLINK_DIAG);
 	}
-	if (link)
+	if (link) {
+	    if (p)
+		printk(KERN_INFO "%s: autonegotiation complete: "
+		       "%sbaseT-%cD selected\n", dev->name,
+		       ((p & 0x0180) ? "100" : "10"),
+		       ((p & 0x0140) ? 'F' : 'H'));
+	    else
+		printk(KERN_INFO "%s: link partner did not autonegotiate\n",
+		       dev->name);
 	    NS8390_init(dev, 1);
+	}
 	info->link_status = link;
     }
 

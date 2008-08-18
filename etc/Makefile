@@ -1,5 +1,5 @@
 #
-# etc/Makefile 1.56 2000/04/27 02:07:17 (David Hinds)
+# etc/Makefile 1.57 2000/08/22 23:30:07 (David Hinds)
 #
 
 # Include site dependent options
@@ -15,4 +15,4 @@ clean:
 
 install:
 	@set -e ; $(MAKE) -C cis install
-	@./install-etc
+	@./install-etc $(PREFIX)

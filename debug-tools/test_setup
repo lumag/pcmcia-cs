@@ -13,7 +13,7 @@ $rel = `uname -r`;
 $rel =~ s/\s//g;
 $core = "/lib/modules/$rel/pcmcia/pcmcia_core.o";
 if (-f $core) {
-    $info = `strings -n 10 $core | head -3`;
+    $info = `strings -n 10 $core | grep -v CPUID | head -3`;
     print "Module info from $core:\n", indent($info);
 } else {
     print "$core not found.\n  The PCMCIA modules are not installed.\n"

@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.99 2000/06/12 21:27:26
+    smc91c92_cs.c 1.103 2000/08/24 20:36:59
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -814,15 +814,16 @@ static int osi_setup(dev_link_t *link, u_short manfid, u_short cardid)
     for (i = 0; i < 6; i++)
 	dev->dev_addr[i] = buf[i+2];
 
-    if (manfid != MANFID_OSITECH) return 0;
-
-    if (cardid == PRODID_OSITECH_SEVEN) {
+    if (((manfid == MANFID_OSITECH) &&
+	 (cardid == PRODID_OSITECH_SEVEN)) ||
+	((manfid == MANFID_PSION) &&
+	 (cardid == PRODID_PSION_NET100))) {
 	/* Download the Seven of Diamonds firmware */
 	for (i = 0; i < sizeof(__Xilinx7OD); i++) {
 	    outb(__Xilinx7OD[i], link->io.BasePort1+2);
 	    udelay(50);
 	}
-    } else {
+    } else if (manfid == MANFID_OSITECH) {
 	/* Make sure both functions are powered up */
 	set_bits(0x300, link->io.BasePort1 + OSITECH_AUI_PWR);
 	/* Now, turn on the interrupt for both card functions */
@@ -933,7 +934,8 @@ static void smc91c92_config(dev_link_t *link)
     /* Configure card */
     link->state |= DEV_CONFIG;
 
-    if (smc->manfid == MANFID_OSITECH) {
+    if ((smc->manfid == MANFID_OSITECH) &&
+	(smc->cardid != PRODID_OSITECH_SEVEN)) {
 	i = osi_config(link);
     } else if ((smc->manfid == MANFID_MOTOROLA) ||
 	       ((smc->manfid == MANFID_MEGAHERTZ) &&

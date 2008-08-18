@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.321 2000/07/20 23:00:26
+    i82365.c 1.324 2000/08/30 20:08:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.321 2000/07/20 23:00:26 (David Hinds)";
+"i82365.c 1.324 2000/08/30 20:08:37 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -853,7 +853,7 @@ static u_int __init o2micro_set_opts(socket_info_t *s, char *buf)
 	case O2_MODE_D_IRQ_PCIWAY:
 	    strcat(buf, " [pci/way]"); break;
 	case O2_MODE_D_IRQ_PCI:
-	    strcat(buf, " [pci only]"); break;
+	    strcat(buf, " [pci only]"); mask = 0; break;
 	}
     }
     if (s->flags & IS_CARDBUS) {
@@ -1075,7 +1075,8 @@ static void set_bridge_state(socket_info_t *s)
     } else {
 	i365_set(s, I365_GBLCTL, 0x00);
 	i365_set(s, I365_GENCTL, 0x00);
-	i365_set(s, I365_ADDRWIN, I365_ADDR_MEMCS16);
+	/* Trouble: changes timing of memory operations */
+	/* i365_set(s, I365_ADDRWIN, I365_ADDR_MEMCS16); */
     }
     i365_bflip(s, I365_INTCTL, I365_INTR_ENA, s->intr);
 #ifdef CONFIG_ISA
@@ -1502,14 +1503,11 @@ static void __init add_pcic(int ns, int type)
 	s[i].cap.irq_mask = mask;
 	if (!use_pci)
 	    s[i].cap.pci_irq = 0;
-	if (use_pci && pci_int)
-	    s[i].cap.irq_mask |= (1 << s[i].cap.pci_irq);
 	s[i].cs_irq = isa_irq;
 #ifdef CONFIG_PCI
 	if (s[i].flags & IS_CARDBUS) {
 	    s[i].cap.features |= SS_CAP_CARDBUS;
-	    cb_set_irq_mode(s+i, pci_csc && s[i].cap.pci_irq,
-			    pci_int && s[i].cap.pci_irq);
+	    cb_set_irq_mode(s+i, pci_csc && s[i].cap.pci_irq, 0);
 	}
 #endif
     }

@@ -18,6 +18,14 @@ airo \- Driver for the Aironet 802.11 ISA/PCI/PCMCIA 4500 & 4800 and Cisco 340
 .IR i,j,... ]
 .RB [ ssids=\c
 .IR i,j,... ]
+.RB [ adhoc=\c
+.IR 1 ]
+.RB [ aux_bap=\c
+.IR 1 ]
+.RB [ auto_wep=\c
+.IR 1 ]
+.RB [ maxencrypt=\c
+.IR n ]
 
 .SH DESCRIPTION
 This driver is for Cisco 340 and 
@@ -139,7 +147,7 @@ with the irq at index i.
 Specifies the set of interrupts are used by the driver.
 .TP
 .BI rates= i,j,...
-A comma separted list of rates.  There are up to 8 of them.  They are
+A comma separated list of rates.  There are up to 8 of them.  They are
 specified in 512 kps units.
 .TP
 .BI basic_rate= n
@@ -147,8 +155,23 @@ Sets the basic rate of the card.  Same units as the rates.  (It must
 be one of the rates.)
 .TP
 .BI ssids= i,j,k
-A commat separated list of ssids.  There can be up to 3.  They are a
+A comma separated list of ssids.  There can be up to 3.  They are a
 maximum of 32 characters.
+.TP
+.BI maxencrypt= n
+Sets the maximum speed of the card when doing encryption.  If zero (the
+default), it is not used.  Units are in 512kbs.  Older cards could only
+do 2mbs (n=4) when doing encryption, even though they could do 11 mbs
+without encryption.
+.TP
+.BI auto_wep = 1
+Turns on logic to cycle through the different WEP settings until the card
+is able to associate.
+.TP
+.BI aux_bap = 1
+Enables logic that gets around bus timing problems on older cards with
+some boards.  The timing problem manifests itself when receiving packets
+bigger than 70 bytes.
 
 .SH SPECIFIC NOTES
 When used with PCMCIA cards, it must be used with the airo_cs module.

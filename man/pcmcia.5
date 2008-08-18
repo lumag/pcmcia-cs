@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" pcmcia.5 1.25 2000/06/12 21:24:48
+.\" pcmcia.5 1.26 2000/08/02 17:47:40
 .\"
-.TH PCMCIA 5 "2000/06/12 21:24:48" "pcmcia-cs"
+.TH PCMCIA 5 "2000/08/02 17:47:40" "pcmcia-cs"
 .SH NAME
 /etc/pcmcia/config \- PCMCIA card configuration database
 
@@ -60,9 +60,8 @@ accomodate devices that are not registered with the Linux resource
 manager.
 
 .SH Device driver descriptions
-All Card Services client drivers are identified by a 16-character tag.
-.B Device
-entries in the config file describe client drivers.  The only
+All Card Services client drivers are identified by a 32-character tag.
+\fBDevice\fR entries in the config file describe client drivers.  The only
 required field is the device tag.  Additional fields can specify
 kernel modules that need to be loaded to make the device available,
 and a script to be executed to enable and disable instances of

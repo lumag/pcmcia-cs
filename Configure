@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.162 2000/07/05 06:29:06
+# Configure 1.165 2000/08/17 19:17:11
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -560,7 +560,7 @@ case $CONF_SRC in
 	;;
 esac
 
-if [ "$USE_APM" != "y" ] ; then CONFIG_APM=n ; fi
+if [ "$USE_PM" != "y" ] ; then CONFIG_PM=n ; fi
 if [ ! -r ${LINUX}/include/linux/wireless.h ] ; then
     CONFIG_NET_PCMCIA_RADIO=n
 fi
@@ -763,13 +763,13 @@ fi
 # How should the startup scripts be configured?
 
 if [ "$PREFIX" = "" ] ; then
-    if [ -d /etc/rc.d/init.d -o -d /etc/init.d -o -d /sbin/init.d ] ; then
+    if [ -d /sbin/init.d -o -d /etc/rc.d/init.d -o -d /etc/init.d ] ; then
 	echo "It looks like you have a System V init file setup."
 	SYSV_INIT=y
-	if [ -d /etc/rc.d/init.d ] ; then
+	if [ -d /sbin/init.d ] ; then
+	    RC_DIR=/sbin/init.d
+	elif [ -d /etc/rc.d/init.d ] ; then
 	    RC_DIR=/etc/rc.d
-	elif [ -d /sbin/init.d ] ; then
-	    RC_DIR=/sbin
 	else
 	    RC_DIR=/etc
 	fi

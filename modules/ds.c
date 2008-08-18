@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.107 2000/07/12 21:33:33
+    ds.c 1.108 2000/08/07 19:06:15
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.107 2000/07/12 21:33:33 (David Hinds)";
+"ds.c 1.108 2000/08/07 19:06:15 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -527,9 +527,12 @@ static int ds_open(struct inode *inode, struct file *file)
 	    s->state |= SOCKET_BUSY;
     }
     
-    user = kmalloc(sizeof(user_info_t), GFP_KERNEL);
-    if (!user) return -ENOMEM;
     MOD_INC_USE_COUNT;
+    user = kmalloc(sizeof(user_info_t), GFP_KERNEL);
+    if (!user) {
+	MOD_DEC_USE_COUNT;
+	return -ENOMEM;
+    }
     user->event_tail = user->event_head = 0;
     user->next = s->user;
     user->user_magic = USER_MAGIC;
