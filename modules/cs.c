@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.260 2000/06/12 21:29:36
+    cs.c 1.261 2000/07/10 23:31:08
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -70,7 +70,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.260 2000/06/12 21:29:36 (David Hinds)";
+"cs.c 1.261 2000/07/10 23:31:08 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -128,7 +128,7 @@ INT_MODULE_PARM(vcc_settle,	HZ*4/10);	/* ticks */
 INT_MODULE_PARM(reset_time,	10);		/* usecs */
 INT_MODULE_PARM(unreset_delay,	HZ/10);		/* ticks */
 INT_MODULE_PARM(unreset_check,	HZ/10);		/* ticks */
-INT_MODULE_PARM(unreset_limit,	30);		/* unreset_check's */
+INT_MODULE_PARM(unreset_limit,	50);		/* unreset_check's */
 
 /* Access speed for attribute memory windows */
 INT_MODULE_PARM(cis_speed,	300);		/* ns */

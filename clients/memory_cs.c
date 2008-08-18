@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.73 2000/06/23 20:11:06
+    memory_cs.c 1.74 2000/07/11 01:27:12
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -91,7 +91,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.73 2000/06/23 20:11:06 (David Hinds)";
+"memory_cs.c 1.74 2000/07/11 01:27:12 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -333,6 +333,9 @@ static void memory_detach(dev_link_t *link)
     
 ======================================================================*/
 
+#define WIN_TYPE(a)  ((a) ? WIN_MEMORY_TYPE_AM : WIN_MEMORY_TYPE_CM)
+#define WIN_WIDTH(w) ((w) ? WIN_DATA_WIDTH_16 : WIN_DATA_WIDTH_8)
+
 static u_int get_size(dev_link_t *link, direct_dev_t *direct)
 {
     modwin_t mod;
@@ -412,10 +415,7 @@ static void memory_config(dev_link_t *link)
 	if (dev_table[nd] == link) break;
     
     /* Allocate a small memory window for direct access */
-    if (word_width)
-	req.Attributes = WIN_DATA_WIDTH_16;
-    else
-	req.Attributes = WIN_DATA_WIDTH_8;
+    req.Attributes = WIN_WIDTH(word_width);
     req.Base = req.Size = 0;
     req.AccessSpeed = mem_speed;
     link->win = (window_handle_t)link->handle;
@@ -430,8 +430,7 @@ static void memory_config(dev_link_t *link)
     for (attr = 0; attr < 2; attr++) {
 	nr[attr] = 0;
 	minor = dev->minor + attr*MAX_PART;
-	region.Attributes =
-	    (attr) ? REGION_TYPE_AM : REGION_TYPE_CM;
+	region.Attributes = (attr) ? REGION_TYPE_AM : REGION_TYPE_CM;
 	ret = CardServices(GetFirstRegion, link->handle, &region);
 	while (ret == CS_SUCCESS) {
 	    minor->region = region;
@@ -712,8 +711,8 @@ static ssize_t direct_read FOPS(struct inode *inode,
     if (count > size - pos)
 	count = size - pos;
 
-    mod.Attributes = WIN_ENABLE;
-    mod.Attributes |= (REGION_AM(minor)) ? WIN_MEMORY_TYPE_AM : 0;
+    mod.Attributes = WIN_ENABLE | WIN_TYPE(REGION_AM(minor));
+    mod.Attributes |= WIN_WIDTH(word_width);
     mod.AccessSpeed = mem_speed;
     ret = CardServices(ModifyWindow, link->win, &mod);
     if (ret != CS_SUCCESS) {
@@ -862,8 +861,8 @@ static ssize_t direct_write FOPS(struct inode *inode,
     if (count > size - pos)
 	count = size - pos;
 
-    mod.Attributes = WIN_ENABLE;
-    mod.Attributes |= (REGION_AM(minor)) ? WIN_MEMORY_TYPE_AM : 0;
+    mod.Attributes = WIN_ENABLE | WIN_TYPE(REGION_AM(minor));
+    mod.Attributes |= WIN_WIDTH(word_width);
     mod.AccessSpeed = mem_speed;
     ret = CardServices(ModifyWindow, link->win, &mod);
     if (ret != CS_SUCCESS) {
@@ -1025,6 +1024,7 @@ static void do_direct_request(dev_link_t *link)
     }
     
     mod.Attributes = WIN_ENABLE | WIN_MEMORY_TYPE_CM;
+    mod.Attributes |= WIN_WIDTH(word_width);
     mod.AccessSpeed = mem_speed;
     ret = CardServices(ModifyWindow, link->win, &mod);
     if (ret != CS_SUCCESS) {

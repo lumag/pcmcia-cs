@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# etc/install-etc 1.7 2000/06/19 03:18:02 (David Hinds)
+# etc/install-etc 1.8 2000/07/06 09:28:30 (David Hinds)
 #
 # This handles updating the PCMCIA startup and device configuration
 # scripts.  I used to do this in the Makefile, but it is really much
@@ -55,7 +55,12 @@ install_sysv ()
     fi
 
     if ! cmp -s rc.pcmcia $SYSV ; then
-	if [ -e $SYSV ] ; then SYSV=$SYSV.N ; fi
+	# Just clobber old startup script on RedHat-ish systems
+	if [ $RC_DIR = "/etc/rc.d" ] ; then
+	    rm -f $SYSV.N
+	elif [ -e $SYSV ] ; then
+	    SYSV=$SYSV.N
+	fi
 	echo "-> Installing PCMCIA startup script as $SYSV"
 	mkdir -p $PREFIX$RC_DIR/init.d
 	cp rc.pcmcia $SYSV

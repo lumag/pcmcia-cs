@@ -1,10 +1,23 @@
+[10-Jul-00] Version 3.1.18
+-- Changed CIS parser to use 16-bit memory windows instead of 8-bit.
+-- Bumped unreset_limit up to 50 (= 5 sec) to handle slow IDE devices.
+-- Fixed a DHCP_HOSTNAME typo in the network script affecting dhcpcd.
+-- Fixed wvlan_cs driver to work with Lucent's 6.* firmware.
+-- Minor tweaks to test_network and test_modem scripts.
+-- Made checks for installation of the startup script smarter.
+-- Fixed startup script to be smarter about merging options set in the
+   environment, removing an unintentional bash dependency.
+-- Fixed a 2.4.* compilation bug in dump_cis.
+-- Fixed --target= option that was broken in 3.1.17.
+-- Fixed memory_cs to use word_width parameter more consistently.
+
 [23-Jun-00] Version 3.1.17
 -- Fixed xirc2ps_cs driver to handle Toshiba IPC5008A cards.
 -- Fixed a weak pattern matching check in test_network.
 -- Added parsing of CISTPL_FORMAT tuples, and modified memory_cs to
    use the data offset for block memory devices.
 -- Removed prompt for alternate install directory from Configure; use
-   the --prefix= command line option instead.
+   the --target= command line option instead.
 -- Fixed obscure problem where the Configure script could get confused
    by certain environment variables.
 -- Changed i82365 do_scan option to also control PCI irq checking.

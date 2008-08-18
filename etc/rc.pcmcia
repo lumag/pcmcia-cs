@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.32 2000/06/07 22:12:08 (David Hinds)
+# rc.pcmcia 1.33 2000/07/06 08:57:44 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -17,13 +17,10 @@
 #              configured so it is safe to have it installed on machines \
 #              that don't need it.
 
-# Allow environment variables to override all options
-if [ "$PCMCIA" ] ; then readonly PCMCIA ; fi
-if [ "$PCIC" ] ; then readonly PCIC ; fi
-if [ "$PCIC_OPTS" ] ; then readonly PCIC_OPTS ; fi
-if [ "$CORE_OPTS" ] ; then readonly CORE_OPTS ; fi
-if [ "$CARDMGR_OPTS" ] ; then readonly CARDMGR_OPTS ; fi
-if [ "$SCHEME" ] ; then readonly SCHEME ; fi
+# Save option values passed in through the environment
+for N in PCMCIA PCIC PCIC_OPTS CORE_OPTS CARDMGR_OPTS SCHEME ; do
+    V=`eval echo '$'$N` ; if [ "$V" ] ; then eval ENV_$N=\"$V\" ; fi
+done
 
 # Source PCMCIA configuration, if available
 if [ -f /etc/pcmcia.conf ] ; then
@@ -45,6 +42,9 @@ else
     # To set the PCMCIA scheme at startup...
     SCHEME=
 fi
+for N in PCMCIA PCIC PCIC_OPTS CORE_OPTS CARDMGR_OPTS SCHEME ; do
+    V=`eval echo '$'ENV_$N` ; if [ "$V" ] ; then eval $N=\"$V\" ; fi
+done
 if [ "$PCMCIA" -a "$PCMCIA" != "yes" ] ; then exit 0 ; fi
 
 usage()
@@ -167,6 +167,4 @@ for x in "1" ; do
 done
 
 # Only exit if we're in our own subshell
-if [ "${0##*/}" = "rc.pcmcia" ] ; then
-    exit $EXITCODE
-fi
+case $0 in *rc.pcmcia) exit $EXITCODE ;; esac

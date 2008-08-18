@@ -52,25 +52,29 @@ sub checkout
     print "Checking modem at /dev/$dev:\n";
     $set = `setserial /dev/$dev`;
     print "  Settings: $set";
+    if (($set =~ /8250/) || ($set =~ /16450/)) {
+	print "    The detected UART is odd: maybe an IO port conflict?\n";
+    }
     $irq = $1 if $set =~ /IRQ: (\d+)/;
     sysopen(MODEM, "/dev/$dev", O_RDWR|O_NONBLOCK) ||
 	die "sysopen(): $!\n";
     init_tty();
-    
+
+    print "  Sending modem query command...\n";
     $buf = at_cmd("ATI3");
     if ($buf ne "") {
-	print "  ATI3 = '$buf'\n";
+	print "    ATI3 = '$buf'\n";
 	print "  The modem is operating normally.\n";
 	close(MODEM);
     } else {
 	close(MODEM);
-	print "  Modem query timed out: trying polled mode.\n";
+	print "  Modem query timed out: trying polled mode...\n";
 	system("setserial /dev/$dev irq 0");
 	sysopen(MODEM, "/dev/$dev", O_RDWR|O_NONBLOCK) ||
 	    die "sysopen(): $!\n";
 	$buf = at_cmd("ATI3");
 	if ($buf ne "") {
-	    print "  ATI3 = '$buf'\n";
+	    print "    ATI3 = '$buf'\n";
 	    print "  The modem interrupt (irq $irq) has a delivery problem.\n";
 	} else {
 	    print "  The modem is not working in polled mode.\n";

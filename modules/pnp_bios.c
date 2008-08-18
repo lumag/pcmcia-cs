@@ -185,8 +185,8 @@ int pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
           ("lcall %%cs:" SYMBOL_NAME_STR(pnp_bios_callpoint) "\n\t"
            :"=a"(status)
            :"a"(PNP_GET_NUM_SYS_DEV_NODES),
-             "b"((2 << 16) | PNP_TS1),
-             "c"((PNP_DS << 16) | PNP_TS1)
+            "b"((2 << 16) | PNP_TS1),
+            "c"((PNP_DS << 16) | PNP_TS1)
            :"memory");
 	data->no_nodes &= 0xff;
 	pop_pnp_gdt();
@@ -234,8 +234,7 @@ int pnp_bios_set_dev_node(u8 nodenum, char config, struct pnp_bios_node *data)
 	__asm__ __volatile__
           ("lcall %%cs:" SYMBOL_NAME_STR(pnp_bios_callpoint) "\n\t"
            :"=a"(status)
-           :"a"(((u32) nodenum << 16) |
-                PNP_SET_SYS_DEV_NODE),
+           :"a"(((u32) nodenum << 16) | PNP_SET_SYS_DEV_NODE),
             "b"(PNP_TS1 << 16),
             "c"((PNP_DS << 16) | (config ? 1 : 2))
            :"memory");
@@ -278,8 +277,7 @@ int pnp_bios_send_message(u16 message)
 	__asm__ __volatile__
           ("lcall %%cs:" SYMBOL_NAME_STR(pnp_bios_callpoint) "\n\t"
            :"=a"(status)
-           :"a"(((u32) message << 16) |
-                PNP_SEND_MESSAGE),
+           :"a"(((u32) message << 16) | PNP_SEND_MESSAGE),
             "b"(PNP_DS)
            :"memory");
 	pop_pnp_gdt();

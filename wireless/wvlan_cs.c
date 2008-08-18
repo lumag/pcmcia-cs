@@ -937,8 +937,9 @@ int wvlan_hw_config (struct net_device *dev)
 		rc = wvlan_hw_setthreshold(&local->ifb, ap_density, CFG_CNF_SYSTEM_SCALE);
 	if (!rc)
 		rc = wvlan_hw_setthreshold(&local->ifb, medium_reservation, CFG_RTS_THRH);
+	/* Discard return value: this call fails on 6.* firmware */
 	if (!rc)
-		rc = wvlan_hw_setthreshold(&local->ifb, frag_threshold, CFG_FRAGMENTATION_THRH);
+		wvlan_hw_setthreshold(&local->ifb, frag_threshold, CFG_FRAGMENTATION_THRH);
 	if (!rc)
 		rc = wvlan_hw_setthreshold(&local->ifb, transmit_rate, CFG_TX_RATE_CONTROL);
 

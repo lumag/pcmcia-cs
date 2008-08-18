@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.74 2000/06/06 21:02:09 (David Hinds)
+# network 1.75 2000/07/07 23:37:10 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -79,7 +79,7 @@ case "$ACTION" in
 	if [ -x /sbin/dhcpcd ] ; then
 	    # This is a version check: I know it looks weird
 	    if /sbin/dhcpcd -XYZZY 2>&1 | grep -q DHCP ; then
-		/sbin/dhcpcd $DEVICE $HN >/dev/null 2>&1 || exit 1
+		/sbin/dhcpcd $HN $DEVICE >/dev/null 2>&1 || exit 1
 	    else
 		# Jump through hoops for lame 0.70-era dhcpcd
 		L=/var/run/dhcp-lock-$DEVICE

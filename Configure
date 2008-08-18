@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.161 2000/06/19 19:17:29
+# Configure 1.162 2000/07/05 06:29:06
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -283,7 +283,7 @@ if [ -f $LINUX/include/linux/compile.h ] ; then
 fi
 echo ""
 
-for x in CC LD KFLAGS UFLAGS PCDEBUG ; do
+for x in PREFIX CC LD KFLAGS UFLAGS PCDEBUG ; do
     write_str $x
 done
 write_bool USE_PM

@@ -8,7 +8,7 @@
 %DVIPSWebPage: (www.radicaleye.com)
 %DVIPSCommandLine: dvips -t letter PCMCIA-HOWTO.dvi -o PCMCIA-HOWTO.ps
 %DVIPSParameters: dpi=600, compressed
-%DVIPSSource:  TeX output 2000.06.19:1222
+%DVIPSSource:  TeX output 2000.07.10:1636
 %%BeginProcSet: texc.pro
 %!
 /TeXDict 300 dict def TeXDict begin/N{def}def/B{bind def}N/S{exch}N/X{S
@@ -1518,7 +1518,7 @@ letter
 y(X)h(L)398 145 y Fl(A)435 162 y Fm(T)481 180 y(E)527
 162 y(X)0 348 y Fk(Linux)54 b(PCMCIA)f(HO)l(WTO)p 0 461
 3900 24 v 0 575 a Fm(Da)n(vid)27 b(Hinds,)h Fj(dahinds@users.so)o(urc)o
-(ef)o(or)o(ge.)o(ne)o(t)p Fm(.)1385 b(v2.68,)26 b(19)h(June)g(2000)0
+(ef)o(or)o(ge.)o(ne)o(t)p Fm(.)1401 b(v2.69,)26 b(10)h(July)g(2000)0
 881 y Fi(This)j(do)r(cument)f(describ)r(es)h(ho)n(w)f(to)g(install)g
 (and)h(use)f(PCMCIA)i(Ca)n(rd)e(Services)h(fo)n(r)g(Linux,)h(and)f
 (answ)n(ers)f(some)g(frequently)0 994 y(ask)n(ed)20 b(questions.)33
@@ -4419,30 +4419,33 @@ b(IO)f(p)r(ort)h(con\035ict)g(ma)n(y)f(cause)g(the)i(IDE)g(driv)n(er)d
 3382 y(\020)7 b Fh(INVALID)40 b(GEOMETRY:)g(0)j(PHYSICAL)d(HEADS?)p
 Fm(\021.)88 b(T)-7 b(o)46 b(\034x,)k(try)c(excluding)f(the)h(selected)g
 (IO)f(p)r(ort)g(range)g(in)208 3496 y Fh(/etc/pcmcia/con)o(fi)o(g.)o
-(opt)o(s)p Fm(.)125 3662 y Fd(\017)c Fm(Some)34 b(IDE)i(driv)n(es)d
-(violate)h(the)h(PCMCIA)g(sp)r(eci\034cation)f(b)n(y)h(requiring)e(a)h
-(longer)g(time)h(to)f(spin)h(up)g(than)g(the)208 3775
-y(maxim)n(um)d(allo)n(w)n(ed)f(card)h(setup)h(time.)52
-b(Starting)32 b(with)h(release)f(3.0.6,)g(the)h(ide_cs)f(driv)n(er)f
-(will)i(automatically)208 3889 y(retry)27 b(the)h(device)g(prob)r(e)g
-(to)g(giv)n(e)g(these)g(driv)n(es)f(time)i(to)f(spin)g(up.)39
-b(With)29 b(older)f(driv)n(ers,)e(y)n(ou)i(ma)n(y)f(need)i(to)f(load)
-208 4002 y(the)g Fh(pcmcia_core)23 b Fm(mo)r(dule)k(with:)390
-4159 y Fc(CORE_OPTS="unreset_delay=400")125 4325 y Fd(\017)41
-b Fm(T)-7 b(o)35 b(use)h(an)g(A)-7 b(T)g(A/IDE)38 b(CD-R)n(OM)d
-(device,)k(y)n(our)c(k)n(ernel)g(m)n(ust)h(b)r(e)h(compiled)f(with)g
-Fh(CONFIG_BLK_DEV_ID)o(EC)o(D)208 4439 y Fm(enabled.)g(This)26
-b(will)h(normally)e(b)r(e)i(the)g(case)e(for)h(standard)g(k)n(ernels,)f
-(ho)n(w)n(ev)n(er)g(it)h(is)h(something)f(to)g(b)r(e)h(a)n(w)n(are)d
-(of)j(if)208 4552 y(y)n(ou)f(compile)i(a)f(custom)g(k)n(ernel.)125
-4718 y Fd(\017)41 b Fm(A)27 b(common)g(error)f(when)h(using)g(IDE)i
-(driv)n(es)d(is)h(try)g(to)h(moun)n(t)f(the)h(wrong)e(device)h(\034le.)
-37 b(Generally)-7 b(,)27 b(y)n(ou)f(w)n(an)n(t)h(to)208
-4832 y(moun)n(t)g(a)g(partition)g(of)h(the)g(device,)f(not)h(the)g(en)n
-(tire)f(device)g(\(i.e.,)h Fh(/dev/hde1)p Fm(,)c(not)k
-Fh(/dev/hde)p Fm(\).)125 4998 y Fd(\017)41 b Fm(The)c(Lin)n(ux)g(IDE)h
-(driv)n(er)e(ma)n(y)h(ha)n(v)n(e)f(trouble)h(con\034guring)e(certain)i
-(remo)n(v)-5 b(able-media)35 b(driv)n(es)h(if)i(no)f(media)g(is)208
+(opt)o(s)p Fm(.)125 3662 y Fd(\017)c Fm(Some)28 b(IDE)h(driv)n(es)e
+(violate)h(the)h(PCMCIA)g(sp)r(eci\034cation)f(b)n(y)g(requiring)f
+(more)h(time)h(to)f(spin)h(up)g(than)f(the)h(max-)208
+3775 y(im)n(um)i(allo)n(w)n(ed)g(card)f(setup)i(time.)50
+b(This)31 b(ma)n(y)g(result)g(in)h(\020timed)g(out)g(during)f
+(reset\021)38 b(messages)29 b(at)j(card)f(detect)208
+3889 y(time.)41 b(A)n(djust)30 b(the)g Fh(unreset_delay)23
+b Fm(and/or)28 b Fh(unreset_limit)23 b Fm(parameters)k(for)i(the)g
+Fh(pcmcia_core)c Fm(mo)r(dule)k(to)208 4002 y(giv)n(e)c(a)g(driv)n(e)h
+(more)f(time)i(to)f(spin)g(up;)h(see)f(the)g Fh(pcmcia_core)c
+Fm(man)k(page)f(for)g(parameter)g(details.)36 b(F)-7
+b(or)26 b(example:)390 4159 y Fc(CORE_OPTS="unreset_delay=400")125
+4325 y Fd(\017)41 b Fm(T)-7 b(o)35 b(use)h(an)g(A)-7
+b(T)g(A/IDE)38 b(CD-R)n(OM)d(device,)k(y)n(our)c(k)n(ernel)g(m)n(ust)h
+(b)r(e)h(compiled)f(with)g Fh(CONFIG_BLK_DEV_ID)o(EC)o(D)208
+4439 y Fm(enabled.)g(This)26 b(will)h(normally)e(b)r(e)i(the)g(case)e
+(for)h(standard)g(k)n(ernels,)f(ho)n(w)n(ev)n(er)g(it)h(is)h(something)
+f(to)g(b)r(e)h(a)n(w)n(are)d(of)j(if)208 4552 y(y)n(ou)f(compile)i(a)f
+(custom)g(k)n(ernel.)125 4718 y Fd(\017)41 b Fm(A)27
+b(common)g(error)f(when)h(using)g(IDE)i(driv)n(es)d(is)h(try)g(to)h
+(moun)n(t)f(the)h(wrong)e(device)h(\034le.)37 b(Generally)-7
+b(,)27 b(y)n(ou)f(w)n(an)n(t)h(to)208 4832 y(moun)n(t)g(a)g(partition)g
+(of)h(the)g(device,)f(not)h(the)g(en)n(tire)f(device)g(\(i.e.,)h
+Fh(/dev/hde1)p Fm(,)c(not)k Fh(/dev/hde)p Fm(\).)125
+4998 y Fd(\017)41 b Fm(The)c(Lin)n(ux)g(IDE)h(driv)n(er)e(ma)n(y)h(ha)n
+(v)n(e)f(trouble)h(con\034guring)e(certain)i(remo)n(v)-5
+b(able-media)35 b(driv)n(es)h(if)i(no)f(media)g(is)208
 5111 y(presen)n(t)26 b(at)i(insertion)f(time.)37 b(The)28
 b(IBM)f(P)n(ortable)g(Driv)n(eBa)n(y)f(has)h(this)h(problem.)125
 5277 y Fd(\017)41 b Fm(Some)29 b(k)n(ernels)f(will)h(rep)r(ort)g(a)f

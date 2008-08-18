@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.68, 19 June 2000
+  v2.69, 10 July 2000
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -2335,11 +2335,12 @@
      fix, try excluding the selected IO port range in
      /etc/pcmcia/config.opts.
 
-  +o  Some IDE drives violate the PCMCIA specification by requiring a
-     longer time to spin up than the maximum allowed card setup time.
-     Starting with release 3.0.6, the ide_cs driver will automatically
-     retry the device probe to give these drives time to spin up.  With
-     older drivers, you may need to load the pcmcia_core module with:
+  +o  Some IDE drives violate the PCMCIA specification by requiring more
+     time to spin up than the maximum allowed card setup time.  This may
+     result in ``timed out during reset'' messages at card detect time.
+     Adjust the unreset_delay and/or unreset_limit parameters for the
+     pcmcia_core module to give a drive more time to spin up; see the
+     pcmcia_core man page for parameter details.  For example:
 
        CORE_OPTS="unreset_delay=400"
 
@@ -2436,7 +2437,6 @@
   In this example, the second ``case'' clause will select for both the
   ``home'' and ``default'' schemes.  So, if the scheme is unset for any
   reason, it will default to the ``home'' setup.
-
   Now, to select between the two sets of settings, run either:
 
        cardctl scheme home
@@ -2547,7 +2547,7 @@
   hard drive attached to an Adaptec SlimSCSI adapter.  You could create
   an appropriate initrd image with:
 
-  pcinitrd -v initrd pcmcia/i82365.o pcmcia/aha152x_cs.o
+       pcinitrd -v initrd pcmcia/i82365.o pcmcia/aha152x_cs.o
 
   To customize the initrd startup sequence, you could mount the image
   using the ``loopback'' device with a command like:
@@ -2677,9 +2677,9 @@
 
   or using the more compact product ID codes:
 
-       card "Megahertz XJ2288 V.34 Fax Modem"
-         manfid 0x0101, 0x1234
-         bind "serial_cs"
+  card "Megahertz XJ2288 V.34 Fax Modem"
+    manfid 0x0101, 0x1234
+    bind "serial_cs"
 
   You can use ``*'' to match strings that don't need to match exactly,
   like version numbers.  When making new config entries, be careful to
@@ -2793,6 +2793,7 @@
 
   +o  Your Linux kernel version (i.e., ``uname -rv''), and PCMCIA driver
      version (i.e., ``cardctl -V'').
+
   +o  Any changes you have made to the startup files in /etc/pcmcia, or
      to the PCMCIA startup script.
 
@@ -2846,13 +2847,13 @@
   this is past the end of the kernel, i.e., is in a kernel module.  To
   determine which module, check the output of ``ksyms -m | sort'':
 
-  Address   Symbol                            Defined by
-  c200d000  (35k)                             [pcmcia_core]
-  c200d10c  register_ss_entry                 [pcmcia_core]
-  c200d230  unregister_ss_entry               [pcmcia_core]
-            ...
-  c2026000  (9k)                              [3c574_cs]
-  c202a000  (4k)                              [serial_cs]
+       Address   Symbol                            Defined by
+       c200d000  (35k)                             [pcmcia_core]
+       c200d10c  register_ss_entry                 [pcmcia_core]
+       c200d230  unregister_ss_entry               [pcmcia_core]
+                 ...
+       c2026000  (9k)                              [3c574_cs]
+       c202a000  (4k)                              [serial_cs]
 
   So, 0xc2026081 is in the 3c574_cs module, and is at an offset of
   0x0081 from the start of the module.  We cannot look up this offset in

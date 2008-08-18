@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/06/23 20:10:37
+		Last updated: 2000/07/11 01:27:31
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -23,7 +23,7 @@ Ethernet cards:
 
 	[3c589_cs driver] [x86,ppc]
 	3Com 3c589, 3c589B, 3c589C, 3c589D
-	3Com Megahertz 3CXE589D, 3CXE589EC, 3CCE589ET
+	3Com Megahertz 3CXE589D, 3CXE589EC, 3CCE589ET, 3CCE589EC
 	Farallon EtherWave, EtherMac
 
 	[fmvj18x_cs driver] [x86,ppc]
@@ -140,6 +140,7 @@ Ethernet cards:
 	SuperSocket RE450T
 	Surecom Ethernet
 	SVEC PN605C
+	Target 24007 Ethernet
 	Thomas-Conrad Ethernet
 	TRENDnet Ethernet
 	Trust Ethernet Combo
@@ -163,7 +164,7 @@ Fast Ethernet (10/100baseT) adapters:
 	3Com 3c574TX, 3CCFE574BT, 3CXFE574BT, 3CCSH572BT, 3CXSH572BT
 
 	[pcnet_cs driver] [x86]
-	Abocom LinkMate FE1000
+	Abocom LinkMate FE1000, FE1500
 	AnyCom ECO Ethernet 10/100
 	Apollo Fast Ethernet
 	COMPU-SHACK FASTline 10/100
@@ -390,7 +391,6 @@ Multifunction ethernet/modem cards:
 
 	[pcnet_cs driver] [x86,axp]
 	Accton EN2218, UE2218
-	ActionTec ComNet 33.6
 	AnyCom Fast Ethernet + 56K Combo
 	Asus combo card
 	Billionton LM5LT-10B
@@ -435,6 +435,7 @@ Multifunction ethernet/modem cards:
 
 	[tulip_cb driver] [x86]
 	[ Not recommended: support is experimental and unreliable ]
+	IBM EtherJet CardBus with 56K Modem
 	Xircom RBEM56G-100BTX, CBEM56G-100BTX
 
 ATA/IDE card drives:
@@ -622,7 +623,6 @@ email just to ask if their status has changed.
 
 	Adaptec/Trantor APA-460 SlimSCSI
 	Eiger Labs SCSI w/FCC ID K36...
-	Melco LPC3-TX
 	New Media .WAVjammer and all other sound cards
 	New Media LiveWire+
 	Nikon CoolPix100

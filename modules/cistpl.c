@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.82 2000/06/19 23:18:20
+    cistpl.c 1.84 2000/07/11 01:33:00
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -114,7 +114,7 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 	memset(ptr, 0xff, len);
 	return;
     }
-    mem->flags |= MAP_ACTIVE; mem->flags &= ~MAP_ATTRIB;
+    mem->flags = MAP_ACTIVE | MAP_16BIT;
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -160,7 +160,7 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
     
     DEBUG(3, "cs: write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
     if (setup_cis_mem(s) != 0) return;
-    mem->flags |= MAP_ACTIVE; mem->flags &= ~MAP_ATTRIB;
+    mem->flags = MAP_ACTIVE | MAP_16BIT;
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed

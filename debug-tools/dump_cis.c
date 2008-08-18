@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.50 2000/06/19 23:19:01
+    dump_cis.c 1.51 2000/07/05 06:30:32
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -781,6 +781,7 @@ static void print_vers_2(cistpl_vers_2_t *v2)
 
 /*====================================================================*/
 
+#ifdef CISTPL_FORMAT
 static void print_format(cistpl_format_t *fmt)
 {
     if (fmt->type == CISTPL_FORMAT_DISK)
@@ -803,6 +804,7 @@ static void print_format(cistpl_format_t *fmt)
     print_size(fmt->length);
     putchar('\n');
 }
+#endif
 
 /*====================================================================*/
 
@@ -957,6 +959,7 @@ static void print_parse(tuple_parse_t *tup)
     case CISTPL_ORG:
 	print_org(&tup->parse.org);
 	break;
+#ifdef CISTPL_FORMAT
     case CISTPL_FORMAT:
     case CISTPL_FORMAT_A:
 	if (tup->tuple.TupleCode == CISTPL_FORMAT)
@@ -965,6 +968,7 @@ static void print_parse(tuple_parse_t *tup)
 	    printf("%sattr_format\n", indent);
 	print_format(&tup->parse.format);
     }
+#endif
 }
 
 /*====================================================================*/

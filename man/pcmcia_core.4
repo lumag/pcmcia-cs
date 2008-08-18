@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" pcmcia_core.4 1.23 2000/06/12 21:24:48
+.\" pcmcia_core.4 1.24 2000/07/10 23:31:05
 .\"
-.TH PCMCIA_CORE 4 "2000/06/12 21:24:48" "pcmcia-cs"
+.TH PCMCIA_CORE 4 "2000/07/10 23:31:05" "pcmcia-cs"
 .SH NAME
 pcmcia_core \- PCMCIA Card Services core module
 .SH SYNOPSIS
@@ -99,7 +99,7 @@ software reset.  In 1/100 second increments, the default is 10.
 .TP
 .BI unreset_limit= n
 Sets the maximum number of checks to make before pronouncing a card to
-be dead.  The default is 30.
+be dead.  The default is 50 (i.e., 5 seconds).
 .TP
 .BI cis_speed= n
 Sets the access delay in nanoseconds for CIS memory windows.  This

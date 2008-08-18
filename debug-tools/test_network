@@ -64,7 +64,7 @@ sub checkout
 	}
     }
 
-    $addr = ""; $gw = 0; $dflt = "";
+    $addr = ""; $dflt = "";
     open(RT, "route -n |");
     while (<RT>) {
 	chop; @s = split;
@@ -73,16 +73,17 @@ sub checkout
 	if ($s[1] ne "0.0.0.0") {
 	    print "\n  There is a route to a gateway at $s[1].\n";
 	    $addr = $s[1];
-	    $gw = 1;
 	    last;
 	}
     }
     close(RT);
-    if (($dflt ne "") && !$gw) {
-	print "\n  Your default route is pointed to interface $dflt.\n";
-    }
 
     if ($addr eq "") {
+	if ($dflt ne "") {
+	    print "\n  Your default route is pointed to interface $dflt.\n";
+	} else {
+	    print "\n  You have not configured a gateway or default route.\n";
+	}
 	while (1) {
 	    print "\n  Enter a numeric IP address to ping: ";
 	    $addr = <STDIN>; chop($addr);
@@ -111,7 +112,7 @@ sub checkout
     print (($rx) ? " response received!\n" : " timed out!\n");
     print "  The device interrupt ";
     print (($stop - $start) ? "seems" : "does not seem");
-    print " to be incrementing.\n";
+    print " to be incrementing normally.\n";
 }
 
 foreach $f ("/var/state/pcmcia/stab", "/var/lib/pcmcia/stab",

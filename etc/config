@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.124 2000/06/23 20:10:40 (David Hinds)
+# config 1.125 2000/07/11 01:27:26 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -1573,6 +1573,10 @@ card "Genius MF3000 Fast Ethernet"
 card "IBM 10/100 EtherJet CardBus"
   manfid 0x00a4, 0x0113
   bind "tulip_cb"
+
+card "IBM 10/100 EtherJet 56K CardBus"
+  manfid 0x00a4, 0x0103
+  bind "tulip_cb", "serial_cb"
 
 card "Intel EtherExpress PRO/100 CardBus"
   manfid 0x0089, 0x0102
