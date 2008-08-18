@@ -1,3 +1,7 @@
+[04-Nov-02] Version 3.2.3
+-- Fixed bug in <linux/crc32.h> compatibility header.
+-- Fixed old warnings in fmvj18x_cs and ray_cs drivers.
+
 [03-Nov-02] Version 3.2.2
 -- Added GTK+ 'gpccard' card status monitor tool.
 -- Added Xaw toolkit based version of cardinfo, named xcardinfo, from

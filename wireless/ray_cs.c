@@ -146,7 +146,10 @@ static void join_net(u_long local);
 static void start_net(u_long local);
 /* void start_net(ray_dev_t *local); */
 
+#ifdef HAS_PROC_BUS
 static int ray_cs_proc_read(char *, char **, off_t, int, int *, void *);
+#endif
+
 /* Create symbol table for registering with kernel in init_module */
 #if (LINUX_VERSION_CODE <= VERSION(2,1,17))
 static struct symbol_table ray_cs_syms = {
@@ -316,7 +319,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.33 2002/06/29 06:39:33 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.34 2002/11/05 03:50:22 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)

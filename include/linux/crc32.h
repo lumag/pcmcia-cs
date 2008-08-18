@@ -4,10 +4,10 @@
 #include <linux/version.h>
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,4,18))
-#include_next <linux/crc32.h>
-#endif
 
-#ifndef crc32
+#include_next <linux/crc32.h>
+
+#else
 
 static inline u_int ether_crc(int length, u_char *data)
 {

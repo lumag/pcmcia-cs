@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.56 2002/10/25 06:37:30
+ * ciscode.h 1.57 2002/11/03 20:38:14
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -131,7 +131,7 @@
 
 #define MANFID_TOSHIBA			0x0098
 
-#define MANFID_UNGERMANN 0x02c0
+#define MANFID_UNGERMANN		0x02c0
 
 #define MANFID_XIRCOM			0x0105
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.224 2002/11/03 19:09:43
+# Configure 1.225 2002/11/05 03:51:26
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -791,7 +791,6 @@ echo "" >> $CONFIG_H
 
 #=======================================================================
 
-HAS_PROC_BUS=n
 if [ "$CONFIG_PCMCIA" = "y" ] ; then
     # Use our kernel config, then kernel headers, then our headers
     CPPFLAGS="-I../include/static -I\$(LINUX)/include -I../include"
@@ -812,6 +811,10 @@ echo "" >> $CONFIG
 echo "" >> $CONFIG_MK
 echo "" >> $CONFIG_H
 
+HAS_PROC_BUS=n
+if [ $VERSION_CODE -ge `version 2 2 0` ] ; then
+    HAS_PROC_BUS=y
+fi
 write_bool HAS_PROC_BUS
 
 if [ $VERSION_CODE -ge `version 2 1 7` -o \
