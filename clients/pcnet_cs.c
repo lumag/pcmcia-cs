@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.140 2001/08/06 23:35:31
+    pcnet_cs.c 1.142 2001/08/24 11:44:24
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -20,7 +20,7 @@
     Director, National Security Agency.  This software may be used and
     distributed according to the terms of the GNU General Public License,
     incorporated herein by reference.
-    Donald Becker may be reached at becker@cesdis1.gsfc.nasa.gov
+    Donald Becker may be reached at becker@scyld.com
 
     Based also on Keith Moore's changes to Don Becker's code, for IBM
     CCAE support.  Drivers merged back together, and shared-memory
@@ -76,7 +76,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.140 2001/08/06 23:35:31 (David Hinds)";
+"pcnet_cs.c 1.142 2001/08/24 11:44:24 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -535,8 +535,8 @@ static hw_info_t *get_ax88190(dev_link_t *link)
 	dev->dev_addr[i] = j & 0xff;
 	dev->dev_addr[i+1] = j >> 8;
     }
-    printk(KERN_INFO "pcnet_cs: sorry, the AX88190 chipset is not "
-	   "supported.\n");
+    printk(KERN_NOTICE "pcnet_cs: this is an AX88190 card!\n");
+    printk(KERN_NOTICE "pcnet_cs: use axnet_cs instead.\n");
     return NULL;
 }
 

@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.336 2001/08/06 01:29:27
+    i82365.c 1.340 2001/08/24 13:58:51
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -20,8 +20,8 @@
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
-    terms of the GNU Public License version 2 (the "GPL"), in which
-    case the provisions of the GPL are applicable instead of the
+    terms of the GNU General Public License version 2 (the "GPL"), in
+    which case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
     only under the terms of the GPL and not to allow others to use
     your version of this file under the MPL, indicate your decision
@@ -35,7 +35,6 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
-#ifdef __LINUX__
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/config.h>
@@ -51,11 +50,11 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
+#include <linux/spinlock.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/bitops.h>
 #include <asm/system.h>
-#endif
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -81,7 +80,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.336 2001/08/06 01:29:27 (David Hinds)";
+"i82365.c 1.340 2001/08/24 13:58:51 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -944,9 +943,7 @@ static void __init cb_get_state(socket_info_t *s)
 
 static void cb_set_state(socket_info_t *s)
 {
-#ifdef __LINUX__
     pci_set_power_state(pci_find_slot(s->bus, s->devfn), 0);
-#endif
     pci_writel(s, CB_LEGACY_MODE_BASE, 0);
     pci_writel(s, PCI_BASE_ADDRESS_0, s->cb_phys);
     pci_writew(s, PCI_COMMAND, CMD_DFLT);
@@ -1231,7 +1228,6 @@ static u_int __init test_irq(socket_info_t *s, int irq, int pci)
 }
 
 #ifdef CONFIG_ISA
-#ifdef __LINUX__
 static int _check_irq(int irq, int flags)
 {
 #ifdef CONFIG_PNP_BIOS
@@ -1244,7 +1240,6 @@ static int _check_irq(int irq, int flags)
     free_irq(irq, irq_count);
     return 0;
 }
-#endif
 
 static u_int __init isa_scan(socket_info_t *s, u_int mask0)
 {
@@ -1430,7 +1425,6 @@ static void __init add_pcic(int ns, int type)
 
     if (s->ioaddr > 0) request_region(s->ioaddr, 2, "i82365");
     
-    if (sockets == ns) printk("\n");
     printk(KERN_INFO "  %s", pcic[type].name);
 #ifdef CONFIG_PCI
     if (s->flags & IS_UNKNOWN)
@@ -1563,9 +1557,7 @@ static void __init add_pci_bridge(int type, u_short v, u_short d)
     socket_info_t *s = &socket[sockets];
     u_int addr, ns;
 
-#ifdef __LINUX__
     pci_enable_device(pci_find_slot(s->bus, s->devfn));
-#endif
 
     if (type == PCIC_COUNT) type = IS_UNK_PCI;
     pci_readl(s, PCI_BASE_ADDRESS_0, &addr);
@@ -1613,10 +1605,9 @@ static void __init add_cb_bridge(int type, u_short v, u_short d0)
 	    break;
 	s->vendor = v; s->device = d; s->revision = r;
 
-#ifdef __LINUX__
 	pci_enable_device(pci_find_slot(bus, devfn));
 	pci_set_power_state(pci_find_slot(bus, devfn), 0);
-#endif
+
 	/* Set up CardBus register mapping */
 	pci_writel(s, CB_LEGACY_MODE_BASE, 0);
 	pci_readl(s, PCI_BASE_ADDRESS_0, &s->cb_phys);
@@ -1639,7 +1630,6 @@ static void __init add_cb_bridge(int type, u_short v, u_short d0)
     
     add_pcic(ns, type);
 
-#ifdef __LINUX__
     /* Look up PCI bus bridge structures if needed */
     s -= ns;
     for (a = 0; a < ns; a++) {
@@ -1653,7 +1643,6 @@ static void __init add_cb_bridge(int type, u_short v, u_short d0)
 	s[a].cap.cb_bus = child;
 #endif
     }
-#endif
 }
 
 static void __init pci_probe(u_int class)
@@ -2514,7 +2503,6 @@ static int pcic_service(u_int sock, u_int cmd, void *arg)
 
 static int __init init_i82365(void)
 {
-#ifdef __LINUX__
     servinfo_t serv;
     CardServices(GetCardServicesInfo, &serv);
     if (serv.Revision != CS_RELEASE_CODE) {
@@ -2522,9 +2510,8 @@ static int __init init_i82365(void)
 	       "does not match!\n");
 	return -1;
     }
-#endif
     DEBUG(0, "%s\n", version);
-    printk(KERN_INFO "Intel PCIC probe: ");
+    printk(KERN_INFO "Intel ISA/PCI/CardBus PCIC probe:\n");
     sockets = 0;
 
     ACQUIRE_RESOURCE_LOCK;
@@ -2545,7 +2532,7 @@ static int __init init_i82365(void)
     RELEASE_RESOURCE_LOCK;
 
     if (sockets == 0) {
-	printk("not found.\n");
+	printk(KERN_INFO "  no bridges found.\n");
 	return -ENODEV;
     }
 
@@ -2620,47 +2607,5 @@ static void __exit exit_i82365(void)
     }
 } /* exit_i82365 */
 
-#ifdef __LINUX__
-
 module_init(init_i82365);
 module_exit(exit_i82365);
-
-#endif
-
-/*====================================================================*/
-
-#ifdef __BEOS__
-
-static status_t std_ops(int32 op)
-{
-    int ret;
-    switch (op) {
-    case B_MODULE_INIT:
-	ret = get_module(CS_SOCKET_MODULE_NAME, (struct module_info **)&cs);
-	if (ret != B_OK) return ret;
-	ret = get_module(B_ISA_MODULE_NAME, (struct module_info **)&isa);
-	if (ret != B_OK) return ret;
-	ret = get_module(B_PCI_MODULE_NAME, (struct module_info **)&pci);
-	if (ret != B_OK) return ret;
-	return pcic_init();
-	break;
-    case B_MODULE_UNINIT:
-	exit_i82365();
-	if (pci) put_module(B_PCI_MODULE_NAME);
-	if (isa) put_module(B_ISA_MODULE_NAME);
-	if (cs) put_module(CS_SOCKET_MODULE_NAME);
-	break;
-    }
-    return B_OK;
-}
-
-static module_info pcic_mod_info = {
-    SS_MODULE_NAME("i82365"), 0, &std_ops
-};
-
-_EXPORT module_info *modules[] = {
-    &pcic_mod_info,
-    NULL
-};
-
-#endif

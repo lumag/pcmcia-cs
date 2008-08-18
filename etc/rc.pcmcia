@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.37 2001/07/02 23:39:59 (David Hinds)
+# rc.pcmcia 1.38 2001/08/23 00:43:17 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -86,7 +86,7 @@ for x in "1" ; do
 	if [ -L $SC -o ! -O $SC ] ; then rm -f $SC ; fi
 	if [ ! -f $SC ] ; then umask 022 ; touch $SC ; fi
 	if [ "$SCHEME" ] ; then umask 022 ; echo $SCHEME > $SC ; fi
-	fgrep -q pcmcia /proc/devices
+	grep -q pcmcia /proc/devices
 	if [ $? -ne 0 ] ; then
 	    if [ -d /lib/modules/preferred ] ; then
 		PC=/lib/modules/preferred/pcmcia
@@ -129,7 +129,7 @@ for x in "1" ; do
 	    kill -0 $PID 2>/dev/null
 	fi
 	killall -q "CardBus Watcher"
-	if fgrep -q "ds  " /proc/modules ; then
+	if grep -q "ds  " /proc/modules ; then
 	    echo -n " modules"
 	    /sbin/rmmod ds
 	    /sbin/rmmod $PCIC

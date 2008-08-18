@@ -2,7 +2,7 @@
 
     PCMCIA Bulk Memory Services
 
-    bulkmem.c 1.39 2001/08/06 01:29:26
+    bulkmem.c 1.41 2001/08/24 13:58:51
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -19,8 +19,8 @@
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
-    terms of the GNU Public License version 2 (the "GPL"), in which
-    case the provisions of the GPL are applicable instead of the
+    terms of the GNU General Public License version 2 (the "GPL"), in
+    which case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
     only under the terms of the GPL and not to allow others to use
     your version of this file under the MPL, indicate your decision
@@ -35,7 +35,6 @@
 #define __NO_VERSION__
 #include <pcmcia/k_compat.h>
 
-#ifdef __LINUX__
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -44,7 +43,6 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
-#endif
 
 #define IN_CARD_SERVICES
 #include <pcmcia/cs_types.h>

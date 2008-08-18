@@ -8,10 +8,10 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.111 2001/08/06 01:28:24
+    smc91c92_cs.c 1.112 2001/08/24 11:43:45
     
     This driver contains code written by Donald Becker
-    (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
+    (becker@scyld.com), Rowan Hughes (x-csrdh@jcu.edu.au),
     David Hinds (dahinds@users.sourceforge.net), and Erik Stahlman
     (erik@vt.edu).  Donald wrote the SMC 91c92 code using parts of
     Erik's SMC 91c94 driver.  Rowan wrote a similar driver, and I've
@@ -63,7 +63,7 @@
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"smc91c92_cs.c 0.09 1996/8/4 Donald Becker, becker@cesdis.gsfc.nasa.gov.\n";
+"smc91c92_cs.c 0.09 1996/8/4 Donald Becker, becker@scyld.com.\n";
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 #else
 #define DEBUG(n, args...)

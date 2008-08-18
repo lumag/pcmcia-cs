@@ -11,7 +11,7 @@
 
     Copyright (C) 2001 David A. Hinds -- dahinds@users.sourceforge.net
 
-    axnet_cs.c 1.15 2001/08/08 04:55:18
+    axnet_cs.c 1.21 2001/08/24 13:58:58
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -20,7 +20,7 @@
     Director, National Security Agency.  This software may be used and
     distributed according to the terms of the GNU General Public License,
     incorporated herein by reference.
-    Donald Becker may be reached at becker@cesdis1.gsfc.nasa.gov
+    Donald Becker may be reached at becker@scyld.com
 
 ======================================================================*/
 
@@ -36,6 +36,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
+#include <linux/spinlock.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/byteorder.h>
@@ -66,7 +67,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"axnet_cs.c 1.15 2001/08/08 04:55:18 (David Hinds)";
+"axnet_cs.c 1.21 2001/08/24 13:58:58 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -81,10 +82,6 @@ static char *version =
 INT_MODULE_PARM(irq_mask,	0xdeb8);
 static int irq_list[4] = { -1 };
 MODULE_PARM(irq_list, "1-4i");
-
-/* Ugh!  Let the user hardwire the hardware address for queer cards */
-static int hw_addr[6] = { 0, /* ... */ };
-MODULE_PARM(hw_addr, "6i");
 
 /*====================================================================*/
 
@@ -327,30 +324,6 @@ static int get_prom(dev_link_t *link)
 
 /*======================================================================
 
-    This should be totally unnecessary... but when we can't figure
-    out the hardware address any other way, we'll let the user hard
-    wire it when the module is initialized.
-
-======================================================================*/
-
-static int get_hwired(dev_link_t *link)
-{
-    struct net_device *dev = link->priv;
-    int i;
-
-    for (i = 0; i < 6; i++)
-	if (hw_addr[i] != 0) break;
-    if (i == 6)
-	return 0;
-
-    for (i = 0; i < 6; i++)
-	dev->dev_addr[i] = hw_addr[i];
-
-    return 1;
-} /* get_hwired */
-
-/*======================================================================
-
     axnet_config() is scheduled to run after a CARD_INSERTION event
     is received, to configure the PCMCIA socket, and to make the
     ethernet device available to the system.
@@ -437,7 +410,7 @@ static void axnet_config(dev_link_t *link)
 	if ((cfg->index == 0) || (cfg->io.nwin == 0))
 	    goto next_entry;
 	
-	link->conf.ConfigIndex = 0x01;
+	link->conf.ConfigIndex = 0x05;
 	/* For multifunction cards, by convention, we configure the
 	   network function with window 0, and serial with window 1 */
 	if (io->nwin > 1) {
@@ -477,9 +450,9 @@ static void axnet_config(dev_link_t *link)
 	goto failed;
     }
 
-    if (!get_prom(link) && !get_hwired(link)) {
-	printk(KERN_NOTICE "axnet_cs: unable to read hardware net"
-	       " address for io base %#3lx\n", dev->base_addr);
+    if (!get_prom(link)) {
+	printk(KERN_NOTICE "axnet_cs: this is not an AX88190 card!\n");
+	printk(KERN_NOTICE "axnet_cs: use pcnet_cs instead.\n");
 	unregister_netdev(dev);
 	goto failed;
     }
@@ -539,7 +512,7 @@ static void axnet_release(u_long arg)
 
     if (link->open) {
 	DEBUG(1, "axnet_cs: release postponed, '%s' still open\n",
-	      info->node.dev_name);
+	      ((axnet_dev_t *)(link->priv))->node.dev_name);
 	link->state |= DEV_STALE_CONFIG;
 	return;
     }
@@ -941,10 +914,11 @@ module_exit(exit_axnet_cs);
 	This software may be used and distributed according to the terms
 	of the GNU General Public License, incorporated herein by reference.
 
-	The author may be reached as becker@CESDIS.gsfc.nasa.gov, or C/O
-	Center of Excellence in Space Data and Information Sciences
-	   Code 930.5, Goddard Space Flight Center, Greenbelt MD 20771
-  
+	The author may be reached as becker@scyld.com, or C/O
+	Scyld Computing Corporation
+	410 Severn Ave., Suite 210
+	Annapolis MD 21403
+
   This is the chip-specific code for many 8390-based ethernet adaptors.
   This is not a complete driver, it must be combined with board-specific
   code such as ne.c, wd.c, 3c503.c, etc.
@@ -978,8 +952,8 @@ module_exit(exit_axnet_cs);
 
   */
 
-static const char *version =
-    "8390.c:v1.10cvs 9/23/94 Donald Becker (becker@cesdis.gsfc.nasa.gov)\n";
+static const char *version_8390 =
+    "8390.c:v1.10cvs 9/23/94 Donald Becker (becker@scyld.com)\n";
 
 #include <asm/uaccess.h>
 #include <asm/bitops.h>
@@ -1218,8 +1192,6 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	send_length = ETH_ZLEN < length ? length : ETH_ZLEN;
     
-#ifdef EI_PINGPONG
-
 	/*
 	 * We have two Tx slots available for use. Find the first free
 	 * slot, and then perform some sanity checks. With two Tx bufs,
@@ -1287,22 +1259,6 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	else
 		netif_start_queue(dev);
-
-#else	/* EI_PINGPONG */
-
-	/*
-	 * Only one Tx buffer in use. You need two Tx bufs to come close to
-	 * back-to-back transmits. Expect a 20 -> 25% performance hit on
-	 * reasonable hardware if you only use one Tx buffer.
-	 */
-
-	ei_block_output(dev, length, skb->data, ei_local->tx_start_page);
-	ei_local->txing = 1;
-	NS8390_trigger_send(dev, send_length, ei_local->tx_start_page);
-	dev->trans_start = jiffies;
-	netif_stop_queue(dev);
-
-#endif	/* EI_PINGPONG */
 
 	/* Turn 8390 interrupts back on. */
 	ei_local->irqlock = 0;
@@ -1497,8 +1453,6 @@ static void ei_tx_intr(struct net_device *dev)
 	struct ei_device *ei_local = (struct ei_device *) dev->priv;
 	int status = inb(e8390_base + EN0_TSR);
     
-#ifdef EI_PINGPONG
-
 	/*
 	 * There are two Tx buffers, see which one finished, and trigger
 	 * the send of another one if it exists.
@@ -1540,13 +1494,6 @@ static void ei_tx_intr(struct net_device *dev)
 	}
 //	else printk(KERN_WARNING "%s: unexpected TX-done interrupt, lasttx=%d.\n",
 //			dev->name, ei_local->lasttx);
-
-#else	/* EI_PINGPONG */
-	/*
-	 *  Single Tx buffer: mark it free so another packet can be loaded.
-	 */
-	ei_local->txing = 0;
-#endif
 
 	/* Minimize Tx latency: update the statistics after we restart TXing. */
 	if (status & ENTSR_COL)
@@ -1834,7 +1781,7 @@ static void set_multicast_list(struct net_device *dev)
 static int ethdev_init(struct net_device *dev)
 {
 	if (ei_debug > 1)
-		printk(version);
+		printk(version_8390);
     
 	if (dev->priv == NULL) 
 	{

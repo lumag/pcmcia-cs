@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.159 2001/06/22 04:17:17
+    cardmgr.c 1.161 2001/08/24 12:19:19
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -19,8 +19,8 @@
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
-    terms of the GNU Public License version 2 (the "GPL"), in which
-    case the provisions of the GPL are applicable instead of the
+    terms of the GNU General Public License version 2 (the "GPL"), in
+    which case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
     only under the terms of the GPL and not to allow others to use
     your version of this file under the MPL, indicate your decision
@@ -321,12 +321,15 @@ static void write_stab(void)
 #endif
     for (i = 0; i < sockets; i++) {
 	s = &socket[i];
-	if (!(s->state & SOCKET_PRESENT))
-	    fprintf(f, "Socket %d: empty\n", i);
-	else if (!s->card)
-	    fprintf(f, "Socket %d: unsupported card\n", i);
-	else {
-	    fprintf(f, "Socket %d: %s\n", i, s->card->name);
+	fprintf(f, "Socket %d: ", i);
+	if (!(s->state & SOCKET_PRESENT)) {
+	    fprintf(f, "empty\n");
+	} else if (s->state & SOCKET_HOTPLUG) {
+	    fprintf(f, "CardBus hotplug device\n");
+	} else if (!s->card) {
+	    fprintf(f, "unsupported card\n");
+	} else {
+	    fprintf(f, "%s\n", s->card->name);
 	    for (j = 0; j < s->card->bindings; j++)
 		for (k = 0, bind = s->bind[j];
 		     bind != NULL;
@@ -387,51 +390,15 @@ typedef struct pci_id {
     struct pci_id *next;
 } pci_id_t;
 
-pci_id_t *hotplug_list = NULL;
-
-static void load_pcimap(void)
-{
-    char s[133], *fn = malloc(strlen(modpath) + 20);
-    int v, d;
-    FILE *f;
-
-    strcpy(fn, modpath);
-    strcat(fn, "/modules.pcimap");
-    f = fopen(fn, "r");
-    if (!f) return;
-
-    while (fgets(s, 132, f) != NULL) {
-	if (sscanf(s, "%*s %x %x", &v, &d) == 2) {
-	    pci_id_t *e = malloc(sizeof *e);
-	    e->vendor = v; e->device = d;
-	    e->next = hotplug_list;
-	    hotplug_list = e;
-	}
-    }
-    fclose(f);
-}
-
 static int get_pci_id(int ns, pci_id_t *id)
 {
     socket_info_t *s = &socket[ns];
     config_info_t config;
-    char fn[50];
-    int fd;
 
     config.Function = config.ConfigBase = 0;
     if ((ioctl(s->fd, DS_GET_CONFIGURATION_INFO, &config) != 0) ||
-	(config.IntType != INT_CARDBUS))
+	(config.IntType != INT_CARDBUS) || !config.ConfigBase)
 	return 0;
-    if (config.ConfigBase) {
-	/* this indicates non-hotplug PCMCIA support */
-	hotplug_list = NULL;
-    } else {
-	sprintf(fn, "/proc/bus/pci/%02d/00.0", config.Option);
-	if ((fd = open(fn, O_RDONLY)) < 0)
-	    return 0;
-	read(fd, &config.ConfigBase, 4);
-	close(fd);
-    }
     id->vendor = config.ConfigBase & 0xffff;
     id->device = config.ConfigBase >> 16;
     return 1;
@@ -552,22 +519,26 @@ static card_info_t *lookup_card(int ns)
     }
 
     /* Check PCI vendor/device info */
-    if (get_pci_id(ns, &pci_id)) {
-	pci_id_t *p;
-	if (!card) {
-	    for (card = root_card; card; card = card->next)
-		if ((card->ident_type == PCI_IDENT) &&
-		    (pci_id.vendor == card->manfid.manf) &&
-		    (pci_id.device == card->manfid.card))
-		    break;
-	}
-	for (p = hotplug_list; p; p = p->next)
-	    if ((pci_id.vendor == p->vendor) &&
-		(pci_id.device == p->device)) break;
-	if (p)
+    status.Function = 0;
+    ioctl(s->fd, DS_GET_STATUS, &status);
+    if (status.CardState & CS_EVENT_CB_DETECT) {
+	if (get_pci_id(ns, &pci_id)) {
+	    if (!card) {
+		for (card = root_card; card; card = card->next)
+		    if ((card->ident_type == PCI_IDENT) &&
+			(pci_id.vendor == card->manfid.manf) &&
+			(pci_id.device == card->manfid.card))
+			break;
+	    }
+	} else {
+	    /* this is a 2.4 kernel; hotplug handles these cards */
 	    s->state |= SOCKET_HOTPLUG;
+	    syslog(LOG_INFO, "socket %d: CardBus hotplug device", ns);
+	    //beep(BEEP_TIME, BEEP_OK);
+	    return NULL;
+	}
     }
-    
+
     /* Try for a FUNCID match */
     if (!card && (funcid.func != 0xff)) {
 	for (card = root_func; card; card = card->next)
@@ -582,7 +553,6 @@ static card_info_t *lookup_card(int ns)
 	return card;
     }
 
-    status.Function = 0;
     if (!blank_card || (status.CardState & CS_EVENT_CB_DETECT) ||
 	manfid.manf || manfid.card || pci_id.vendor || vers) {
 	syslog(LOG_INFO, "unsupported card in socket %d", ns);
@@ -990,18 +960,18 @@ static void do_insert(int sn)
     /* Already identified? */
     if ((s->card != NULL) && (s->card != blank_card))
 	return;
-    
-    syslog(LOG_INFO, "initializing socket %d", sn);
+
+    if (verbose) syslog(LOG_INFO, "initializing socket %d", sn);
     card = lookup_card(sn);
+    if (s->state & SOCKET_HOTPLUG) {
+	write_stab();
+	return;
+    }
     /* Make sure we've learned something new before continuing */
     if (card == s->card)
 	return;
     s->card = card;
     card->refs++;
-    if (s->state & SOCKET_HOTPLUG) {
-	write_stab();
-	return;
-    }
     if (card->cis_file) update_cis(s);
 
     dev = card->device;
@@ -1081,10 +1051,7 @@ static void do_insert(int sn)
     for (i = ret = 0; i < card->bindings; i++)
 	if (dev[i]->class)
 	    ret |= execute_on_all("start", dev[i]->class, sn, i);
-    if (ret)
-	beep(BEEP_TIME, BEEP_ERR);
-    else
-	beep(BEEP_TIME, BEEP_OK);
+    beep(BEEP_TIME, (ret) ? BEEP_ERR : BEEP_OK);
     
 }
 
@@ -1123,14 +1090,12 @@ static void do_remove(int sn)
     bind_info_t *bind;
     int i, j;
 
+    if (verbose) syslog(LOG_INFO, "shutting down socket %d", sn);
+
     card = s->card;
     if (card == NULL)
 	goto done;
-    
-    syslog(LOG_INFO, "shutting down socket %d", sn);
-    if (s->state & SOCKET_HOTPLUG)
-	goto done;
-    
+
     /* Run "stop" commands */
     dev = card->device;
     for (i = 0; i < card->bindings; i++) {
@@ -1490,7 +1455,6 @@ int main(int argc, char *argv[])
 	syslog(LOG_INFO, "cannot access %s: %m", modpath);
     /* We default to using modprobe if it is available */
     do_modprobe |= (access("/sbin/modprobe", X_OK) == 0);
-    load_pcimap();
 #endif /* __linux__ */
     
     load_config();

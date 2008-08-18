@@ -236,6 +236,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/spinlock.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -290,7 +291,6 @@
 // Undefine this if you want to ignore Tx timeouts
 // (i.e. card will not be reset on Tx timeouts)
 #define WVLAN_RESET_ON_TX_TIMEOUT
-
 
 /********************************************************************
  * DEBUG
@@ -584,7 +584,7 @@ static inline int wvlan_hw_getmacaddr (IFBP ifbp, char *mac, int len)
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CNF_OWN_MAC_ADDR) returned 0x%x\n", dev_info, rc);
 	if (rc)
 		return rc;
-	l = min(len, ltv.len*2);
+	l = _min(len, ltv.len*2);
 	memcpy(mac, (char *)ltv.mac_addr, l);
 	return 0;
 }
@@ -661,7 +661,7 @@ static inline int wvlan_hw_setstationname (IFBP ifbp, char *name)
 
 	ltv.len = 18;
 	ltv.typ = CFG_CNF_OWN_NAME;
-	l = min(strlen(name), ltv.len*2);
+	l = _min(strlen(name), ltv.len*2);
 	ltv.id[0] = cpu_to_le16(l);
 	memcpy((char *) &ltv.id[1], name, l);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
@@ -682,9 +682,9 @@ static inline int wvlan_hw_getstationname (IFBP ifbp, char *name, int len)
 		return rc;
 	l = le16_to_cpup(&ltv.id[0]);
 	if (l)
-		l = min(len, l);
+		l = _min(len, l);
 	else
-		l = min(len, ltv.len*2);	/* It's a feature */
+		l = _min(len, ltv.len*2);	/* It's a feature */
 	memcpy(name, (char *) &ltv.id[1], l);
 	name[l] = 0;
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CNF_OWN_NAME):'%s'\n", dev_info, name);
@@ -701,7 +701,7 @@ static inline int wvlan_hw_setssid (IFBP ifbp, char *name, int ptype)
 		ltv.typ = CFG_CNF_OWN_SSID;
 	else
 		ltv.typ = CFG_CNF_DESIRED_SSID;
-	l = min(strlen(name), ltv.len*2);
+	l = _min(strlen(name), ltv.len*2);
 	ltv.id[0] = cpu_to_le16(l);
 	memcpy((char *) &ltv.id[1], name, l);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
@@ -729,7 +729,7 @@ static int wvlan_hw_getssid (IFBP ifbp, char *name, int len, int cur, int ptype)
 	l = le16_to_cpup(&ltv.id[0]);
 	if (l)
 	{
-		l = min(len, l);
+		l = _min(len, l);
 		memcpy(name, (char *) &ltv.id[1], l);
 	}
 	name[l] = '\0';
@@ -748,7 +748,7 @@ static inline int wvlan_hw_getbssid (IFBP ifbp, char *mac, int len)
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CURRENT_BSSID) returned 0x%x\n", dev_info, rc);
 	if (rc)
 		return rc;
-	l = min(len, ltv.len*2);
+	l = _min(len, ltv.len*2);
 	memcpy(mac, (char *)ltv.mac_addr, l);
 	return 0;
 }
@@ -1115,6 +1115,7 @@ static int wvlan_hw_config (struct net_device *dev)
 			/* Tested CableTron 4.32 - Anton */
  			break;
 		case 0x2:
+		case 0x3:
  		case 0x6:
  			/* This is a PrismII card. It is is *very* similar
  			 * to the Lucent, and the driver work 95%,
@@ -2230,9 +2231,9 @@ struct iw_statistics *wvlan_get_wireless_stats (struct net_device *dev)
 		ltv.typ = CFG_COMMS_QUALITY;
 		rc = hcf_get_info(&local->ifb, (LTVP) &ltv);
 		DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_COMMS_QUALITY) returned 0x%x\n", dev_info, rc);
-		local->wstats.qual.qual = max(min(le16_to_cpup(&ltv.coms_qual), 0x8b-0x2f), 0);
-		local->wstats.qual.level = max(min(le16_to_cpup(&ltv.signal_lvl), 0x8a), 0x2f) - 0x95;
-		local->wstats.qual.noise = max(min(le16_to_cpup(&ltv.noise_lvl), 0x8a), 0x2f) - 0x95;
+		local->wstats.qual.qual = _max(_min(le16_to_cpup(&ltv.coms_qual), 0x8b-0x2f), 0);
+		local->wstats.qual.level = _max(_min(le16_to_cpup(&ltv.signal_lvl), 0x8a), 0x2f) - 0x95;
+		local->wstats.qual.noise = _max(_min(le16_to_cpup(&ltv.noise_lvl), 0x8a), 0x2f) - 0x95;
 		local->wstats.qual.updated = 7;
 	}
 	else
@@ -2617,8 +2618,8 @@ void wvlan_rx (struct net_device *dev, int len)
 			}
 #endif
 		stats[2] = stats[0];
-		stats[0] = max(min(stats[1], 0x8a), 0x2f);
-		stats[1] = max(min(stats[2], 0x8a), 0x2f);
+		stats[0] = _max(_min(stats[1], 0x8a), 0x2f);
+		stats[1] = _max(_min(stats[2], 0x8a), 0x2f);
 		stats[2] = stats[0] - stats[1];
 #ifdef WIRELESS_SPY
 		wvlan_spy_gather(dev, srcaddr, stats);  

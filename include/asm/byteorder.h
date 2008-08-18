@@ -19,6 +19,8 @@
 #define cpu_to_be32(x)		htonl(x)
 #define cpu_to_le16s(x)		do { } while (0)
 #define cpu_to_le32s(x)		do { } while (0)
+#define le16_to_cpus(x)		do { } while (0)
+#define le32_to_cpus(x)		do { } while (0)
 #endif
 
 #endif /* _PCMCIA_BYTEORDER_H */

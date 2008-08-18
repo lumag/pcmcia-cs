@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.173 2001/08/09 00:56:42 (David Hinds)
+# config 1.175 2001/08/27 00:26:02 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -20,6 +20,9 @@ device "ibmtr_cs"
 
 device "nmclan_cs"
   class "network" module "nmclan_cs"
+
+device "orinoco_cs"
+  class "network" module "hermes", "orinoco", "orinoco_cs"
 
 device "oti12_cs"
   class "cdrom" module "oti12_cs"
@@ -547,6 +550,7 @@ card "NE2000 Compatible Ethernet"
 
 card "NE2000 Compatible Ethernet"
   version "Ethernet", "Adapter"
+  #manfid 0x0149, 0xc1ab
   bind "pcnet_cs"
 
 card "NE2000 Compatible Ethernet"
@@ -554,8 +558,8 @@ card "NE2000 Compatible Ethernet"
   bind "pcnet_cs"
 
 card "Asix AX88190 Fast Ethernet"
-  #version "Fast Ethernet", "16-bit PC Card", "*", "AX88190"
-  manfid 0x0149, 0xc1ab
+  version "Fast Ethernet", "16-bit PC Card", "*", "AX88190"
+  #manfid 0x0149, 0xc1ab
   bind "axnet_cs"
 
 card "NDC Instant-Link Ethernet"
@@ -1894,6 +1898,10 @@ card "SMC EZ 10/100 Fast Ethernet"
 
 card "TDK NetworkFlyer 10/100 Fast Ethernet"
   manfid 0x0105, 0x0500
+  bind "tulip_cb"
+
+card "TRENDnet TE100-PCBUSR"
+  pci 0x13d1, 0xab02
   bind "tulip_cb"
 
 card "Tulip-based CardBus Fast Ethernet"

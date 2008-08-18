@@ -18,16 +18,18 @@ To use the kernel PCMCIA drivers, configure the kernel with
 CONFIG_PCMCIA ("CardBus support") enabled.  In this case, "CardBus"
 really refers to the type of host bridge supported: both 16-bit and
 CardBus card support is included.  The drivers can either be built
-into the kernel or built as modules.  For now, only PCI-to-CardBus
-bridges are supported, so there are no options for choosing bridge
-drivers.  PCMCIA client driver options are listed in their regular
-driver categories; thus, PCMCIA network drivers are in a submenu of
-network drivers, and PCMCIA serial drivers are in a submenu of
-character drivers.
+into the kernel or built as modules.  PCMCIA client driver options are
+listed in their regular driver categories; thus, PCMCIA network
+drivers are in a submenu of network drivers, and PCMCIA serial drivers
+are in a submenu of character drivers.
 
 The CardBus socket driver in the 2.4 tree is the "yenta_socket"
-driver.  In your PCMCIA startup options, this driver should be
-specified in place of the old i82365 driver.
+driver.  It is selected by the CONFIG_CARDBUS option.  In your PCMCIA 
+startup options, this driver should be specified in place of the old
+i82365 driver.  The kernel version of the i82365 driver, selected by
+CONFIG_I82365, only supports ISA-to-PCMCIA bridges.  PCI-to-PCMCIA
+bridges that are not CardBus capable, like the Cirrus PD6729, are not
+supported at all by the kernel PCMCIA drivers.
 
 When compiling the standalone PCMCIA package, the Configure script
 decides whether or not to build any kernel modules by looking at the
@@ -70,7 +72,7 @@ SCSI low-level drivers:
 Other drivers:
   ide_cs       ATA/IDE devices           CONFIG_BLK_DEV_IDECS
 
-Most CardBus drivers have been folded into their corresponding regular
+All CardBus drivers have been folded into their corresponding regular
 PCI drivers using the new "hot plug PCI" interface.  Here is a mapping
 from old CardBus drivers to new hot plug drivers:
 
@@ -85,7 +87,9 @@ Tulip-like CardBus', xircom_tulip_cb, CONFIG_PCMCIA_XIRTULIP).  Hot
 plug PCI drivers are not managed by cardmgr; they are managed by the
 "hotplug" subsystem.  See http://linux-hotplug.sourceforge.net for
 information about this new facility.  When cardmgr sees a card that is
-owned by a hot plug PCI driver, it will ignore that card.
+owned by a hot plug PCI driver, it will ignore that card.  There will
+be one beep when these cards are inserted/ejected, but they will be
+identified only as a "CardBus hotplug device" in the log files.
 
 Known problems and limitations:
 
@@ -103,10 +107,10 @@ o The yenta_socket driver does not have the /proc interface of the
 o The kernel PCMCIA package cannot be configured to use PnP BIOS calls
   for resource management.  This will not be fixed, but is rarely a
   serious issue.
-o With the introduction of the Hot Plug PCI subsystem, some CardBus
-  drivers now no longer act like other PCMCIA drivers; most obviously,
-  they don't interact with the PCMCIA device configuration scripts.
-  These devices are configured using the "hotplug" scripts.
+o With the introduction of the Hot Plug PCI subsystem, CardBus drivers
+  now no longer act like other PCMCIA drivers; most obviously, they
+  don't interact with the PCMCIA device configuration scripts.  These
+  devices are configured using the "hotplug" scripts.
 
 Answers to some common questions:
 

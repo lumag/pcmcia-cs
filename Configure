@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.187 2001/08/04 01:23:07
+# Configure 1.192 2001/08/27 12:33:51
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -17,8 +17,8 @@
 # are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 #
 # Alternatively, the contents of this file may be used under the terms
-# of the GNU Public License version 2 (the "GPL"), in which case the
-# provisions of the GPL are applicable instead of the above.  If you
+# of the GNU General Public License version 2 (the "GPL"), in which case
+# the provisions of the GPL are applicable instead of the above.  If you
 # wish to allow the use of your version of this file only under the
 # terms of the GPL and not to allow others to use your version of this
 # file under the MPL, indicate your decision by deleting the provisions
@@ -68,7 +68,7 @@ usage () {
     echo "    [--uflags=flags] [--kflags=flags] [--debug=flags] [--{no}trust]"
     echo "    [--{no}cardbus] [--{no}pnp] [--{no}apm] [--current] [--srctree]"
     echo ""
-    echo "  -n, --noprompt     non-int eractive mode: no prompting"
+    echo "  -n, --noprompt     non-interactive mode: no prompting"
     echo "  --kernel=DIR       use kernel source tree at DIR"
     echo "  --target=DIR       install all files using DIR as root"
     echo "  --moddir=DIR       install modules under DIR"
@@ -83,6 +83,7 @@ usage () {
     echo "  --{no}cardbus      disable or enable CardBus card support"
     echo "  --{no}pnp          disable or enable PnP BIOS support"
     echo "  --{no}apm          disable or enable power management support"
+    echo "  --force            ignore presence of 2.4 kernel drivers"
     echo "  --current          read configuration of current kernel"
     echo "  --srctree          read kernel configuration from source tree"
     echo "  --sysv             target has SysV init script layout"
@@ -113,6 +114,7 @@ while [ $# -gt 0 ] ; do
     --nopnp)		CONFIG_PNP_BIOS=n	;;
     --apm)		USE_PM=y		;;
     --noapm)		USE_PM=n		;;
+    --force)		FORCE=y			;;
     --current)		CONF_SRC=1		;;
     --srctree)		CONF_SRC=2		;;
     --sysv)		SYSV_INIT=y		;;
@@ -351,22 +353,22 @@ echo ""
 #=======================================================================
 
 symcheck () {
-    eval "$1=n"
-    if $KSYMS | grep "$2" >/dev/null ; then eval "$1=y" ; fi
+    eval "CONFIG_$1=n"
+    if $KSYMS | grep "$2" >/dev/null ; then eval "CONFIG_$1=y" ; fi
     if [ "$3" ] ; then
 	/sbin/insmod $3 > /dev/null 2>&1
 	if $KSYMS | grep "$2" > /dev/null ; then
-	    eval "$1=y"
+	    eval "CONFIG_$1=y"
 	fi
     fi
 }
 
 configcheck () {
-    eval "$1=n"
-    if grep "^$1=y" $AUTOCONF >/dev/null ; then
-	eval "$1=y"
-    elif grep "^$1=m" $AUTOCONF >/dev/null ; then
-	eval "$1=y"
+    eval "CONFIG_$1=n"
+    if grep "^CONFIG_$1=y" $AUTOCONF >/dev/null ; then
+	eval "CONFIG_$1=y"
+    elif grep "^CONFIG_$1=m" $AUTOCONF >/dev/null ; then
+	eval "CONFIG_$1=y"
     fi
 }
 
@@ -464,6 +466,10 @@ printconfig () {
 	write_bool CONFIG_2GB
 	write_bool CONFIG_3GB
     fi
+    if [ $VERSION_CODE -ge `version 2 4 0` ] ; then
+	write_bool CONFIG_RWSEM_GENERIC_SPINLOCK
+	write_bool CONFIG_RWSEM_XCHGADD_ALGORITHM
+    fi
 }
 
 echo "" >> $CONFIG
@@ -495,46 +501,53 @@ case $CONF_SRC in
 		CONFIG_PCMCIA=y
 	    fi
 	else
-	    symcheck CONFIG_PCMCIA dead_socket pcmcia_core
+	    symcheck PCMCIA dead_socket pcmcia_core
 	fi
-	symcheck CONFIG_SMP smp_invalidate_needed
-	symcheck CONFIG_PCI pcibios
+	symcheck SMP smp_invalidate_needed
+	symcheck PCI pcibios
 	if [ $VERSION_CODE -lt `version 2 3 43` ] ; then
-	    symcheck CONFIG_PM apm_register_callback
+	    symcheck PM apm_register_callback
 	else
-	    symcheck CONFIG_PM pm_register
+	    symcheck PM pm_register
 	fi
-	symcheck CONFIG_SCSI scsi_register scsi_mod
-	symcheck CONFIG_IEEE1394 hpsb_register_lowlevel ieee1394
-	symcheck CONFIG_SERIAL register_serial serial
-	symcheck CONFIG_PARPORT parport_register parport
-	symcheck CONFIG_PARPORT_PC parport_pc_ops parport_pc
-	symcheck CONFIG_PARPORT_PC_PCMCIA parport_pc_probe_port parport_pc
-	symcheck CONFIG_INET register_netdev
-	symcheck CONFIG_NET_FASTROUTE dev_fastroute_stat
-	symcheck CONFIG_NET_DIVERT divert_ioctl
+	symcheck SCSI scsi_register scsi_mod
+	symcheck IEEE1394 hpsb_register_lowlevel ieee1394
+	symcheck SERIAL register_serial serial
+	symcheck PARPORT parport_register parport
+	symcheck PARPORT_PC parport_pc_ops parport_pc
+	symcheck PARPORT_PC_PCMCIA parport_pc_probe_port parport_pc
+	symcheck INET register_netdev
+	symcheck NET_FASTROUTE dev_fastroute_stat
+	symcheck NET_DIVERT divert_ioctl
 	if [ -r /proc/net/wireless ] ; then
 	    CONFIG_NET_PCMCIA_RADIO=y
 	else
 	    CONFIG_NET_PCMCIA_RADIO=n
 	fi
-	symcheck CONFIG_MODVERSIONS printk_R
+	symcheck MODVERSIONS printk_R
 	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
-	    symcheck CONFIG_BLK_DEV_IDE_PCMCIA ide_register
+	    symcheck BLK_DEV_IDE_PCMCIA ide_register
 	fi
-	symcheck CONFIG_TR tr_setup
+	symcheck TR tr_setup
 	if [ "$BIGMEM" ] ; then
-	    symcheck CONFIG_1GB ^c01
-	    symcheck CONFIG_2GB ^801
-	    symcheck CONFIG_3GB ^401
+	    symcheck 1GB ^c01
+	    symcheck 2GB ^801
+	    symcheck 3GB ^401
 	fi
-	symcheck CONFIG_PROC_FS proc_root
-	symcheck CONFIG_KDB kdb_
-	symcheck CONFIG_DEBUG_MCOUNT mcount
-	symcheck CONFIG_MEMLEAK kmalloc_wrap
+	symcheck PROC_FS proc_root
+	symcheck KDB kdb_
+	symcheck DEBUG_MCOUNT mcount
+	symcheck MEMLEAK kmalloc_wrap
 	if [ $CONFIG_KDB = "y" -o $CONFIG_DEBUG_MCOUNT = "y" -o \
 	     $CONFIG_MEMLEAK = "y" ] ; then
 	    CONFIG_KERNEL_DEBUGGING=y
+	fi
+	if [ $ARCH = "ppc" ] ; then
+	    symcheck _prep_type CONFIG_ALL_PPC
+	fi
+	if [ $VERSION_CODE -ge `version 2 4 0` ] ; then
+	    symcheck CONFIG_RWSEM_GENERIC_SPINLOCK __down_read
+	    symcheck CONFIG_RWSEM_XCHGADD_ALGORITHM rwsem_wake
 	fi
 	echo "#ifndef __LINUX_MODVERSIONS_H" > $MODVER
 	echo "#define __LINUX_MODVERSIONS_H" >> $MODVER
@@ -562,27 +575,28 @@ case $CONF_SRC in
 		CONFIG_PCMCIA=y
 	    fi
 	else
-	    configcheck CONFIG_PCMCIA
+	    configcheck PCMCIA
 	fi
 	if grep "^ *SMP *= *1" $LINUX/Makefile >/dev/null ; then
 	    CONFIG_SMP=y
 	else
-	    configcheck CONFIG_SMP
+	    configcheck SMP
 	fi
 	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
-	    configcheck CONFIG_BLK_DEV_IDE_PCMCIA
+	    configcheck BLK_DEV_IDE_PCMCIA
 	fi
 	if [ $VERSION_CODE -lt `version 2 3 43` ] ; then
-	    configcheck CONFIG_APM ; CONFIG_PM=$CONFIG_APM
+	    configcheck APM ; CONFIG_PM=$CONFIG_APM
 	else
-	    configcheck CONFIG_PM
+	    configcheck PM
 	fi
-	for C in CONFIG_PCI CONFIG_SCSI CONFIG_SERIAL CONFIG_INET \
-	    CONFIG_NET_FASTROUTE CONFIG_NET_RADIO CONFIG_NET_DIVERT \
-	    CONFIG_TR CONFIG_MODVERSIONS CONFIG_PROC_FS CONFIG_PARPORT \
-	    CONFIG_PARPORT_PC CONFIG_PARPORT_PC_PCMCIA CONFIG_IEEE1394 \
-	    CONFIG_NET_PCMCIA_RADIO CONFIG_KERNEL_DEBUGGING \
-	    CONFIG_MEMLEAK ; do
+	if [ $VERSION_CODE -ge `version 2 4 0` ] ; then
+	    configcheck RWSEM_GENERIC_SPINLOCK
+	    configcheck RWSEM_XCHGADD_ALGORITHM
+	fi
+	for C in PCI SCSI SERIAL INET NET_FASTROUTE NET_RADIO NET_DIVERT \
+	    TR MODVERSIONS PROC_FS PARPORT PARPORT_PC PARPORT_PC_PCMCIA \
+	    IEEE1394 NET_PCMCIA_RADIO KERNEL_DEBUGGING MEMLEAK ; do
 	    configcheck $C
 	done
 	if grep "^CONFIG_PARPORT_PC=y" $AUTOCONF >/dev/null ; then
@@ -592,30 +606,33 @@ case $CONF_SRC in
 	    CONFIG_NET_PCMCIA_RADIO=y
 	fi
 	if [ $ARCH = "arm" ] ; then
-	    configcheck CONFIG_ARCH_BRUTUS
-	    configcheck CONFIG_ITSY
+	    configcheck ARCH_BRUTUS
+	    configcheck ITSY
 	fi
 	if [ $ARCH = "ppc" ] ; then
-	    configcheck CONFIG_8xx
-	    configcheck CONFIG_4xx
-	    configcheck CONFIG_RPXLITE
-	    configcheck CONFIG_RPXCLASSIC
-	    configcheck CONFIG_MPC823
-	    configcheck CONFIG_MPC850
-	    configcheck CONFIG_MPC860
-	    configcheck CONFIG_MPC860T
+	    for C in 8xx 4xx RPXLITE RPXCLASSIC MPC823 MPC850 MPC860 \
+		MPC860T ALL_PPC ; do
+		configcheck $C
+	    done
 	fi
 	if [ "$BIGMEM" ] ; then
-	    configcheck CONFIG_1GB
-	    configcheck CONFIG_2GB
-	    configcheck CONFIG_3GB
+	    configcheck 1GB
+	    configcheck 2GB
+	    configcheck 3GB
 	fi
 	;;
 esac
 
+if [ "$FORCE" = "y" -a "$CONFIG_PCMCIA" = "y" ] ; then
+    CONFIG_PCMCIA=n
+fi
 if [ "$USE_PM" != "y" ] ; then CONFIG_PM=n ; fi
 if [ ! -r ${LINUX}/include/linux/wireless.h ] ; then
     CONFIG_NET_PCMCIA_RADIO=n
+fi
+if ! grep get_lynx_template $LINUX/drivers/ieee1394/pcilynx.c \
+     >/dev/null 2>&1 ; then
+    CONFIG_IEEE1394=n
 fi
 printconfig
 echo ""
@@ -743,6 +760,14 @@ if [ $VERSION_CODE -ge `version 2 3 6` ] ; then
 fi
 if [ $CONFIG_PARPORT_PC = "y" -a $VERSION_CODE -ge `version 2 2 0` ] ; then
     echo "DO_PARPORT=y" >> $CONFIG_MK
+fi
+
+if [ $CONFIG_NET_PCMCIA_RADIO = "y" ] ; then
+    VER=`gcc -E -dM ${LINUX}/include/linux/wireless.h | \
+	sed -ne 's/#define WIRELESS_EXT //p'`
+    if [ $VER -ge 10 ] ; then
+	echo "DO_ORINOCO=y" >> $CONFIG_MK
+    fi
 fi
 
 SCSI=$LINUX/drivers/scsi

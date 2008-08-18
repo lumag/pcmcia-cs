@@ -255,6 +255,8 @@ MODULE_PARM_DESC(adhoc, "If non-zero, the card will start in adhoc mode.");
 #define PROC_REGISTER(a,b) proc_register(a,b)
 #else 
 /* old kernel */
+#define capable(x) (suser())
+#define mdelay(x) udelay(1000*(x))
 #define SPIN_LOCK_UNLOCKED 0
 #define spinlock_t int
 #define spin_lock_irqsave(x, y) save_flags(y); cli()
@@ -271,7 +273,7 @@ MODULE_PARM_DESC(adhoc, "If non-zero, the card will start in adhoc mode.");
 #define PROC_UNREGISTER(root, entry) error
 #endif
 
-#define min(x,y) ((x<y)?x:y)
+#define _min(x,y) ((x<y)?x:y)
 
 #define isalnum(x) ((x>='a'&&x<='z')||(x>='A'&&x<='Z')||(x>='0'&&x<='9'))
 
@@ -1689,7 +1691,7 @@ static int PC4500_readrid(struct airo_info *ai, u16 rid, void *pBuf, int len)
 	// read the rid length field
 	bap_read(ai, pBuf, 2, BAP1);
 	// length for remaining part of rid
-	len = min(len, le16_to_cpu(*(u16*)pBuf)) - 2;
+	len = _min(len, le16_to_cpu(*(u16*)pBuf)) - 2;
 	
 	if ( len <= 2 ) {
 		printk( KERN_ERR 
@@ -4062,7 +4064,7 @@ static int readrids(struct net_device *dev, aironet_ioctl *comp) {
    * then return it to the user 
    * 9/22/2000 Honor user given length
    */
-	if (copy_to_user(comp->data, iobuf, min (comp->len, sizeof(iobuf))))
+	if (copy_to_user(comp->data, iobuf, _min(comp->len, sizeof(iobuf))))
 		return -EFAULT;
 	return 0;
 }
@@ -4121,7 +4123,7 @@ static int writerids(struct net_device *dev, aironet_ioctl *comp) {
 
 		PC4500_readrid((struct airo_info *)dev->priv,ridcode,iobuf,sizeof(iobuf));
 
-		if (copy_to_user(comp->data,iobuf,min(comp->len,sizeof(iobuf))))
+		if (copy_to_user(comp->data,iobuf,_min(comp->len,sizeof(iobuf))))
 			return -EFAULT;
 		return 0;
 

@@ -36,12 +36,22 @@ pci_fn(write, dword, u32)
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,24))
+#define pci_enable_device __pci_enable_device
 extern int pci_enable_device(struct pci_dev *dev);
 extern int pci_set_power_state(struct pci_dev *dev, int state);
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,40))
 #define pci_for_each_dev(p) for (p = pci_devices; p; p = p->next)
+#endif
+
+#ifndef pci_resource_start
+#define pci_resource_start(dev, i) \
+	(((dev)->base_address[i] & PCI_BASE_ADDRESS_SPACE) ? \
+	 ((dev)->base_address[i] & PCI_BASE_ADDRESS_IO_MASK) : \
+	 ((dev)->base_address[i] & PCI_BASE_ADDRESS_MEM_MASK))
+#define pci_resource_flags(dev, i) \
+	(dev->base_address[i] & IORESOURCE_IO)
 #endif
 
 extern u32 pci_irq_mask;

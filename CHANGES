@@ -1,3 +1,23 @@
+[29-Aug-01] Version 3.1.29
+-- Back-ported orinoco_cs driver from 2.4 kernel tree.
+-- Added tougher test for IEEE1394 driver compatibility, because
+   the latest ones can't be used to build *_cb modules.
+-- Housekeeping: changed 'GNU Public License' to 'GNU General Public
+   License', fixed old Donald Becker ref's to point to scyld.com.
+-- Changed config scripts to use grep instead of fgrep.
+-- Added --force option to Configure script, to force building of all
+   modules even if a 2.4 kernel was configured with PCMCIA support.
+-- Fixed Configure script to properly handle 2.4 rwsem settings.
+-- Fixed compilation problems with 2.4.9 kernel update.
+-- Fixed cardmgr to be more consistent about (not) handling hotplug
+   devices with 2.4 kernel PCMCIA support.
+-- Fixed some axnet_cs/pcnet_cs config file conflicts.
+-- Fixed axnet_cs to build with debugging enabled.
+-- Fixed header issues with ieee1394 drivers on 2.2 kernels.
+-- Fixed Configure script to figure out when to use CONFIG_ALL_PPC.
+-- Fixed axnet_cs bug introduced in 3.1.28; hopefully this is final.
+-- Fixed header compatibility issue with 2.2.20pre kernels.
+
 [08-Aug-01] Version 3.1.28
 -- Another axnet_cs tweak to handle cards with CIS inconsistencies.
 -- Changed all kernel code to use <linux/slab.h> instead of malloc.h.

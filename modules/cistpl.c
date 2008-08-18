@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.94 2001/08/06 01:29:26
+    cistpl.c 1.96 2001/08/24 13:58:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -19,8 +19,8 @@
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
-    terms of the GNU Public License version 2 (the "GPL"), in which
-    case the provisions of the GPL are applicable instead of the
+    terms of the GNU General Public License version 2 (the "GPL"), in
+    which case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
     only under the terms of the GPL and not to allow others to use
     your version of this file under the MPL, indicate your decision
@@ -35,7 +35,6 @@
 #define __NO_VERSION__
 #include <pcmcia/k_compat.h>
 
-#ifdef __LINUX__
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -50,7 +49,6 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#endif
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/bus_ops.h>

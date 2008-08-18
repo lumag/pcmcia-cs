@@ -38,7 +38,7 @@
 *
 * FILE	 : mdd.h
 *
-* DATE   : 2000/07/14 23:27:51   1.4
+* DATE   : 2001/08/17 14:26:26   1.5
 *
 * AUTHOR : Nico Valster
 *
@@ -65,6 +65,9 @@ needed to build the C-part, e.g. for the DOS ODI driver
 
 /****************************************************************************
 wvlan_mdd.h,v
+Revision 1.5  2001/08/17 14:26:26  root
+*** empty log message ***
+
 Revision 1.4  2000/07/14 23:27:51  root
 *** empty log message ***
 
@@ -136,11 +139,11 @@ Initial revision
 /******************************      M A C R O S     ********************************************************/
 
 /* min and max macros */
-#if !defined(max)
-#define max(a,b)  (((a) > (b)) ? (a) : (b))
+#if !defined(_max)
+#define _max(a,b)  (((a) > (b)) ? (a) : (b))
 #endif
-#if !defined(min)
-#define min(a,b)  (((a) < (b)) ? (a) : (b))
+#if !defined(_min)
+#define _min(a,b)  (((a) < (b)) ? (a) : (b))
 #endif
 
 

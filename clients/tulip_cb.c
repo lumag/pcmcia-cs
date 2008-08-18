@@ -3,22 +3,23 @@
 	Written/copyright 1994-1999 by Donald Becker.
 
 	This software may be used and distributed according to the terms
-	of the GNU Public License, incorporated herein by reference.
+	of the GNU General Public License, incorporated herein by reference.
 
 	This driver is for the Digital "Tulip" Ethernet adapter interface.
 	It should work with most DEC 21*4*-based chips/ethercards, as well as
 	with work-alike chips from Lite-On (PNIC) and Macronix (MXIC) and ASIX.
 
-	The author may be reached as becker@CESDIS.gsfc.nasa.gov, or C/O
-	Center of Excellence in Space Data and Information Sciences
-	   Code 930.5, Goddard Space Flight Center, Greenbelt MD 20771
+	The author may be reached as becker@scyld.com, or C/O
+	Scyld Computing Corporation
+	410 Severn Ave., Suite 210
+	Annapolis MD 21403
 
 	Support and updates available at
-	http://cesdis.gsfc.nasa.gov/linux/drivers/tulip.html
+	http://www.scyld.com/network/tulip.html
 */
 
 #define SMP_CHECK
-static const char version[] = "tulip.c:v0.91g-ppc 7/16/99 becker@cesdis.gsfc.nasa.gov (modified by danilo@cs.uni-magdeburg.de for XIRCOM CBE, fixed by Doug Ledford)\n";
+static const char version[] = "tulip.c:v0.91g-ppc 7/16/99 becker@scyld.com (modified by danilo@cs.uni-magdeburg.de for XIRCOM CBE, fixed by Doug Ledford)\n";
 
 /* A few user-configurable values. */
 
@@ -130,7 +131,7 @@ static int csr0 = 0x00A00000 | 0x4800;
 /* Kernel compatibility defines, some common to David Hinds' PCMCIA package.
    This is only in the support-all-kernels source code. */
 
-MODULE_AUTHOR("Donald Becker <becker@cesdis.gsfc.nasa.gov>");
+MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Digital 21*4* Tulip ethernet driver");
 MODULE_PARM(debug, "i");
 MODULE_PARM(max_interrupt_work, "i");
@@ -255,7 +256,7 @@ Znyx provided a four-port card for testing.
 
 IVb. References
 
-http://cesdis.gsfc.nasa.gov/linux/misc/NWay.html
+http://www.scyld.com/expert/Nway.html
 http://www.digital.com  (search for current 21*4* datasheets and "21X4 SROM")
 http://www.national.com/pf/DP/DP83840A.html
 http://www.asix.com.tw/pmac.htm

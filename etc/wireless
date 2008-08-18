@@ -12,7 +12,7 @@
 #
 
 # Load site-specific settings
-if [ -x ./wireless.opts ] ; then
+if [ -r ./wireless.opts ] ; then
     . ./wireless.opts
 else
     . /etc/pcmcia/wireless.opts

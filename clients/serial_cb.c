@@ -2,20 +2,22 @@
 
     A driver for CardBus serial devices
 
-    serial_cb.c 1.23 2001/08/06 01:28:23
+    serial_cb.c 1.25 2001/08/24 12:07:43
 
     Copyright 1998, 1999 by Donald Becker and David Hinds
     
     This software may be used and distributed according to the terms
-    of the GNU Public License, incorporated herein by reference.
-    All other rights reserved.
+    of the GNU General Public License, incorporated herein by
+    reference.  All other rights reserved.
     
     This driver is an activator for CardBus serial cards, as
     found on multifunction (e.g. Ethernet and Modem) CardBus cards.
     
-    Donald Becker may be reached as becker@CESDIS.edu, or C/O
-    USRA Center of Excellence in Space Data and Information Sciences
-    Code 930.5, NASA Goddard Space Flight Center, Greenbelt MD 20771
+    Donald Becker may be reached as becker@scyld.com, or C/O
+    Scyld Computing Corporation
+    410 Severn Ave., Suite 210
+    Annapolis MD 21403
+
     David Hinds may be reached at dahinds@users.sourceforge.net
     
 ======================================================================*/
@@ -43,7 +45,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cb.c 1.23 2001/08/06 01:28:23 (David Hinds)";
+"serial_cb.c 1.25 2001/08/24 12:07:43 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

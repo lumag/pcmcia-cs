@@ -4,29 +4,27 @@
 	Written 1996-1999 by Donald Becker.
 
 	This software may be used and distributed according to the terms
-	of the GNU Public License, incorporated herein by reference.
+	of the GNU General Public License, incorporated herein by reference.
 
 	This driver is for the Intel EtherExpress Pro100 (Speedo3) design.
 	It should work with all i82557/558/559 boards.
 
 	To use as a module, use the compile-command at the end of the file.
 
-	The author may be reached as becker@CESDIS.usra.edu, or C/O
-	Center of Excellence in Space Data and Information Sciences
-	   Code 930.5, NASA Goddard Space Flight Center, Greenbelt MD 20771
-	For updates see
-		http://cesdis.gsfc.nasa.gov/linux/drivers/eepro100.html
-	For installation instructions
-		http://cesdis.gsfc.nasa.gov/linux/misc/modules.html
-	There is a Majordomo mailing list based at
-		linux-eepro100@cesdis.gsfc.nasa.gov
+	The author may be reached as becker@scyld.com, or C/O
+	Scyld Computing Corporation
+	410 Severn Ave., Suite 210
+	Annapolis MD 21403
+
+	Information and updates available at
+	http://www.scyld.com/network/eepro100.html
 
     PCMCIA Cardbus support by Peter Naulls <Peter.Naulls@FutureTV.com> and
     Philip Blundell <Philip.Blundell@FutureTV.com>
 */
 
 static const char *version =
-"eepro100.c:v1.09t 9/29/99 Donald Becker http://cesdis.gsfc.nasa.gov/linux/drivers/eepro100.html\n";
+"eepro100.c:v1.09t 9/29/99 Donald Becker http://www.scyld.com/network/eepro100.html\n";
 
 /* A few user-configurable values that apply to all boards.
    First set is undocumented and spelled per Intel recommendations. */
@@ -100,7 +98,7 @@ static int debug = 1;			/* The debug level */
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 
-MODULE_AUTHOR("Donald Becker <becker@cesdis.gsfc.nasa.gov>");
+MODULE_AUTHOR("Donald Becker <becker@www.scyld.com>");
 MODULE_DESCRIPTION("Intel i82557/i82558 PCI EtherExpressPro driver");
 MODULE_PARM(debug, "i");
 MODULE_PARM(options, "1-" __MODULE_STRING(MAX_UNITS) "i");

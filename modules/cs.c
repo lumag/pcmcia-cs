@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.275 2001/08/06 01:29:27
+    cs.c 1.277 2001/08/24 13:58:52
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -19,8 +19,8 @@
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
-    terms of the GNU Public License version 2 (the "GPL"), in which
-    case the provisions of the GPL are applicable instead of the
+    terms of the GNU General Public License version 2 (the "GPL"), in
+    which case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
     only under the terms of the GPL and not to allow others to use
     your version of this file under the MPL, indicate your decision
@@ -34,7 +34,6 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
-#ifdef __LINUX__
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -51,9 +50,9 @@
 #include <linux/proc_fs.h>
 #include <linux/pm.h>
 #include <linux/pci.h>
+#include <linux/spinlock.h>
 #include <asm/system.h>
 #include <asm/irq.h>
-#endif
 
 #define IN_CARD_SERVICES
 #include <pcmcia/version.h>
@@ -71,7 +70,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.275 2001/08/06 01:29:27 (David Hinds)";
+"cs.c 1.277 2001/08/24 13:58:52 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -101,14 +100,9 @@ static const char *version =
 #define OPTIONS PCI_OPT CB_OPT PM_OPT PNP_OPT
 #endif
 
-#ifdef __BEOS__
-static const char *release = "BeOS PCMCIA Card Services " CS_RELEASE;
-#endif
-#ifdef __LINUX__
 static const char *release = "Linux PCMCIA Card Services " CS_RELEASE;
 #ifdef UTS_RELEASE
 static const char *kernel = "kernel build: " UTS_RELEASE " " UTS_VERSION;
-#endif
 #endif
 static const char *options = "options: " OPTIONS;
 
@@ -1541,13 +1535,7 @@ static int cs_release_irq(client_handle_t handle, irq_req_t *req)
     }
     
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
-#ifdef __LINUX__
 	bus_free_irq(s->cap.bus, req->AssignedIRQ, req->Instance);
-#endif
-#ifdef __BEOS__
-	remove_io_interrupt_handler(req->AssignedIRQ, req->Handler,
-				    req->Instance);
-#endif
     }
 
 #ifdef CONFIG_ISA
@@ -1845,18 +1833,12 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
     if (ret != 0) return ret;
 
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
-#ifdef __LINUX__
 	if (bus_request_irq(s->cap.bus, irq, req->Handler,
 			    ((req->Attributes & IRQ_TYPE_DYNAMIC_SHARING) || 
 			     (s->functions > 1) ||
 			     (irq == s->cap.pci_irq)) ? SA_SHIRQ : 0,
 			    handle->dev_info, req->Instance))
 	    return CS_IN_USE;
-#endif
-#ifdef __BEOS__
-	install_io_interrupt_handler(irq, req->Handler,
-				     req->Instance, 0);
-#endif
     }
 
     c->irq.Attributes = req->Attributes;
@@ -2281,8 +2263,6 @@ int CardServices(int func, void *a1, void *a2, void *a3)
     
 ======================================================================*/
 
-#ifdef __LINUX__
-
 #include <linux/pci.h>
 
 #if (LINUX_VERSION_CODE <= VERSION(2,1,17))
@@ -2419,78 +2399,3 @@ static void __exit exit_pcmcia_cs(void)
 
 module_init(init_pcmcia_cs);
 module_exit(exit_pcmcia_cs);
-
-#endif /* __LINUX__ */
-
-/*====================================================================*/
-
-#ifdef __BEOS__
-
-isa_module_info *isa = NULL;
-pci_module_info *pci = NULL;
-config_manager_for_bus_module_info *cm = NULL;
-module_info *i82365 = NULL;
-typedef struct module_info mod_t;
-
-static status_t std_ops(int32 op)
-{
-    switch (op) {
-    case B_MODULE_INIT:
-	printk(KERN_INFO "%s\n", release);
-	printk(KERN_INFO "  %s\n", options);
-	DEBUG(0, "%s\n", version);
-	init_timer();
-	if (get_module(B_ISA_MODULE_NAME, (mod_t **)&isa) != B_OK)
-	    return B_ERROR;
-	if (get_module(B_PCI_MODULE_NAME, (mod_t **)&pci) != B_OK)
-	    return B_ERROR;
-	if (get_module(B_CONFIG_MANAGER_FOR_BUS_MODULE_NAME,
-		       (mod_t **)&cm) != B_OK)
-	    return B_ERROR;
-	get_module(SS_MODULE_NAME("i82365"), &i82365);
-	break;
-    case B_MODULE_UNINIT:
-	printk(KERN_INFO "unloading PCMCIA Card Services\n");
-	if (i82365 != NULL) put_module(SS_MODULE_NAME("i82365"));
-	release_resource_db();
-	if (cm != NULL)
-	    put_module(B_CONFIG_MANAGER_FOR_BUS_MODULE_NAME);
-	if (pci != NULL) put_module(B_PCI_MODULE_NAME);
-	if (isa != NULL) put_module(B_ISA_MODULE_NAME);
-	stop_timer();
-	break;
-    }
-    return B_OK;
-}
-
-static status_t no_ops(int32 op)
-{
-    return B_OK;
-}
-
-static cs_client_module_info cs_client_info = {
-    { { CS_CLIENT_MODULE_NAME, B_KEEP_LOADED, &std_ops }, NULL },
-    (int (*)(int, ...))&CardServices,
-    (int (*)(int, ...))&MTDHelperEntry,
-    &add_timer,
-    &del_timer
-};
-
-static cs_socket_module_info cs_socket_info = {
-    { { CS_SOCKET_MODULE_NAME, B_KEEP_LOADED, &no_ops }, NULL },
-    &register_ss_entry,
-    &unregister_ss_entry,
-    &add_timer,
-    &del_timer,
-    &register_resource,
-    &release_resource,
-    &check_resource
-};
-
-_EXPORT module_info *modules[] = {
-    (module_info *)&cs_client_info,
-    (module_info *)&cs_socket_info,
-    NULL
-};
-
-#endif /* __BEOS__ */

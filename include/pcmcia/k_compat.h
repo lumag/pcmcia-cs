@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.133 2000/11/27 05:39:45
+ * k_compat.h 1.136 2001/08/24 13:59:23
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -16,8 +16,8 @@
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * Alternatively, the contents of this file may be used under the
- * terms of the GNU Public License version 2 (the "GPL"), in which
- * case the provisions of the GPL are applicable instead of the
+ * terms of the GNU General Public License version 2 (the "GPL"), in
+ * which case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
  * only under the terms of the GPL and not to allow others to use
  * your version of this file under the MPL, indicate your decision by
@@ -123,36 +123,6 @@ typedef struct wait_queue *wait_queue_head_t;
 #define POLL_WAIT(f, q, w)	poll_wait(f, q, w)
 #endif
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,90))
-#define spin_lock(l)		do { } while (0)
-#define spin_unlock(l)		do { } while (0)
-#define spin_lock_irqsave(l,f)	do { save_flags(f); cli(); } while (0)
-#define spin_unlock_irqrestore(l,f) do { restore_flags(f); } while (0)
-#define spin_lock_init(s)	do { } while (0)
-#define spin_trylock(l)		(1)
-typedef int spinlock_t;
-#else
-#if (LINUX_VERSION_CODE < VERSION(2,3,17))
-#include <asm/spinlock.h>
-#else
-#include <linux/spinlock.h>
-#endif
-#if defined(CONFIG_SMP) || (LINUX_VERSION_CODE > VERSION(2,3,6)) || \
-    (defined(__powerpc__) && (LINUX_VERSION_CODE > VERSION(2,2,11)))
-#define USE_SPIN_LOCKS
-#endif
-#endif
-
-#if (LINUX_VERSION_CODE < VERSION(2,2,12)) && \
-    !defined(CONFIG_SMP) && defined(__alpha__)
-#undef spin_trylock
-#define spin_trylock(l)		(1)
-#endif
-
-#ifndef spin_is_locked
-#define spin_is_locked(l)	(0)
-#endif
-
 #if (LINUX_VERSION_CODE < VERSION(2,1,104))
 #define mdelay(x) { int i; for (i=0;i<x;i++) udelay(1000); }
 #endif
@@ -189,19 +159,7 @@ typedef unsigned long k_time_t;
 
 /* Only for backwards compatibility */
 #include <asm/uaccess.h>
-
 #include <linux/ioport.h>
-#if defined(check_mem_region) && !defined(HAVE_MEMRESERVE)
-#define HAVE_MEMRESERVE
-#endif
-#ifndef HAVE_MEMRESERVE
-#define vacate_region		release_region
-#define vacate_mem_region	release_mem_region
-extern int check_mem_region(unsigned long base, unsigned long num);
-extern void request_mem_region(unsigned long base, unsigned long num,
-			       char *name);
-extern void release_mem_region(unsigned long base, unsigned long num);
-#endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,2,0))
 #define in_interrupt()		(intr_count)
@@ -209,8 +167,8 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 
 #if (LINUX_VERSION_CODE < VERSION(2,3,32))
 #define BLK_DEFAULT_QUEUE(n)	blk_dev[n].request_fn
-#define blk_init_queue(q, req)	q = (req)
-#define blk_cleanup_queue(q)	q = NULL
+#define blk_init_queue(q, req)	do { (q) = (req); } while (0)
+#define blk_cleanup_queue(q)	do { (q) = NULL; } while (0)
 #define request_arg_t		void
 #else
 #define request_arg_t		request_queue_t *q

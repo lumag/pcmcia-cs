@@ -2,7 +2,7 @@
 
     CardBus device enabler
 
-    cb_enabler.c 1.32 2001/08/06 01:29:26
+    cb_enabler.c 1.34 2001/08/24 13:58:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -19,8 +19,8 @@
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
-    terms of the GNU Public License version 2 (the "GPL"), in which
-    case the provisions of the GPL are applicable instead of the
+    terms of the GNU General Public License version 2 (the "GPL"), in
+    which case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
     only under the terms of the GPL and not to allow others to use
     your version of this file under the MPL, indicate your decision
@@ -42,7 +42,6 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
-#ifdef __LINUX__
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -50,7 +49,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#endif
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -63,7 +61,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.32 2001/08/06 01:29:26 (David Hinds)";
+"cb_enabler.c 1.34 2001/08/24 13:58:52 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -389,8 +387,6 @@ void unregister_driver(struct driver_operations *ops)
 
 /*====================================================================*/
 
-#ifdef __LINUX__
-
 #if (LINUX_VERSION_CODE <= VERSION(2,1,17))
 
 #undef CONFIG_MODVERSIONS
@@ -431,39 +427,3 @@ static void __exit exit_cb_enabler(void)
 
 module_init(init_cb_enabler);
 module_exit(exit_cb_enabler);
-
-#endif /* __LINUX__ */
-
-/*====================================================================*/
-
-#ifdef __BEOS__
-
-typedef struct module_info mod_t;
-
-static status_t std_ops(int32 op)
-{
-    switch (op) {
-    case B_MODULE_INIT:
-	DEBUG(0, ("%s\n", version));
-	ret = get_module(CS_SOCKET_MODULE_NAME, (struct module_info **)&cs);
-	if (ret != B_OK) return ret;
-	break;
-    case B_MODULE_UNINIT:
-	if (cs) put_module(CS_CLIENT_MODULE_NAME, cs);
-	break;
-    }
-    return B_OK;
-}
-
-static cb_enabler_module_info cb_enabler_info = {
-    { { CB_ENABLER_MODULE_NAME, 0, &std_ops }, NULL },
-    &register_driver,
-    &unregister_driver
-};
-
-_EXPORT module_info *modules[] = {
-    (module_info *)&cb_enabler_info,
-    NULL
-};
-
-#endif /* __BEOS__ */

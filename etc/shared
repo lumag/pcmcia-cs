@@ -1,5 +1,5 @@
 #
-# shared 1.27 2001/07/19 13:37:06 (David Hinds)
+# shared 1.28 2001/08/23 00:43:17 (David Hinds)
 #
 
 usage ()
@@ -80,11 +80,11 @@ rm_blkdev ()
     # usage: rm_blkdev [device]
     test -b $1 || return 1
     do_fuser -k -m $1 > /dev/null
-    if mount | fgrep -q "$1 on" ; then
+    if mount | grep -q "$1 on" ; then
 	log umount -v $1 || return 1
     fi
     if is_true $DO_FSTAB ; then
-	fgrep -v $1 /etc/fstab > /etc/fstab.N
+	grep -v $1 /etc/fstab > /etc/fstab.N
 	mv /etc/fstab.N /etc/fstab
     fi
     if [ -L "$LINK" ] ; then rm $LINK ; fi
@@ -102,7 +102,7 @@ rm_parts ()
 	    . $0.opts
 	fi
 	if is_true $DO_FSTAB ; then
-	    fgrep -v "$BLK$PART " /etc/fstab > /etc/fstab.N
+	    grep -v "$BLK$PART " /etc/fstab > /etc/fstab.N
 	    mv /etc/fstab.N /etc/fstab
 	fi
     done

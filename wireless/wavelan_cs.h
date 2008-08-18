@@ -419,6 +419,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
+#include <linux/spinlock.h>
 #include <linux/in.h>
 #include <linux/delay.h>
 #include <asm/uaccess.h>

@@ -35,7 +35,7 @@
 *
 * FILE   :	HCF.CPP *************** 2.0 ***********************************************************************
 *
-* DATE    :	2000/01/06 23:30:52   1.2
+* DATE    :	2001/08/17 14:26:32   1.3
 *
 * AUTHOR :	Nico Valster
 *
@@ -77,6 +77,9 @@
 
 /****************************************************************************
 wvlan_hcf.c,v
+Revision 1.3  2001/08/17 14:26:32  root
+*** empty log message ***
+
 Revision 1.2  2000/01/06 23:30:52  root
 *** empty log message ***
 
@@ -171,7 +174,7 @@ STATIC hcf_16		alloc( IFBP ifbp, int len );
 ******************************* D A T A    D E F I N I T I O N S **********************************************
 **************************************************************************************************************/
 
-STATIC hcf_8 BASED hcf_rev[] = "\nHCF1.2\n";
+STATIC hcf_8 BASED hcf_rev[] = "\nHCF1.3\n";
 
 /* Note that the "BASED" construction (supposedly) only amounts to something in the small memory model.
  * In that case CS and DS are equal, so we can ignore the consequences of casting the BASED cfg_drv_...
@@ -758,7 +761,7 @@ wci_recordp		p = ltvp->val;				//destination word pointer (in LTV record)
 			
 #if MSF_COMPONENT_ID != COMP_ID_AP1
 		  case CFG_TALLIES:																				/* 3 */
-			ltvp->len = len = min( len, (hcf_16)(HCF_TOT_TAL_CNT + HCF_TOT_TAL_CNT + 1) );
+			ltvp->len = len = _min( len, (hcf_16)(HCF_TOT_TAL_CNT + HCF_TOT_TAL_CNT + 1) );
 			q = (hcf_16*)/*(wci_recordp)*/&ifbp->IFB_NIC_Tallies; //.TxUnicastFrames;
 			while ( --len ) *p++ = *q++;
 			(void)hcf_action( ifbp, HCF_ACT_TALLIES );
@@ -778,7 +781,7 @@ wci_recordp		p = ltvp->val;				//destination word pointer (in LTV record)
 				  	} else {
 						(void)cmd_wait( ifbp, HCMD_ACCESS, type );											/* 7 */
 						(void)hcfio_string( ifbp, BAP_1, type, 0, (wci_bufp)&i, 1, sizeof(hcf_16), IO_IN );
-						ltvp->len = min( i, len );
+						ltvp->len = _min( i, len );
 						rc = hcfio_string( ifbp, BAP_1, type, sizeof(hcf_16), (wci_bufp)&ltvp->typ, 1, MUL_BY_2(ltvp->len), IO_IN );
 						if ( rc == HCF_SUCCESS && i > len ) rc = HCF_ERR_LEN;
 					}
@@ -1699,7 +1702,7 @@ hcf_32		prot_cnt;
 		OUT_PORT_WORD( ifbp->IFB_IOBase + HREG_EV_ACK, HREG_EV_TICK );
 		while ( (IN_PORT_WORD( ifbp->IFB_IOBase + HREG_EV_STAT ) & HREG_EV_TICK) == 0 &&
 				++prot_cnt <= INI_TICK_INI ) /*NOP*/;
-		ifbp->IFB_TickIni = max( ifbp->IFB_TickIni, prot_cnt);
+		ifbp->IFB_TickIni = _max( ifbp->IFB_TickIni, prot_cnt);
 	}
 	if ( ifbp->IFB_TickIni == INI_TICK_INI ) rc = HCF_ERR_TIME_OUT;
 	ifbp->IFB_TickIni *= 128;						//time out value of 8*128 = 1024 k microseconds

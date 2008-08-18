@@ -3,22 +3,23 @@
 	Written/copyright 1997-1999 by Donald Becker.
 
 	This software may be used and distributed according to the terms
-	of the GNU Public License, incorporated herein by reference.
+	of the GNU General Public License, incorporated herein by reference.
 	All other rights reserved.
 
 	This driver is for the SMC83c170/175 "EPIC" series, as used on the
 	SMC EtherPower II 9432 PCI adapter, and several CardBus cards.
 
-	The author may be reached as becker@CESDIS.gsfc.nasa.gov, or C/O
-	USRA Center of Excellence in Space Data and Information Sciences
-	   Code 930.5, Goddard Space Flight Center, Greenbelt MD 20771
+	The author may be reached as becker@scyld.com, or C/O
+	Scyld Computing Corporation
+	410 Severn Ave., Suite 210
+	Annapolis MD 21403
 
 	Information and updates available at
-	http://cesdis.gsfc.nasa.gov/linux/drivers/epic100.html
+	http://www.scyld.com/network/epic100.html
 */
 
 static const char *version =
-"epic100.c:v1.07h 8/18/99 Donald Becker http://cesdis.gsfc.nasa.gov/linux/drivers/epic100.html\n";
+"epic100.c:v1.07h 8/18/99 Donald Becker http://www.scyld.com/network/epic100.html\n";
 
 /* User-tunable values. */
 
@@ -91,7 +92,7 @@ static int max_interrupt_work = 32;
 #warning This driver version is only for kernel versions 2.0.0 and later.
 #endif
 
-MODULE_AUTHOR("Donald Becker <becker@cesdis.gsfc.nasa.gov>");
+MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("SMC 83c170 EPIC series Ethernet driver");
 MODULE_PARM(debug, "i");
 MODULE_PARM(options, "1-" __MODULE_STRING(8) "i");
@@ -147,7 +148,7 @@ IVb. References
 
 http://www.smsc.com/main/datasheets/83c171.pdf
 http://www.smsc.com/main/datasheets/83c175.pdf
-http://cesdis.gsfc.nasa.gov/linux/misc/NWay.html
+http://www.scyld.com/expert/NWay.html
 http://www.national.com/pf/DP/DP83840A.html
 
 IVc. Errata

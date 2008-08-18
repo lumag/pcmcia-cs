@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" pcnet_cs.4 1.16 2000/09/19 17:08:45
+.\" pcnet_cs.4 1.17 2001/08/17 12:51:58
 .\"
-.TH PCNET_CS 4 "2000/09/19 17:08:45" "pcmcia-cs"
+.TH PCNET_CS 4 "2001/08/17 12:51:58" "pcmcia-cs"
 
 .SH NAME
 pcnet_cs \- generic NS8390-based PCMCIA Ethernet Driver
@@ -87,6 +87,10 @@ argument should consist of exactly six byte-sized numbers, separated
 by commas, with no spaces.  Numbers may be in decimal or hex ('0xNN').
 
 .SH DIAGNOSTICS
+.TP
+.B pcnet_cs: this is an AX88190 card!
+Indicates that this card is based on the Asix AX88190 chipset, which
+requires the \fBaxnet_cs\fR driver.
 .TP
 .B eth#: interrupt(s) dropped!
 Indicates that the driver did not receive an interrupt notification

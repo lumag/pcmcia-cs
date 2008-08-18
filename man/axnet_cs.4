@@ -1,0 +1,53 @@
+.\" Copyright (C) 2001 David A. Hinds -- dahinds@users.sourceforge.net
+.\" axnet_cs.4 1.1 2001/08/17 12:51:58
+.\"
+.TH AXNET_CS 4 "2001/08/17 12:51:58" "pcmcia-cs"
+
+.SH NAME
+axnet_cs \- Asix AX88190 chipset PCMCIA Ethernet Driver
+
+.SH SYNOPSIS
+.B insmod axnet_cs.o
+.RB [ pc_debug=\c
+.IR n ]
+.RB [ irq_list=\c
+.IR i,j,... ]
+
+.SH DESCRIPTION
+\fBAxnet_cs\fR is a driver for PCMCIA ethernet cards based on the Asix
+AX88190 chipset.  These cards are mostly NE2000 compatible but have
+several bugs that are sufficiently tricky to work around that a
+separate driver was deemed necessary.  When this driver is bound to a
+card, it  allocates the next available ethernet device
+.RB ( eth0 .. eth# ).
+This
+device name will be reported in the kernel log file, and passed on to
+.BR cardmgr (8).
+
+.SH PARAMETERS
+.TP
+.BI pc_debug= n
+Selects the PCMCIA debugging level.  This parameter is only available
+if the module is compiled with debugging enabled.  A non-zero value
+enables debugging.
+.TP
+.BI irq_list= i,j,...
+Specifies the set of interrupts that may be allocated by this driver.
+
+.SH DIAGNOSTICS
+.TP
+.B axnet_cs: this is not an AX88190 card!
+Indicates that this card is probably a normal NE2000 compatible card,
+which requires the \fBpcnet_cs\fR driver.
+.TP
+.B eth#: interrupt(s) dropped!
+Indicates that the driver did not receive an interrupt notification
+for some reason.  The driver will poll the card (with a significant
+performance penalty) if the problem persists.  The most likely cause
+is an interrupt conflict and/or host bridge configuration problem.
+
+.SH AUTHOR
+David Hinds \- dahinds@users.sourceforge.net
+
+.SH "SEE ALSO"
+cardmgr(8), pcmcia(5).

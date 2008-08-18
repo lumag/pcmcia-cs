@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.83 2001/08/06 01:29:28
+    rsrc_mgr.c 1.85 2001/08/24 13:58:51
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -19,8 +19,8 @@
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
-    terms of the GNU Public License version 2 (the "GPL"), in which
-    case the provisions of the GPL are applicable instead of the
+    terms of the GNU General Public License version 2 (the "GPL"), in
+    which case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
     only under the terms of the GPL and not to allow others to use
     your version of this file under the MPL, indicate your decision
@@ -35,7 +35,6 @@
 #define __NO_VERSION__
 #include <pcmcia/k_compat.h>
 
-#ifdef __LINUX__
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -46,9 +45,9 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>
+#include <linux/spinlock.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#endif
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
@@ -106,8 +105,6 @@ static irq_info_t irq_table[NR_IRQS] = { { 0, 0, 0 }, /* etc */ };
     Linux resource management extensions
     
 ======================================================================*/
-
-#ifdef __LINUX__
 
 #ifndef CONFIG_PNP_BIOS
 #define check_io_region(b,n) (0)
@@ -270,73 +267,6 @@ int proc_read_mem(char *buf, char **start, off_t pos,
 #endif
 
 #endif /* defined(CONFIG_PNP_BIOS) || !defined(HAVE_MEMRESERVE) */
-#endif /* __LINUX__ */
-
-#ifdef __BEOS__
-
-/*======================================================================
-
-    BeOS resource management functions
-    
-======================================================================*/
-
-#include "config_manager.h"
-#include "config_manager_p.h"
-
-typedef struct possible_device_configurations pdc_t;
-typedef struct device_configuration dc_t;
-typedef resource_descriptor rd_t;
-
-int register_resource(int type, u_long base, u_long num)
-{
-    pdc_t *p = malloc(sizeof(pdc_t)+sizeof(dc_t)+sizeof(rd_t));
-    dc_t *c = &p->possible[0];
-    rd_t *r = &c->resources[0];
-    dc_t *got;
-    int ret;
-    p->num_possible = 1;
-    c->flags = 0; c->num_resources = 1;
-    r->type = type;
-    if (type == B_IRQ_RESOURCE) {
-	r->d.m.mask = 1<<base;
-	r->d.m.flags = r->d.m.cookie = 0;
-    } else {
-	r->d.r.minbase = r->d.r.maxbase = base; r->d.r.len = num;
-	r->d.r.basealign = 1; r->d.r.flags = r->d.r.cookie = 0;
-    }
-    ret = cm->assign_configuration(p, &got);
-    if (ret == 0) free(got);
-    free(p);
-    return ret;
-}
-
-int release_resource(int type, u_long base, u_long num)
-{
-    dc_t *c = malloc(sizeof(dc_t)+sizeof(rd_t));
-    rd_t *r = &c->resources[0];
-    int ret;
-    c->flags = 0; c->num_resources = 1;
-    r->type = type;
-    if (type == B_IRQ_RESOURCE) {
-	r->d.m.mask = 1<<base;
-	r->d.m.flags = r->d.m.cookie = 0;
-    } else {
-	r->d.r.minbase = r->d.r.maxbase = base; r->d.r.len = num;
-	r->d.r.basealign = 1; r->d.r.flags = r->d.r.cookie = 0;
-    }
-    ret = cm->unassign_configuration(c);
-    free(c);
-    return ret;
-}
-
-int check_resource(int type, u_long base, u_long num)
-{
-    int ret = register_resource(type, base, num);
-    if (ret == B_OK) release_resource(type, base, num);
-    return ret;
-}
-
-#endif /* __BEOS__ */
 
 /*======================================================================
 
@@ -701,7 +631,6 @@ int find_mem_region(u_long *base, u_long num, u_long align,
 
 #ifdef CONFIG_ISA
 
-#ifdef __LINUX__
 static void fake_irq IRQ(int i, void *d, struct pt_regs *r) { }
 static inline int check_irq(int irq)
 {
@@ -710,7 +639,6 @@ static inline int check_irq(int irq)
     free_irq(irq, NULL);
     return 0;
 }
-#endif
 
 int try_irq(u_int Attributes, int irq, int specific)
 {

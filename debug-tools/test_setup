@@ -44,8 +44,8 @@ if ($conf) {
 }
 
 print "\nChecking current syslog files in /var/log:\n";
-foreach $f (split(/\s+/, `/bin/ls -t /var/log/*`)) {
-    next if ((!-f $f) || ($f =~ /\.\d+$/));
+foreach $f (split(/\s+/, `/bin/ls -lt \`find /var/log -type f\``)) {
+    next if ($f =~ /\.\d+$/);
     next if (system("head $f | grep -q syslogd") != 0);
     $kernel = $f if (system("grep -q 'Card Services' $f") == 0);
     $daemon = $f if (system("grep -q cardmgr $f") == 0);

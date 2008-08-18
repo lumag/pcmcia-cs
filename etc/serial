@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.39 2001/02/28 00:30:49 (David Hinds)
+# serial 1.40 2001/08/23 03:40:04 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -78,7 +78,7 @@ case "$ACTION" in
     
 'stop')
     if [ -n "$INITTAB" ] ; then
-	fgrep -v $DEVICE /etc/inittab > /etc/inittab.new
+	grep -v $DEVICE /etc/inittab > /etc/inittab.new
 	mv /etc/inittab.new /etc/inittab
 	telinit q
     fi

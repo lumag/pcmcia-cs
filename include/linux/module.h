@@ -13,4 +13,8 @@
 #define GET_USE_COUNT(m)	mod_use_count_
 #endif
 
+#ifndef SET_MODULE_OWNER
+#define SET_MODULE_OWNER(m)	do { } while (0)
+#endif
+
 #endif /* _COMPAT_MODULE_H */

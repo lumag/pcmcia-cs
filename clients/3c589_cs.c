@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    3c589_cs.c 1.160 2001/08/06 01:28:19
+    3c589_cs.c 1.161 2001/08/24 11:39:37
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -13,7 +13,7 @@
     Director, National Security Agency.  This software may be used and
     distributed according to the terms of the GNU General Public License,
     incorporated herein by reference.
-    Donald Becker may be reached at becker@cesdis1.gsfc.nasa.gov
+    Donald Becker may be reached at becker@scyld.com
 
 ======================================================================*/
 
@@ -120,7 +120,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.160 2001/08/06 01:28:19 (David Hinds)";
+"3c589_cs.c 1.161 2001/08/24 11:39:37 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
