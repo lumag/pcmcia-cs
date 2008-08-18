@@ -5,7 +5,7 @@
     This driver supports the Adaptec AHA-1460, the New Media Bus
     Toaster, and the New Media Toast & Jam.
     
-    aha152x_cs.c 1.45 1999/07/30 03:49:13
+    aha152x_cs.c 1.48 1999/09/08 06:24:24
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -19,7 +19,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
     
 ======================================================================*/
 
@@ -56,7 +67,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"aha152x_cs.c 1.45 1999/07/30 03:49:13 (David Hinds)";
+"aha152x_cs.c 1.48 1999/09/08 06:24:24 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -392,7 +403,7 @@ static int aha152x_event(event_t event, int priority,
     case CS_EVENT_CARD_REMOVAL:
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
-	    link->release.expires = RUN_AT(HZ/20);
+	    link->release.expires = jiffies + HZ/20;
 	    add_timer(&link->release);
 	}
 	break;
@@ -433,13 +444,13 @@ int init_module(void) {
 	       "does not match!\n");
 	return -1;
     }
-    register_pcmcia_driver(&dev_info, &aha152x_attach, &aha152x_detach);
+    register_pccard_driver(&dev_info, &aha152x_attach, &aha152x_detach);
     return 0;
 }
 
 void cleanup_module(void) {
     DEBUG(0, "aha152x_cs: unloading\n");
-    unregister_pcmcia_driver(&dev_info);
+    unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	aha152x_detach(dev_list);
 }

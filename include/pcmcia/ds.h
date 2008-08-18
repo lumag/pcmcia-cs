@@ -1,5 +1,5 @@
 /*
- * ds.h 1.52 1999/07/20 16:07:57
+ * ds.h 1.54 1999/09/03 16:44:49
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -13,7 +13,18 @@
  *
  * The initial developer of the original code is David A. Hinds
  * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
- * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+ * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+ *
+ * Alternatively, the contents of this file may be used under the
+ * terms of the GNU Public License version 2 (the "GPL"), in which
+ * case the provisions of the GPL are applicable instead of the
+ * above.  If you wish to allow the use of your version of this file
+ * only under the terms of the GPL and not to allow others to use
+ * your version of this file under the MPL, indicate your decision by
+ * deleting the provisions above and replace them with the notice and
+ * other provisions required by the GPL.  If you do not delete the
+ * provisions above, a recipient may use your version of this file
+ * under either the MPL or the GPL.
  */
 
 #ifndef _LINUX_DS_H
@@ -28,6 +39,12 @@ typedef struct tuple_parse_t {
     cisparse_t		parse;
 } tuple_parse_t;
 
+typedef struct win_info_t {
+    window_handle_t	handle;
+    win_req_t		window;
+    memreq_t		map;
+} win_info_t;
+    
 typedef struct bind_info_t {
     dev_info_t		dev_info;
     u_char		function;
@@ -56,6 +73,7 @@ typedef union ds_ioctl_arg_t {
     region_info_t	region;
     bind_info_t		bind_info;
     mtd_info_t		mtd_info;
+    win_info_t		win_info;
     cisdump_t		cisdump;
 } ds_ioctl_arg_t;
 
@@ -77,6 +95,9 @@ typedef union ds_ioctl_arg_t {
 #define DS_GET_FIRST_REGION		_IOWR('d', 16, region_info_t)
 #define DS_GET_NEXT_REGION		_IOWR('d', 17, region_info_t)
 #define DS_REPLACE_CIS			_IOWR('d', 18, cisdump_t)
+#define DS_GET_FIRST_WINDOW		_IOR ('d', 19, win_info_t)
+#define DS_GET_NEXT_WINDOW		_IOWR('d', 20, win_info_t)
+#define DS_GET_MEM_PAGE			_IOWR('d', 21, win_info_t)
 
 #define DS_BIND_REQUEST			_IOWR('d', 60, bind_info_t)
 #define DS_GET_DEVICE_INFO		_IOWR('d', 61, bind_info_t) 

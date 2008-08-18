@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.44 1999/07/20 16:02:21
+    cardctl.c 1.48 1999/09/06 06:54:39
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -16,7 +16,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
 
 ======================================================================*/
 
@@ -121,29 +132,29 @@ static void print_status(cs_status_t *status)
 	else if (status->CardState & CS_EVENT_XVCARD)
 	    v = "X.X";
 	if (status->CardState & CS_EVENT_CB_DETECT)
-	    printf("%sV cardbus card present", v);
+	    printf("%sV CardBus card", v);
 	else if (status->CardState & CS_EVENT_CARD_DETECT)
-	    printf("%sV 16-bit card present", v);
+	    printf("%sV 16-bit PC Card", v);
 	else
 	    printf("no card");
 	if (status->CardState & CS_EVENT_PM_SUSPEND)
-	    printf(", suspended");
+	    printf(" [suspended]");
 	printf("\n");
     }
     if ((status->CardState & CS_EVENT_PM_SUSPEND) ||
 	!(status->CardState & CS_EVENT_CARD_DETECT))
 	return;
-    printf("  Function %d: ", status->Function);
+    printf("  function %d: ", status->Function);
     printf("%s", (status->CardState & CS_EVENT_READY_CHANGE)
-	   ? "ready" : "busy");
+	   ? "[ready]" : "[busy]");
     if (status->CardState & CS_EVENT_WRITE_PROTECT)
-	printf(", write protect");
+	printf(", [wp]");
     if (status->CardState & CS_EVENT_BATTERY_DEAD)
-	printf(", battery dead");
+	printf(", [bat dead]");
     if (status->CardState & CS_EVENT_BATTERY_LOW)
-	printf(", battery low");
+	printf(", [bat low]");
     if (status->CardState & CS_EVENT_REQUEST_ATTENTION)
-	printf(", request attention");
+	printf(", [req attn]");
     printf("\n");
 } /* print_status */
 
@@ -152,35 +163,36 @@ static void print_status(cs_status_t *status)
 static void print_config(config_info_t *config)
 {
     if (config->Function == 0) {
-	printf("  Vcc = %.1f, Vpp1 = %.1f, Vpp2 = %.1f\n",
+	printf("  Vcc %.1fV  Vpp1 %.1fV  Vpp2 %.1fV\n",
 	       config->Vcc/10.0, config->Vpp1/10.0, config->Vpp2/10.0);
 	if (!(config->Attributes & CONF_VALID_CLIENT))
 	    return;
-	printf("  Interface type is ");
+	printf("  interface type is ");
 	switch (config->IntType) {
 	case INT_MEMORY:
-	    printf("memory-only\n"); break;
+	    printf("\"memory-only\"\n"); break;
 	case INT_MEMORY_AND_IO:
-	    printf("memory and I/O\n"); break;
+	    printf("\"memory and I/O\"\n"); break;
 	case INT_CARDBUS:
-	    printf("cardbus\n"); break;
+	    printf("\"cardbus\"\n"); break;
 	}
 	if (config->AssignedIRQ != 0) {
-	    printf("  IRQ %d is ", config->AssignedIRQ);
+	    printf("  irq %d", config->AssignedIRQ);
 	    switch (config->IRQAttributes & IRQ_TYPE) {
 	    case IRQ_TYPE_EXCLUSIVE:
-		printf("exclusive"); break;
+		printf(" [exclusive]"); break;
 	    case IRQ_TYPE_TIME:
-		printf("time-multiplexed"); break;
+		printf(" [multiplexed]"); break;
 	    case IRQ_TYPE_DYNAMIC_SHARING:
-		printf("dynamic shared"); break;
+		printf(" [shared]"); break;
 	    }
 	    if (config->IRQAttributes & IRQ_PULSE_ALLOCATED)
-		printf(", pulse mode");
+		printf(" [pulse]");
 	    else
-		printf(", level mode");
-	    printf(", %s\n", (config->Attributes & CONF_ENABLE_IRQ) ?
-		   "enabled" : "disabled");
+		printf(" [level]");
+	    if (!(config->Attributes & CONF_ENABLE_IRQ))
+		printf(" [disabled]");
+	    printf("\n");
 	}
 	if (config->Attributes & CONF_ENABLE_DMA)
 	    printf("  DMA mode is enabled\n");
@@ -192,62 +204,94 @@ static void print_config(config_info_t *config)
     if (!(config->Attributes & CONF_VALID_CLIENT))
 	return;
     
-    printf("  Function %d:\n", config->Function);
+    printf("  function %d:\n", config->Function);
 
     if (config->CardValues) {
-	printf("    Config register base = %#06x\n",
-	       config->ConfigBase);
+	printf("    config base %#06x\n", config->ConfigBase);
 	printf("    ");
 	if (config->CardValues & CV_OPTION_VALUE)
-	    printf("  Option = %#04x", config->Option);
+	    printf("  option 0x%02x", config->Option);
 	if (config->CardValues & CV_STATUS_VALUE)
-	    printf(", status = %#04x", config->Status);
+	    printf(" status 0x%02x", config->Status);
 	if (config->CardValues & CV_PIN_REPLACEMENT)
-	    printf(", pin = %#04x", config->Pin);
+	    printf(" pin 0x%02x", config->Pin);
 	if (config->CardValues & CV_COPY_VALUE)
-	    printf(", copy = %#04x", config->Copy);
+	    printf(" copy 0x%02x", config->Copy);
 	if (config->CardValues & CV_EXT_STATUS)
-	    printf(", ext = %#04x", config->ExtStatus);
+	    printf(" ext 0x%02x", config->ExtStatus);
 	printf("\n");
     }
 
     if (config->NumPorts1 > 0) {
-	printf("    I/O window 1: %#06x to %#06x", config->BasePort1,
+	printf("    io %#06x-%#06x", config->BasePort1,
 	       config->BasePort1 + config->NumPorts1 - 1);
 	if (config->IntType == INT_CARDBUS) {
-	    printf(", 32 bit\n");
+	    printf(" [32bit]\n");
 	} else {
 	    if (config->Attributes1 & IO_SHARED)
-		printf(", shared");
+		printf(" [shared]");
 	    if (config->Attributes1 & IO_FORCE_ALIAS_ACCESS)
-		printf(", force alias");
+		printf(" [alias]");
 	    switch (config->Attributes1 & IO_DATA_PATH_WIDTH) {
 	    case IO_DATA_PATH_WIDTH_8:
-		printf(", 8 bit\n"); break;
+		printf(" [8bit]\n"); break;
 	    case IO_DATA_PATH_WIDTH_16:
-		printf(", 16 bit\n"); break;
+		printf(" [16bit]\n"); break;
 	    case IO_DATA_PATH_WIDTH_AUTO:
-		printf(", auto sized\n"); break;
+		printf(" [auto]\n"); break;
 	    }
 	}
     }
     if (config->NumPorts2 > 0) {
-	printf("    I/O window 2: %#06x to %#06x", config->BasePort2,
+	printf("    io %#06x-%#06x", config->BasePort2,
 	       config->BasePort2 + config->NumPorts2 - 1);
 	if (config->Attributes2 & IO_SHARED)
-	    printf(", shared");
+	    printf(" [shared]");
 	if (config->Attributes2 & IO_FORCE_ALIAS_ACCESS)
-	    printf(", force alias");
+	    printf(" [alias]");
 	switch (config->Attributes2 & IO_DATA_PATH_WIDTH) {
 	case IO_DATA_PATH_WIDTH_8:
-	    printf(", 8 bit\n"); break;
+	    printf(" [8bit]\n"); break;
 	case IO_DATA_PATH_WIDTH_16:
-	    printf(", 16 bit\n"); break;
+	    printf(" [16bit]\n"); break;
 	case IO_DATA_PATH_WIDTH_AUTO:
-	    printf(", auto sized\n"); break;
+	    printf(" [auto]\n"); break;
 	}
     }
 } /* print_config */
+
+/*====================================================================*/
+
+static void print_windows(int fd)
+{
+    ds_ioctl_arg_t arg;
+    int ret;
+    win_req_t *win = &arg.win_info.window;
+    memreq_t *req = &arg.win_info.map;
+    
+    ret = ioctl(fd, DS_GET_FIRST_WINDOW, &arg);
+    while (ret == 0) {
+	ioctl(fd, DS_GET_MEM_PAGE, &arg);
+	printf("  memory 0x%04x-0x%04x @ 0x%08lx",
+	       req->CardOffset, req->CardOffset+win->Size-1,
+	       win->Base);
+	if (win->Attributes & WIN_MEMORY_TYPE_AM)
+	    printf(" [attr]");
+	if (!(win->Attributes & WIN_ENABLE))
+	    printf(" [disabled]");
+	if (win->Attributes & WIN_USE_WAIT)
+	    printf(" [wait]");
+	switch (win->Attributes & WIN_DATA_WIDTH) {
+	case WIN_DATA_WIDTH_8:
+	    printf(" [8bit]\n"); break;
+	case WIN_DATA_WIDTH_16:
+	    printf(" [16bit]\n"); break;
+	case WIN_DATA_WIDTH_32:
+	    printf(" [32bit]\n"); break;
+	}
+	ret = ioctl(fd, DS_GET_NEXT_WINDOW, &arg);
+    }
+}
 
 /*====================================================================*/
 
@@ -336,12 +380,13 @@ static int do_cmd(int fd, int cmd)
     case C_CONFIG:
 	for (i = 0; i < 4; i++) {
 	    config.Function = i;
-	    if (ioctl(fd, DS_GET_CONFIGURATION_INFO, &config) == 0)
+	    if (ioctl(fd, DS_GET_CONFIGURATION_INFO, &config) == 0) 
 		print_config(&config);
 	    else {
 		if (i == 0) printf("  not configured\n");
 		break;
 	    }
+	    print_windows(fd);
 	}
 	break;
 
@@ -557,10 +602,9 @@ void usage(char *name)
 int main(int argc, char *argv[])
 {
     int cmd, fd[MAX_SOCKS], ns, ret, i;
-    int optch, errflg;
-    char *opts = (getuid() == 0) ? "Vc:f:s:" : "V";
+    int optch, errflg = 0;
+    char *s, *opts = (getuid() == 0) ? "Vc:f:s:" : "V";
 
-    errflg = 0;
     while ((optch = getopt(argc, argv, opts)) != -1) {
 	switch (optch) {
 	case 'V':
@@ -614,7 +658,9 @@ int main(int argc, char *argv[])
 
     ret = 0;
     if (argc == optind+2) {
-	ns = atoi(argv[optind+1]);
+	ns = strtol(argv[optind+1], &s, 0);
+	if ((*argv[optind+1] == '\0') || (*s != '\0'))
+	    usage(argv[0]);
 	fd[0] = open_sock(ns);
 	if (fd[0] < 0) {
 	    perror("open_sock()");

@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.15, 23 June 1999
+  v2.16, 10 September 1999
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -54,8 +54,9 @@
      3.5 Memory window control
         3.5.1 RequestWindow
         3.5.2 ModifyWindow
-        3.5.3 MapMemPage
-        3.5.4 ReleaseWindow
+        3.5.3 ReleaseWindow
+        3.5.4 GetFirstWindow, GetNextWindow
+        3.5.5 MapMemPage, GetMemPage
      3.6 Bulk Memory Services
         3.6.1 RegisterMTD
         3.6.2 GetFirstRegion, GetNextRegion
@@ -1326,7 +1327,7 @@
 
   33..55..22..  MMooddiiffyyWWiinnddooww
 
-       int CardServices(ModifyWindow, window_handle_t, modwin_t *);
+       int CardServices(ModifyWindow, window_handle_t handle, modwin_t *mod);
 
   The modwin_t structure is given by:
 
@@ -1357,9 +1358,42 @@
      CS_BAD_HANDLE
         The window handle is invalid.
 
-  33..55..33..  MMaappMMeemmPPaaggee
+  33..55..33..  RReelleeaasseeWWiinnddooww
 
-       int CardServices(MapMemPage, window_handle_t, memreq_t *);
+       int CardServices(ReleaseWindow, window_handle_t handle);
+
+  ReleaseWindow releases a memory window previously allocated with
+  RequestWindow.
+
+  Return codes:
+
+     CS_BAD_HANDLE
+        The window handle is invalid.
+
+  33..55..44..  GGeettFFiirrssttWWiinnddooww,, GGeettNNeexxttWWiinnddooww
+
+       int CardServices(GetFirstWindow, client_handle_t *client, win_req_t *req);
+       int CardServices(GetNextWindow, window_handle_t *handle, win_req_t *req);
+
+  These calls sequentially retrieve window configuration information for
+  all of a socket's memory windows.  GetFirstWindow replaces the client
+  window handle with a memory window handle, which will in turn be
+  updated by calls to GetNextWindow.
+
+  These services were added in release 3.1.0.
+
+  Return codes:
+
+     CS_BAD_HANDLE
+        The client handle is invalid.
+
+     CS_NO_MORE_ITEMS
+        No more windows ara configured for this socket.
+
+  33..55..55..  MMaappMMeemmPPaaggee,, GGeettMMeemmPPaaggee
+
+       int CardServices(MapMemPage, window_handle_t handle, memreq_t *req);
+       int CardServices(GetMemPage, window_handle_t handle, memreq_t *req);
 
   The memreq_t structure is given by:
 
@@ -1371,7 +1405,10 @@
   MapMemPage sets the address of card memory that is mapped to the base
   of a memory window to CardOffset.  The window should have been created
   by a call to RequestWindow.  The Page parameter is not implemented in
-  this version and should be set to 0.
+  this version and should be set to 0.  In turn GetMemPage retrieves the
+  current card address mapping for a memory window.
+
+  The GetMemPage service was added in release 3.1.0.
 
   Return codes:
 
@@ -1385,18 +1422,6 @@
         The requested CardOffset was out of range or did not have proper
         alignment.
 
-  33..55..44..  RReelleeaasseeWWiinnddooww
-
-       int CardServices(ReleaseWindow, window_handle_t handle);
-
-  ReleaseWindow releases a memory window previously allocated with
-  RequestWindow.
-
-  Return codes:
-
-     CS_BAD_HANDLE
-        The window handle is invalid.
-
   33..66..  BBuullkk MMeemmoorryy SSeerrvviicceess
 
   Bulk memory services provide a higher level interface for accessing
@@ -1408,7 +1433,7 @@
 
   33..66..11..  RReeggiisstteerrMMTTDD
 
-  int CardServices(RegisterMTD, client_handle_t handle, mtd_reg_t *reg);
+       int CardServices(RegisterMTD, client_handle_t handle, mtd_reg_t *reg);
 
   The mtd_reg_t data structure is given by:
 
@@ -1437,7 +1462,6 @@
 
      CS_BAD_HANDLE
         The client handle is invalid.
-
      CS_BAD_OFFSET
         Either the offset does not match a valid memory region for this
         card, or another MTD has already registered for this region.
@@ -1449,16 +1473,16 @@
 
   The region_info_t data structure is given by:
 
-  typedef union region_info_t {
-          u_int           Attributes;
-          u_int           CardOffset;
-          u_int           RegionSize;
-          u_int           AccessSpeed;
-          u_int           BlockSize;
-          u_int           PartMultiple;
-          u_char          JedecMfr, JedecInfo;
-          memory_handle_t next;
-  } region_info_t;
+       typedef union region_info_t {
+               u_int           Attributes;
+               u_int           CardOffset;
+               u_int           RegionSize;
+               u_int           AccessSpeed;
+               u_int           BlockSize;
+               u_int           PartMultiple;
+               u_char          JedecMfr, JedecInfo;
+               memory_handle_t next;
+       } region_info_t;
 
   GetFirstRegion and GetNextRegion summarize the information in a card's
   CISTPL_DEVICE, CISTPL_JEDEC, and CISTPL_DEVICE_GEO tuples.  CardOffset
@@ -1488,7 +1512,7 @@
 
   33..66..33..  OOppeennMMeemmoorryy
 
-       int CardServices(OpenMemory, client_handle_t *handle, open_mem_t *req);
+  int CardServices(OpenMemory, client_handle_t *handle, open_mem_t *req);
 
   The open_mem_t structure is given by:
 
@@ -1536,8 +1560,8 @@
 
   33..66..55..  RReeaaddMMeemmoorryy,, WWrriitteeMMeemmoorryy
 
-       int CardServices(ReadMemory, memory_handle_t handle mem_op_t *req, caddr_t buf);
-       int CardServices(WriteMemory, memory_handle_t handle, mem_op_t *req, caddr_t buf);
+  int CardServices(ReadMemory, memory_handle_t handle mem_op_t *req, caddr_t buf);
+  int CardServices(WriteMemory, memory_handle_t handle, mem_op_t *req, caddr_t buf);
 
   The mem_io_t structure is given by:
 
@@ -1588,10 +1612,10 @@
 
   The eraseq_hdr_t structure is given by:
 
-       typedef struct erase_queue_header_t {
-               int             QueueEntryCount;
-               eraseq_entry_t  *QueueEntryArray;
-       } eraseq_hdr_t;
+  typedef struct erase_queue_header_t {
+          int             QueueEntryCount;
+          eraseq_entry_t  *QueueEntryArray;
+  } eraseq_hdr_t;
 
   This call registers a queue of erase requests with Card Services.  An
   eraseq_handle_t handle will be returned in *handle.  When this client
@@ -1600,13 +1624,13 @@
 
   The eraseq_entry_t structure is given by:
 
-  typedef struct eraseq_entry_t {
-          memory_handle_t Handle;
-          u_char          State;
-          u_int           Size;
-          u_int           Offset;
-          void            *Optional;
-  } eraseq_entry_t;
+       typedef struct eraseq_entry_t {
+               memory_handle_t Handle;
+               u_char          State;
+               u_int           Size;
+               u_int           Offset;
+               void            *Optional;
+       } eraseq_entry_t;
 
   In an erase queue entry, the Header field should be a memory handle
   returned by a previous call to OpenMemory.  The State field indicates
@@ -1658,7 +1682,7 @@
 
   33..66..77..  DDeerreeggiisstteerrEErraasseeQQuueeuuee
 
-  int CardServices(DeregisterEraseQueue, eraseq_handle_t handle);
+       int CardServices(DeregisterEraseQueue, eraseq_handle_t handle);
 
   DeregisterEraseQueue frees a queue previously registered by a call to
   RegisterEraseQueue.  If there are any pending requests in the
@@ -1699,13 +1723,13 @@
 
   The servinfo_t structure is given by:
 
-  typedef struct servinfo_t {
-          char            Signature[2];
-          u_int           Count;
-          u_int           Revision;
-          u_int           CSLevel;
-          char            *VendorString;
-  } servinfo_t;
+       typedef struct servinfo_t {
+               char            Signature[2];
+               u_int           Count;
+               u_int           Revision;
+               u_int           CSLevel;
+               char            *VendorString;
+       } servinfo_t;
 
   GetCardServicesInfo returns revision information about this version of
   Card Services.  Signature is set to ``CS''.  Count is set to the

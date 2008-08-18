@@ -10,10 +10,12 @@ case "$ADDRESS" in
 *,*,*,*)
     # Transceiver selection, for some cards -- see 'man ifport'
     IF_PORT=""
-    # Use BOOTP? [y/n]
+    # Use BOOTP (via /sbin/bootpc)? [y/n]
     BOOTP="n"
-    # Use DHCP? [y/n]
+    # Use DHCP (via /sbin/dhcpcd)? [y/n]
     DHCP="n"
+    # Use /sbin/pump for BOOTP/DHCP? [y/n]
+    PUMP="n"
     # Host's IP address, netmask, network address, broadcast address
     IPADDR=""
     NETMASK="255.255.255.0"

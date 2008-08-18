@@ -9,9 +9,9 @@
     Conrad ethernet card, and the Kingston KNE-PCM/x in shared-memory
     mode.  It will also handle the Socket EA card in either mode.
 
-    Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
+    Copyright (C) 1999 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.94 1999/07/29 06:04:49
+    pcnet_cs.c 1.98 1999/09/08 06:24:25
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.94 1999/07/29 06:04:49 (David Hinds)";
+"pcnet_cs.c 1.98 1999/09/08 06:24:25 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -124,12 +124,14 @@ static void pcnet_release(u_long arg);
 static int pcnet_event(event_t event, int priority,
 		       event_callback_args_t *args);
 
-static int pcnet_open(struct device *dev);
-static int pcnet_close(struct device *dev);
+static int pcnet_open(struct net_device *dev);
+static int pcnet_close(struct net_device *dev);
+static void ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs);
+static void ei_watchdog(u_long arg);
 
-static void pcnet_reset_8390(struct device *dev);
+static void pcnet_reset_8390(struct net_device *dev);
 
-static int set_config(struct device *dev, struct ifmap *map);
+static int set_config(struct net_device *dev, struct ifmap *map);
 
 static int setup_shmem_window(dev_link_t *link, int start_pg,
 			      int stop_pg, int cm_offset);
@@ -223,10 +225,13 @@ static hw_info_t dl_fast_info =
 { /* D-Link EtherFast */ 0x00, 0x00, 0x00, 0x00, IS_DL10019A };
 
 typedef struct pcnet_dev_t {
-    struct device	dev;
+    struct net_device	dev;
     dev_node_t		node;
     u_long		flags;
     caddr_t		base;
+    struct timer_list	watchdog;
+    int			stale;
+    u_short		fast_poll;
 } pcnet_dev_t;
 
 /*======================================================================
@@ -262,7 +267,7 @@ static void cs_error(client_handle_t handle, int func, int ret)
 
 ======================================================================*/
 
-static int pcnet_init(struct device *dev)
+static int pcnet_init(struct net_device *dev)
 {
     return 0;
 }
@@ -280,7 +285,7 @@ static dev_link_t *pcnet_attach(void)
     client_reg_t client_reg;
     dev_link_t *link;
     pcnet_dev_t *info;
-    struct device *dev;
+    struct net_device *dev;
     int i, ret;
 
     DEBUG(0, "pcnet_attach()\n");
@@ -380,7 +385,7 @@ static void pcnet_detach(dev_link_t *link)
     /* Unlink device structure, free bits */
     *linkp = link->next;
     if (link->priv) {
-	struct device *dev = link->priv;
+	struct net_device *dev = link->priv;
 	if (link->dev != NULL)
 	    unregister_netdev(dev);
 	if (dev->priv)
@@ -399,7 +404,7 @@ static void pcnet_detach(dev_link_t *link)
 
 static hw_info_t *get_dl_fast(dev_link_t *link)
 {
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
     int i;
     u_char sum;
 
@@ -421,7 +426,7 @@ static hw_info_t *get_dl_fast(dev_link_t *link)
 
 static hw_info_t *get_hwinfo(dev_link_t *link)
 {
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
     win_req_t req;
     memreq_t mem;
     u_char *base, *virt;
@@ -471,7 +476,7 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
 
 static hw_info_t *get_prom(dev_link_t *link)
 {
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
     unsigned char prom[32];
     int i, j, ioaddr;
 
@@ -528,7 +533,7 @@ static hw_info_t *get_prom(dev_link_t *link)
 
 static hw_info_t *get_hwired(dev_link_t *link)
 {
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
     int i;
 
     for (i = 0; i < 6; i++)
@@ -591,7 +596,7 @@ static void pcnet_config(dev_link_t *link)
     tuple_t tuple;
     cisparse_t parse;
     pcnet_dev_t *info;
-    struct device *dev;
+    struct net_device *dev;
     int i, last_ret, last_fn, start_pg, stop_pg, cm_offset;
     int manfid = 0, prodid = 0, has_shmem = 0;
     u_short buf[64];
@@ -806,7 +811,7 @@ static int pcnet_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    info->dev.tbusy = 1; info->dev.start = 0;
-	    link->release.expires = RUN_AT(HZ/20);
+	    link->release.expires = jiffies + HZ/20;
 	    link->state |= DEV_RELEASE_PENDING;
 	    add_timer(&link->release);
 	}
@@ -845,7 +850,7 @@ static int pcnet_event(event_t event, int priority,
 
 /*====================================================================*/
 
-static void set_misc_reg(struct device *dev)
+static void set_misc_reg(struct net_device *dev)
 {
     int nic_base = dev->base_addr;
     pcnet_dev_t *info = (pcnet_dev_t *)dev;
@@ -865,7 +870,7 @@ static void set_misc_reg(struct device *dev)
 
 /*====================================================================*/
 
-static int pcnet_open(struct device *dev)
+static int pcnet_open(struct net_device *dev)
 {
     pcnet_dev_t *info = (pcnet_dev_t *)dev;
     dev_link_t *link;
@@ -891,13 +896,19 @@ static int pcnet_open(struct device *dev)
     }
     
     set_misc_reg(dev);
-    request_irq(dev->irq, ei_interrupt, SA_SHIRQ, dev_info, dev);
+    request_irq(dev->irq, ei_irq_wrapper, SA_SHIRQ, dev_info, dev);
+
+    info->watchdog.function = &ei_watchdog;
+    info->watchdog.data = (u_long)info;
+    info->watchdog.expires = jiffies + HZ;
+    add_timer(&info->watchdog);
+
     return ei_open(dev);
 } /* pcnet_open */
 
 /*====================================================================*/
 
-static int pcnet_close(struct device *dev)
+static int pcnet_close(struct net_device *dev)
 {
     dev_link_t *link;
 
@@ -910,8 +921,9 @@ static int pcnet_close(struct device *dev)
     free_irq(dev->irq, dev);
     
     link->open--; dev->start = 0;
+    del_timer(&((pcnet_dev_t *)dev)->watchdog);
     if (link->state & DEV_STALE_CONFIG) {
-	link->release.expires = RUN_AT(HZ/20);
+	link->release.expires = jiffies + HZ/20;
 	link->state |= DEV_RELEASE_PENDING;
 	add_timer(&link->release);
     }
@@ -928,7 +940,7 @@ static int pcnet_close(struct device *dev)
 
 ======================================================================*/
 
-static void pcnet_reset_8390(struct device *dev)
+static void pcnet_reset_8390(struct net_device *dev)
 {
     int nic_base = dev->base_addr;
     int i;
@@ -953,7 +965,7 @@ static void pcnet_reset_8390(struct device *dev)
 
 /* ======================================================================= */
 
-static int set_config(struct device *dev, struct ifmap *map)
+static int set_config(struct net_device *dev, struct ifmap *map)
 {
     pcnet_dev_t *info = (pcnet_dev_t *)dev;
     if ((map->port != (u_char)(-1)) && (map->port != dev->if_port)) {
@@ -974,7 +986,45 @@ static int set_config(struct device *dev, struct ifmap *map)
 
 /* ======================================================================= */
 
-static void dma_get_8390_hdr(struct device *dev,
+static void ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs)
+{
+    pcnet_dev_t *info = dev_id;
+    info->stale = 0;
+    ei_interrupt(irq, dev_id, regs);
+}
+
+static void ei_watchdog(u_long arg)
+{
+    pcnet_dev_t *info = (pcnet_dev_t *)(arg);
+    struct net_device *dev = &info->dev;
+    int nic_base = dev->base_addr;
+
+    if (dev->start == 0) goto reschedule;
+
+    /* Check for pending interrupt with expired latency timer: with
+       this, we can limp along even if the interrupt is blocked */
+    outb_p(E8390_NODMA+E8390_PAGE0, nic_base + E8390_CMD);
+    if (info->stale++ && inb_p(nic_base + EN0_ISR)) {
+	if (!info->fast_poll)
+	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+	ei_irq_wrapper(dev->irq, dev, NULL);
+	info->fast_poll = HZ;
+    }
+    if (info->fast_poll) {
+	info->fast_poll--;
+	info->watchdog.expires = jiffies + 1;
+	add_timer(&info->watchdog);
+	return;
+    }
+
+reschedule:
+    info->watchdog.expires = jiffies + HZ;
+    add_timer(&info->watchdog);
+}
+
+/* ======================================================================= */
+
+static void dma_get_8390_hdr(struct net_device *dev,
 			     struct e8390_pkt_hdr *hdr,
 			     int ring_page)
 {
@@ -1007,7 +1057,7 @@ static void dma_get_8390_hdr(struct device *dev,
 
 /* ======================================================================= */
 
-static void dma_block_input(struct device *dev, int count,
+static void dma_block_input(struct net_device *dev, int count,
 			    struct sk_buff *skb, int ring_offset)
 {
     int nic_base = dev->base_addr;
@@ -1063,7 +1113,7 @@ static void dma_block_input(struct device *dev, int count,
 
 /*====================================================================*/
 
-static void dma_block_output(struct device *dev, int count,
+static void dma_block_output(struct net_device *dev, int count,
 			     const unsigned char *buf,
 			     const int start_page)
 {
@@ -1154,7 +1204,7 @@ static void dma_block_output(struct device *dev, int count,
 static int setup_dma_config(dev_link_t *link, int start_pg,
 			    int stop_pg)
 {
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
 
     ei_status.tx_start_page = start_pg;
     ei_status.rx_start_page = start_pg + TX_PAGES;
@@ -1208,7 +1258,7 @@ static void copyout(unsigned char *dest, const unsigned char *src, int c)
 
 /*====================================================================*/
 
-static void shmem_get_8390_hdr(struct device *dev,
+static void shmem_get_8390_hdr(struct net_device *dev,
 			       struct e8390_pkt_hdr *hdr,
 			       int ring_page)
 {
@@ -1222,7 +1272,7 @@ static void shmem_get_8390_hdr(struct device *dev,
 
 /*====================================================================*/
 
-static void shmem_block_input(struct device *dev, int count,
+static void shmem_block_input(struct net_device *dev, int count,
 			      struct sk_buff *skb, int ring_offset)
 {
     void *xfer_start = (void *)(dev->rmem_start + ring_offset
@@ -1243,7 +1293,7 @@ static void shmem_block_input(struct device *dev, int count,
 
 /*====================================================================*/
 
-static void shmem_block_output(struct device *dev, int count,
+static void shmem_block_output(struct net_device *dev, int count,
 			       const unsigned char *buf,
 			       const int start_page)
 {
@@ -1261,7 +1311,7 @@ static void shmem_block_output(struct device *dev, int count,
 static int setup_shmem_window(dev_link_t *link, int start_pg,
 			      int stop_pg, int cm_offset)
 {
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
     pcnet_dev_t *info = link->priv;
     win_req_t req;
     memreq_t mem;
@@ -1338,14 +1388,14 @@ int init_module(void)
 	       "does not match!\n");
 	return -1;
     }
-    register_pcmcia_driver(&dev_info, &pcnet_attach, &pcnet_detach);
+    register_pccard_driver(&dev_info, &pcnet_attach, &pcnet_detach);
     return 0;
 }
 
 void cleanup_module(void)
 {
     DEBUG(0, "pcnet_cs: unloading\n");
-    unregister_pcmcia_driver(&dev_info);
+    unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	pcnet_detach(dev_list);
 }

@@ -124,6 +124,9 @@ char kernel_version[] = UTS_RELEASE;
 #if ! defined(CAP_NET_ADMIN)
 #define capable(CAP_XXX) (suser())
 #endif
+#if LINUX_VERSION_CODE < 0x2030e
+#define net_device device
+#endif
 
 #if defined(MODULE) && LINUX_VERSION_CODE > 0x20115
 MODULE_AUTHOR("Donald Becker <becker@cesdis.gsfc.nasa.gov>");
@@ -240,14 +243,14 @@ struct pci_id_info {
 	const char *name;
 	u16	vendor_id, device_id, device_id_mask, flags;
 	int drv_flags, io_size;
-	struct device *(*probe1)(int pci_bus, int pci_devfn, struct device *dev,
+	struct net_device *(*probe1)(int pci_bus, int pci_devfn, struct net_device *dev,
 							 long ioaddr, int irq, int chip_idx, int fnd_cnt);
 };
 
 enum { IS_VORTEX=1, IS_BOOMERANG=2, IS_CYCLONE=4,
 	   HAS_PWR_CTRL=0x10, HAS_MII=0x20, HAS_NWAY=0x40, HAS_CB_FNS=0x80, };
-static struct device *vortex_probe1(int pci_bus, int pci_devfn,
-									struct device *dev, long ioaddr,
+static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
+									struct net_device *dev, long ioaddr,
 									int irq, int dev_id, int card_idx);
 static struct pci_id_info pci_tbl[] = {
 	{"3c590 Vortex 10Mbps",			0x10B7, 0x5900, 0xffff,
@@ -447,7 +450,7 @@ struct vortex_private {
 	/* The addresses of transmit- and receive-in-place skbuffs. */
 	struct sk_buff* rx_skbuff[RX_RING_SIZE];
 	struct sk_buff* tx_skbuff[TX_RING_SIZE];
-	struct device *next_module;
+	struct net_device *next_module;
 	void *priv_addr;
 	unsigned int cur_rx, cur_tx;		/* The next free ring entry */
 	unsigned int dirty_rx, dirty_tx;	/* The ring entries to be free()ed. */
@@ -508,27 +511,27 @@ static struct media_table {
 };
 
 #ifndef CARDBUS
-static int vortex_scan(struct device *dev, struct pci_id_info pci_tbl[]);
+static int vortex_scan(struct net_device *dev, struct pci_id_info pci_tbl[]);
 #endif
-static void vortex_up(struct device *dev);
-static void vortex_down(struct device *dev);
-static int vortex_open(struct device *dev);
+static void vortex_up(struct net_device *dev);
+static void vortex_down(struct net_device *dev);
+static int vortex_open(struct net_device *dev);
 static void mdio_sync(long ioaddr, int bits);
 static int mdio_read(long ioaddr, int phy_id, int location);
 static void mdio_write(long ioaddr, int phy_id, int location, int value);
 static void vortex_timer(unsigned long arg);
-static int vortex_start_xmit(struct sk_buff *skb, struct device *dev);
-static int boomerang_start_xmit(struct sk_buff *skb, struct device *dev);
-static int vortex_rx(struct device *dev);
-static int boomerang_rx(struct device *dev);
+static int vortex_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static int boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static int vortex_rx(struct net_device *dev);
+static int boomerang_rx(struct net_device *dev);
 static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-static int vortex_close(struct device *dev);
-static void update_stats(long ioaddr, struct device *dev);
-static struct net_device_stats *vortex_get_stats(struct device *dev);
-static void set_rx_mode(struct device *dev);
-static int vortex_ioctl(struct device *dev, struct ifreq *rq, int cmd);
+static int vortex_close(struct net_device *dev);
+static void update_stats(long ioaddr, struct net_device *dev);
+static struct net_device_stats *vortex_get_stats(struct net_device *dev);
+static void set_rx_mode(struct net_device *dev);
+static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void acpi_wake(int pci_bus, int pci_devfn);
-static void acpi_set_WOL(struct device *dev);
+static void acpi_set_WOL(struct net_device *dev);
 
 
 /* This driver uses 'options' to pass the media type, full-duplex flag, etc. */
@@ -537,7 +540,7 @@ static void acpi_set_WOL(struct device *dev);
 static int options[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1,};
 static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 /* A list of all installed Vortex devices, for removing the driver module. */
-static struct device *root_vortex_dev = NULL;
+static struct net_device *root_vortex_dev = NULL;
 
 #ifdef MODULE
 #ifndef CARDBUS
@@ -554,7 +557,7 @@ static dev_node_t *vortex_attach(dev_locator_t *loc)
 	u16 dev_id, vendor_id;
 	u32 io;
 	u8 bus, devfn, irq;
-	struct device *dev;
+	struct net_device *dev;
 	int chip_idx;
 
 	if (loc->bus != LOC_PCI) return NULL;
@@ -596,14 +599,14 @@ static dev_node_t *vortex_attach(dev_locator_t *loc)
 
 static void vortex_detach(dev_node_t *node)
 {
-	struct device **devp, **next;
+	struct net_device **devp, **next;
 	printk(KERN_INFO "vortex_detach(%s)\n", node->dev_name);
 	for (devp = &root_vortex_dev; *devp; devp = next) {
 		next = &((struct vortex_private *)(*devp)->priv)->next_module;
 		if (strcmp((*devp)->name, node->dev_name) == 0) break;
 	}
 	if (*devp) {
-		struct device *dev = *devp;
+		struct net_device *dev = *devp;
 		struct vortex_private *vp = dev->priv;
 		if (dev->flags & IFF_UP)
 			vortex_close(dev);
@@ -620,7 +623,7 @@ static void vortex_detach(dev_node_t *node)
 
 static void vortex_suspend(dev_node_t *node)
 {
-	struct device *dev, *next;
+	struct net_device *dev, *next;
 	printk(KERN_INFO "vortex_suspend(%s)\n", node->dev_name);
 	for (dev = root_vortex_dev; dev; dev = next) {
 		next = ((struct vortex_private *)dev->priv)->next_module;
@@ -634,7 +637,7 @@ static void vortex_suspend(dev_node_t *node)
 
 static void vortex_resume(dev_node_t *node)
 {
-	struct device *dev, *next;
+	struct net_device *dev, *next;
 	printk(KERN_INFO "vortex_resume(%s)\n", node->dev_name);
 	for (dev = root_vortex_dev; dev; dev = next) {
 		next = ((struct vortex_private *)dev->priv)->next_module;
@@ -666,7 +669,7 @@ int init_module(void)
 }
 
 #else
-int tc59x_probe(struct device *dev)
+int tc59x_probe(struct net_device *dev)
 {
 	static int did_version = -1;
 	if (++did_version <= 0)
@@ -676,7 +679,7 @@ int tc59x_probe(struct device *dev)
 #endif  /* not MODULE */
 
 #ifndef CARDBUS
-static int vortex_scan(struct device *dev, struct pci_id_info pci_tbl[])
+static int vortex_scan(struct net_device *dev, struct pci_id_info pci_tbl[])
 {
 	int cards_found = 0;
 
@@ -715,7 +718,11 @@ static int vortex_scan(struct device *dev, struct pci_id_info pci_tbl[])
 			acpi_wake(pci_bus, pci_device_fn);
 
 			{
-#if LINUX_VERSION_CODE >= 0x20155
+#if LINUX_VERSION_CODE >= 0x2030d
+				struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
+				ioaddr = pdev->resource[0].start;
+				irq = pdev->irq;
+#elsif LINUX_VERSION_CODE >= 0x20155
 				struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
 				ioaddr = pdev->base_address[0] & ~3;
 				irq = pdev->irq;
@@ -738,9 +745,6 @@ static int vortex_scan(struct device *dev, struct pci_id_info pci_tbl[])
 					   "device to work!\n");
 				continue;
 			}
-
-			if (check_region(ioaddr, pci_tbl[chip_idx].io_size))
-				continue;
 
 			/* Activate the card. */
 			pcibios_read_config_word(pci_bus, pci_device_fn,
@@ -815,8 +819,8 @@ static int vortex_scan(struct device *dev, struct pci_id_info pci_tbl[])
 }
 #endif  /* ! Cardbus */
 
-static struct device *vortex_probe1(int pci_bus, int pci_devfn,
-									struct device *dev, long ioaddr,
+static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
+									struct net_device *dev, long ioaddr,
 									int irq, int chip_idx, int card_idx)
 {
 	struct vortex_private *vp;
@@ -1020,7 +1024,7 @@ static struct device *vortex_probe1(int pci_bus, int pci_devfn,
 	return dev;
 }
 
-static void wait_for_completion(struct device *dev, int cmd)
+static void wait_for_completion(struct net_device *dev, int cmd)
 {
 	int i = 2000;
 	outw(cmd, dev->base_addr + EL3_CMD);
@@ -1034,7 +1038,7 @@ static void wait_for_completion(struct device *dev, int cmd)
 
 
 static void
-vortex_up(struct device *dev)
+vortex_up(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
@@ -1205,7 +1209,7 @@ vortex_up(struct device *dev)
 }
 
 static int
-vortex_open(struct device *dev)
+vortex_open(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
@@ -1252,7 +1256,7 @@ vortex_open(struct device *dev)
 
 static void vortex_timer(unsigned long data)
 {
-	struct device *dev = (struct device *)data;
+	struct net_device *dev = (struct net_device *)data;
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int next_tick = 60*HZ;
@@ -1352,7 +1356,7 @@ static void vortex_timer(unsigned long data)
 	return;
 }
 
-static void vortex_tx_timeout(struct device *dev)
+static void vortex_tx_timeout(struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -1421,7 +1425,7 @@ static void vortex_tx_timeout(struct device *dev)
  * the cache impact.
  */
 static void
-vortex_error(struct device *dev, int status)
+vortex_error(struct net_device *dev, int status)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -1500,7 +1504,7 @@ vortex_error(struct device *dev, int status)
 
 
 static int
-vortex_start_xmit(struct sk_buff *skb, struct device *dev)
+vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -1557,7 +1561,7 @@ vortex_start_xmit(struct sk_buff *skb, struct device *dev)
 }
 
 static int
-boomerang_start_xmit(struct sk_buff *skb, struct device *dev)
+boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -1619,7 +1623,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct device *dev)
    after the Tx thread. */
 static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	struct device *dev = dev_id;
+	struct net_device *dev = dev_id;
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr;
 	int latency, status;
@@ -1746,7 +1750,7 @@ handler_exit:
 	return;
 }
 
-static int vortex_rx(struct device *dev)
+static int vortex_rx(struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -1818,7 +1822,7 @@ static int vortex_rx(struct device *dev)
 }
 
 static int
-boomerang_rx(struct device *dev)
+boomerang_rx(struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	int entry = vp->cur_rx % RX_RING_SIZE;
@@ -1913,7 +1917,7 @@ boomerang_rx(struct device *dev)
 }
 
 static void
-vortex_down(struct device *dev)
+vortex_down(struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -1947,7 +1951,7 @@ vortex_down(struct device *dev)
 }
 
 static int
-vortex_close(struct device *dev)
+vortex_close(struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -1989,7 +1993,7 @@ vortex_close(struct device *dev)
 	return 0;
 }
 
-static struct net_device_stats *vortex_get_stats(struct device *dev)
+static struct net_device_stats *vortex_get_stats(struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	unsigned long flags;
@@ -2010,7 +2014,7 @@ static struct net_device_stats *vortex_get_stats(struct device *dev)
 	table.  This is done by checking that the ASM (!) code generated uses
 	atomic updates with '+='.
 	*/
-static void update_stats(long ioaddr, struct device *dev)
+static void update_stats(long ioaddr, struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	int old_window = inw(ioaddr + EL3_CMD);
@@ -2049,7 +2053,7 @@ static void update_stats(long ioaddr, struct device *dev)
 	return;
 }
 
-static int vortex_ioctl(struct device *dev, struct ifreq *rq, int cmd)
+static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -2077,7 +2081,7 @@ static int vortex_ioctl(struct device *dev, struct ifreq *rq, int cmd)
 /* Pre-Cyclone chips have no documented multicast filter, so the only
    multicast setting is to receive all multicast frames.  At least
    the chip has a very clean way to set the mode, unlike many others. */
-static void set_rx_mode(struct device *dev)
+static void set_rx_mode(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
 	int new_mode;
@@ -2190,7 +2194,7 @@ static void mdio_write(long ioaddr, int phy_id, int location, int value)
 
 /* ACPI: Advanced Configuration and Power Interface. */
 /* Set Wake-On-LAN mode and put the board into D3 (power-down) state. */
-static void acpi_set_WOL(struct device *dev)
+static void acpi_set_WOL(struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -2237,7 +2241,7 @@ static void acpi_wake(int bus, int devfn)
 #ifdef MODULE
 void cleanup_module(void)
 {
-	struct device *next_dev;
+	struct net_device *next_dev;
 
 #ifdef CARDBUS
 	unregister_driver(&vortex_ops);

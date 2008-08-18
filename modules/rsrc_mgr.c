@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.67 1999/07/30 03:48:44
+    rsrc_mgr.c 1.70 1999/09/07 15:19:32
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -16,7 +16,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
     
 ======================================================================*/
 
@@ -95,12 +106,11 @@ static spinlock_t rsrc_lock = SPIN_LOCK_UNLOCKED;
 
 /*======================================================================
 
-    Linux resource management extensions for keeping track of memory
-    mapped devices.
+    Linux resource management extensions
     
 ======================================================================*/
 
-#if defined(__LINUX__) && !defined(HAVE_MEMRESERVE)
+#ifdef __LINUX__
 
 typedef struct resource_entry_t {
     u_long			base, num;
@@ -108,8 +118,11 @@ typedef struct resource_entry_t {
     struct resource_entry_t	*next;
 } resource_entry_t;
 
-/* An ordered linked list of allocated memory blocks */
+/* Ordered linked lists of allocated IO and memory blocks */
+static resource_entry_t io_list = { 0, 0, NULL, NULL };
+#ifndef HAVE_MEMRESERVE
 static resource_entry_t mem_list = { 0, 0, NULL, NULL };
+#endif
 
 static resource_entry_t *find_gap(resource_entry_t *root,
 				  resource_entry_t *entry)
@@ -145,7 +158,7 @@ static int register_my_resource(resource_entry_t *list,
     p = find_gap(list, entry);
     if (p == NULL) {
 	spin_unlock_irqrestore(&rsrc_lock, flags);
-	kfree_s(entry, sizeof(resource_entry_t));
+	kfree(entry);
 	return -EBUSY;
     }
     entry->next = p->next;
@@ -166,7 +179,7 @@ static void release_my_resource(resource_entry_t *list,
 	if (q == NULL) break;
 	if ((q->base == base) && (q->num == num)) {
 	    p->next = q->next;
-	    kfree_s(q, sizeof(resource_entry_t));
+	    kfree(q);
 	    spin_unlock_irqrestore(&rsrc_lock, flags);
 	    return;
 	}
@@ -184,6 +197,36 @@ static int check_my_resource(resource_entry_t *list,
     return 0;
 }
 
+int check_io_region(u_long base, u_long num)
+{
+    return check_my_resource(&io_list, base, num);
+}
+void request_io_region(u_long base, u_long num, char *name)
+{
+    register_my_resource(&io_list, base, num, name);
+}
+void release_io_region(u_long base, u_long num)
+{
+    release_my_resource(&io_list, base, num);
+}
+#ifdef HAS_PROC_BUS
+int proc_read_io(char *buf, char **start, off_t pos,
+		 int count, int *eof, void *data)
+{
+    resource_entry_t *r;
+    u_long flags;
+    char *p = buf;
+    
+    spin_lock_irqsave(&rsrc_lock, flags);
+    for (r = io_list.next; r; r = r->next)
+	p += sprintf(p, "%04lx-%04lx : %s\n", r->base,
+		     r->base+r->num-1, r->name);
+    spin_unlock_irqrestore(&rsrc_lock, flags);
+    return (p - buf);
+}
+#endif
+
+#ifndef HAVE_MEMRESERVE
 int check_mem_region(u_long base, u_long num)
 {
     return check_my_resource(&mem_list, base, num);
@@ -196,12 +239,29 @@ void release_mem_region(u_long base, u_long num)
 {
     release_my_resource(&mem_list, base, num);
 }
+#ifdef HAS_PROC_BUS
+int proc_read_mem(char *buf, char **start, off_t pos,
+		  int count, int *eof, void *data)
+{
+    resource_entry_t *r;
+    u_long flags;
+    char *p = buf;
+    
+    spin_lock_irqsave(&rsrc_lock, flags);
+    for (r = mem_list.next; r; r = r->next)
+	p += sprintf(p, "%08lx-%08lx : %s\n", r->base,
+		     r->base+r->num-1, r->name);
+    spin_unlock_irqrestore(&rsrc_lock, flags);
+    return (p - buf);
+}
+#endif
+#endif
 
-#endif /* __LINUX__ && !HAVE_MEMRESOURCE */
+#endif /* __LINUX__ */
 
 /*======================================================================
 
-    BeOS resource management functions for memory mapped devices.
+    BeOS resource management functions
     
 ======================================================================*/
 
@@ -265,25 +325,6 @@ int check_resource(int type, u_long base, u_long num)
 
 #endif /* __BEOS__ */
 
-/*====================================================================*/
-
-#if defined(HAS_PROC_BUS) && !defined(HAVE_MEMRESERVE)
-int proc_read_mem(char *buf, char **start, off_t pos,
-		  int count, int *eof, void *data)
-{
-    resource_entry_t *r;
-    u_long flags;
-    char *p = buf;
-    
-    spin_lock_irqsave(&rsrc_lock, flags);
-    for (r = mem_list.next; r; r = r->next)
-	p += sprintf(p, "%08lx-%08lx : %s\n", r->base,
-		     r->base+r->num-1, r->name);
-    spin_unlock_irqrestore(&rsrc_lock, flags);
-    return (p - buf);
-}
-#endif
-
 /*======================================================================
 
     These manage the internal databases of available resources.
@@ -321,7 +362,7 @@ static int sub_interval(resource_map_t *map, u_long base, u_long num)
 		if (q->base+q->num <= base+num) {
 		    /* Delete whole block */
 		    p->next = q->next;
-		    kfree_s(q, sizeof(resource_map_t));
+		    kfree(q);
 		    /* don't advance the pointer yet */
 		    q = p;
 		} else {
@@ -367,7 +408,8 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     b = kmalloc(256, GFP_KERNEL);
     memset(b, 0, 256);
     for (i = base, most = 0; i < base+num; i += 8) {
-	if (check_region(i, 8) != 0) continue;
+	if (check_region(i, 8) || check_io_region(i, 8))
+	    continue;
 	hole = inb(i);
 	for (j = 1; j < 8; j++)
 	    if (inb(i+j) != hole) break;
@@ -379,7 +421,7 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
 
     bad = any = 0;
     for (i = base; i < base+num; i += 8) {
-	if (check_region(i, 8) != 0)
+	if (check_region(i, 8) || check_io_region(i, 8))
 	    continue;
 	for (j = 0; j < 8; j++)
 	    if (inb(i+j) != most) break;
@@ -544,7 +586,8 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, char *name)
     if (*base != 0) {
 	for (m = io_db.next; m != &io_db; m = m->next) {
 	    if ((*base >= m->base) && (*base+num <= m->base+m->num)) {
-		if (check_region(*base, num)) {
+		if (check_region(*base, num) ||
+		    check_io_region(*base, num)) {
 		    return -1;
 		} else {
 		    request_region(*base, num, name);
@@ -561,7 +604,8 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, char *name)
 	for (*base = (m->base + align - 1) & (~(align-1));
 	     *base+align <= m->base + m->num;
 	     *base += align)
-	    if (check_region(*base, num) == 0) {
+	    if ((check_region(*base, num) == 0) &&
+		(check_io_region(*base, num) == 0)) {
 		request_region(*base, num, name);
 		RELEASE_RESOURCE_LOCK;
 		return 0;
@@ -621,9 +665,9 @@ int find_mem_region(u_long *base, u_long num, char *name,
 static void fake_irq IRQ(int i, void *d, struct pt_regs *r) { }
 static inline int check_irq(int irq)
 {
-    if (REQUEST_IRQ(irq, fake_irq, 0, "bogus", NULL) != 0)
+    if (request_irq(irq, fake_irq, 0, "bogus", NULL) != 0)
 	return -1;
-    FREE_IRQ(irq, NULL);
+    free_irq(irq, NULL);
     return 0;
 }
 #endif
@@ -849,13 +893,24 @@ int adjust_resource_info(client_handle_t handle, adjust_t *adj)
 void release_resource_db(void)
 {
     resource_map_t *p, *q;
+    resource_entry_t *u, *v;
     
     for (p = mem_db.next; p != &mem_db; p = q) {
 	q = p->next;
-	kfree_s(p, sizeof(resource_map_t));
+	kfree(p);
     }
     for (p = io_db.next; p != &io_db; p = q) {
 	q = p->next;
-	kfree_s(p, sizeof(resource_map_t));
+	kfree(p);
     }
+    for (u = io_list.next; u; u = v) {
+	v = u->next;
+	kfree(u);
+    }
+#ifndef HAVE_MEMRESERVE
+    for (u = mem_list.next; u; u = v) {
+	v = u->next;
+	kfree(u);
+    }
+#endif
 }

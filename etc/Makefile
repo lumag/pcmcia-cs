@@ -1,5 +1,5 @@
 #
-# etc/Makefile 1.45 1999/06/09 17:23:51 (David Hinds)
+# etc/Makefile 1.46 1999/08/26 15:56:34 (David Hinds)
 #
 
 # Include site dependent options
@@ -98,10 +98,10 @@ install-extra: $(EXTRA)
 
 install-depmod:
 	grep -qs path $(CONF) || echo keep >> $(CONF)
-	grep -q pcmcia $(CONF) || \
+	grep -q pcmcia $(CONF) || ( \
 	    echo 'path[pcmcia]=/lib/modules/`uname -r`' >> $(CONF) && \
 	    echo 'path[pcmcia]=/lib/modules/default' >> $(CONF) && \
-	    echo 'path[pcmcia]=/lib/modules/preferred' >> $(CONF)
+	    echo 'path[pcmcia]=/lib/modules/preferred' >> $(CONF) )
 	if [ "$(PREFIX)" = "" ] ; then depmod -a ; fi
 
 install: $(INST) $(ETC) install-extra install-clients

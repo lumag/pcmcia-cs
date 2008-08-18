@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.50 1999/07/30 03:49:13
+    ftl_cs.c 1.53 1999/09/08 06:24:24
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -19,7 +19,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
 
     LEGAL NOTE: The FTL format is patented by M-Systems.  They have
     granted a license for its use with PCMCIA devices:
@@ -105,7 +116,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.50 1999/07/30 03:49:13 (David Hinds)";
+"ftl_cs.c 1.53 1999/09/08 06:24:24 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -467,7 +478,7 @@ static int ftl_event(event_t event, int priority,
     case CS_EVENT_CARD_REMOVAL:
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
-	    link->release.expires = RUN_AT(HZ/20);
+	    link->release.expires = jiffies + HZ/20;
 	    add_timer(&link->release);
 	}
 	break;
@@ -1525,7 +1536,7 @@ int init_module(void)
 	return -1;
     }
     
-    register_pcmcia_driver(&dev_info, &ftl_attach, &ftl_detach);
+    register_pccard_driver(&dev_info, &ftl_attach, &ftl_detach);
 
     major_dev = register_blkdev(major_dev, "ftl", &ftl_blk_fops);
     if (major_dev == 0) {
@@ -1557,7 +1568,7 @@ void cleanup_module(void)
     struct gendisk *gd, **gdp;
 
     DEBUG(0, "ftl_cs: unloading\n");
-    unregister_pcmcia_driver(&dev_info);
+    unregister_pccard_driver(&dev_info);
     if (major_dev != 0) {
 	unregister_blkdev(major_dev, "ftl");
 	blk_dev[major_dev].request_fn = NULL;

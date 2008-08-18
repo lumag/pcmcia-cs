@@ -32,7 +32,7 @@
  * Web page
  * --------
  *	I try to maintain a web page with the Wireless LAN Howto at :
- *		http://www-uk.hpl.hp.com/people/jt/Linux/Wavelan.html
+ *	    http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Wavelan.html
  *
  * Debugging and options
  * ---------------------
@@ -189,7 +189,7 @@
  *	Arthur Scott (arthur@cs.su.oz.au),
  *	Stanislav Sinyagin <stas@isf.ru>
  *	Peter Storey,
- *	Jean Tourrilhes <jt@hplb.hpl.hp.com>,
+ *	Jean Tourrilhes <jt@hpl.hp.com>,
  *	Girish Welling (welling@paul.rutgers.edu)
  *	Clark Woodworth <clark@hiway1.exit109.com>
  *	Yongguang Zhang <ygz@isl.hrl.hac.com>...
@@ -336,6 +336,14 @@
  *	  at the demand of John Carol Langford <jcl@gs176.sp.cs.cmu.edu>
  *	- Introduced WAVELAN_ROAMING_EXT for incomplete ESSID stuff.
  *
+ * Changes made for release in 3.0.15 :
+ * ----------------------------------
+ *	- Change e-mail and web page addresses
+ *	- Watchdog timer is now correctly expressed in HZ, not in jiffies
+ *	- Add channel number to the list of frequencies in range
+ *	- Add the (short) list of bit-rates in range
+ *	- Developp a new sensitivity... (sens.value & sens.fixed)
+ *
  * Wishes & dreams:
  * ----------------
  *	- Cleanup and integrate the roaming code
@@ -438,11 +446,11 @@
 /************************ CONSTANTS & MACROS ************************/
 
 #ifdef DEBUG_VERSION_SHOW
-static const char *version = "wavelan_cs.c : v20 (wireless extensions) 11/6/99\n";
+static const char *version = "wavelan_cs.c : v20 (wireless extensions) 30/7/99\n";
 #endif
 
 /* Watchdog temporisation */
-#define	WATCHDOG_JIFFIES	256	/* TODO: express in HZ. */
+#define	WATCHDOG_JIFFIES	(256*HZ/100)
 
 /* Fix a bug in some old wireless extension definitions */
 #ifndef IW_ESSID_MAX_SIZE
@@ -514,7 +522,7 @@ struct wavepoint_table
 /****************************** TYPES ******************************/
 
 /* Shortcuts */
-typedef struct device		device;
+typedef struct net_device		device;
 typedef struct net_device_stats	en_stats;
 typedef struct iw_statistics	iw_stats;
 typedef struct iw_quality	iw_qual;
@@ -590,8 +598,8 @@ wavepoint_history *wl_best_sigqual(int fast_search, net_local *lp);
 void wl_update_history(wavepoint_history *wavepoint, unsigned char sigqual, unsigned char seq);
 void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp);
 void wv_nwid_filter(unsigned char mode, net_local *lp);
-void wv_roam_init(struct device *dev);
-void wv_roam_cleanup(struct device *dev);
+void wv_roam_init(struct net_device *dev);
+void wv_roam_cleanup(struct net_device *dev);
 #endif	/* WAVELAN_ROAMING */
 
 /* ----------------------- MISC SUBROUTINES ------------------------ */
@@ -704,9 +712,9 @@ static void
 	wv_flush_stale_links(void);	/* "detach" all possible devices */
 /* ---------------------- INTERRUPT HANDLING ---------------------- */
 static void
-wavelan_interrupt IRQ(int,	/* Interrupt handler */
-		      void *,
-		      struct pt_regs *);
+wavelan_interrupt(int,	/* Interrupt handler */
+		  void *,
+		  struct pt_regs *);
 static void
 	wavelan_watchdog(u_long);	/* Transmission watchdog */
 /* ------------------- CONFIGURATION CALLBACKS ------------------- */

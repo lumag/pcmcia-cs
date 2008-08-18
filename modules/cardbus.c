@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.52 1999/07/20 16:01:21
+    cardbus.c 1.58 1999/09/10 06:23:11
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -16,7 +16,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
     
     These routines handle allocating resources for Cardbus cards, as
     well as setting up and shutting down Cardbus sockets.  They are
@@ -102,6 +113,17 @@ typedef struct cb_config_t {
 #endif
 } cb_config_t;
 
+#if (LINUX_VERSION_CODE >= VERSION(2,3,13))
+#define BASE(dev,n)	((dev).resource[n].start)
+#else
+#define BASE(dev,n)	((dev).base_address[n])
+#endif
+#if (LINUX_VERSION_CODE >= VERSION(2,3,15))
+#define ROM(dev)	((dev).resource[6].start)
+#else
+#define ROM(dev)	((dev).rom_address)
+#endif
+
 /* There are three classes of bridge maps: IO ports,
    non-prefetchable memory, and prefetchable memory */
 typedef enum { B_IO, B_M1, B_M2 } bridge_type;
@@ -120,18 +142,18 @@ static int check_rom(u_char *b, u_long len)
 {
     u_int img = 0, ofs = 0, sz;
     u_short data;
-    DEBUG(0, ("ROM image dump:\n"));
+    DEBUG(0, "ROM image dump:\n");
     while ((readb(b) == 0x55) && (readb(b+1) == 0xaa)) {
 	data = readb(b+ROM_DATA_PTR) +
 	    (readb(b+ROM_DATA_PTR+1) << 8);
 	sz = 512 * (readb(b+data+PCDATA_IMAGE_SZ) +
 		    (readb(b+data+PCDATA_IMAGE_SZ+1) << 8));
-	DEBUG(0, ("  image %d: 0x%06x-0x%06x, signature %c%c%c%c\n",
-		  img, ofs, ofs+sz-1,
-		  readb(b+data+PCDATA_SIGNATURE),
-		  readb(b+data+PCDATA_SIGNATURE+1),
-		  readb(b+data+PCDATA_SIGNATURE+2),
-		  readb(b+data+PCDATA_SIGNATURE+3)));
+	DEBUG(0, "  image %d: 0x%06x-0x%06x, signature %c%c%c%c\n",
+	      img, ofs, ofs+sz-1,
+	      readb(b+data+PCDATA_SIGNATURE),
+	      readb(b+data+PCDATA_SIGNATURE+1),
+	      readb(b+data+PCDATA_SIGNATURE+2),
+	      readb(b+data+PCDATA_SIGNATURE+3));
 	ofs += sz; img++;
 	if ((readb(b+data+PCDATA_INDICATOR) & 0x80) ||
 	    (sz == 0) || (ofs >= len)) break;
@@ -175,11 +197,11 @@ int cb_setup_cis_mem(socket_info_t *s, int space)
 	return CS_SUCCESS;
     else if (s->cb_cis_space != 0)
 	cb_release_cis_mem(s);
-    DEBUG(1, ("cs: cb_setup_cis_mem(space %d)\n", space));
+    DEBUG(1, "cs: cb_setup_cis_mem(space %d)\n", space);
     /* If socket is configured, then use existing memory mapping */
     if (s->lock_count) {
 	s->cb_cis_virt =
-	    ioremap(s->cb_config[0].dev.base_address[space-1],
+	    ioremap(BASE(s->cb_config[0].dev, space-1),
 		    s->cb_config[0].size[space-1] & ~3);
 	s->cb_cis_space = space;
 	return CS_SUCCESS;
@@ -199,8 +221,8 @@ int cb_setup_cis_mem(socket_info_t *s, int space)
     }
     s->cb_cis_space = space;
     s->cb_cis_virt = ioremap(base, sz);
-    DEBUG(1, ("  phys 0x%08lx-0x%08lx, virt 0x%08lx\n",
-	      base, base+sz-1, (u_long)s->cb_cis_virt));
+    DEBUG(1, "  phys 0x%08lx-0x%08lx, virt 0x%08lx\n",
+	  base, base+sz-1, (u_long)s->cb_cis_virt);
     pci_writel(s->cap.cardbus, 0, br, base | 1);
     pci_writeb(s->cap.cardbus, 0, PCI_COMMAND, PCI_COMMAND_MEMORY);
     m->map = 0; m->flags = MAP_ACTIVE;
@@ -218,7 +240,7 @@ void cb_release_cis_mem(socket_info_t *s)
     cb_bridge_map *m = &s->cb_cis_map;
     u_int br;
     if (s->cb_cis_virt) {
-	DEBUG(1, ("cs: cb_release_cis_mem()\n"));
+	DEBUG(1, "cs: cb_release_cis_mem()\n");
 	iounmap(s->cb_cis_virt);
 	s->cb_cis_virt = NULL;
 	s->cb_cis_space = 0;
@@ -232,7 +254,7 @@ void cb_release_cis_mem(socket_info_t *s)
 	s->ss_entry(s->sock, SS_SetBridge, m);
 	pci_writeb(s->cap.cardbus, 0, PCI_COMMAND, 0);
 	pci_writel(s->cap.cardbus, 0, br, 0);
-	vacate_mem_region(m->start, m->stop - m->start + 1);
+	release_mem_region(m->start, m->stop - m->start + 1);
 	m->start = 0;
     }
 }
@@ -247,25 +269,120 @@ void cb_release_cis_mem(socket_info_t *s)
 void read_cb_mem(socket_info_t *s, u_char fn, int space,
 		 u_int addr, u_int len, void *ptr)
 {
-    DEBUG(3, ("cs: read_cb_mem(%d, %#x, %u)\n", space, addr, len));
+    DEBUG(3, "cs: read_cb_mem(%d, %#x, %u)\n", space, addr, len);
     if (space == 0) {
+	if (addr+len > 0x100) goto fail;
 	for (; len; addr++, ptr++, len--)
 	    pci_readb(s->cap.cardbus, fn, addr, (u_char *)ptr);
     } else {
-	if (cb_setup_cis_mem(s, space) != 0) {
-	    memset(ptr, 0xff, len);
-	    return;
-	}
+	if (cb_setup_cis_mem(s, space) != 0) goto fail;
 	if (space == 7) {
 	    addr = xlate_rom_addr(s->cb_cis_virt, addr);
-	    if (addr == 0) {
-		memset(ptr, 0xff, len);
-		return;
-	    }
+	    if (addr == 0) goto fail;
 	}
+	if (addr+len > s->cb_cis_map.stop - s->cb_cis_map.start)
+	    goto fail;
 	if (s->cb_cis_virt != NULL)
 	    for (; len; addr++, ptr++, len--)
 		*(u_char *)ptr = readb(s->cb_cis_virt+addr);
+    }
+    return;
+ fail:
+    memset(ptr, 0xff, len);
+    return;
+}
+
+/*=====================================================================
+
+    cb_alloc() and cb_free() allocate and free the kernel data
+    structures for a Cardbus device, and handle the lowest level PCI
+    device setup issues.
+    
+=====================================================================*/
+
+int cb_alloc(socket_info_t *s)
+{
+    struct pci_dev tmp;
+    u_short vend, v, dev;
+    u_char i, hdr, fn, bus = s->cap.cardbus;
+    cb_config_t *c;
+
+#ifdef NEW_LINUX_PCI
+    tmp.bus = s->cap.cb_bus; tmp.devfn = 0;
+    tmp.next = pci_devices; pci_devices = &tmp;
+#endif
+
+    pci_readw(bus, 0, PCI_VENDOR_ID, &vend);
+    pci_readw(bus, 0, PCI_DEVICE_ID, &dev);
+    printk(KERN_INFO "cs: cb_alloc(bus %d): vendor 0x%04x, "
+	   "device 0x%04x\n", bus, vend, dev);
+
+    pci_readb(bus, 0, PCI_HEADER_TYPE, &hdr);
+    if (hdr & 0x80) {
+	/* Count functions */
+	for (fn = 0; fn < 8; fn++) {
+#ifdef NEW_LINUX_PCI
+	    tmp.devfn = fn;
+#endif
+	    pci_readw(bus, fn, PCI_VENDOR_ID, &v);
+	    if (v != vend) break;
+	}
+    } else fn = 1;
+    s->functions = fn;
+    
+    c = kmalloc(fn * sizeof(struct cb_config_t), GFP_ATOMIC);
+    if (!c) return CS_OUT_OF_RESOURCE;
+    memset(c, 0, fn * sizeof(struct cb_config_t));
+    s->cb_config = c;
+
+#ifdef NEW_LINUX_PCI
+    pci_devices = tmp.next;
+    for (i = 0; i < fn; i++) {
+	c[i].dev.bus = s->cap.cb_bus;
+	c[i].dev.devfn = i;
+	if (i < fn-1) {
+	    c[i].dev.sibling = c[i].dev.next = &c[i+1].dev;
+	}
+    }
+    s->cap.cb_bus->devices = &c[0].dev;
+    /* Link into PCI device chain */
+    c[s->functions-1].dev.next = pci_devices;
+    pci_devices = &c[0].dev;
+    for (i = 0; i < fn; i++) {
+	c[i].dev.vendor = vend;
+	pci_readw(bus, i, PCI_DEVICE_ID, &c[i].dev.device);
+	pci_readl(bus, i, PCI_CLASS_REVISION, &c[i].dev.class);
+	c[i].dev.class >>= 8;
+	c[i].dev.hdr_type = hdr;
+	pci_proc_attach_device(&c[i].dev);
+    }
+#endif
+    
+    return CS_SUCCESS;
+}
+
+void cb_free(socket_info_t *s)
+{
+#ifdef NEW_LINUX_PCI
+    struct pci_dev **p, *q;
+    cb_config_t *c = s->cb_config;
+
+    if (c) {
+	/* Unlink from PCI device chain */
+	for (p = &pci_devices; *p; p = &((*p)->next))
+	    if (*p == &c[0].dev) break;
+	for (q = *p; q; q = q->next) {
+	    if (q->bus != (*p)->bus) break;
+	    pci_proc_detach_device(q);
+	}
+	if (*p) *p = q;
+	s->cap.cb_bus->devices = NULL;
+    }
+#endif
+    printk(KERN_INFO "cs: cb_free(bus %d)\n", s->cap.cardbus);
+    if (s->cb_config) {
+	kfree(s->cb_config);
+	s->cb_config = NULL;
     }
 }
 
@@ -283,47 +400,14 @@ void read_cb_mem(socket_info_t *s, u_char fn, int space,
 
 int cb_config(socket_info_t *s)
 {
-    u_short vend, v, dev;
-    u_char i, j, fn, bus = s->cap.cardbus, *name;
+    cb_config_t *c = s->cb_config;
+    u_char fn = s->functions;
+    u_char i, j, bus = s->cap.cardbus, *name;
     u_int sz, align, m, mask[3], num[3], base[3];
-    cb_config_t *c;
     int irq, try, ret;
-    
-    pci_readw(bus, 0, PCI_VENDOR_ID, &vend);
-    pci_readw(bus, 0, PCI_DEVICE_ID, &dev);
-    printk(KERN_INFO "cs: cb_config(bus %d): vendor 0x%04x, "
-	   "device 0x%04x\n", bus, vend, dev);
 
-    pci_readb(bus, 0, PCI_HEADER_TYPE, &fn);
-    if (fn & 0x80) {
-	/* Count functions */
-	for (fn = 0; fn < 8; fn++) {
-	    pci_readw(bus, fn, PCI_VENDOR_ID, &v);
-	    if (v != vend) break;
-	}
-    } else fn = 1;
-    s->functions = fn;
-    
-    c = kmalloc(fn * sizeof(struct cb_config_t), GFP_KERNEL);
-    memset(c, 0, fn * sizeof(struct cb_config_t));
-    s->cb_config = c;
+    printk(KERN_INFO "cs: cb_config(bus %d)\n", s->cap.cardbus);
 
-#ifdef NEW_LINUX_PCI
-    for (i = 0; i < fn; i++) {
-	c[i].dev.bus = s->cap.cb_bus;
-	if (i < fn-1) {
-	    c[i].dev.sibling = c[i].dev.next = &c[i+1].dev;
-	}
-	c[i].dev.devfn = i;
-	c[i].dev.vendor = vend; c[i].dev.device = dev;
-	pci_readl(bus, i, PCI_CLASS_REVISION, &c[i].dev.class);
-	c[i].dev.class >>= 8;
-	pci_readb(bus, i, PCI_HEADER_TYPE, &j);
-	c[i].dev.hdr_type = j;
-    }
-    s->cap.cb_bus->devices = &c[0].dev;
-#endif
-    
     /* Determine IO and memory space needs */
     num[B_IO] = num[B_M1] = num[B_M2] = 0;
     mask[B_IO] = mask[B_M1] = mask[B_M2] = 0;
@@ -407,7 +491,7 @@ int cb_config(socket_info_t *s)
 			printk(KERN_INFO "  fn %d rom: ", i);
 		    printk("%s 0x%x-0x%x\n", (m) ? "mem" : "io",
 			   base[m], base[m]+sz-1);
-		    c[i].dev.base_address[j] = base[m];
+		    BASE(c[i].dev, j) = base[m];
 		}
 	    }
 	}
@@ -465,21 +549,19 @@ void cb_release(socket_info_t *s)
 {
     cb_config_t *c = s->cb_config;
     
-    DEBUG(0, ("cs: cb_release(bus %d)\n", s->cap.cardbus));
+    DEBUG(0, "cs: cb_release(bus %d)\n", s->cap.cardbus);
     
     if (s->win[0].size > 0)
-	vacate_mem_region(s->win[0].base, s->win[0].size);
+	release_mem_region(s->win[0].base, s->win[0].size);
     if (s->win[1].size > 0)
-	vacate_mem_region(s->win[1].base, s->win[1].size);
+	release_mem_region(s->win[1].base, s->win[1].size);
     if (s->io[0].NumPorts > 0)
-	vacate_region(s->io[0].BasePort, s->io[0].NumPorts);
+	release_region(s->io[0].BasePort, s->io[0].NumPorts);
     s->io[0].NumPorts = 0;
 #ifdef CONFIG_ISA
     if ((c[0].dev.irq != 0) && (c[0].dev.irq != s->cap.pci_irq))
 	undo_irq(IRQ_TYPE_EXCLUSIVE, c[0].dev.irq);
 #endif
-    kfree(s->cb_config);
-    s->cb_config = NULL;
 }
 
 /*=====================================================================
@@ -502,7 +584,7 @@ void cb_enable(socket_info_t *s)
     u_char i, j, bus = s->cap.cardbus;
     cb_config_t *c = s->cb_config;
     
-    DEBUG(0, ("cs: cb_enable(bus %d)\n", bus));
+    DEBUG(0, "cs: cb_enable(bus %d)\n", bus);
     
     /* Configure bridge */
     if (s->cb_cis_map.start)
@@ -527,20 +609,20 @@ void cb_enable(socket_info_t *s)
 	    break;
 	}
 	if (m.start == 0) continue;
-	DEBUG(0, ("  bridge %s map %d (flags 0x%x): 0x%x-0x%x\n",
-		  (m.flags & MAP_IOSPACE) ? "io" : "mem",
-		  m.map, m.flags, m.start, m.stop));
+	DEBUG(0, "  bridge %s map %d (flags 0x%x): 0x%x-0x%x\n",
+	      (m.flags & MAP_IOSPACE) ? "io" : "mem",
+	      m.map, m.flags, m.start, m.stop);
 	s->ss_entry(s->sock, SS_SetBridge, &m);
     }
 
     /* Set up base address registers */
     for (i = 0; i < s->functions; i++) {
 	for (j = 0; j < 6; j++) {
-	    if (c[i].dev.base_address[j] != 0)
-		pci_writel(bus, i, CB_BAR(j), c[i].dev.base_address[j]);
+	    if (BASE(c[i].dev, j) != 0)
+		pci_writel(bus, i, CB_BAR(j), BASE(c[i].dev, j));
 	}
-	if (c[i].dev.rom_address != 0)
-	    pci_writel(bus, i, CB_ROM_BASE, c[i].dev.rom_address | 1);
+	if (ROM(c[i].dev) != 0)
+	    pci_writel(bus, i, CB_ROM_BASE, ROM(c[i].dev) | 1);
     }
 
     /* Set up PCI interrupt and command registers */
@@ -557,13 +639,6 @@ void cb_enable(socket_info_t *s)
 	s->socket.io_irq = s->irq.AssignedIRQ;
 	s->ss_entry(s->sock, SS_SetSocket, &s->socket);
     }
-
-#ifdef NEW_LINUX_PCI
-    /* Link into PCI device chain */
-    c[s->functions-1].dev.next = pci_devices;
-    pci_devices = &c[0].dev;
-    pci_proc_attach_device(&c[0].dev);
-#endif
 }
 
 /*======================================================================
@@ -579,21 +654,8 @@ void cb_disable(socket_info_t *s)
 {
     u_char i;
     cb_bridge_map m = { 0, 0, 0, 0xffff };
-#ifdef NEW_LINUX_PCI
-    struct pci_dev **p, *q;
-    cb_config_t *c = s->cb_config;
     
-    /* Unlink from PCI device chain */
-    pci_proc_detach_device(&c[0].dev);
-    for (p = &pci_devices; *p; p = &((*p)->next))
-	if (*p == &c[0].dev) break;
-    for (q = *p; q; q = q->next)
-	if (q->bus != (*p)->bus) break;
-    if (*p) *p = q;
-    s->cap.cb_bus->devices = NULL;
-#endif
-    
-    DEBUG(0, ("cs: cb_disable(bus %d)\n", s->cap.cardbus));
+    DEBUG(0, "cs: cb_disable(bus %d)\n", s->cap.cardbus);
     
     /* Turn off bridge windows */
     if (s->cb_cis_map.start)

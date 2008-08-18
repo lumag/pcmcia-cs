@@ -10,7 +10,7 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #define YYPREFIX "yy"
 #line 2 "yacc_config.y"
 /*
- * yacc_config.y 1.45 1999/07/20 16:02:27
+ * yacc_config.y 1.46 1999/08/28 04:08:01
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -24,7 +24,18 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
  *
  * The initial developer of the original code is David A. Hinds
  * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
- * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+ * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+ *
+ * Alternatively, the contents of this file may be used under the
+ * terms of the GNU Public License version 2 (the "GPL"), in which
+ * case the provisions of the GPL are applicable instead of the
+ * above.  If you wish to allow the use of your version of this file
+ * only under the terms of the GPL and not to allow others to use
+ * your version of this file under the MPL, indicate your decision by
+ * deleting the provisions above and replace them with the notice and
+ * other provisions required by the GPL.  If you do not delete the
+ * provisions above, a recipient may use your version of this file
+ * under either the MPL or the GPL.
  */
     
 #include <stdlib.h>
@@ -53,7 +64,7 @@ void yyerror(char *msg, ...);
 static int add_binding(card_info_t *card, char *name, int fn);
 static int add_module(device_info_t *card, char *name);
 
-#line 54 "yacc_config.y"
+#line 65 "yacc_config.y"
 typedef union {
     char *str;
     u_long num;
@@ -62,7 +73,7 @@ typedef union {
     struct mtd_ident_t *mtd;
     struct adjust_list_t *adjust;
 } YYSTYPE;
-#line 66 "y.tab.c"
+#line 77 "y.tab.c"
 #define DEVICE 257
 #define CARD 258
 #define ANONYMOUS 259
@@ -340,7 +351,7 @@ YYSTYPE yylval;
 short yyss[YYSTACKSIZE];
 YYSTYPE yyvs[YYSTACKSIZE];
 #define yystacksize YYSTACKSIZE
-#line 442 "yacc_config.y"
+#line 453 "yacc_config.y"
 void yyerror(char *msg, ...)
 {
      va_list ap;
@@ -403,7 +414,7 @@ void main(int argc, char *argv[])
 	parse_configfile(argv[1]);
 }
 #endif
-#line 407 "y.tab.c"
+#line 418 "y.tab.c"
 #define YYABORT goto yyabort
 #define YYREJECT goto yyabort
 #define YYACCEPT goto yyaccept
@@ -545,7 +556,7 @@ yyreduce:
     switch (yyn)
     {
 case 2:
-#line 73 "yacc_config.y"
+#line 84 "yacc_config.y"
 {
 		    adjust_list_t **tail = &root_adjust;
 		    while (*tail != NULL) tail = &(*tail)->next;
@@ -553,14 +564,14 @@ case 2:
 		}
 break;
 case 3:
-#line 79 "yacc_config.y"
+#line 90 "yacc_config.y"
 {
 		    yyvsp[0].device->next = root_device;
 		    root_device = yyvsp[0].device;
 		}
 break;
 case 4:
-#line 84 "yacc_config.y"
+#line 95 "yacc_config.y"
 {
 		    if (yyvsp[0].mtd->mtd_type == 0) {
 			yyerror("no ID method for this card");
@@ -575,7 +586,7 @@ case 4:
 		}
 break;
 case 5:
-#line 97 "yacc_config.y"
+#line 108 "yacc_config.y"
 {
 		    if (yyvsp[0].card->ident_type == 0) {
 			yyerror("no ID method for this card");
@@ -595,21 +606,21 @@ case 5:
 		}
 break;
 case 9:
-#line 120 "yacc_config.y"
+#line 131 "yacc_config.y"
 {
 		    yyvsp[0].adjust->adj.Action = ADD_MANAGED_RESOURCE;
 		    yyval.adjust = yyvsp[0].adjust;
 		}
 break;
 case 10:
-#line 125 "yacc_config.y"
+#line 136 "yacc_config.y"
 {
 		    yyvsp[0].adjust->adj.Action = REMOVE_MANAGED_RESOURCE;
 		    yyval.adjust = yyvsp[0].adjust;
 		}
 break;
 case 11:
-#line 130 "yacc_config.y"
+#line 141 "yacc_config.y"
 {
 		    yyvsp[0].adjust->adj.Action = ADD_MANAGED_RESOURCE;
 		    yyvsp[0].adjust->adj.Attributes |= RES_RESERVED;
@@ -617,7 +628,7 @@ case 11:
 		}
 break;
 case 12:
-#line 136 "yacc_config.y"
+#line 147 "yacc_config.y"
 {
 		    yyvsp[0].adjust->adj.Action = yyvsp[-2].adjust->adj.Action;
 		    yyvsp[0].adjust->adj.Attributes = yyvsp[-2].adjust->adj.Attributes;
@@ -626,7 +637,7 @@ case 12:
 		}
 break;
 case 13:
-#line 145 "yacc_config.y"
+#line 156 "yacc_config.y"
 {
 		    yyval.adjust = calloc(sizeof(adjust_list_t), 1);
 		    yyval.adjust->adj.Resource = RES_IRQ;
@@ -634,7 +645,7 @@ case 13:
 		}
 break;
 case 14:
-#line 151 "yacc_config.y"
+#line 162 "yacc_config.y"
 {
 		    if ((yyvsp[0].num < yyvsp[-2].num) || (yyvsp[0].num > 0xffff)) {
 			yyerror("invalid port range");
@@ -647,7 +658,7 @@ case 14:
 		}
 break;
 case 15:
-#line 162 "yacc_config.y"
+#line 173 "yacc_config.y"
 {
 		    if (yyvsp[0].num < yyvsp[-2].num) {
 			yyerror("invalid address range");
@@ -660,7 +671,7 @@ case 15:
 		}
 break;
 case 16:
-#line 175 "yacc_config.y"
+#line 186 "yacc_config.y"
 {
 		    yyval.device = calloc(sizeof(device_info_t), 1);
 		    strcpy(yyval.device->dev_info, yyvsp[0].str);
@@ -668,14 +679,14 @@ case 16:
 		}
 break;
 case 20:
-#line 186 "yacc_config.y"
+#line 197 "yacc_config.y"
 {
 		    yyval.card = calloc(sizeof(card_info_t), 1);
 		    yyval.card->name = yyvsp[0].str;
 		}
 break;
 case 28:
-#line 200 "yacc_config.y"
+#line 211 "yacc_config.y"
 {
 		    if (yyvsp[-1].card->ident_type != 0) {
 			yyerror("ID method already defined");
@@ -690,7 +701,7 @@ case 28:
 		}
 break;
 case 29:
-#line 215 "yacc_config.y"
+#line 226 "yacc_config.y"
 {
 		    if (yyvsp[-6].card->ident_type != 0) {
 			yyerror("ID method already defined");
@@ -703,7 +714,7 @@ case 29:
 		}
 break;
 case 30:
-#line 228 "yacc_config.y"
+#line 239 "yacc_config.y"
 {
 		    if (yyvsp[-4].card->ident_type != 0) {
 			yyerror("ID method already defined");
@@ -715,7 +726,7 @@ case 30:
 		}
 break;
 case 31:
-#line 239 "yacc_config.y"
+#line 250 "yacc_config.y"
 {
 		    if (yyvsp[-2].card->ident_type != 0) {
 			yyerror("ID method already defined\n");
@@ -727,7 +738,7 @@ case 31:
 		}
 break;
 case 32:
-#line 249 "yacc_config.y"
+#line 260 "yacc_config.y"
 {
 		    if (yyvsp[-2].card->id.vers.ns == 4) {
 			yyerror("too many version strings");
@@ -738,7 +749,7 @@ case 32:
 		}
 break;
 case 33:
-#line 260 "yacc_config.y"
+#line 271 "yacc_config.y"
 {
 		    if (yyvsp[-2].card->ident_type != 0) {
 			yyerror("ID method already defined\n");
@@ -749,45 +760,45 @@ case 33:
 		}
 break;
 case 34:
-#line 271 "yacc_config.y"
+#line 282 "yacc_config.y"
 { yyvsp[-2].card->cis_file = strdup(yyvsp[0].str); }
 break;
 case 35:
-#line 275 "yacc_config.y"
+#line 286 "yacc_config.y"
 {
 		    if (add_binding(yyvsp[-2].card, yyvsp[0].str, 0) != 0)
 			YYERROR;
 		}
 break;
 case 36:
-#line 280 "yacc_config.y"
+#line 291 "yacc_config.y"
 {
 		    if (add_binding(yyvsp[-4].card, yyvsp[-2].str, yyvsp[0].num) != 0)
 			YYERROR;
 		}
 break;
 case 37:
-#line 285 "yacc_config.y"
+#line 296 "yacc_config.y"
 {
 		    if (add_binding(yyvsp[-2].card, yyvsp[0].str, 0) != 0)
 			YYERROR;
 		}
 break;
 case 38:
-#line 290 "yacc_config.y"
+#line 301 "yacc_config.y"
 {
 		    if (add_binding(yyvsp[-4].card, yyvsp[-2].str, yyvsp[0].num) != 0)
 			YYERROR;
 		}
 break;
 case 39:
-#line 297 "yacc_config.y"
+#line 308 "yacc_config.y"
 {
 		    yyvsp[-1].device->needs_mtd = 1;
 		}
 break;
 case 40:
-#line 303 "yacc_config.y"
+#line 314 "yacc_config.y"
 {
 		    device_info_t *d;
 		    int i, found = 0;
@@ -809,14 +820,14 @@ case 40:
 		}
 break;
 case 41:
-#line 325 "yacc_config.y"
+#line 336 "yacc_config.y"
 {
 		    if (add_module(yyvsp[-2].device, yyvsp[0].str) != 0)
 			YYERROR;
 		}
 break;
 case 42:
-#line 330 "yacc_config.y"
+#line 341 "yacc_config.y"
 {
 		    if (yyvsp[-2].device->opts[yyvsp[-2].device->modules-1] == NULL) {
 			yyvsp[-2].device->opts[yyvsp[-2].device->modules-1] = yyvsp[0].str;
@@ -827,14 +838,14 @@ case 42:
 		}
 break;
 case 43:
-#line 339 "yacc_config.y"
+#line 350 "yacc_config.y"
 {
 		    if (add_module(yyvsp[-2].device, yyvsp[0].str) != 0)
 			YYERROR;
 		}
 break;
 case 44:
-#line 346 "yacc_config.y"
+#line 357 "yacc_config.y"
 {
 		    if (yyvsp[-2].device->class != NULL) {
 			yyerror("extra class string");
@@ -844,14 +855,14 @@ case 44:
 		}
 break;
 case 45:
-#line 356 "yacc_config.y"
+#line 367 "yacc_config.y"
 {
 		    yyval.mtd = calloc(sizeof(mtd_ident_t), 1);
 		    yyval.mtd->name = yyvsp[0].str;
 		}
 break;
 case 49:
-#line 366 "yacc_config.y"
+#line 377 "yacc_config.y"
 {
 		    if (yyvsp[-2].mtd->mtd_type != 0) {
 			yyerror("ID method already defined");
@@ -862,7 +873,7 @@ case 49:
 		}
 break;
 case 50:
-#line 377 "yacc_config.y"
+#line 388 "yacc_config.y"
 {
 		    if (yyvsp[-3].mtd->mtd_type != 0) {
 			yyerror("ID method already defined");
@@ -874,7 +885,7 @@ case 50:
 		}
 break;
 case 51:
-#line 389 "yacc_config.y"
+#line 400 "yacc_config.y"
 {
 		    if (yyvsp[-1].mtd->mtd_type != 0) {
 			yyerror("ID method already defined");
@@ -889,7 +900,7 @@ case 51:
 		}
 break;
 case 52:
-#line 404 "yacc_config.y"
+#line 415 "yacc_config.y"
 {
 		    if (yyvsp[-2].mtd->module != NULL) {
 			yyerror("extra MTD entry");
@@ -899,7 +910,7 @@ case 52:
 		}
 break;
 case 53:
-#line 412 "yacc_config.y"
+#line 423 "yacc_config.y"
 {
 		    if (yyvsp[-2].mtd->opts == NULL) {
 			yyvsp[-2].mtd->opts = yyvsp[0].str;
@@ -910,7 +921,7 @@ case 53:
 		}
 break;
 case 54:
-#line 423 "yacc_config.y"
+#line 434 "yacc_config.y"
 {
 		    mtd_ident_t *m;
 		    int found = 0;
@@ -928,7 +939,7 @@ case 54:
 		    }
 		}
 break;
-#line 932 "y.tab.c"
+#line 943 "y.tab.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

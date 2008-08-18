@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.14 1999/07/20 15:59:33
+    dummy_cs.c 1.18 1999/09/08 06:24:24
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -20,7 +20,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
     
 ======================================================================*/
 
@@ -56,7 +67,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"dummy_cs.c 1.14 1999/07/20 15:59:33 (David Hinds)";
+"dummy_cs.c 1.18 1999/09/08 06:24:24 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -101,7 +112,7 @@ static void dummy_detach(dev_link_t *);
 
 /*
    You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'pcmem_cs' for a good example
+   be used to talk to your device.  See 'memory_cs' for a good example
    of a fully self-sufficient driver; the other drivers rely more or
    less on other parts of the kernel.
 */
@@ -571,7 +582,7 @@ static int dummy_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    ((local_info_t *)link->priv)->stop = 1;
-	    link->release.expires = RUN_AT(HZ/20);
+	    link->release.expires = jiffies + HZ/20;
 	    add_timer(&link->release);
 	}
 	break;
@@ -617,14 +628,14 @@ int init_module(void)
 	       "does not match!\n");
 	return -1;
     }
-    register_pcmcia_driver(&dev_info, &dummy_attach, &dummy_detach);
+    register_pccard_driver(&dev_info, &dummy_attach, &dummy_detach);
     return 0;
 }
 
 void cleanup_module(void)
 {
     DEBUG(0, "dummy_cs: unloading\n");
-    unregister_pcmcia_driver(&dev_info);
+    unregister_pccard_driver(&dev_info);
     while (dev_list != NULL) {
 	if (dev_list->state & DEV_CONFIG)
 	    dummy_release((u_long)dev_list);

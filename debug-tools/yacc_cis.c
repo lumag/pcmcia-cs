@@ -10,7 +10,7 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #define YYPREFIX "yy"
 #line 2 "yacc_cis.y"
 /*
- * yacc_cis.y 1.8 1999/07/20 16:03:28
+ * yacc_cis.y 1.9 1999/08/28 04:09:24
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -24,7 +24,18 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
  *
  * The initial developer of the original code is David A. Hinds
  * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
- * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+ * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+ *
+ * Alternatively, the contents of this file may be used under the
+ * terms of the GNU Public License version 2 (the "GPL"), in which
+ * case the provisions of the GPL are applicable instead of the
+ * above.  If you wish to allow the use of your version of this file
+ * only under the terms of the GPL and not to allow others to use
+ * your version of this file under the MPL, indicate your decision by
+ * deleting the provisions above and replace them with the notice and
+ * other provisions required by the GPL.  If you do not delete the
+ * provisions above, a recipient may use your version of this file
+ * under either the MPL or the GPL.
  */
 
 #include <sys/types.h>
@@ -48,7 +59,7 @@ extern int current_lineno;
 void yyerror(char *msg, ...);
 static tuple_info_t *new_tuple(u_char type, cisparse_t *parse);
 
-#line 54 "yacc_cis.y"
+#line 65 "yacc_cis.y"
 typedef union {
     char *str;
     u_long num;
@@ -57,7 +68,7 @@ typedef union {
     cisparse_t *parse;
     tuple_info_t *tuple;
 } YYSTYPE;
-#line 61 "y.tab.c"
+#line 72 "y.tab.c"
 #define STRING 257
 #define NUMBER 258
 #define FLOAT 259
@@ -456,7 +467,7 @@ YYSTYPE yylval;
 short yyss[YYSTACKSIZE];
 YYSTYPE yyvs[YYSTACKSIZE];
 #define yystacksize YYSTACKSIZE
-#line 348 "yacc_cis.y"
+#line 359 "yacc_cis.y"
 
 static tuple_info_t *new_tuple(u_char type, cisparse_t *parse)
 {
@@ -485,7 +496,7 @@ void main(int argc, char *argv[])
 	parse_cis(argv[1]);
 }
 #endif
-#line 489 "y.tab.c"
+#line 500 "y.tab.c"
 #define YYABORT goto yyabort
 #define YYREJECT goto yyabort
 #define YYACCEPT goto yyaccept
@@ -627,19 +638,19 @@ yyreduce:
     switch (yyn)
     {
 case 1:
-#line 73 "yacc_cis.y"
+#line 84 "yacc_cis.y"
 { cis_root = yyvsp[0].tuple; }
 break;
 case 2:
-#line 75 "yacc_cis.y"
+#line 86 "yacc_cis.y"
 { cis_root = yyvsp[-1].tuple; }
 break;
 case 3:
-#line 79 "yacc_cis.y"
+#line 90 "yacc_cis.y"
 { yyval.tuple = NULL; }
 break;
 case 4:
-#line 81 "yacc_cis.y"
+#line 92 "yacc_cis.y"
 {
 		    if (yyvsp[-1].tuple == NULL) {
 			yyval.tuple = yyvsp[0].tuple;
@@ -654,55 +665,55 @@ case 4:
 		}
 break;
 case 5:
-#line 96 "yacc_cis.y"
+#line 107 "yacc_cis.y"
 { mfc[nf++] = yyvsp[-1].tuple; }
 break;
 case 6:
-#line 98 "yacc_cis.y"
+#line 109 "yacc_cis.y"
 { mfc[nf++] = yyvsp[-1].tuple; }
 break;
 case 7:
-#line 102 "yacc_cis.y"
+#line 113 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_DEVICE, yyvsp[0].parse); }
 break;
 case 8:
-#line 104 "yacc_cis.y"
+#line 115 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_DEVICE_A, yyvsp[0].parse); }
 break;
 case 9:
-#line 106 "yacc_cis.y"
+#line 117 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_VERS_1, yyvsp[0].parse); }
 break;
 case 10:
-#line 108 "yacc_cis.y"
+#line 119 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_MANFID, yyvsp[0].parse); }
 break;
 case 11:
-#line 110 "yacc_cis.y"
+#line 121 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_FUNCID, yyvsp[0].parse); }
 break;
 case 12:
-#line 112 "yacc_cis.y"
+#line 123 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_CONFIG, yyvsp[0].parse); }
 break;
 case 13:
-#line 114 "yacc_cis.y"
+#line 125 "yacc_cis.y"
 { yyval.tuple = new_tuple(CISTPL_CFTABLE_ENTRY, yyvsp[0].parse); }
 break;
 case 14:
-#line 116 "yacc_cis.y"
+#line 127 "yacc_cis.y"
 { yyval.tuple = NULL; }
 break;
 case 15:
-#line 118 "yacc_cis.y"
+#line 129 "yacc_cis.y"
 { yyval.tuple = NULL; }
 break;
 case 16:
-#line 122 "yacc_cis.y"
+#line 133 "yacc_cis.y"
 { yyval.parse = calloc(1, sizeof(cisparse_t)); }
 break;
 case 17:
-#line 124 "yacc_cis.y"
+#line 135 "yacc_cis.y"
 {
 		    yyval.parse->device.dev[yyval.parse->device.ndev].type = yyvsp[-3].num;
 		    yyval.parse->device.dev[yyval.parse->device.ndev].speed = yyvsp[-2].num;
@@ -711,11 +722,11 @@ case 17:
 		}
 break;
 case 19:
-#line 134 "yacc_cis.y"
+#line 145 "yacc_cis.y"
 { yyval.parse = calloc(1, sizeof(cisparse_t)); }
 break;
 case 20:
-#line 136 "yacc_cis.y"
+#line 147 "yacc_cis.y"
 {
 		    yyval.parse->device.dev[yyval.parse->device.ndev].type = yyvsp[-3].num;
 		    yyval.parse->device.dev[yyval.parse->device.ndev].speed = yyvsp[-2].num;
@@ -724,7 +735,7 @@ case 20:
 		}
 break;
 case 22:
-#line 146 "yacc_cis.y"
+#line 157 "yacc_cis.y"
 {
 		    yyval.parse = calloc(1, sizeof(cisparse_t));
 		    yyval.parse->version_1.major = yyvsp[0].flt;
@@ -736,7 +747,7 @@ case 22:
 		}
 break;
 case 23:
-#line 156 "yacc_cis.y"
+#line 167 "yacc_cis.y"
 {
 		    cistpl_vers_1_t *v = &yyval.parse->version_1;
 		    u_int pos = 0;
@@ -750,7 +761,7 @@ case 23:
 		}
 break;
 case 24:
-#line 170 "yacc_cis.y"
+#line 181 "yacc_cis.y"
 {
 		    yyval.parse = calloc(1, sizeof(cisparse_t));
 		    yyval.parse->manfid.manf = yyvsp[-2].num;
@@ -758,22 +769,22 @@ case 24:
 		}
 break;
 case 25:
-#line 178 "yacc_cis.y"
+#line 189 "yacc_cis.y"
 {
 		    yyval.parse = calloc(1, sizeof(cisparse_t));
 		    yyval.parse->funcid.func = yyvsp[0].num;
 		}
 break;
 case 26:
-#line 183 "yacc_cis.y"
+#line 194 "yacc_cis.y"
 { yyval.parse->funcid.sysinit |= CISTPL_SYSINIT_POST; }
 break;
 case 27:
-#line 185 "yacc_cis.y"
+#line 196 "yacc_cis.y"
 { yyval.parse->funcid.sysinit |= CISTPL_SYSINIT_ROM; }
 break;
 case 28:
-#line 189 "yacc_cis.y"
+#line 200 "yacc_cis.y"
 {
 		    yyval.parse = calloc(1, sizeof(cisparse_t));
 		    yyval.parse->config.base = yyvsp[-4].num;
@@ -782,69 +793,69 @@ case 28:
 		}
 break;
 case 29:
-#line 198 "yacc_cis.y"
+#line 209 "yacc_cis.y"
 {
 		    yyval.pwr.present = CISTPL_POWER_VNOM;
 		    yyval.pwr.param[0] = yyvsp[0].num;
 		}
 break;
 case 30:
-#line 203 "yacc_cis.y"
+#line 214 "yacc_cis.y"
 {
 		    yyval.pwr.present = CISTPL_POWER_VMIN;
 		    yyval.pwr.param[0] = yyvsp[0].num;
 		}
 break;
 case 31:
-#line 208 "yacc_cis.y"
+#line 219 "yacc_cis.y"
 {
 		    yyval.pwr.present = CISTPL_POWER_VMAX;
 		    yyval.pwr.param[0] = yyvsp[0].num;
 		}
 break;
 case 32:
-#line 213 "yacc_cis.y"
+#line 224 "yacc_cis.y"
 {
 		    yyval.pwr.present = CISTPL_POWER_ISTATIC;
 		    yyval.pwr.param[0] = yyvsp[0].num;
 		}
 break;
 case 33:
-#line 218 "yacc_cis.y"
+#line 229 "yacc_cis.y"
 {
 		    yyval.pwr.present = CISTPL_POWER_IAVG;
 		    yyval.pwr.param[0] = yyvsp[0].num;
 		}
 break;
 case 34:
-#line 223 "yacc_cis.y"
+#line 234 "yacc_cis.y"
 {
 		    yyval.pwr.present = CISTPL_POWER_IPEAK;
 		    yyval.pwr.param[0] = yyvsp[0].num;
 		}
 break;
 case 35:
-#line 228 "yacc_cis.y"
+#line 239 "yacc_cis.y"
 {
 		    yyval.pwr.present = CISTPL_POWER_IDOWN;
 		    yyval.pwr.param[0] = yyvsp[0].num;
 		}
 break;
 case 36:
-#line 235 "yacc_cis.y"
+#line 246 "yacc_cis.y"
 {
 		    yyval.pwr.present = 0;
 		}
 break;
 case 37:
-#line 239 "yacc_cis.y"
+#line 250 "yacc_cis.y"
 {
 		    yyval.pwr.present |= 1<<(yyvsp[0].pwr.present);
 		    yyval.pwr.param[yyvsp[0].pwr.present] = yyvsp[0].pwr.param[0];
 		}
 break;
 case 42:
-#line 252 "yacc_cis.y"
+#line 263 "yacc_cis.y"
 {
 		    int n = yyval.parse->cftable_entry.io.nwin;
 		    yyval.parse->cftable_entry.io.win[n].base = yyvsp[-2].num;
@@ -853,7 +864,7 @@ case 42:
 		}
 break;
 case 43:
-#line 259 "yacc_cis.y"
+#line 270 "yacc_cis.y"
 {
 		    int n = yyval.parse->cftable_entry.io.nwin;
 		    yyval.parse->cftable_entry.io.win[n].base = yyvsp[-2].num;
@@ -862,19 +873,19 @@ case 43:
 		}
 break;
 case 44:
-#line 266 "yacc_cis.y"
+#line 277 "yacc_cis.y"
 { yyval.parse->cftable_entry.io.flags |= CISTPL_IO_8BIT; }
 break;
 case 45:
-#line 268 "yacc_cis.y"
+#line 279 "yacc_cis.y"
 { yyval.parse->cftable_entry.io.flags |= CISTPL_IO_16BIT; }
 break;
 case 46:
-#line 270 "yacc_cis.y"
+#line 281 "yacc_cis.y"
 { yyval.parse->cftable_entry.io.flags |= yyvsp[-1].num; }
 break;
 case 48:
-#line 275 "yacc_cis.y"
+#line 286 "yacc_cis.y"
 {
 		    int n = yyval.parse->cftable_entry.mem.nwin;
 		    yyval.parse->cftable_entry.mem.win[n].card_addr = yyvsp[-4].num;
@@ -884,7 +895,7 @@ case 48:
 		}
 break;
 case 49:
-#line 283 "yacc_cis.y"
+#line 294 "yacc_cis.y"
 {
 		    int n = yyval.parse->cftable_entry.mem.nwin;
 		    yyval.parse->cftable_entry.mem.win[n].card_addr = yyvsp[-4].num;
@@ -894,92 +905,92 @@ case 49:
 		}
 break;
 case 50:
-#line 291 "yacc_cis.y"
+#line 302 "yacc_cis.y"
 { yyval.parse->cftable_entry.io.flags |= CISTPL_IO_8BIT; }
 break;
 case 51:
-#line 293 "yacc_cis.y"
+#line 304 "yacc_cis.y"
 { yyval.parse->cftable_entry.io.flags |= CISTPL_IO_16BIT; }
 break;
 case 52:
-#line 297 "yacc_cis.y"
+#line 308 "yacc_cis.y"
 { yyval.parse->cftable_entry.irq.IRQInfo1 = (yyvsp[0].num & 0x0f); }
 break;
 case 53:
-#line 299 "yacc_cis.y"
+#line 310 "yacc_cis.y"
 {
 		    yyval.parse->cftable_entry.irq.IRQInfo1 = IRQ_INFO2_VALID;
 		    yyval.parse->cftable_entry.irq.IRQInfo2 = yyvsp[0].num;
 		}
 break;
 case 54:
-#line 304 "yacc_cis.y"
+#line 315 "yacc_cis.y"
 { yyval.parse->cftable_entry.irq.IRQInfo1 |= IRQ_PULSE_ID; }
 break;
 case 55:
-#line 306 "yacc_cis.y"
+#line 317 "yacc_cis.y"
 { yyval.parse->cftable_entry.irq.IRQInfo1 |= IRQ_LEVEL_ID; }
 break;
 case 56:
-#line 308 "yacc_cis.y"
+#line 319 "yacc_cis.y"
 { yyval.parse->cftable_entry.irq.IRQInfo1 |= IRQ_SHARE_ID; }
 break;
 case 57:
-#line 312 "yacc_cis.y"
+#line 323 "yacc_cis.y"
 {
 		    yyval.parse = calloc(1, sizeof(cisparse_t));
 		    yyval.parse->cftable_entry.index = yyvsp[0].num;
 		}
 break;
 case 58:
-#line 317 "yacc_cis.y"
+#line 328 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_DEFAULT; }
 break;
 case 59:
-#line 319 "yacc_cis.y"
+#line 330 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_BVDS; }
 break;
 case 60:
-#line 321 "yacc_cis.y"
+#line 332 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_WP; }
 break;
 case 61:
-#line 323 "yacc_cis.y"
+#line 334 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_RDYBSY; }
 break;
 case 62:
-#line 325 "yacc_cis.y"
+#line 336 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_MWAIT; }
 break;
 case 63:
-#line 327 "yacc_cis.y"
+#line 338 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_AUDIO; }
 break;
 case 64:
-#line 329 "yacc_cis.y"
+#line 340 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_READONLY; }
 break;
 case 65:
-#line 331 "yacc_cis.y"
+#line 342 "yacc_cis.y"
 { yyval.parse->cftable_entry.flags |= CISTPL_CFTABLE_PWRDOWN; }
 break;
 case 66:
-#line 333 "yacc_cis.y"
+#line 344 "yacc_cis.y"
 { yyval.parse->cftable_entry.vcc = yyvsp[0].pwr; }
 break;
 case 67:
-#line 335 "yacc_cis.y"
+#line 346 "yacc_cis.y"
 { yyval.parse->cftable_entry.vpp1 = yyvsp[0].pwr; }
 break;
 case 68:
-#line 337 "yacc_cis.y"
+#line 348 "yacc_cis.y"
 { yyval.parse->cftable_entry.vpp2 = yyvsp[0].pwr; }
 break;
 case 73:
-#line 345 "yacc_cis.y"
+#line 356 "yacc_cis.y"
 { yyval.parse = NULL; }
 break;
-#line 983 "y.tab.c"
+#line 994 "y.tab.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

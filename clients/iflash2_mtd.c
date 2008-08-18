@@ -2,7 +2,7 @@
 
     A simple MTD for Intel Series 2 and Series 100 Flash devices
 
-    iflash2_mtd.c 1.43 1999/07/20 15:59:13
+    iflash2_mtd.c 1.48 1999/09/08 06:23:40
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -16,7 +16,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
     
     For efficiency and simplicity, this driver is very block oriented.
     Reads and writes must not span erase block boundaries.  Erases
@@ -58,16 +69,11 @@
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
-#ifdef __LINUX__
-#define _printk(args...) printk(KERN_DEBUG args)
-#else
-#define _printk printk
-#endif
-#define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
+#define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"iflash2_mtd.c 1.43 1999/07/20 15:59:13 (David Hinds)";
+"iflash2_mtd.c 1.48 1999/09/08 06:23:40 (David Hinds)";
 #else
-#define DEBUG(n, args) do { } while (0)
+#define DEBUG(n, args...) do { } while (0)
 #endif
 
 /*====================================================================*/
@@ -171,7 +177,7 @@ static void abort_cmd(dev_link_t *link, volatile caddr_t base,
     u_char *addr = base + CISREG_SLEEP + ((cell>>3)<<1);
     /* Map the CIS register page into memory */
     mtd_mod_win_t mod = { WIN_MEMORY_TYPE_AM, 250, 0x4000 };
-    DEBUG(1, ("iflash2_mtd: abort\n"));
+    DEBUG(1, "iflash2_mtd: abort\n");
     MTDHelperEntry(MTDModifyWindow, link->win, &mod);
     /* Put the cell to sleep, then wake it up again */
     writeb(readb(addr) | (1 << (cell & 7)), addr);
@@ -338,7 +344,7 @@ static int vpp_setup(dev_link_t *link, mtd_request_t *req)
 	    if (dev->vpp_timeout.expires)
 		del_timer(&dev->vpp_timeout);
 	    else {
-		DEBUG(1, ("iflash2_mtd: raising Vpp...\n"));
+		DEBUG(1, "iflash2_mtd: raising Vpp...\n");
 		dev->vpp_start = jiffies;
 		vpp_req.Vpp1 = vpp_req.Vpp2 = dev->vpp;
 		MTDHelperEntry(MTDSetVpp, link->handle, &vpp_req);
@@ -361,7 +367,7 @@ static void vpp_off(u_long arg)
     mtd_vpp_req_t req;
 
     if (!dev->vpp) return;
-    DEBUG(1, ("iflash2_mtd: lowering Vpp...\n"));
+    DEBUG(1, "iflash2_mtd: lowering Vpp...\n");
     dev->vpp_timeout.expires = 0;
     req.Vpp1 = req.Vpp2 = 0;
     MTDHelperEntry(MTDSetVpp, link->handle, &req);
@@ -373,7 +379,7 @@ static void vpp_shutdown(dev_link_t *link)
     if (!dev->vpp) return;
     dev->vpp_usage--;
     if (dev->vpp_usage == 0) {
-	dev->vpp_timeout.expires = RUN_AT(vpp_timeout_period);
+	dev->vpp_timeout.expires = jiffies + vpp_timeout_period;
 	add_timer(&dev->vpp_timeout);
     }
 }
@@ -393,7 +399,7 @@ static dev_link_t *flash_attach(void)
     flash_dev_t *dev;
     int ret;
     
-    DEBUG(0, ("iflash2_mtd: flash_attach()\n"));
+    DEBUG(0, "iflash2_mtd: flash_attach()\n");
 
     /* Create new memory card device */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
@@ -442,7 +448,7 @@ static void flash_detach(dev_link_t *link)
     dev_link_t **linkp;
     int ret;
 
-    DEBUG(0, ("iflash2_mtd: flash_detach(0x%p)\n", link));
+    DEBUG(0, "iflash2_mtd: flash_detach(0x%p)\n", link);
     
     /* Locate device structure */
     for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
@@ -494,7 +500,7 @@ static void flash_config(dev_link_t *link)
     region_info_t region;
     int i, attr, ret;
 
-    DEBUG(0, ("iflash2_mtd: flash_config(0x%p)\n", link));
+    DEBUG(0, "iflash2_mtd: flash_config(0x%p)\n", link);
 
     /* Allocate a small memory window */
     if (word_width)
@@ -567,7 +573,7 @@ static void flash_release(u_long arg)
     flash_dev_t *dev;
     int i;
 
-    DEBUG(0, ("iflash2_mtd: flash_release(0x%p)\n", link));
+    DEBUG(0, "iflash2_mtd: flash_release(0x%p)\n", link);
 
     link->state &= ~DEV_CONFIG;
     dev = link->priv;
@@ -608,9 +614,9 @@ static int flash_read(dev_link_t *link, char *buf, mtd_request_t *req)
     u_long time;
     int ret;
     
-    DEBUG(2, ("iflash2_mtd: flash_read(0x%p, 0x%lx, 0x%p, 0x%x, "
-	      "0x%x)\n", link, req->MediaID, buf, req->SrcCardOffset,
-	      req->TransferLength));
+    DEBUG(2, "iflash2_mtd: flash_read(0x%p, 0x%lx, 0x%p, 0x%x, "
+	  "0x%x)\n", link, req->MediaID, buf, req->SrcCardOffset,
+	  req->TransferLength);
 
     flash = (flash_region_t *)(req->MediaID);
     region = &flash->region;
@@ -665,10 +671,10 @@ static int flash_read(dev_link_t *link, char *buf, mtd_request_t *req)
 #ifdef PCMCIA_DEBUG
     time = jiffies - time;
     if (time > 1)
-	DEBUG(3, ("iflash2_mtd: read complete, time = %ld, "
-		  "avg = %ld ns/word, rate = %ld kb/sec\n", time,
-		  time*20000000/req->TransferLength,
-		  req->TransferLength*100/(time*1024)));
+	DEBUG(3, "iflash2_mtd: read complete, time = %ld, "
+	      "avg = %ld ns/word, rate = %ld kb/sec\n", time,
+	      time*20000000/req->TransferLength,
+	      req->TransferLength*100/(time*1024));
 #endif
     
 done:
@@ -744,9 +750,9 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
     cs_status_t status;
     int ret;
 
-    DEBUG(2, ("iflash2_mtd: flash_write(0x%p, 0x%lx, 0x%p, 0x%x, "
-	      "0x%x)\n", link, req->MediaID, buf, req->DestCardOffset,
-	      req->TransferLength));
+    DEBUG(2, "iflash2_mtd: flash_write(0x%p, 0x%lx, 0x%p, 0x%x, "
+	  "0x%x)\n", link, req->MediaID, buf, req->DestCardOffset,
+	  req->TransferLength);
 
     /* Check card write protect status */
     ret = CardServices(GetStatus, link->handle, &status);
@@ -811,10 +817,10 @@ static int flash_write(dev_link_t *link, char *buf, mtd_request_t *req)
 #ifdef PCMCIA_DEBUG
     time = jiffies - time;
     if (time > 1)
-	DEBUG(3, ("iflash2_mtd: write complete, time = %ld, "
-		  "avg = %ld us/word, rate = %ld kb/sec\n", time,
-		  time*20000/req->TransferLength,
-		  req->TransferLength*100/(time*1024)));
+	DEBUG(3, "iflash2_mtd: write complete, time = %ld, "
+	      "avg = %ld us/word, rate = %ld kb/sec\n", time,
+	      time*20000/req->TransferLength,
+	      req->TransferLength*100/(time*1024));
 #endif
     
 done:
@@ -841,9 +847,9 @@ static int flash_erase(dev_link_t *link, char *buf, mtd_request_t *req)
     mtd_mod_win_t mod;
     int i, ret;
 
-    DEBUG(2, ("iflash2_mtd: flash_erase(0x%p, 0x%lx, 0x%x, 0x%x)\n",
-	      link, req->MediaID, req->DestCardOffset,
-	      req->TransferLength));
+    DEBUG(2, "iflash2_mtd: flash_erase(0x%p, 0x%lx, 0x%x, 0x%x)\n",
+	  link, req->MediaID, req->DestCardOffset,
+	  req->TransferLength);
 
     flash = (flash_region_t *)(req->MediaID);
     region = &flash->region;
@@ -920,8 +926,8 @@ static int flash_erase(dev_link_t *link, char *buf, mtd_request_t *req)
     return CS_BUSY;
     
 done:
-    DEBUG(2, ("iflash2_mtd: erase complete, time = %ld\n",
-	      jiffies - flash->cell[i].erase_time));
+    DEBUG(2, "iflash2_mtd: erase complete, time = %ld\n",
+	  jiffies - flash->cell[i].erase_time);
     flash->cell[i].state &= ~(FLASH_ERASING|FLASH_PENDING);
     reset_block((u_short *)dev->Base);
     vpp_shutdown(link);
@@ -982,14 +988,14 @@ static int flash_event(event_t event, int priority,
 {
     dev_link_t *link = args->client_data;
 
-    DEBUG(1, ("iflash2_mtd: flash_event(0x%06x)\n", event));
+    DEBUG(1, "iflash2_mtd: flash_event(0x%06x)\n", event);
     
     switch (event) {
 	
     case CS_EVENT_CARD_REMOVAL:
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
-	    link->release.expires = RUN_AT(HZ/20);
+	    link->release.expires = jiffies + HZ/20;
 	    link->state |= DEV_RELEASE_PENDING;
 	    add_timer(&link->release);
 	}
@@ -1028,7 +1034,7 @@ int init_module(void)
 {
     servinfo_t serv;
     
-    DEBUG(0, ("%s\n", version));
+    DEBUG(0, "%s\n", version);
 
     /* Rescale parameters */
     vpp_timeout_period = (vpp_timeout_period * HZ) / 1000;
@@ -1042,15 +1048,15 @@ int init_module(void)
 	return -1;
     }
     
-    register_pcmcia_driver(&dev_info, &flash_attach, &flash_detach);
+    register_pccard_driver(&dev_info, &flash_attach, &flash_detach);
 
     return 0;
 }
 
 void cleanup_module(void)
 {
-    DEBUG(0, ("iflash2_mtd: unloading\n"));
-    unregister_pcmcia_driver(&dev_info);
+    DEBUG(0, "iflash2_mtd: unloading\n");
+    unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	flash_detach(dev_list);
 }
@@ -1064,7 +1070,7 @@ void cleanup_module(void)
 static status_t std_ops(int32 op)
 {
     int ret;
-    DEBUG(0, ("iflash2_mtd: std_ops(%d)\n", op));
+    DEBUG(0, "iflash2_mtd: std_ops(%d)\n", op);
     switch (op) {
     case B_MODULE_INIT:
 	vpp_timeout_period = (vpp_timeout_period * HZ) / 1000;
@@ -1076,10 +1082,10 @@ static status_t std_ops(int32 op)
 	if (ret != B_OK) return ret;
 	ret = get_module(B_ISA_MODULE_NAME, (struct module_info **)&isa);
 	if (ret != B_OK) return ret;
-	register_pcmcia_driver(&dev_info, &flash_attach, &flash_detach);
+	register_pccard_driver(&dev_info, &flash_attach, &flash_detach);
 	break;
     case B_MODULE_UNINIT:
-	unregister_pcmcia_driver(&dev_info);
+	unregister_pccard_driver(&dev_info);
 	while (dev_list != NULL)
 	    flash_detach(dev_list);
 	if (isa) put_module(B_ISA_MODULE_NAME);

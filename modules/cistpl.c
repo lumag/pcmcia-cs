@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.68 1999/07/20 16:01:23
+    cistpl.c 1.71 1999/09/10 06:23:11
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -16,7 +16,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
     
 ======================================================================*/
 
@@ -83,7 +94,7 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
     u_char *sys;
     u_int inc = 1;
     
-    DEBUG(3, ("cs: read_cis_mem(%d, %#x, %u)\n", attr, addr, len));
+    DEBUG(3, "cs: read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
     if (setup_cis_mem(s) != 0) {
 	memset(ptr, 0xff, len);
 	return;
@@ -95,12 +106,12 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 
     for (; len > 0; sys = s->cis_virt) {
 	s->ss_entry(s->sock, SS_SetMemMap, mem);
-	DEBUG(3,  ("cs:  %#2.2x %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
-		   bus_readb(s->cap.bus, sys),
-		   bus_readb(s->cap.bus, sys+inc),
-		   bus_readb(s->cap.bus, sys+2*inc),
-		   bus_readb(s->cap.bus, sys+3*inc),
-		   bus_readb(s->cap.bus, sys+4*inc)));
+	DEBUG(3,  "cs:  %#2.2x %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
+	      bus_readb(s->cap.bus, sys),
+	      bus_readb(s->cap.bus, sys+inc),
+	      bus_readb(s->cap.bus, sys+2*inc),
+	      bus_readb(s->cap.bus, sys+3*inc),
+	      bus_readb(s->cap.bus, sys+4*inc));
 	for ( ; len > 0; len--, ((u_char *)ptr)++, sys += inc) {
 	    if (sys == s->cis_virt+s->cap.map_size) break;
 	    *(u_char *)ptr = bus_readb(s->cap.bus, sys);
@@ -116,7 +127,7 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
     u_char *sys;
     int inc = 1;
     
-    DEBUG(3, ("cs: write_cis_mem(%d, %#x, %u)\n", attr, addr, len));
+    DEBUG(3, "cs: write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
     if (setup_cis_mem(s) != 0) return;
     mem->flags &= ~MAP_ATTRIB;
     if (attr) { mem->flags |= MAP_ATTRIB; inc++; addr *= 2; }
@@ -217,7 +228,7 @@ void release_cis_mem(socket_info_t *s)
     if (s->cis_mem.sys_start != 0) {
 	s->cis_mem.flags &= ~MAP_ACTIVE;
 	s->ss_entry(s->sock, SS_SetMemMap, &s->cis_mem);
-	vacate_mem_region(s->cis_mem.sys_start, s->cap.map_size);
+	release_mem_region(s->cis_mem.sys_start, s->cap.map_size);
 	bus_iounmap(s->cap.bus, s->cis_virt);
 	s->cis_mem.sys_start = 0;
     }
@@ -503,8 +514,8 @@ int get_next_tuple(client_handle_t handle, tuple_t *tuple)
 	ofs += link[1] + 2;
     }
     if (i == MAX_TUPLES) {
-	DEBUG(1, ("cs: overrun in get_next_tuple for socket %d\n",
-		  handle->Socket));
+	DEBUG(1, "cs: overrun in get_next_tuple for socket %d\n",
+	      handle->Socket);
 	return CS_NO_MORE_ITEMS;
     }
     

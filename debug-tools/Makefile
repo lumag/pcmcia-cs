@@ -1,5 +1,5 @@
 #
-# debug-tools/Makefile 1.29 1999/07/24 15:03:24 (David Hinds)
+# debug-tools/Makefile 1.31 1999/08/23 06:15:40 (David Hinds)
 #
 
 # Include site dependent options
@@ -19,8 +19,13 @@ SRCS = dump_cis.c dump_cisreg.c pack_cis.c
 HDRS = pack_cis.h
 TOOLS = dump_cis dump_cisreg pack_cis
 
+ifdef CONFIG_PNP_BIOS
+SRCS := $(SRCS) lspnp.c setpnp.c
+TOOLS := $(TOOLS) lspnp setpnp
+endif
+
 ifdef CONFIG_ISA
-SRCS := $(SRCS) dump_tcic.c dump_i365.c
+SRCS := $(SRCS) dump_tcic.c dump_i365.c 
 TOOLS := $(TOOLS) dump_tcic dump_i365
 endif
 
@@ -33,6 +38,10 @@ dump_i365: dump_i365.o
 dump_tcic: dump_tcic.o
 
 dump_cisreg: dump_cisreg.o
+
+lspnp: lspnp.o
+
+setpnp: setpnp.o
 
 yacc_cis.c yacc_cis.h: yacc_cis.y
 	$(YACC) $(YFLAGS) yacc_cis.y
@@ -57,9 +66,14 @@ clean:
 	rm -f core core.* *.o *.s *.a *~ .depend .depfiles/*.d
 	rm -f dump_tuples dump_i365 dump_tcic dump_cisreg
 
-install: dump_cis pack_cis
+install: $(TOOLS)
 	mkdir -p $(PREFIX)/sbin
 	cp -f dump_cis pack_cis $(PREFIX)/sbin
+ifdef CONFIG_PNP_BIOS
+	cp -f lspnp setpnp $(PREFIX)/sbin
+	mkdir -p $(PREFIX)/usr/share
+	cp -f pnp.ids $(PREFIX)/usr/share
+endif
 
 # Stuff to automatically maintain dependency files
 

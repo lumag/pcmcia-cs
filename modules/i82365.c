@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.246 1999/07/20 16:01:27
+    i82365.c 1.253 1999/09/10 06:23:11
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -17,7 +17,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
     
 ======================================================================*/
 
@@ -65,16 +76,11 @@
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
-#ifdef __LINUX__
-#define _printk(args...) printk(KERN_DEBUG args)
-#else
-#define _printk printk
-#endif
-#define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
+#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.246 1999/07/20 16:01:27 (David Hinds)";
+"i82365.c 1.253 1999/09/10 06:23:11 (David Hinds)";
 #else
-#define DEBUG(n, args) do { } while (0)
+#define DEBUG(n, args...) do { } while (0)
 #endif
 
 #ifdef __BEOS__
@@ -85,16 +91,15 @@ typedef int32 irq_ret_t;
 #define _check_irq(i, f) check_irq(i)
 #else
 typedef void irq_ret_t;
-#define _request_irq(i, h, f, n) REQUEST_IRQ(i, h, f, n, NULL)
-#define _free_irq(i, h) FREE_IRQ(i, NULL)
-static void irq_count IRQ(int, void *, struct pt_regs *);
+#define _request_irq(i, h, f, n) request_irq(i, h, f, n, NULL)
+#define _free_irq(i, h) free_irq(i, NULL)
+static void irq_count(int, void *, struct pt_regs *);
 static inline int _check_irq(int irq, int flags)
 {
-    if (REQUEST_IRQ(irq, irq_count, flags, "x", NULL) == 0) {
-	FREE_IRQ(irq, NULL);
-	return 0;
-    }
-    return -1;
+    if (request_irq(irq, irq_count, flags, "x", NULL) != 0)
+	return -1;
+    free_irq(irq, NULL);
+    return 0;
 }
 #endif
 
@@ -168,7 +173,7 @@ MODULE_PARM(recov_time, "i");
 /* Scan PCI bus? */
 static int do_pci_probe = 1;
 /* Default memory base address for CardBus controllers */
-static u_int cb_mem_base = 0x68000000;
+static u_int cb_mem_base[] = { 0x68000000, 0xf8000000 };
 static int fast_pci = -1;
 static int hold_time = -1;
 /* Override BIOS interrupt routing mode? */
@@ -347,7 +352,7 @@ typedef enum pcic_id {
     IS_RL5C465, IS_RL5C466, IS_RL5C475, IS_RL5C476, IS_RL5C478,
     IS_SMC34C90,
     IS_TI1130, IS_TI1131, IS_TI1250A, IS_TI1220, IS_TI1221, IS_TI1210,
-    IS_TI1251A, IS_TI1251B, IS_TI1450, IS_TI1225,
+    IS_TI1251A, IS_TI1251B, IS_TI1450, IS_TI1225, IS_TI1211, IS_TI1420,
     IS_TOPIC95_A, IS_TOPIC95_B, IS_TOPIC97,
     IS_UNK_PCI, IS_UNK_CARDBUS
 #endif
@@ -405,9 +410,9 @@ static pcic_t pcic[] = {
       PCI_VENDOR_ID_OMEGA, PCI_DEVICE_ID_OMEGA_PCMCIA },
     { "Cirrus PD6832", IS_CIRRUS|IS_CARDBUS,
       PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_6832 },
-    { "O2Micro OZ6832", IS_O2MICRO|IS_CARDBUS|IS_VG_PWR,
+    { "O2Micro OZ6832/OZ6833", IS_O2MICRO|IS_CARDBUS|IS_VG_PWR,
       PCI_VENDOR_ID_O2, PCI_DEVICE_ID_O2_6832 },
-    { "O2Micro OZ6836", IS_O2MICRO|IS_CARDBUS|IS_VG_PWR,
+    { "O2Micro OZ6836/OZ6860", IS_O2MICRO|IS_CARDBUS|IS_VG_PWR,
       PCI_VENDOR_ID_O2, PCI_DEVICE_ID_O2_6836 },
     { "Ricoh RL5C465", IS_RICOH|IS_CARDBUS|IS_DF_PWR,
       PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C465 },
@@ -441,6 +446,10 @@ static pcic_t pcic[] = {
       PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1450 },
     { "TI 1225", IS_TI|IS_CARDBUS|IS_DF_PWR,
       PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1225 },
+    { "TI 1211", IS_TI|IS_CARDBUS|IS_DF_PWR,
+      PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1211 },
+    { "TI 1420", IS_TI|IS_CARDBUS|IS_DF_PWR,
+      PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1420 },
     { "Toshiba ToPIC95-A", IS_CARDBUS|IS_TOPIC|IS_DF_PWR,
       PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC95_A },
     { "Toshiba ToPIC95-B", IS_CARDBUS|IS_TOPIC|IS_DF_PWR,
@@ -921,8 +930,13 @@ static void o2micro_get_state(u_short s)
 {
     socket_info_t *t = &socket[s];
     o2micro_state_t *p = &socket[s].state.o2micro;
-    p->mode_a = i365_get(s, O2_MODE_A);
-    p->mode_b = i365_get(s, O2_MODE_B);
+    if ((t->revision == 0x34) || (t->revision == 0x62)) {
+	p->mode_a = i365_get(s, O2_MODE_A_2);
+	p->mode_b = i365_get(s, O2_MODE_B_2);
+    } else {
+	p->mode_a = i365_get(s, O2_MODE_A);
+	p->mode_b = i365_get(s, O2_MODE_B);
+    }
     p->mode_c = i365_get(s, O2_MODE_C);
     p->mode_d = i365_get(s, O2_MODE_D);
     if (t->flags & IS_CARDBUS) {
@@ -936,10 +950,13 @@ static void o2micro_set_state(u_short s)
 {
     socket_info_t *t = &socket[s];
     o2micro_state_t *p = &socket[s].state.o2micro;
-#if 0
-    i365_set(s, O2_MODE_A, p->mode_a);
-#endif
-    i365_set(s, O2_MODE_B, p->mode_b);
+    if ((t->revision == 0x34) || (t->revision == 0x62)) {
+	i365_set(s, O2_MODE_A_2, p->mode_a);
+	i365_set(s, O2_MODE_B_2, p->mode_b);
+    } else {
+	i365_set(s, O2_MODE_A, p->mode_a);
+	i365_set(s, O2_MODE_B, p->mode_b);
+    }
     i365_set(s, O2_MODE_C, p->mode_c);
     i365_set(s, O2_MODE_D, p->mode_d);
     if (t->flags & IS_CARDBUS) {
@@ -954,7 +971,8 @@ static u_int o2micro_set_opts(u_short s, char *buf)
     socket_info_t *t = &socket[s];
     o2micro_state_t *p = &socket[s].state.o2micro;
     u_int mask = 0xffff;
-    
+
+    p->mode_b = (p->mode_b & ~O2_MODE_B_IDENT) | O2_MODE_B_ID_CSTEP;
     flip(p->mode_b, O2_MODE_B_IRQ15_RI, has_ring);
     p->mode_c &= ~(O2_MODE_C_ZVIDEO | O2_MODE_C_DREQ_MASK);
     if (t->flags & IS_CARDBUS) {
@@ -1265,7 +1283,7 @@ static irq_ret_t irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
     i365_get(irq_sock, I365_CSC);
     irq_hits++;
 #ifndef __BEOS__
-    DEBUG(2, ("-> hit on irq %d\n", irq));
+    DEBUG(2, "-> hit on irq %d\n", irq);
 #endif
     return (irq_ret_t)1;
 }
@@ -1273,15 +1291,16 @@ static irq_ret_t irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
 static u_int test_irq(u_short sock, int irq, int pci)
 {
     u_char csc = (pci) ? 0 : irq;
-    DEBUG(2, ("  testing %s irq %d\n", pci ? "PCI" : "ISA", irq));
+    DEBUG(2, "  testing %s irq %d\n", pci ? "PCI" : "ISA", irq);
     
     if (_request_irq(irq, irq_count, (pci?SA_SHIRQ:0), "scan") != 0)
 	return 1;
     irq_hits = 0; irq_sock = sock;
+    current->state = TASK_INTERRUPTIBLE;
     schedule_timeout(HZ/100);
     if (irq_hits) {
 	_free_irq(irq, irq_count);
-	DEBUG(2, ("    spurious hit!\n"));
+	DEBUG(2, "    spurious hit!\n");
 	return 1;
     }
 
@@ -1308,7 +1327,7 @@ static u_int test_irq(u_short sock, int irq, int pci)
 
     /* mask all interrupts */
     i365_set(sock, I365_CSCINT, 0);
-    DEBUG(2, ("    hits = %d\n", irq_hits));
+    DEBUG(2, "    hits = %d\n", irq_hits);
     
     return (irq_hits != 1);
 }
@@ -1317,7 +1336,7 @@ static u_int test_irq(u_short sock, int irq, int pci)
 
 static u_int isa_scan(u_short sock, u_int mask0)
 {
-    u_int mask1;
+    u_int mask1 = 0;
     int i;
 
 #ifdef __alpha__
@@ -1326,7 +1345,6 @@ static u_int isa_scan(u_short sock, u_int mask0)
     mask0 &= ~(inb(PIC) | (inb(PIC+1) << 8));
 #endif
     
-    mask1 = 0;
 #ifdef CONFIG_PCI
     /* Only scan if we can select ISA csc irq's */
     if (!(socket[sock].flags & IS_CARDBUS) ||
@@ -1341,10 +1359,6 @@ static u_int isa_scan(u_short sock, u_int mask0)
 	for (i = 0; i < 16; i++)
 	    if ((mask1 & (1 << i)) && (test_irq(sock, i, 0) != 0))
 		mask1 ^= (1 << i);
-#ifdef CONFIG_PCI
-	if (socket[sock].flags & IS_CARDBUS)
-	    cb_writel(sock, CB_SOCKET_FORCE, CB_SF_CVSTEST);
-#endif
     }
     
     printk(KERN_INFO "    ISA irqs (");
@@ -1375,7 +1389,7 @@ static u_int isa_scan(u_short sock, u_int mask0)
 
 static void pci_scan(u_short sock)
 {
-    int i;
+    u_int i;
 
     cb_set_irq_mode(sock, 1, 0);
     set_host_state(sock);
@@ -1386,7 +1400,6 @@ static void pci_scan(u_short sock)
 	    (test_irq(sock, i, 1) == 0))
 	    break;
     }
-    cb_writel(sock, CB_SOCKET_FORCE, CB_SF_CVSTEST);
     if (i < 12) socket[sock].cap.pci_irq = i;
 }
 
@@ -1599,6 +1612,11 @@ static void add_pcic(int ns, int type)
     /* Update socket interrupt information, capabilities */
     for (i = 0; i < ns; i++) {
 	t[i].cap.features |= SS_CAP_PCCARD;
+	t[i].cap.map_size = 0x1000;
+	t[i].cap.irq_mask = mask;
+	if (pci_int && t[i].cap.pci_irq)
+	    t[i].cap.irq_mask |= (1 << t[i].cap.pci_irq);
+	t[i].cs_irq = isa_irq;
 #ifdef CONFIG_PCI
 	if (t[i].flags & IS_CARDBUS) {
 	    t[i].cap.features |= SS_CAP_CARDBUS;
@@ -1606,11 +1624,6 @@ static void add_pcic(int ns, int type)
 			    pci_int && t[i].cap.pci_irq);
 	}
 #endif
-	t[i].cap.map_size = 0x1000;
-	t[i].cap.irq_mask = mask;
-	if (pci_int && t[i].cap.pci_irq)
-	    t[i].cap.irq_mask |= (1 << t[i].cap.pci_irq);
-	t[i].cs_irq = isa_irq;
     }
 
 } /* add_pcic */
@@ -1715,17 +1728,39 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
 	pci_writel(bus, devfn, CB_LEGACY_MODE_BASE, 0);
 	pci_readl(bus, devfn, PCI_BASE_ADDRESS_0, &s->cb_phys);
 	if (s->cb_phys == 0) {
-	    s->cb_phys = cb_mem_base;
-	    pci_writel(bus, devfn, PCI_BASE_ADDRESS_0, s->cb_phys);
-	    cb_mem_base += PAGE_SIZE;
+	    int i;
+	    pci_writew(bus, devfn, PCI_COMMAND, CMD_DFLT);
+	    for (i = 0; i < sizeof(cb_mem_base)/sizeof(u_int); i++) {
+		s->cb_phys = cb_mem_base[i];
+		s->cb_virt = ioremap(s->cb_phys, 0x1000);
+		pci_writel(bus, devfn, PCI_BASE_ADDRESS_0, s->cb_phys);
+		/* Simple sanity checks */
+		if (((readb(s->cb_virt+0x800+I365_IDENT) & 0xf0)
+		     == 0x80) &&
+		    !(readb(s->cb_virt+0x800+I365_CSC) &&
+		      readb(s->cb_virt+0x800+I365_CSC) &&
+		      readb(s->cb_virt+0x800+I365_CSC)))
+		    break;
+		iounmap(s->cb_virt);
+	    }
+	    if (i == sizeof(cb_mem_base)/sizeof(u_int)) {
+		pci_writel(bus, devfn, PCI_BASE_ADDRESS_0, 0);
+		s->cb_phys = 0; s->cb_virt = NULL;
+		printk("\n");
+		printk(KERN_NOTICE "  Bridge register mapping failed:"
+		       " check cb_mem_base setting\n");
+		break;
+	    }
+	    cb_mem_base[0] = cb_mem_base[i] + PAGE_SIZE;
+	} else {
+	    s->cb_virt = ioremap(s->cb_phys, 0x1000);
 	}
-
+	
 	request_mem_region(s->cb_phys, 0x1000, "i82365");
-	s->cb_virt = ioremap(s->cb_phys, 0x1000);
-	if (s->cb_virt == NULL)
-	    printk(KERN_NOTICE "i82365: ioremap failed: bad kernel!\n");
 	add_socket(0, 0, type);
     }
+    if (ns == 0) return;
+    
     s -= ns;
     if (ns == 2) {
 	/* Nasty special check for bad bus mapping */
@@ -1736,8 +1771,14 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
 	    pci_writeb(bus, s[1].devfn, CB_CARDBUS_BUS, 0);
 	}
     }
-    if (ns > 0) add_pcic(ns, type);
+    add_pcic(ns, type);
 
+    /* Re-do card type & voltage detection */
+    cb_writel(sockets-ns, CB_SOCKET_FORCE, CB_SF_CVSTEST);
+    current->state = TASK_INTERRUPTIBLE;
+    schedule_timeout(HZ/5);
+
+#ifdef __LINUX__
 #if (LINUX_VERSION_CODE >= VERSION(2,1,103))
     /* Set up PCI bus bridge structures if needed */
     for (a = 0; a < ns; a++) {
@@ -1753,10 +1794,14 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
 	    child->number = child->secondary = s[a].cap.cardbus;
 	    child->subordinate = s[a].sub_bus;
 	    child->parent = parent;
+#if (LINUX_VERSION_CODE >= VERSION(2,3,15))
+	    child->ops = parent->ops;
+#endif
 	    child->next = parent->children;
 	}
 	s[a].cap.cb_bus = parent->children = child;
     }
+#endif
 #endif
 }
 
@@ -1840,7 +1885,7 @@ static void isa_probe(void)
 
 static int pcic_init(void)
 {
-    DEBUG(0, ("%s\n", version));
+    DEBUG(0, "%s\n", version);
     printk(KERN_INFO "Intel PCIC probe: ");
     sockets = 0;
 
@@ -1856,12 +1901,12 @@ static int pcic_init(void)
 #ifdef CONFIG_ISA
     isa_probe();
 #endif
-	
+
     if (sockets == 0) {
 	printk("not found.\n");
 	return -ENODEV;
     }
-    
+
     /* Set up interrupt handler, and/or polling */
 #ifdef CONFIG_ISA
     if (grab_irq != 0)
@@ -1889,7 +1934,7 @@ static int pcic_init(void)
 	poll_timer.function = pcic_interrupt_wrapper;
 	poll_timer.data = 0;
 	poll_timer.prev = poll_timer.next = NULL;
-    	poll_timer.expires = RUN_AT(poll_interval);
+    	poll_timer.expires = jiffies + poll_interval;
 	add_timer(&poll_timer);
     }
     
@@ -1925,13 +1970,13 @@ static void pcic_finish(void)
 #endif
     for (i = 0; i < sockets; i++) {
 	i365_set(i, I365_CSCINT, 0);
-	release_region(socket[i].ioaddr, 2);
 #ifdef CONFIG_PCI
 	if (socket[i].cb_virt) {
 	    iounmap(socket[i].cb_virt);
 	    release_mem_region(socket[i].cb_phys, 0x1000);
-	}
+	} else
 #endif
+	    release_region(socket[i].ioaddr, 2);
     }
 } /* pcic_finish */
 
@@ -1944,7 +1989,7 @@ static void pcic_interrupt_wrapper(u_long data)
 #else
     pcic_interrupt IRQ(0, NULL, NULL);
 #endif
-    poll_timer.expires = RUN_AT(poll_interval);
+    poll_timer.expires = jiffies + poll_interval;
     add_timer(&poll_timer);
 }
 
@@ -1960,7 +2005,7 @@ static irq_ret_t pcic_interrupt IRQ(int irq, void *dev,
     u_long flags = 0;
 #endif
     
-    DEBUG(4, ("i82365: pcic_interrupt(%d)\n", irq));
+    DEBUG(4, "i82365: pcic_interrupt(%d)\n", irq);
 
     for (j = 0; j < 20; j++) {
 	active = 0;
@@ -1993,7 +2038,7 @@ static irq_ret_t pcic_interrupt IRQ(int irq, void *dev,
 	    if (!(socket[i].flags & IS_CARDBUS))
 		spin_unlock_irqrestore(&isa_lock, flags);
 #endif
-	    DEBUG(2, ("i82365: socket %d event 0x%02x\n", i, events));
+	    DEBUG(2, "i82365: socket %d event 0x%02x\n", i, events);
 	    if (events)
 		socket[i].handler(socket[i].info, events);
 	    active |= events;
@@ -2003,7 +2048,7 @@ static irq_ret_t pcic_interrupt IRQ(int irq, void *dev,
     if (j == 20)
 	printk(KERN_NOTICE "i82365: infinite loop in interrupt handler\n");
 
-    DEBUG(4, ("i82365: interrupt done\n"));
+    DEBUG(4, "i82365: interrupt done\n");
     return (irq_ret_t)1;
 } /* pcic_interrupt */
 
@@ -2076,7 +2121,7 @@ static int i365_get_status(u_short sock, u_int *value)
     }
 #endif
     
-    DEBUG(1, ("i82365: GetStatus(%d) = %#4.4x\n", sock, *value));
+    DEBUG(1, "i82365: GetStatus(%d) = %#4.4x\n", sock, *value);
     return 0;
 } /* i365_get_status */
 
@@ -2093,8 +2138,7 @@ static int i365_get_socket(u_short sock, socket_state_t *state)
     vcc = reg & I365_VCC_MASK; vpp = reg & I365_VPP1_MASK;
     state->Vcc = state->Vpp = 0;
 #ifdef CONFIG_PCI
-    if ((t->flags & IS_CARDBUS) &&
-	(!(t->flags & IS_TOPIC) || (t->type == IS_TOPIC97))) {
+    if (t->flags & IS_CARDBUS) {
 	cb_get_power(sock, state);
     } else
 #endif
@@ -2157,9 +2201,9 @@ static int i365_get_socket(u_short sock, socket_state_t *state)
 	state->csc_mask |= (reg & I365_CSC_READY) ? SS_READY : 0;
     }
     
-    DEBUG(1, ("i82365: GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
-	      "io_irq %d, csc_mask %#2.2x\n", sock, state->flags,
-	      state->Vcc, state->Vpp, state->io_irq, state->csc_mask));
+    DEBUG(1, "i82365: GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
+	  "io_irq %d, csc_mask %#2.2x\n", sock, state->flags,
+	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
     return 0;
 } /* i365_get_socket */
 
@@ -2170,9 +2214,9 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
     socket_info_t *t = &socket[sock];
     u_char reg;
     
-    DEBUG(1, ("i82365: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
-	      "io_irq %d, csc_mask %#2.2x)\n", sock, state->flags,
-	      state->Vcc, state->Vpp, state->io_irq, state->csc_mask));
+    DEBUG(1, "i82365: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
+	  "io_irq %d, csc_mask %#2.2x)\n", sock, state->flags,
+	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
     
     /* First set global controller options */
 #ifdef CONFIG_PCI
@@ -2195,8 +2239,7 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
     if (state->flags & SS_OUTPUT_ENA) reg |= I365_PWR_OUT;
 
 #ifdef CONFIG_PCI
-    if ((t->flags & IS_CARDBUS) &&
-	(!(t->flags & IS_TOPIC) || (t->type == IS_TOPIC97))) {
+    if (t->flags & IS_CARDBUS) {
 	cb_set_power(sock, state);
 	reg |= i365_get(sock, I365_POWER) &
 	    (I365_VCC_MASK|I365_VPP1_MASK);
@@ -2304,9 +2347,9 @@ static int i365_get_io_map(u_short sock, struct pccard_io_map *io)
     io->flags |= (ioctl & I365_IOCTL_0WS(map)) ? MAP_0WS : 0;
     io->flags |= (ioctl & I365_IOCTL_16BIT(map)) ? MAP_16BIT : 0;
     io->flags |= (ioctl & I365_IOCTL_IOCS16(map)) ? MAP_AUTOSZ : 0;
-    DEBUG(1, ("i82365: GetIOMap(%d, %d) = %#2.2x, %d ns, "
-	      "%#4.4x-%#4.4x\n", sock, map, io->flags, io->speed,
-	      io->start, io->stop));
+    DEBUG(1, "i82365: GetIOMap(%d, %d) = %#2.2x, %d ns, "
+	  "%#4.4x-%#4.4x\n", sock, map, io->flags, io->speed,
+	  io->start, io->stop);
     return 0;
 } /* i365_get_io_map */
 
@@ -2316,9 +2359,9 @@ static int i365_set_io_map(u_short sock, struct pccard_io_map *io)
 {
     u_char map, ioctl;
     
-    DEBUG(1, ("i82365: SetIOMap(%d, %d, %#2.2x, %d ns, "
-	      "%#4.4x-%#4.4x)\n", sock, io->map, io->flags,
-	      io->speed, io->start, io->stop));
+    DEBUG(1, "i82365: SetIOMap(%d, %d, %#2.2x, %d ns, "
+	  "%#4.4x-%#4.4x)\n", sock, io->map, io->flags,
+	  io->speed, io->start, io->stop);
     map = io->map;
     if ((map > 1) || (io->start > 0xffff) || (io->stop > 0xffff) ||
 	(io->stop < io->start)) return -EINVAL;
@@ -2380,9 +2423,9 @@ static int i365_get_mem_map(u_short sock, struct pccard_mem_map *mem)
     }
 #endif
     
-    DEBUG(1, ("i82365: GetMemMap(%d, %d) = %#2.2x, %d ns, %#5.5lx-%#5."
-	      "5lx, %#5.5x\n", sock, mem->map, mem->flags, mem->speed,
-	      mem->sys_start, mem->sys_stop, mem->card_start));
+    DEBUG(1, "i82365: GetMemMap(%d, %d) = %#2.2x, %d ns, %#5.5lx-%#5."
+	  "5lx, %#5.5x\n", sock, mem->map, mem->flags, mem->speed,
+	  mem->sys_start, mem->sys_stop, mem->card_start);
     return 0;
 } /* i365_get_mem_map */
 
@@ -2393,9 +2436,9 @@ static int i365_set_mem_map(u_short sock, struct pccard_mem_map *mem)
     u_short base, i;
     u_char map;
     
-    DEBUG(1, ("i82365: SetMemMap(%d, %d, %#2.2x, %d ns, %#5.5lx-%#5.5"
-	      "lx, %#5.5x)\n", sock, mem->map, mem->flags, mem->speed,
-	      mem->sys_start, mem->sys_stop, mem->card_start));
+    DEBUG(1, "i82365: SetMemMap(%d, %d, %#2.2x, %d ns, %#5.5lx-%#5.5"
+	  "lx, %#5.5x)\n", sock, mem->map, mem->flags, mem->speed,
+	  mem->sys_start, mem->sys_stop, mem->card_start);
 
     map = mem->map;
     if ((map > 4) || (mem->card_start > 0x3ffffff) ||
@@ -2505,7 +2548,7 @@ static int cb_get_status(u_short sock, u_int *value)
     *value |= (s & CB_SS_PWRCYCLE) ? (SS_POWERON|SS_READY) : 0;
     *value |= (s & CB_SS_3VCARD) ? SS_3VCARD : 0;
     *value |= (s & CB_SS_XVCARD) ? SS_XVCARD : 0;
-    DEBUG(1, ("yenta: GetStatus(%d) = %#4.4x\n", sock, *value));
+    DEBUG(1, "yenta: GetStatus(%d) = %#4.4x\n", sock, *value);
     return 0;
 } /* cb_get_status */
 
@@ -2521,9 +2564,9 @@ static int cb_get_socket(u_short sock, socket_state_t *state)
 	state->io_irq = s->cap.pci_irq;
     else
 	state->io_irq = i365_get(sock, I365_INTCTL) & I365_IRQ_MASK;
-    DEBUG(1, ("yenta: GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
-	      "io_irq %d, csc_mask %#2.2x\n", sock, state->flags,
-	      state->Vcc, state->Vpp, state->io_irq, state->csc_mask));
+    DEBUG(1, "yenta: GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
+	  "io_irq %d, csc_mask %#2.2x\n", sock, state->flags,
+	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
     return 0;
 } /* cb_get_socket */
 
@@ -2532,9 +2575,9 @@ static int cb_set_socket(u_short sock, socket_state_t *state)
     socket_info_t *s = &socket[sock];
     u_int reg;
     
-    DEBUG(1, ("yenta: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
-	      "io_irq %d, csc_mask %#2.2x)\n", sock, state->flags,
-	      state->Vcc, state->Vpp, state->io_irq, state->csc_mask));
+    DEBUG(1, "yenta: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
+	  "io_irq %d, csc_mask %#2.2x)\n", sock, state->flags,
+	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
     
     /* First set global controller options */
     if (s->cap.pci_irq)
@@ -2580,8 +2623,8 @@ static int cb_get_bridge(u_short sock, struct cb_bridge_map *m)
 	pci_readw(s->bus, s->devfn, CB_BRIDGE_CONTROL, &bcr);
 	m->flags |= (bcr & CB_BCR_PREFETCH(map)) ? MAP_PREFETCH : 0;
     }
-    DEBUG(1, ("yenta: GetBridge(%d, %d) = %#2.2x, %#4.4x-%#4.4x\n",
-	      sock, map, m->flags, m->start, m->stop));
+    DEBUG(1, "yenta: GetBridge(%d, %d) = %#2.2x, %#4.4x-%#4.4x\n",
+	  sock, map, m->flags, m->start, m->stop);
     return 0;
 }
 
@@ -2590,8 +2633,8 @@ static int cb_set_bridge(u_short sock, struct cb_bridge_map *m)
     socket_info_t *s = &socket[sock];
     u_char map;
     
-    DEBUG(1, ("yenta: SetBridge(%d, %d, %#2.2x, %#4.4x-%#4.4x)\n",
-	      sock, m->map, m->flags, m->start, m->stop));
+    DEBUG(1, "yenta: SetBridge(%d, %d, %#2.2x, %#4.4x-%#4.4x)\n",
+	  sock, m->map, m->flags, m->start, m->stop);
     map = m->map;
     if (!(s->flags & IS_CARDBUS) || (map > 1) || (m->stop < m->start))
 	return -EINVAL;
@@ -2652,14 +2695,21 @@ static int proc_read_exca(char *buf, char **start, off_t pos,
 {
     u_short sock = (socket_info_t *)data - socket;
     char *p = buf;
-    int i;
+    int i, top;
     
 #ifdef CONFIG_ISA
     u_long flags = 0;
     if (!(socket[sock].flags & IS_CARDBUS))
 	spin_lock_irqsave(&isa_lock, flags);
 #endif
-    for (i = 0; i < 0x40; i += 4) {
+    top = 0x40;
+    if (socket[sock].flags & IS_CARDBUS)
+	top = (socket[sock].flags & IS_CIRRUS) ? 0x140 : 0x50;
+    for (i = 0; i < top; i += 4) {
+	if (i == 0x50) {
+	    p += sprintf(p, "\n");
+	    i = 0x100;
+	}
 	p += sprintf(p, "%02x %02x %02x %02x%s",
 		     i365_get(sock,i), i365_get(sock,i+1),
 		     i365_get(sock,i+2), i365_get(sock,i+3),
@@ -2785,7 +2835,7 @@ static int pcic_service(u_int sock, u_int cmd, void *arg)
 {
     subfn_t fn;
 
-    DEBUG(2, ("pcic_ioctl(%d, %d, 0x%p)\n", sock, cmd, arg));
+    DEBUG(2, "pcic_ioctl(%d, %d, 0x%p)\n", sock, cmd, arg);
 
     if (cmd >= NFUNC)
 	return -EINVAL;

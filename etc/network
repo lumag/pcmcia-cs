@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.54 1999/07/28 17:55:14 (David Hinds)
+# network 1.55 1999/08/23 06:12:04 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -37,7 +37,9 @@ case "$ACTION" in
 
     test "$IF_PORT" && /sbin/ifport $DEVICE $IF_PORT
 
-    if is_true $BOOTP ; then
+    if is_true $PUMP ; then
+	/sbin/pump -i $DEVICE
+    elif is_true $BOOTP ; then
 	/sbin/ifconfig $DEVICE up 0.0.0.0
 	/sbin/route add default dev $DEVICE
 	eval `/sbin/bootpc --bootfile '' --returniffail \
@@ -47,9 +49,7 @@ case "$ACTION" in
 	if [ "$GATEWAYS" ] ; then
 	    set - $GATEWAYS ; GATEWAY=$1
 	fi
-    fi
-
-    if is_true $DHCP ; then
+    elif is_true $DHCP ; then
 	/sbin/ifconfig $DEVICE up 0.0.0.0
 	/sbin/route add default dev $DEVICE
 	if /sbin/dhcpcd -V 2>&1 | grep -q DHCP ; then
@@ -71,7 +71,7 @@ case "$ACTION" in
 	    fi
 	fi
     fi
-    
+
     if [ "$IPADDR" ] ; then
 
 	# Basic network setup
@@ -118,8 +118,8 @@ case "$ACTION" in
 'stop')
 
     stop_fn $DEVICE
-    
-    if is_true $BOOTP || is_true $DHCP || [ "$IPADDR" ] ; then
+
+    if is_true $PUMP || is_true $BOOTP || is_true $DHCP || [ "$IPADDR" ] ; then
 
 	# Shut down all NFS mounts on this interface
 	nfsstop ()
@@ -142,7 +142,9 @@ case "$ACTION" in
 	    mv $RESOLV.N $RESOLV
 	fi
 
-	if is_true $DHCP ; then
+	if is_true $PUMP ; then
+	    pump -r -i $DEVICE
+	elif is_true $DHCP ; then
 	    kill -TERM `cat /var/run/dhcpcd-$DEVICE.pid`
 	    sleep 2
 	    /sbin/dhcpcd -V 2>&1 | grep -q DHCP || \

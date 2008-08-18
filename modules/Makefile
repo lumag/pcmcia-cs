@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.98 1999/07/30 04:11:39
+# Makefile 1.99 1999/08/23 06:16:09
 #
 
 # Include site dependent options and kernel configuration
@@ -18,12 +18,6 @@ CPPFLAGS = $(PCDEBUG) -D__KERNEL__ -DMODULE -I../include \
 	   -I$(LINUX)/include -I$(LINUX)
 COFLAGS = -kv
 
-# For files in kernel source tree, so that we can override config flags
-XFLAGS = -O2 -D__KERNEL__ -I../include -I$(LINUX)/include
-ifdef CONFIG_MODVERSIONS
-XFLAGS := $(XFLAGS) $(MFLAG)
-endif
-
 SRCS = i82365.c tcic.c cs.c cistpl.c rsrc_mgr.c bulkmem.c ds.c
 
 MODULES = i82365.o tcic.o pcmcia_core.o ds.o
@@ -34,6 +28,11 @@ ifdef CONFIG_CARDBUS
 SRCS := $(SRCS) cardbus.c cb_enabler.c
 CORE := $(CORE) cardbus.o
 MODULES := $(MODULES) cb_enabler.o
+endif
+
+ifdef CONFIG_PNP_BIOS
+SRCS := $(SRCS) pnp_bios.c pnp_proc.c pnp_rsrc.c
+CORE := $(CORE) pnp_bios.o pnp_proc.o pnp_rsrc.o
 endif
 
 all:	$(MODULES)

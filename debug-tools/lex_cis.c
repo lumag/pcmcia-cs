@@ -633,7 +633,7 @@ char *yytext;
 
 #line 5 "lex_cis.l"
 /*
- * lex_cis.l 1.10 1999/07/20 16:03:27
+ * lex_cis.l 1.11 1999/08/28 04:09:24
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -647,7 +647,18 @@ char *yytext;
  *
  * The initial developer of the original code is David A. Hinds
  * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
- * are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+ * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+ *
+ * Alternatively, the contents of this file may be used under the
+ * terms of the GNU Public License version 2 (the "GPL"), in which
+ * case the provisions of the GPL are applicable instead of the
+ * above.  If you wish to allow the use of your version of this file
+ * only under the terms of the GPL and not to allow others to use
+ * your version of this file under the MPL, indicate your decision by
+ * deleting the provisions above and replace them with the notice and
+ * other provisions required by the GPL.  If you do not delete the
+ * provisions above, a recipient may use your version of this file
+ * under either the MPL or the GPL.
  */
 
 #undef src
@@ -821,7 +832,7 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
 
-#line 51 "lex_cis.l"
+#line 62 "lex_cis.l"
 
 
 
@@ -908,482 +919,482 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 53 "lex_cis.l"
+#line 64 "lex_cis.l"
 current_lineno++;
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 54 "lex_cis.l"
+#line 65 "lex_cis.l"
 /* skip */ ;
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 55 "lex_cis.l"
+#line 66 "lex_cis.l"
 /* skip */ ;
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 57 "lex_cis.l"
+#line 68 "lex_cis.l"
 return FUNCID;
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 58 "lex_cis.l"
+#line 69 "lex_cis.l"
 return MFC;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 59 "lex_cis.l"
+#line 70 "lex_cis.l"
 return MANFID;
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 60 "lex_cis.l"
+#line 71 "lex_cis.l"
 return VERS_1;
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 61 "lex_cis.l"
+#line 72 "lex_cis.l"
 return CHECKSUM;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 63 "lex_cis.l"
+#line 74 "lex_cis.l"
 return DEV_INFO;
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 64 "lex_cis.l"
+#line 75 "lex_cis.l"
 return ATTR_DEV_INFO;
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 65 "lex_cis.l"
+#line 76 "lex_cis.l"
 return NO_INFO;
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 66 "lex_cis.l"
+#line 77 "lex_cis.l"
 return lex_number("0");
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 67 "lex_cis.l"
+#line 78 "lex_cis.l"
 return lex_number("1");
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 68 "lex_cis.l"
+#line 79 "lex_cis.l"
 return lex_number("3");
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 69 "lex_cis.l"
+#line 80 "lex_cis.l"
 return lex_number("4");
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 70 "lex_cis.l"
+#line 81 "lex_cis.l"
 return lex_number("5");
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 71 "lex_cis.l"
+#line 82 "lex_cis.l"
 return lex_number("6");
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 72 "lex_cis.l"
+#line 83 "lex_cis.l"
 return lex_number("7");
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 73 "lex_cis.l"
+#line 84 "lex_cis.l"
 return lex_number("13");
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 75 "lex_cis.l"
+#line 86 "lex_cis.l"
 return CONFIG;
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 76 "lex_cis.l"
+#line 87 "lex_cis.l"
 return BASE;
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 77 "lex_cis.l"
+#line 88 "lex_cis.l"
 return MASK;
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 78 "lex_cis.l"
+#line 89 "lex_cis.l"
 return LAST_INDEX;
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 79 "lex_cis.l"
+#line 90 "lex_cis.l"
 return POST;
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 80 "lex_cis.l"
+#line 91 "lex_cis.l"
 return ROM;
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 82 "lex_cis.l"
+#line 93 "lex_cis.l"
 return CFTABLE;
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 83 "lex_cis.l"
+#line 94 "lex_cis.l"
 return DEFAULT;
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 84 "lex_cis.l"
+#line 95 "lex_cis.l"
 return BVD;
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 85 "lex_cis.l"
+#line 96 "lex_cis.l"
 return WP;
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 86 "lex_cis.l"
+#line 97 "lex_cis.l"
 return RDYBSY;
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 87 "lex_cis.l"
+#line 98 "lex_cis.l"
 return MWAIT;
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 88 "lex_cis.l"
+#line 99 "lex_cis.l"
 return AUDIO;
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 89 "lex_cis.l"
+#line 100 "lex_cis.l"
 return READONLY;
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 90 "lex_cis.l"
+#line 101 "lex_cis.l"
 return PWRDOWN;
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 92 "lex_cis.l"
+#line 103 "lex_cis.l"
 return VCC;
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 93 "lex_cis.l"
+#line 104 "lex_cis.l"
 return VPP1;
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 94 "lex_cis.l"
+#line 105 "lex_cis.l"
 return VPP2;
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 95 "lex_cis.l"
+#line 106 "lex_cis.l"
 return VNOM;
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 96 "lex_cis.l"
+#line 107 "lex_cis.l"
 return VMIN;
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 97 "lex_cis.l"
+#line 108 "lex_cis.l"
 return VMAX;
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 98 "lex_cis.l"
+#line 109 "lex_cis.l"
 return ISTATIC;
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 99 "lex_cis.l"
+#line 110 "lex_cis.l"
 return IAVG;
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 100 "lex_cis.l"
+#line 111 "lex_cis.l"
 return IPEAK;
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 101 "lex_cis.l"
+#line 112 "lex_cis.l"
 return IDOWN;
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 103 "lex_cis.l"
+#line 114 "lex_cis.l"
 return IO;
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 104 "lex_cis.l"
+#line 115 "lex_cis.l"
 return MEM;
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 105 "lex_cis.l"
+#line 116 "lex_cis.l"
 return BIT8;
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 106 "lex_cis.l"
+#line 117 "lex_cis.l"
 return BIT16;
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 107 "lex_cis.l"
+#line 118 "lex_cis.l"
 return LINES;
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 108 "lex_cis.l"
+#line 119 "lex_cis.l"
 return RANGE;
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 110 "lex_cis.l"
+#line 121 "lex_cis.l"
 return IRQ_NO;
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 111 "lex_cis.l"
+#line 122 "lex_cis.l"
 return LEVEL;
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 112 "lex_cis.l"
+#line 123 "lex_cis.l"
 return PULSE;
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 113 "lex_cis.l"
+#line 124 "lex_cis.l"
 return SHARED;
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 115 "lex_cis.l"
+#line 126 "lex_cis.l"
 return TIMING;
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 116 "lex_cis.l"
+#line 127 "lex_cis.l"
 return WAIT;
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 117 "lex_cis.l"
+#line 128 "lex_cis.l"
 return READY;
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 118 "lex_cis.l"
+#line 129 "lex_cis.l"
 return RESERVED;
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 120 "lex_cis.l"
+#line 131 "lex_cis.l"
 return lex_number("0");
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 121 "lex_cis.l"
+#line 132 "lex_cis.l"
 return lex_number("1");
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 122 "lex_cis.l"
+#line 133 "lex_cis.l"
 return lex_number("2");
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 123 "lex_cis.l"
+#line 134 "lex_cis.l"
 return lex_number("3");
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 124 "lex_cis.l"
+#line 135 "lex_cis.l"
 return lex_number("4");
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 125 "lex_cis.l"
+#line 136 "lex_cis.l"
 return lex_number("5");
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 126 "lex_cis.l"
+#line 137 "lex_cis.l"
 return lex_number("6");
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 127 "lex_cis.l"
+#line 138 "lex_cis.l"
 return lex_number("7");
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 128 "lex_cis.l"
+#line 139 "lex_cis.l"
 return lex_number("8");
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 130 "lex_cis.l"
+#line 141 "lex_cis.l"
 return lex_number(yytext);
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 131 "lex_cis.l"
+#line 142 "lex_cis.l"
 return lex_number(yytext);
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 133 "lex_cis.l"
+#line 144 "lex_cis.l"
 return lex_units(yytext, 1, SIZE);
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 134 "lex_cis.l"
+#line 145 "lex_cis.l"
 return lex_units(yytext, 1024, SIZE);
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 135 "lex_cis.l"
+#line 146 "lex_cis.l"
 return lex_units(yytext, 1024*1024, SIZE);
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 137 "lex_cis.l"
+#line 148 "lex_cis.l"
 return lex_units(yytext, 1000000000, TIME);
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 138 "lex_cis.l"
+#line 149 "lex_cis.l"
 return lex_units(yytext, 1000000, TIME);
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 139 "lex_cis.l"
+#line 150 "lex_cis.l"
 return lex_units(yytext, 1000, TIME);
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 140 "lex_cis.l"
+#line 151 "lex_cis.l"
 return lex_units(yytext, 1, TIME);
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
-#line 141 "lex_cis.l"
+#line 152 "lex_cis.l"
 return lex_units(yytext, 1000000000, TIME);
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 142 "lex_cis.l"
+#line 153 "lex_cis.l"
 return lex_units(yytext, 1000000, TIME);
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 143 "lex_cis.l"
+#line 154 "lex_cis.l"
 return lex_units(yytext, 1000, TIME);
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 144 "lex_cis.l"
+#line 155 "lex_cis.l"
 return lex_units(yytext, 1, TIME);
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 146 "lex_cis.l"
+#line 157 "lex_cis.l"
 return lex_units(yytext, 100000, VOLTAGE);
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 147 "lex_cis.l"
+#line 158 "lex_cis.l"
 return lex_units(yytext, 100, VOLTAGE);
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 148 "lex_cis.l"
+#line 159 "lex_cis.l"
 return lex_units(yytext, 0.1, VOLTAGE);
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 149 "lex_cis.l"
+#line 160 "lex_cis.l"
 return lex_units(yytext, 100000, VOLTAGE);
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 150 "lex_cis.l"
+#line 161 "lex_cis.l"
 return lex_units(yytext, 100, VOLTAGE);
 	YY_BREAK
 case 86:
 YY_RULE_SETUP
-#line 151 "lex_cis.l"
+#line 162 "lex_cis.l"
 return lex_units(yytext, 0.1, VOLTAGE);
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 153 "lex_cis.l"
+#line 164 "lex_cis.l"
 return lex_units(yytext, 10000000, CURRENT);
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
-#line 154 "lex_cis.l"
+#line 165 "lex_cis.l"
 return lex_units(yytext, 10000, CURRENT);
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
-#line 155 "lex_cis.l"
+#line 166 "lex_cis.l"
 return lex_units(yytext, 10, CURRENT);
 	YY_BREAK
 case 90:
 YY_RULE_SETUP
-#line 156 "lex_cis.l"
+#line 167 "lex_cis.l"
 return lex_units(yytext, 10000000, CURRENT);
 	YY_BREAK
 case 91:
 YY_RULE_SETUP
-#line 157 "lex_cis.l"
+#line 168 "lex_cis.l"
 return lex_units(yytext, 10000, CURRENT);
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
-#line 158 "lex_cis.l"
+#line 169 "lex_cis.l"
 return lex_units(yytext, 10, CURRENT);
 	YY_BREAK
 case 93:
 YY_RULE_SETUP
-#line 160 "lex_cis.l"
+#line 171 "lex_cis.l"
 return lex_float(yytext);
 	YY_BREAK
 case 94:
 YY_RULE_SETUP
-#line 162 "lex_cis.l"
+#line 173 "lex_cis.l"
 return lex_string(yytext);
 	YY_BREAK
 case 95:
 YY_RULE_SETUP
-#line 164 "lex_cis.l"
+#line 175 "lex_cis.l"
 return yytext[0];
 	YY_BREAK
 case 96:
 YY_RULE_SETUP
-#line 166 "lex_cis.l"
+#line 177 "lex_cis.l"
 ECHO;
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
@@ -2272,7 +2283,7 @@ int main()
 	return 0;
 	}
 #endif
-#line 166 "lex_cis.l"
+#line 177 "lex_cis.l"
 
 
 #ifndef yywrap

@@ -2,7 +2,7 @@
 
     A driver for CardBus serial devices
 
-    serial_cb.c 1.7 1999/07/26 17:06:34
+    serial_cb.c 1.9 1999/09/05 18:27:00
 
     Copyright 1998, 1999 by Donald Becker and David Hinds
     
@@ -38,7 +38,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cb.c 1.7 1999/07/26 17:06:34 (David Hinds)";
+"serial_cb.c 1.9 1999/09/05 18:27:00 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -88,8 +88,14 @@ static dev_node_t *serial_attach(dev_locator_t *loc)
     printk(KERN_INFO "serial_attach(bus %d, fn %d)\n", bus, devfn);
     pcibios_read_config_dword(bus, devfn, PCI_BASE_ADDRESS_0, &io);
     pcibios_read_config_byte(bus, devfn, PCI_INTERRUPT_LINE, &irq);
-    io &= PCI_BASE_ADDRESS_IO_MASK;
+    if (io & PCI_BASE_ADDRESS_SPACE_IO) {
+	io &= PCI_BASE_ADDRESS_IO_MASK;
+    } else {
+	printk(KERN_NOTICE "serial_cb: PCI base address 0 is not IO\n");
+	return NULL;
+    }
     device_setup(bus, devfn, io);
+    memset(&serial, 0, sizeof(serial));
     serial.port = io; serial.irq = irq;
     serial.flags = ASYNC_SKIP_TEST | ASYNC_SHARE_IRQ;
 

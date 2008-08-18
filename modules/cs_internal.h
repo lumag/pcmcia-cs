@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.39 1999/07/20 16:01:25
+ * cs_internal.h 1.43 1999/09/07 15:19:04
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -13,7 +13,7 @@
  *
  * The initial developer of the original code is David A. Hinds
  * <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
- *  are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+ *  are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  */
 
 #ifndef _LINUX_CS_INTERNAL_H
@@ -207,6 +207,8 @@ typedef struct socket_info_t {
     ((h)->event_handler((e), (p), &(h)->event_callback_args))
 
 /* In cardbus.c */
+int cb_alloc(socket_info_t *s);
+void cb_free(socket_info_t *s);
 int cb_config(socket_info_t *s);
 void cb_release(socket_info_t *s);
 void cb_enable(socket_info_t *s);
@@ -257,8 +259,19 @@ int try_irq(u_int Attributes, int irq, int specific);
 void undo_irq(u_int Attributes, int irq);
 int adjust_resource_info(client_handle_t handle, adjust_t *adj);
 void release_resource_db(void);
+int proc_read_io(char *buf, char **start, off_t pos,
+		 int count, int *eof, void *data);
 int proc_read_mem(char *buf, char **start, off_t pos,
 		  int count, int *eof, void *data);
+
+/* in pnp components */
+int proc_read_irq(char *buf, char **start, off_t pos,
+		  int count, int *eof, void *data);
+void pnp_bios_init(void);
+void pnp_proc_init(void);
+void pnp_proc_done(void);
+void pnp_rsrc_init(void);
+void pnp_rsrc_done(void);
 
 #define MAX_SOCK 8
 extern socket_t sockets;
@@ -278,14 +291,9 @@ extern config_manager_for_bus_module_info *cm;
 
 #ifdef PCMCIA_DEBUG
 extern int pc_debug;
-#ifdef __LINUX__
-#define _printk(args...) printk(KERN_DEBUG args)
+#define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_DEBUG args); } while (0)
 #else
-#define _printk printk
-#endif
-#define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
-#else
-#define DEBUG(n, args) do { } while (0)
+#define DEBUG(n, args...) do { } while (0)
 #endif
 
 #endif /* _LINUX_CS_INTERNAL_H */

@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/07/30 06:09:07
+		Last updated: 1999/09/10 17:08:13
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -37,7 +37,7 @@ Ethernet cards:
 	RATOC REX-9822, REX-5588A/W, REX-R280
 	TDK LAC-CD02x, LAK-CD021, LAK-CD022A, LAK-CD021AX, LAK-CD021BX
 
-	[nmclan_cs driver] [x86]
+	[nmclan_cs driver] [x86,ppc]
 	New Media EthernetLAN
 	New Media LiveWire	[ NOT the LiveWire+ ]
 
@@ -84,6 +84,7 @@ Ethernet cards:
 	Genius ME3000II Ethernet
 	Grey Cell Ethernet
 	GVC NIC-2000P Ethernet Combo
+	Hawking PN650TX
 	Hypertec HyperNet
 	IBM CreditCard Ethernet Adapter
 	IC-Card Ethernet
@@ -134,6 +135,7 @@ Ethernet cards:
 	Volktek NPL-402CT Ethernet
 
 	[smc91c92_cs driver] [x86]
+	Farallon Enet
 	Megahertz XJ10BT, XJ10BC, CC10BT Ethernet
 	New Media BASICS Ethernet
 	Ositech Four of Diamonds
@@ -141,7 +143,7 @@ Ethernet cards:
 
 	[xirc2ps_cs driver] [x86,axp]
 	Compaq Ethernet Adapter
-	Xircom CreditCard CE2
+	Xircom CreditCard CE2, RE10
 
 Fast Ethernet (10/100baseT) adapters:
 
@@ -199,6 +201,7 @@ Fast Ethernet (10/100baseT) adapters:
 	AmbiCom AMB8100
 	Compex Linkport TX
 	D-Link DFE-660TX
+	IBM 10/100 EtherJet CardBus
 	Kingston KNE-CB4TX
 	LevelOne FPC-0101TX 10/100Mbps CardBus
 	Linksys PCMPC200 EtherFast CardBus
@@ -206,7 +209,7 @@ Fast Ethernet (10/100baseT) adapters:
 	SVEC FD606 10/100 Ethernet
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
 	UMAX Technologies UMAX250
-	Xircom CBEII-10/100
+	Xircom CBEII-10/100, RBE-100
 
 Token-ring adapters:
 
@@ -214,7 +217,9 @@ Token-ring adapters:
 	3Com 3c389 TokenLink Velocity
 	3Com 3c689 TokenLink III
 	IBM Token Ring Adapter
-	iBM Turbo 16/4 Token Ring
+	IBM Token Ring 16/4 Credit Card Adapter
+	IBM Token Ring Auto 16/4 Credit Card Adapter
+	IBM Turbo 16/4 Token Ring PC Card
 
 Wireless network adapters:
 
@@ -223,6 +228,7 @@ Wireless network adapters:
 	DEC RoamAbout/DS
 
 	[netwave_cs driver] [x86]
+	Breezenet SA-PX
 	Xircom CreditCard Netwave
 
 Modem and serial cards:
@@ -364,6 +370,7 @@ Multifunction ethernet/modem cards:
 	[epic_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
 	Ositech Jack of Spades CardBus
+	Psion Gold Card Netglobal 56K+10/100Mb [ ethernet only!! ]
 
 	[tulip_cb driver] [x86]
 	Xircom RBEM56G-100BTX, CBEM56G-100BTX
@@ -373,7 +380,8 @@ ATA/IDE card drives:
 	[ide_cs driver] [x86]
 	Most cards should work fine, including adapters for external
 	IDE devices.  Both Flash-ATA cards and 	rotating-media cards
-	are supported, including "Smartmedia" flash cards.
+	are supported, including "Smartmedia" flash and Compact flash
+	cards.
 
 	The very old Western Digital 40MB drives are not supported,
 	because they do not conform to the PCMCIA ATA specification.
@@ -461,7 +469,7 @@ cannot test them.
 	Teles ISDN adapter
 	  (Christof Petig <ea0141@uni-wuppertal.de>)
 
-	[ss5136dn_cs driver]
+	[ss5136dn_cs driver]  
 	SST 5136-DN-PC DeviceNet Interface
 	  http://www.gnofn.org/~marksu/dn5136man.html
 	  (Mark Sutton <Mark.Sutton@laitram.com>)
@@ -499,6 +507,10 @@ cannot test them.
 	WaveLAN/IEEE wireless network adapter
 	  http://www.fasta.fh-dortmund.de/users/andy/wvlan
 	  (Andreas Neuhaus <andy@fasta.fh-dortmund.de>)
+
+	Winnov Videum Traveler camera
+	  http://www.eecs.umich.edu/~bnoble/group/wnv-pcmcia
+	  (Jim Zajkowski <jamesez@umich.edu>)
 	
 People are working on the following cards:
 

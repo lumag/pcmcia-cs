@@ -358,7 +358,7 @@ static void xirc2ps_detach(dev_link_t *);
  * less on other parts of the kernel.
  */
 
-void xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs);
+void xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
 /*
  * The dev_info variable is the "key" that is used to match up this
@@ -419,20 +419,20 @@ typedef struct local_info_t {
 /****************
  * Some more prototypes
  */
-static int do_start_xmit(struct sk_buff *skb, struct device *dev);
-static struct enet_statistics *do_get_stats(struct device *dev);
-static void set_addresses(struct device *dev);
-static void set_multicast_list(struct device *dev);
-static int do_init(struct device *dev);
+static int do_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static struct enet_statistics *do_get_stats(struct net_device *dev);
+static void set_addresses(struct net_device *dev);
+static void set_multicast_list(struct net_device *dev);
+static int do_init(struct net_device *dev);
 static int set_card_type( dev_link_t *link, const void *s );
-static int do_config(struct device *dev, struct ifmap *map);
-static int do_open(struct device *dev);
-static int do_ioctl(struct device *dev, struct ifreq *rq, int cmd);
-static void hardreset(struct device *dev);
-static void do_reset(struct device *dev, int full);
-static int init_mii(struct device *dev);
-static void do_powerdown(struct device *dev);
-static int do_stop(struct device *dev);
+static int do_config(struct net_device *dev, struct ifmap *map);
+static int do_open(struct net_device *dev);
+static int do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+static void hardreset(struct net_device *dev);
+static void do_reset(struct net_device *dev, int full);
+static int init_mii(struct net_device *dev);
+static void do_powerdown(struct net_device *dev);
+static int do_stop(struct net_device *dev);
 
 
 /*=============== Helper functions =========================*/
@@ -502,7 +502,7 @@ busy_loop(u_long len)
 /*====== Functions used for debugging =================================*/
 #if defined(PCMCIA_DEBUG) && 0 /* reading regs may change system status */
 static void
-PrintRegisters(struct device *dev)
+PrintRegisters(struct net_device *dev)
 {
     u_short ioaddr = dev->base_addr;
 
@@ -654,7 +654,7 @@ mii_wr(u_short ioaddr, u_char phyaddr, u_char phyreg, unsigned data, int len)
 
 #ifdef PCMCIA_DEBUG
 static void
-mii_dump(struct device *dev)
+mii_dump(struct net_device *dev)
 {
     u_short ioaddr = dev->base_addr;
     int i;
@@ -693,7 +693,7 @@ xirc2ps_attach(void)
 {
     client_reg_t client_reg;
     dev_link_t *link;
-    struct device *dev;
+    struct net_device *dev;
     local_info_t *local;
     int err;
 
@@ -718,8 +718,8 @@ xirc2ps_attach(void)
     link->conf.Present = PRESENT_OPTION;
 
     /* Allocate space for a device structure */
-    dev = kmalloc(sizeof(struct device), GFP_KERNEL);
-    memset(dev, 0, sizeof(struct device));
+    dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+    memset(dev, 0, sizeof(struct net_device));
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
     memset(local, 0, sizeof(local_info_t));
     dev->priv = local;
@@ -819,14 +819,14 @@ xirc2ps_detach(dev_link_t * link)
     /* Unlink device structure, free pieces */
     *linkp = link->next;
     if(link->priv) {
-	struct device *dev = link->priv;
+	struct net_device *dev = link->priv;
 	if (link->dev != NULL)
 	    unregister_netdev(dev);
 	if( dev->priv )
-	    kfree_s(dev->priv, sizeof(local_info_t));
-	kfree_s(link->priv, sizeof(struct device));
+	    kfree(dev->priv);
+	kfree(link->priv);
     }
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(link);
 
 } /* xirc2ps_detach */
 
@@ -852,7 +852,7 @@ xirc2ps_detach(dev_link_t * link)
 static int
 set_card_type( dev_link_t *link, const void *s )
 {
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
     local_info_t *local = dev->priv;
   #ifdef PCMCIA_DEBUG
     unsigned cisrev = ((const unsigned char *)s)[2];
@@ -954,7 +954,7 @@ xirc2ps_config(dev_link_t * link)
     client_handle_t handle;
     tuple_t tuple;
     cisparse_t parse;
-    struct device *dev;
+    struct net_device *dev;
     local_info_t *local;
     u_short ioaddr;
     int err, i;
@@ -1340,7 +1340,7 @@ static void
 xirc2ps_release( u_long arg)
 {
     dev_link_t *link = (dev_link_t *) arg;
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
 
   #ifdef PCMCIA_DEBUG
     if(pc_debug)
@@ -1393,7 +1393,7 @@ xirc2ps_event(event_t event, int priority,
 	      event_callback_args_t * args)
 {
     dev_link_t *link = args->client_data;
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
     local_info_t *lp = dev? dev->priv : NULL;
 
   #ifdef PCMCIA_DEBUG
@@ -1412,7 +1412,7 @@ xirc2ps_event(event_t event, int priority,
 	  link->state &= ~DEV_PRESENT;
 	  if(link->state & DEV_CONFIG) {
 	      dev->tbusy = 1; dev->start = 0;
-	      link->release.expires = RUN_AT(HZ / 20);
+	      link->release.expires = jiffies + HZ / 20;
 	      add_timer(&link->release);
 	  }
 	  break;
@@ -1460,9 +1460,9 @@ xirc2ps_event(event_t event, int priority,
  *	 So we must use the irq2dev_map[].
  */
 void
-xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
+xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-    struct device *dev = (struct device *)DEV_ID;
+    struct net_device *dev = (struct net_device *)dev_id;
     local_info_t *lp;
     u_short ioaddr;
     u_char saved_page;
@@ -1740,7 +1740,7 @@ xirc2ps_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 /*====================================================================*/
 
 static int
-do_start_xmit(struct sk_buff *skb, struct device *dev)
+do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
     local_info_t *lp = dev->priv;
     u_short ioaddr = dev->base_addr;
@@ -1842,7 +1842,7 @@ do_start_xmit(struct sk_buff *skb, struct device *dev)
 }
 
 static struct enet_statistics *
-do_get_stats(struct device *dev)
+do_get_stats(struct net_device *dev)
 {
     local_info_t *lp = dev->priv;
 
@@ -1858,7 +1858,7 @@ do_get_stats(struct device *dev)
  * the rest is filled with the individual address.
  */
 static void
-set_addresses(struct device *dev)
+set_addresses(struct net_device *dev)
 {
     u_short ioaddr = dev->base_addr;
     local_info_t *lp = dev->priv;
@@ -1903,7 +1903,7 @@ set_addresses(struct device *dev)
  */
 
 static void
-set_multicast_list(struct device *dev)
+set_multicast_list(struct net_device *dev)
 {
     u_short ioaddr = dev->base_addr;
 
@@ -1934,7 +1934,7 @@ set_multicast_list(struct device *dev)
  * by the net software, because we only register already-found cards.
  */
 static int
-do_init(struct device *dev)
+do_init(struct net_device *dev)
 {
   #ifdef PCMCIA_DEBUG
     if(pc_debug)
@@ -1945,7 +1945,7 @@ do_init(struct device *dev)
 
 
 static int
-do_config(struct device *dev, struct ifmap *map)
+do_config(struct net_device *dev, struct ifmap *map)
 {
     local_info_t *local = dev->priv;
 
@@ -1986,7 +1986,7 @@ do_config(struct device *dev, struct ifmap *map)
  * Open the driver
  */
 static int
-do_open(struct device *dev)
+do_open(struct net_device *dev)
 {
     local_info_t *lp = dev->priv;
     dev_link_t *link;
@@ -2018,7 +2018,7 @@ do_open(struct device *dev)
 
 
 static int
-do_ioctl(struct device *dev, struct ifreq *rq, int cmd)
+do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
     local_info_t *local = dev->priv;
     u_short ioaddr = dev->base_addr;
@@ -2053,7 +2053,7 @@ do_ioctl(struct device *dev, struct ifreq *rq, int cmd)
 }
 
 static void
-hardreset(struct device *dev)
+hardreset(struct net_device *dev)
 {
     local_info_t *local = dev->priv;
     u_short ioaddr = dev->base_addr;
@@ -2071,7 +2071,7 @@ hardreset(struct device *dev)
 
 
 static void
-do_reset(struct device *dev, int full)
+do_reset(struct net_device *dev, int full)
 {
     local_info_t *local = dev->priv;
     u_short ioaddr = dev->base_addr;
@@ -2251,7 +2251,7 @@ do_reset(struct device *dev, int full)
  * Returns: True if we have a good MII
  */
 static int
-init_mii(struct device *dev)
+init_mii(struct net_device *dev)
 {
     local_info_t *local = dev->priv;
     u_short ioaddr = dev->base_addr;
@@ -2330,7 +2330,7 @@ init_mii(struct device *dev)
 
 
 static void
-do_powerdown(struct device *dev)
+do_powerdown(struct net_device *dev)
 {
 
     u_short ioaddr = dev->base_addr;
@@ -2347,7 +2347,7 @@ do_powerdown(struct device *dev)
 
 
 static int
-do_stop( struct device *dev)
+do_stop( struct net_device *dev)
 {
     u_short ioaddr = dev->base_addr;
     dev_link_t *link;
@@ -2380,7 +2380,7 @@ do_stop( struct device *dev)
 
     link->open--; dev->start = 0;
     if (link->state & DEV_STALE_CONFIG) {
-	link->release.expires = RUN_AT(HZ/20);
+	link->release.expires = jiffies + HZ/20;
 	link->state |= DEV_RELEASE_PENDING;
 	add_timer(&link->release);
     }
@@ -2411,7 +2411,7 @@ init_xirc2ps_cs(void)
     if( pc_debug )
 	printk(KDBG_XIRC "pc_debug=%d\n", pc_debug);
   #endif
-    register_pcmcia_driver(&dev_info, &xirc2ps_attach, &xirc2ps_detach);
+    register_pccard_driver(&dev_info, &xirc2ps_attach, &xirc2ps_detach);
     return 0;
 }
 
@@ -2423,7 +2423,7 @@ cleanup_module(void)
     if(pc_debug)
 	printk(KDBG_XIRC "unloading\n");
   #endif
-    unregister_pcmcia_driver(&dev_info);
+    unregister_pccard_driver(&dev_info);
     while( dev_list ) {
 	if( dev_list->state & DEV_CONFIG )
 	    xirc2ps_release( (u_long)dev_list );

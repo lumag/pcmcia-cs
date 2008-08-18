@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.38, 30 July 1999
+  v2.40, 10 September 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -423,7 +423,7 @@
   +o  Run ``make all'', then ``make install''.
 
   +o  Customize the startup script and the option files in /etc/pcmcia
-     for your site.
+     for your site, if needed.
 
   If you plan to install any contributed client drivers not included in
   the core PCMCIA distribution, unpack each of them in the top-level
@@ -435,34 +435,56 @@
   checks out your system to verify that it satisfies all prerequisites
   for installing PCMCIA support.  In most cases, you'll be able to just
   accept all the default configuration options.  Be sure to carefully
-  check the output of this command in case there are problems.
+  check the output of this command in case there are problems.  The
+  following options are available:
 
-  If you are compiling the package for installation on another machine,
-  specify an alternate target directory when prompted by the configure
-  script.  This should be an absolute path.  All filesf will be
-  installed relative to this directory.  You will then be able to tar
-  this directory tree and copy to your target machine, and unpack
-  relative to its root directory to install everything in the proper
-  places.
+     AAlltteerrnnaattee ttaarrggeett iinnssttaallll ddiirreeccttoorryy??
+        If you are compiling the package for installation on another
+        machine, specify an alternate target directory when prompted.
+        This should be an absolute path.  All files will be installed
+        relative to this directory.  You will then be able to tar this
+        directory tree and copy to your target machine, and unpack
+        relative to its root directory to install everything in the
+        proper places.
 
-  If you are cross compiling on another machine, you may want to specify
-  alternate names for the compiler and linker.  This may also be helpful
-  on mixed a.out and ELF systems.  The script will also prompt for
-  additional compiler flags for debugging.
+     CCoommppiilleerr ffllaaggss ffoorr ddeebbuuggggiinngg??
+        See the section on ``Low level PCMCIA debugging aids'' for more
+        information about this option.
+     BBuuiilldd ''ttrruussttiinngg'' vveerrssiioonnss ooff ccaarrdd uuttiilliittiieess??
+        Some of the support utilities (cardctl and cardinfo) can be
+        compiled either in ``safe'' or ``trusting'' forms.  The ``safe''
+        forms prevent non-root users from modifying card configurations.
+        The ``trusting'' forms permit ordinary users to issue commands
+        to suspend and resume cards, reset cards, and change the current
+        configuration scheme.  The default is to build the safe forms.
 
-  Some of the support utilities (cardctl and cardinfo) can be compiled
-  either in ``safe'' or ``trusting'' forms.  The ``safe'' forms prevent
-  non-root users from modifying card configurations.  The ``trusting''
-  forms permit ordinary users to issue commands to suspend and resume
-  cards, reset cards, and change the current configuration scheme.  The
-  configuration script will ask if you want the utilities compiled as
-  safe or trusting: the default is to be safe.
+     IInncclluuddee 3322--bbiitt ((CCaarrddBBuuss)) ccaarrdd ssuuppppoorrtt??
+        This option must be selected if you wish to use 32-bit CardBus
+        cards.  It is not required for CardBus bridge support, if you
+        only plan to use 16-bit PC Cards.
 
-  There are a few kernel configuration options that affect the PCMCIA
-  tools.  The configuration script can deduce these from the running
-  kernel (the most common case).  Alternatively, if you are compiling
-  for installation on another machine, it can read the configuration
-  from a kernel source tree, or each option can be set interactively.
+     IInncclluuddee PPnnPP BBIIOOSS rreessoouurrccee cchheecckkiinngg??
+        This builds additional code into the PCMCIA core module to
+        communicate with a system's PnP BIOS to obtain resource
+        information for built-in ``motherboard'' devices (serial and
+        parallel ports, sound, etc), to help avoid resource conflicts.
+        If enabled, some extra resource files will be created under
+        /proc/bus/pccard, and the lspnp and setpnp tools can be used to
+        view and manipulate PnP BIOS devices.
+
+     HHooww ttoo sseett kkeerrnneell--ssppeecciiffiicc ooppttiioonnss??
+        There are a few kernel configuration options that affect the
+        PCMCIA tools.  The configuration script can deduce these from
+        the running kernel (the default and most common case).
+        Alternatively, if you are compiling for installation on another
+        machine, it can read the configuration from a kernel source
+        tree, or each option can be set interactively.
+
+  The Configure script can also be executed non-interactively, for
+  automatic builds or to quickly reconfigure after a kernel update.
+  Some additional less-frequently-used options can be only be set from
+  the command line.  Running ``Configure --help'' lists all available
+  options.
 
   Running ``make all'' followed by ``make install'' will build and then
   install the kernel modules and utility programs.  Kernel modules are
@@ -616,7 +638,6 @@
 
   +o  On the IBM ThinkPad 600E and 770Z, change the high memory window to
      0x60000000-0x60ffffff.
-
   +o  On the Micron Millenia Transport, exclude irq 5, irq 9.
 
   +o  On the NEC Versa M, exclude irq 9, port 0x2e0-2ff.
@@ -707,6 +728,8 @@
   SuSE uses a System V init script arrangement, with init scripts stored
   under /sbin/init.d.  The PCMCIA startup script is installed as
   /sbin/init.d/pcmcia, and startup options are kept in /etc/rc.config.
+  The SuSE startup script is somewhat limited and does not allow PCMCIA
+  startup variables to be overridden from the lilo boot prompt.
 
   33..  RReessoollvviinngg iinnssttaallllaattiioonn aanndd ccoonnffiigguurraattiioonn pprroobblleemmss
 
@@ -720,6 +743,13 @@
   You should also be familiar with basic diagnostic tools like dmesg and
   lsmod.  Also, be aware that most driver components (including all the
   kernel modules) have their own individual man pages.
+
+  Try to define your problem as narrowly as possible.  If you have
+  several cards, try each card in isolation, and in different
+  combinations.  Try cold Linux boots, versus warm boots from Windows.
+  Compare booting with cards inserted, versus inserting cards after
+  boot.  If you normally use your laptop docked, try it undocked.  And
+  sometimes, two sockets will behave differently.
 
   It is nearly impossible to debug driver problems encountered when
   attempting to install Linux via a PCMCIA device.  Even if you can
@@ -967,7 +997,6 @@
   register setup problem with the host controller.  See the ``Startup
   options'' section for information about dealing with common timing
   problems.
-
   +o  cs: warning: no high memory space available!
 
   CardBus bridges can allocate memory windows outside of the 640KB-1MB
@@ -1141,7 +1170,6 @@
   beep indicates that a card was identified, but could not be configured
   for some reason.  One low beep indicates that a card could not be
   identified.
-
   Cardmgr records device information for each socket in /var/run/stab.
   Here is a sample /var/run/stab listing:
 
@@ -1334,13 +1362,13 @@
   Alternatively, they could be configured using their hardware
   addresses, as in:
 
-  case "$ADDRESS" in
-  *,*,*,00:80:C8:76:00:B1)
-      # definitions for a D-Link card
-      ;;
-  *,*,*,08:00:5A:44:80:01)
-      # definitions for an IBM card
-  esac
+       case "$ADDRESS" in
+       *,*,*,00:80:C8:76:00:B1)
+           # definitions for a D-Link card
+           ;;
+       *,*,*,08:00:5A:44:80:01)
+           # definitions for an IBM card
+       esac
 
   44..33..11..  NNeettwwoorrkk ddeevviiccee ppaarraammeetteerrss
 
@@ -1350,13 +1378,20 @@
         Specifies the ethernet transceiver type, for cards that do not
         autodetect.  See ``man ifport'' for transceiver names.
 
+     PUMP
+        A boolean (y/n) value: indicates if the host's IP address and
+        routing information should be obtained using either BOOTP or
+        DHCP, with the pump daemon.
+
      BOOTP
         A boolean (y/n) value: indicates if the host's IP address and
-        routing information should be obtained using the BOOTP protocol.
+        routing information should be obtained using the BOOTP protocol,
+        with bootpc.
 
      DHCP
         A boolean (y/n) value: indicates if the host's IP address and
-        routing information should be obtained from a DHCP server.
+        routing information should be obtained from a DHCP server, with
+        dhcpcd.
 
      IPADDR
         The IP address for this interface.
@@ -1392,19 +1427,19 @@
 
   For example:
 
-  case "$ADDRESS" in
-  *,*,*,*)
-      IF_PORT="10base2"
-      BOOTP="n"
-      IPADDR="10.0.0.1"
-      NETMASK="255.255.255.0"
-      NETWORK="10.0.0.0"
-      BROADCAST="10.0.0.255"
-      GATEWAY="10.0.0.1"
-      DOMAIN="domain.org"
-      DNS_1="dns1.domain.org"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,*,*,*)
+           IF_PORT="10base2"
+           BOOTP="n"
+           IPADDR="10.0.0.1"
+           NETMASK="255.255.255.0"
+           NETWORK="10.0.0.0"
+           BROADCAST="10.0.0.255"
+           GATEWAY="10.0.0.1"
+           DOMAIN="domain.org"
+           DNS_1="dns1.domain.org"
+           ;;
+       esac
 
   To automatically mount and unmount NFS filesystems, first add all
   these filesystems to /etc/fstab, but include noauto in the mount
@@ -1422,7 +1457,6 @@
   the interface name will be passed to the function as its first (and
   only) argument.  Similarly, if it is defined, stop_fn will be invoked
   before shutting down an interface.
-
   The transceiver type can be selected using the IF_PORT setting.  This
   can either be a numeric value as in previous PCMCIA releases, or a
   keyword identifying the transceiver type.  All the network drivers
@@ -1476,7 +1510,6 @@
      incomplete.  The latest driver will function with multicast
      kernels, but will ignore multicast packets.  Promiscuous mode
      should work properly.
-
   +o  The driver used by the IBM and 3Com token ring adapters seems to
      behave very badly if the cards are not connected to a ring when
      they get initialized.  Always connect these cards to the net before
@@ -1845,36 +1878,36 @@
   For example, here is a script for configuring a disk device at SCSI ID
   3, with two partitions, and a CD-ROM at SCSI ID 6:
 
-  case "$ADDRESS" in
-  *,sd,*,0,3,0)
-      # This device has two partitions...
-      PARTS="1 2"
-      ;;
-  *,sd,*,0,3,0,1)
-      # Options for partition 1:
-      #  update /etc/fstab, and mount an ext2 fs on /usr1
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="ext2"
-      OPTS=""
-      MOUNTPT="/usr1"
-      ;;
-  *,sd,*,0,3,0,2)
-      # Options for partition 2:
-      #  update /etc/fstab, and mount an MS-DOS fs on /usr2
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="msdos"
-      OPTS=""
-      MOUNTPT="/usr2"
-      ;;
-  *,sr,*,0,6,0)
-      # Options for CD-ROM at SCSI ID 6
-      PARTS=""
-      DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
-      FSTYPE="iso9660"
-      OPTS="ro"
-      MOUNTPT="/cdrom"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,sd,*,0,3,0)
+           # This device has two partitions...
+           PARTS="1 2"
+           ;;
+       *,sd,*,0,3,0,1)
+           # Options for partition 1:
+           #  update /etc/fstab, and mount an ext2 fs on /usr1
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2"
+           OPTS=""
+           MOUNTPT="/usr1"
+           ;;
+       *,sd,*,0,3,0,2)
+           # Options for partition 2:
+           #  update /etc/fstab, and mount an MS-DOS fs on /usr2
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="msdos"
+           OPTS=""
+           MOUNTPT="/usr2"
+           ;;
+       *,sr,*,0,6,0)
+           # Options for CD-ROM at SCSI ID 6
+           PARTS=""
+           DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
+           FSTYPE="iso9660"
+           OPTS="ro"
+           MOUNTPT="/cdrom"
+           ;;
+       esac
 
   44..66..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
 
@@ -1902,7 +1935,7 @@
      frequent source of trouble with tape drives.  To disable this
      ``feature,'' add the following to /etc/pcmcia/config.opts:
 
-  module "aha152x_cs" opts "reconnect=0"
+       module "aha152x_cs" opts "reconnect=0"
 
   +o  Also with the aha152x_cs driver, certain devices seem to require a
      longer startup delay, controlled via the reset_delay module
@@ -1983,20 +2016,20 @@
   Here is an example of a script that will automatically mount memory
   cards based on which socket they are inserted into:
 
-       case "$ADDRESS" in
-       *,0,0)
-           # Mount filesystem, but don't update /etc/fstab
-           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="ext2" ; OPTS=""
-           MOUNTPT="/mem0"
-           ;;
-       *,1,0)
-           # Mount filesystem, but don't update /etc/fstab
-           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="ext2" ; OPTS=""
-           MOUNTPT="/mem1"
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,0,0)
+      # Mount filesystem, but don't update /etc/fstab
+      DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="ext2" ; OPTS=""
+      MOUNTPT="/mem0"
+      ;;
+  *,1,0)
+      # Mount filesystem, but don't update /etc/fstab
+      DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="ext2" ; OPTS=""
+      MOUNTPT="/mem1"
+      ;;
+  esac
 
   44..77..22..  UUssiinngg ffllaasshh mmeemmoorryy ccaarrddss
 
@@ -2093,6 +2126,11 @@
        esac
 
   44..88..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh AATTAA//IIDDEE aaddaapptteerrss
+
+  +o  An IO port conflict may cause the IDE driver to misdetect the drive
+     geometry and report ``INVALID GEOMETRY: 0 PHYSICAL HEADS?''.  To
+     fix, try excluding the selected IO port range in
+     /etc/pcmcia/config.opts.
 
   +o  Some IDE drives violate the PCMCIA specification by requiring a
      longer time to spin up than the maximum allowed card setup time.
@@ -2194,7 +2232,6 @@
   In this example, the second ``case'' clause will select for both the
   ``home'' and ``default'' schemes.  So, if the scheme is unset for any
   reason, it will default to the ``home'' setup.
-
   Now, to select between the two sets of settings, run either:
 
        cardctl scheme home
@@ -2423,9 +2460,9 @@
   Here is an example of how cardmgr will report an unsupported card in
   /usr/adm/messages.
 
-  cardmgr[460]: unsupported card in socket 1
-  cardmgr[460]: product info: "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
-  cardmgr[460]: manfid: 0x0101, 0x1234  function: 2 (serial)
+       cardmgr[460]: unsupported card in socket 1
+       cardmgr[460]: product info: "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
+       cardmgr[460]: manfid: 0x0101, 0x1234  function: 2 (serial)
 
   The corresponding entry in /etc/pcmcia/config would be:
 
@@ -2435,9 +2472,9 @@
 
   or using the more compact product ID codes:
 
-       card "Megahertz XJ2288 V.34 Fax Modem"
-         manfid 0x0101, 0x1234
-         bind "serial_cs"
+  card "Megahertz XJ2288 V.34 Fax Modem"
+    manfid 0x0101, 0x1234
+    bind "serial_cs"
 
   You can use ``*'' to match strings that don't need to match exactly,
   like version numbers.  When making new config entries, be careful to
@@ -2603,13 +2640,13 @@
   on the module's load address.  Let's say that you have the following
   kernel fault:
 
-       Unable to handle kernel NULL pointer dereference
-       current->tss.cr3 = 014c9000, %cr3 = 014c9000
-       *pde = 00000000
-       Oops: 0002
-       CPU:    0
-       EIP:    0010:[<c2026081>]
-       EFLAGS: 00010282
+  Unable to handle kernel NULL pointer dereference
+  current->tss.cr3 = 014c9000, %cr3 = 014c9000
+  *pde = 00000000
+  Oops: 0002
+  CPU:    0
+  EIP:    0010:[<c2026081>]
+  EFLAGS: 00010282
 
   The fault address is 0xc2026081.  Looking at System.map, we see that
   this is past the end of the kernel, i.e., is in a kernel module.  To
@@ -2639,10 +2676,10 @@
   0x004c header, the real module offset is 0x0035.  Now looking at ``nm
   3c574_cs.o | sort'', we see:
 
-  0000002c d if_names
-  0000002c t tc574_attach
-  00000040 d mii_preamble_required
-  00000041 d dev_info
+       0000002c d if_names
+       0000002c t tc574_attach
+       00000040 d mii_preamble_required
+       00000041 d dev_info
 
   So, the fault is located in tc574_attach().
 

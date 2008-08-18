@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.41 1999/07/20 16:02:27
+    probe.c 1.43 1999/09/03 16:43:44
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -16,7 +16,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
     
 ======================================================================*/
 
@@ -74,10 +85,12 @@ pci_id_t pci_id[] = {
     { 0x104c, 0xac1f, "Texas Instruments PCI1251B", "TI 1251B" },
     { 0x104c, 0xac1b, "Texas Instruments PCI1450", "TI 1450" },
     { 0x104c, 0xac1c, "Texas Instruments PCI1225", "TI 1225" },
+    { 0x104c, 0xac1e, "Texas Instruments PCI1211", "TI 1211" },
+    { 0x104c, 0xac51, "Texas Instruments PCI1420", "TI 1420" },
     { 0x1217, 0x6729, "O2 Micro 6729", "O2Micro OZ6729" },
     { 0x1217, 0x673a, "O2 Micro 6730", "O2Micro OZ6730" },
-    { 0x1217, 0x6832, "O2 Micro 6832", "O2Micro OZ6832" },
-    { 0x1217, 0x6836, "O2 Micro 6836", "O2Micro OZ6836" },
+    { 0x1217, 0x6832, "O2 Micro 6832/6833", "O2Micro OZ6832/OZ6833" },
+    { 0x1217, 0x6836, "O2 Micro 6836/6860", "O2Micro OZ6836/OZ6860" },
     { 0x1179, 0x0603, "Toshiba ToPIC95-A", "Toshiba ToPIC95-A" },
     { 0x1179, 0x060a, "Toshiba ToPIC95-B", "Toshiba ToPIC95-B" },
     { 0x1179, 0x060f, "Toshiba ToPIC97", "Toshiba ToPIC97" },

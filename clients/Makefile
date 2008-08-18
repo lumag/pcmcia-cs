@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.103 1999/07/30 04:11:53
+# Makefile 1.104 1999/08/23 06:16:00
 #
 
 # Include site dependent options and kernel configuration
@@ -19,7 +19,7 @@ CPPFLAGS = $(PCDEBUG) -D__KERNEL__ -DMODULE -I../include \
 COFLAGS = -kv
 
 # For files in kernel source tree, so that we can override config flags
-XFLAGS = -O2 -D__KERNEL__ -I../include -I$(LINUX)/include
+XFLAGS = -O2 -D__KERNEL__ -I../include -I$(LINUX)/include -DEXPORT_SYMTAB
 ifdef CONFIG_MODVERSIONS
 XFLAGS := $(XFLAGS) $(MFLAG)
 endif

@@ -1,4 +1,4 @@
-Known problems with the 3.0.14 PCMCIA release
+Known problems with the 3.1.0 PCMCIA release
 =============================================
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
@@ -72,7 +72,7 @@ o Newer Xircom CE3 cards appear to not work.
 o The 2.2.*/2.3.* serial driver has a bug that interferes with
   interrupt sharing for multifunction cards.  The effect is that
   opening a serial port on a multifunction card fails, giving an IO
-  error.
+  error.  It was fixed in 2.2.11 and 2.3.9.
 
   The bug can be fixed by editing linux/drivers/char/serial.c and
   changing each use of IRQ_T(info) to IRQ_T(state).

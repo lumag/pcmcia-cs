@@ -530,7 +530,7 @@ fee_write(u_long	base,	/* i/o port of the card */
 
 unsigned char WAVELAN_BEACON_ADDRESS[]= {0x09,0x00,0x0e,0x20,0x03,0x00};
   
-void wv_roam_init(struct device *dev)
+void wv_roam_init(struct net_device *dev)
 {
   net_local  *lp= (net_local *)dev->priv;
 
@@ -559,7 +559,7 @@ void wv_roam_init(struct device *dev)
   printk(KERN_DEBUG "WaveLAN: Roaming enabled on device %s\n",dev->name);
 }
  
-void wv_roam_cleanup(struct device *dev)
+void wv_roam_cleanup(struct net_device *dev)
 {
   wavepoint_history *ptr,*old_ptr;
   net_local *lp= (net_local *)dev->priv;
@@ -911,8 +911,8 @@ wv_82593_cmd(device *	dev,
 	  printk(KERN_WARNING "wv_82593_cmd: interrupt handler not installed or interrupt disabled\n");
 #endif
 
-	  wavelan_interrupt IRQ(dev->irq, (void *) dev,
-				(struct pt_regs *) NULL);
+	  wavelan_interrupt(dev->irq, (void *) dev,
+			    (struct pt_regs *) NULL);
 	}
       else
 	{
@@ -1629,11 +1629,8 @@ wv_set_frequency(u_long		base,	/* i/o port of the card */
   if((frequency->e == 0) &&
      (frequency->m >= 0) && (frequency->m < BAND_NUM))
     {
-      /* frequency in 1/4 of MHz (as read in the offset register) */
-      short	bands[] = { 0x30, 0x58, 0x64, 0x7A, 0x80, 0xA8, 0xD0, 0xF0, 0xF8, 0x150 };
-
-      /* Get frequency offset */
-      freq = bands[frequency->m] >> 1;
+      /* Get frequency offset. */
+      freq = channel_bands[frequency->m] >> 1;
     }
 
   /* Verify if the frequency is allowed */
@@ -1810,6 +1807,10 @@ wv_frequency_list(u_long	base,	/* i/o port of the card */
   u_short	table[10];	/* Authorized frequency table */
   long		freq = 0L;	/* offset to 2.4 GHz in .5 MHz + 12 MHz */
   int		i;		/* index in the table */
+#if WIRELESS_EXT > 7
+  const int	BAND_NUM = 10;	/* Number of bands */
+  int		c = 0;		/* Channel number */
+#endif WIRELESS_EXT
 
   /* Read the frequency table */
   fee_read(base, 0x71 /* frequency table */,
@@ -1821,6 +1822,14 @@ wv_frequency_list(u_long	base,	/* i/o port of the card */
     /* Look in the table if the frequency is allowed */
     if(table[9 - (freq / 16)] & (1 << (freq % 16)))
       {
+#if WIRELESS_EXT > 7
+	/* Compute approximate channel number */
+	while((((channel_bands[c] >> 1) - 24) < freq) &&
+	      (c < BAND_NUM))
+	  c++;
+	list[i].i = c;	/* Set the list index */
+#endif WIRELESS_EXT
+
 	/* put in the list */
 	list[i].m = (((freq + 24) * 5) + 24000L) * 10000;
 	list[i++].e = 1;
@@ -1896,7 +1905,7 @@ wl_his_gather(device *	dev,
  * This is here that are treated the wireless extensions (iwconfig)
  */
 static int
-wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
+wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 	      struct ifreq *	rq,	/* Data passed */
 	      int		cmd)	/* Ioctl number */
 {
@@ -1989,14 +1998,12 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 	}
       else
 	{
-	  int	bands[] = { 915e6, 2.425e8, 2.46e8, 2.484e8, 2.4305e8 };
-
 	  psa_read(dev, (char *)&psa.psa_subband - (char *)&psa,
 		   (unsigned char *)&psa.psa_subband, 1);
 
 	  if(psa.psa_subband <= 4)
 	    {
-	      wrq->u.freq.m = bands[psa.psa_subband];
+	      wrq->u.freq.m = fixed_bands[psa.psa_subband];
 	      wrq->u.freq.e = (psa.psa_subband != 0);
 	    }
 	  else
@@ -2006,9 +2013,13 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 
     case SIOCSIWSENS:
       /* Set the level threshold */
-      if(!suser())
-	return -EPERM;
+#if WIRELESS_EXT > 7
+      /* We should complain loudly if wrq->u.sens.fixed = 0, because we
+       * can't set auto mode... */
+      psa.psa_thr_pre_set = wrq->u.sens.value & 0x3F;
+#else	/* WIRELESS_EXT > 7 */
       psa.psa_thr_pre_set = wrq->u.sensitivity & 0x3F;
+#endif	/* WIRELESS_EXT > 7 */
       psa_write(dev, (char *)&psa.psa_thr_pre_set - (char *)&psa,
 	       (unsigned char *)&psa.psa_thr_pre_set, 1);
       /* update the Wavelan checksum */
@@ -2020,7 +2031,12 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
       /* Read the level threshold */
       psa_read(dev, (char *)&psa.psa_thr_pre_set - (char *)&psa,
 	       (unsigned char *)&psa.psa_thr_pre_set, 1);
+#if WIRELESS_EXT > 7
+      wrq->u.sens.value = psa.psa_thr_pre_set & 0x3F;
+      wrq->u.sens.fixed = 1;
+#else	/* WIRELESS_EXT > 7 */
       wrq->u.sensitivity = psa.psa_thr_pre_set & 0x3F;
+#endif	/* WIRELESS_EXT > 7 */
       break;
 
      case SIOCSIWENCODE:
@@ -2232,6 +2248,11 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 	  range.max_qual.qual = MMR_SGNL_QUAL;
 	  range.max_qual.level = MMR_SIGNAL_LVL;
 	  range.max_qual.noise = MMR_SILENCE_LVL;
+
+#if WIRELESS_EXT > 7
+	  range.num_bitrates = 1;
+	  range.bitrate[0] = 2000000;	/* 2 Mb/s */
+#endif WIRELESS_EXT
 
 	  /* Copy structure to the user buffer */
 	  copy_to_user(wrq->u.data.pointer, &range,
@@ -3707,7 +3728,7 @@ wv_pcmcia_config(dev_link_t *	link)
   client_handle_t	handle;
   tuple_t		tuple;
   cisparse_t		parse;
-  struct device *	dev;
+  struct net_device *	dev;
   int			i;
   u_char		buf[64];
   win_req_t		req;
@@ -3944,9 +3965,9 @@ wv_flush_stale_links(void)
  *	3. A command has completed execution.
  */
 static void
-wavelan_interrupt IRQ(int		irq,
-		      void *		dev_id,
-		      struct pt_regs *	regs)
+wavelan_interrupt(int		irq,
+		  void *	dev_id,
+		  struct pt_regs * regs)
 {
   device *	dev;
   net_local *	lp;
@@ -3954,7 +3975,7 @@ wavelan_interrupt IRQ(int		irq,
   int		status0;
   u_int		tx_status;
 
-  if((dev = (device *)DEV_ID) == (device *) NULL)
+  if((dev = (device *)dev_id) == (device *) NULL)
     {
 #ifdef DEBUG_INTERRUPT_ERROR
       printk(KERN_WARNING "wavelan_interrupt(): irq %d for unknown device.\n",
@@ -4483,8 +4504,8 @@ wavelan_attach(void)
   dev_list = link;
 
   /* Allocate the generic data structure */
-  dev = kmalloc(sizeof(struct device), GFP_KERNEL);
-  memset(dev, 0x00, sizeof(struct device));
+  dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+  memset(dev, 0x00, sizeof(struct net_device));
   link->priv = link->irq.Instance = dev;
 
   /* Allocate the wavelan-specific data structure. */
@@ -4638,11 +4659,11 @@ wavelan_detach(dev_link_t *	link)
 	  /* Sound strange, but safe... */
 	  ((net_local *) dev->priv)->link = (dev_link_t *) NULL;
 	  ((net_local *) dev->priv)->dev = (device *) NULL;
-	  kfree_s(dev->priv, sizeof(net_local));
+	  kfree(dev->priv);
 	}
-      kfree_s(link->priv, sizeof(struct device));
+      kfree(link->priv);
     }
-  kfree_s(link, sizeof(struct dev_link_t));
+  kfree(link);
 
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "<- wavelan_detach()\n");
@@ -4789,7 +4810,7 @@ init_module(void)
       return -1;
     }
 
-  register_pcmcia_driver(&dev_info, &wavelan_attach, &wavelan_detach);
+  register_pccard_driver(&dev_info, &wavelan_attach, &wavelan_detach);
 
 #ifdef DEBUG_MODULE_TRACE
   printk(KERN_DEBUG "<- init_wavelan_cs()\n");
@@ -4824,7 +4845,7 @@ cleanup_module(void)
     }
 #endif
 
-  unregister_pcmcia_driver(&dev_info);
+  unregister_pccard_driver(&dev_info);
 
 #ifdef DEBUG_MODULE_TRACE
   printk(KERN_DEBUG "<- cleanup_module()\n");

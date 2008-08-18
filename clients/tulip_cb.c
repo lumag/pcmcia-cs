@@ -126,12 +126,13 @@ static int csr0 = 0x00A00000 | 0x4800;
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/delay.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/unaligned.h>
 
-/* Kernel compatibility defines, some common to David Hind's PCMCIA package.
+/* Kernel compatibility defines, some common to David Hinds' PCMCIA package.
    This is only in the support-all-kernels source code. */
 
 #if defined(MODULE) && LINUX_VERSION_CODE > 0x20115
@@ -169,12 +170,19 @@ char kernel_version[] = UTS_RELEASE;
 #include <linux/bios32.h>
 #define PCI_SUPPORT_VER1
 #else
+#if LINUX_VERSION_CODE < 0x2030d
 #define PCI_SUPPORT_VER2
+#else
+#define PCI_SUPPORT_VER3
+#endif
 #endif
 #if LINUX_VERSION_CODE < 0x20159
 #define dev_free_skb(skb) dev_kfree_skb(skb, FREE_WRITE);
 #else
 #define dev_free_skb(skb) dev_kfree_skb(skb);
+#endif
+#if LINUX_VERSION_CODE < 0x2030e
+#define net_device device
 #endif
 
 #define tulip_debug debug
@@ -287,8 +295,8 @@ them.  The MII transceiver status is polled using an kernel timer.
 
 */
 
-static struct device *
-tulip_probe1(int pci_bus, int pci_devfn, struct device *dev, long ioaddr,
+static struct net_device *
+tulip_probe1(int pci_bus, int pci_devfn, struct net_device *dev, long ioaddr,
 			 int irq, int chip_idx, int board_idx);
 
 /* This table drives the PCI probe routines.  It's mostly boilerplate in all
@@ -306,7 +314,7 @@ struct pci_id_info {
 	const char *name;
 	u16	vendor_id, device_id, device_id_mask, flags;
 	int io_size, min_latency;
-	struct device *(*probe1)(int pci_bus, int pci_devfn, struct device *dev,
+	struct net_device *(*probe1)(int pci_bus, int pci_devfn, struct net_device *dev,
 							 long ioaddr, int irq, int chip_idx, int fnd_cnt);
 };
 #ifndef CARDBUS
@@ -481,7 +489,7 @@ struct mediainfo {
 struct tulip_private {
 	char devname[8];			/* Used only for kernel debugging. */
 	const char *product_name;
-	struct device *next_module;
+	struct net_device *next_module;
 	struct tulip_rx_desc rx_ring[RX_RING_SIZE];
 	struct tulip_tx_desc tx_ring[TX_RING_SIZE];
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
@@ -511,6 +519,7 @@ struct tulip_private {
 	unsigned int medialock:1;			/* Don't sense media type. */
 	unsigned int mediasense:1;			/* Media sensing in progress. */
 	unsigned int nway:1, nwayset:1;		/* 21143 internal NWay. */
+	unsigned int open:1;
 	unsigned int csr0;					/* CSR0 setting. */
 	unsigned int csr6;					/* Current CSR6 control settings. */
 	unsigned char eeprom[EEPROM_SIZE];	/* Serial EEPROM contents. */
@@ -525,25 +534,27 @@ struct tulip_private {
 	int pad0, pad1;						/* Used for 8-byte alignment */
 };
 
-static void parse_eeprom(struct device *dev);
+static void parse_eeprom(struct net_device *dev);
 static int read_eeprom(long ioaddr, int location, int addr_len);
-static int mdio_read(struct device *dev, int phy_id, int location);
-static void mdio_write(struct device *dev, int phy_id, int location, int value);
-static void select_media(struct device *dev, int startup);
-static int tulip_open(struct device *dev);
+static int mdio_read(struct net_device *dev, int phy_id, int location);
+static void mdio_write(struct net_device *dev, int phy_id, int location, int value);
+static void select_media(struct net_device *dev, int startup);
+static void tulip_up(struct net_device *dev);
+static void tulip_down(struct net_device *dev);
+static int tulip_open(struct net_device *dev);
 static void tulip_timer(unsigned long data);
-static void t21142_start_nway(struct device *dev);
-static void tulip_tx_timeout(struct device *dev);
-static void tulip_init_ring(struct device *dev);
-static int tulip_start_xmit(struct sk_buff *skb, struct device *dev);
-static int tulip_rx(struct device *dev);
+static void t21142_start_nway(struct net_device *dev);
+static void tulip_tx_timeout(struct net_device *dev);
+static void tulip_init_ring(struct net_device *dev);
+static int tulip_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static int tulip_rx(struct net_device *dev);
 static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
-static int tulip_close(struct device *dev);
-static struct net_device_stats *tulip_get_stats(struct device *dev);
+static int tulip_close(struct net_device *dev);
+static struct net_device_stats *tulip_get_stats(struct net_device *dev);
 #ifdef HAVE_PRIVATE_IOCTL
-static int private_ioctl(struct device *dev, struct ifreq *rq, int cmd);
+static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 #endif
-static void set_rx_mode(struct device *dev);
+static void set_rx_mode(struct net_device *dev);
 
 
 
@@ -595,10 +606,10 @@ static void outl_CSR6 (u32 newcsr6, long ioaddr, int chip_idx)
 
 
 /* A list of all installed Tulip devices. */
-static struct device *root_tulip_dev = NULL;
+static struct net_device *root_tulip_dev = NULL;
 
 #ifndef CARDBUS
-int tulip_probe(struct device *dev)
+int tulip_probe(struct net_device *dev)
 {
 	int cards_found = 0;
 	int pci_index = 0;
@@ -640,6 +651,10 @@ int tulip_probe(struct device *dev)
 			struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
 			ioaddr = pdev->base_address[0] & ~3;
 			irq = pdev->irq;
+#elseif defined(PCI_SUPPORT_VER3)
+			struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
+			ioaddr = pdev->resource[0].start;
+			irq = pdev->irq;
 #else
 			u32 pci_ioaddr;
 			u8 pci_irq_line;
@@ -655,9 +670,6 @@ int tulip_probe(struct device *dev)
 		if (debug > 2)
 			printk(KERN_INFO "Found %s at PCI I/O address %#lx.\n",
 				   pci_tbl[chip_idx].name, ioaddr);
-
-		if (check_region(ioaddr, pci_tbl[chip_idx].io_size))
-			continue;
 
 		pcibios_read_config_word(pci_bus, pci_device_fn,
 								 PCI_COMMAND, &pci_command);
@@ -694,8 +706,8 @@ int tulip_probe(struct device *dev)
 }
 #endif  /* not CARDBUS */
 
-static struct device *tulip_probe1(int pci_bus, int pci_devfn,
-								   struct device *dev, long ioaddr, int irq,
+static struct net_device *tulip_probe1(int pci_bus, int pci_devfn,
+								   struct net_device *dev, long ioaddr, int irq,
 								   int chip_idx, int board_idx)
 {
 	static int did_version = 0;			/* Already printed version info. */
@@ -1026,7 +1038,6 @@ static struct device *tulip_probe1(int pci_bus, int pci_devfn,
 		}
 		break;
 	case X3201_3:
-		printk("XIRCOM init\n");
 		outl_CSR6(0xb2420200, ioaddr, chip_idx);
 		outl(0x0008, ioaddr + CSR15);
 		outl(0xa8050000, ioaddr + CSR15);
@@ -1100,7 +1111,7 @@ static const char * block_name[] = {"21140 non-MII", "21140 MII PHY",
 #define get_u16(ptr) (((u8*)(ptr))[0] + (((u8*)(ptr))[1]<<8))
 #endif
 
-static void parse_eeprom(struct device *dev)
+static void parse_eeprom(struct net_device *dev)
 {
 	/* The last media info list parsed, for multiport boards.  */
 	static struct mediatable *last_mediatable = NULL;
@@ -1348,7 +1359,7 @@ static int read_eeprom(long ioaddr, int location, int addr_len)
 #define MDIO_ENB_IN		0x40000
 #define MDIO_DATA_READ	0x80000
 
-static int mdio_read(struct device *dev, int phy_id, int location)
+static int mdio_read(struct net_device *dev, int phy_id, int location)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	int i;
@@ -1407,7 +1418,7 @@ static int mdio_read(struct device *dev, int phy_id, int location)
 	return (retval>>1) & 0xffff;
 }
 
-static void mdio_write(struct device *dev, int phy_id, int location, int value)
+static void mdio_write(struct net_device *dev, int phy_id, int location, int value)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	int i;
@@ -1463,8 +1474,8 @@ static void mdio_write(struct device *dev, int phy_id, int location, int value)
 }
 
 
-static int
-tulip_open(struct device *dev)
+static void
+tulip_up(struct net_device *dev)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -1477,19 +1488,18 @@ tulip_open(struct device *dev)
 	/* Reset the chip, holding bit 0 set at least 50 PCI cycles. */
 	outl(0x00000001, ioaddr + CSR0);
 
-	if (request_irq(dev->irq, &tulip_interrupt, SA_SHIRQ, dev->name, dev))
-		return -EAGAIN;
-	MOD_INC_USE_COUNT;
-
-	/* Deassert reset.
-	   Wait the specified 50 PCI cycles after a reset by initializing
-	   Tx and Rx queues and the address filter list. */
+	/* Deassert reset. */
 	outl(tp->csr0, ioaddr + CSR0);
+	udelay(2);
+
+	/* Clear the tx ring */
+	for (i = 0; i < TX_RING_SIZE; i++) {
+		tp->tx_skbuff[i] = 0;
+		tp->tx_ring[i].status = 0x00000000;
+	}
 
 	if (tulip_debug > 1)
 		printk(KERN_DEBUG "%s: tulip_open() irq %d.\n", dev->name, dev->irq);
-
-	tulip_init_ring(dev);
 
 	if (tulip_tbl[tp->chip_id].flags & MC_HASH_ONLY) {
 		u32 addr_low = cpu_to_le32(get_unaligned((u32 *)dev->dev_addr));
@@ -1637,12 +1647,27 @@ media_picked:
 	tp->timer.data = (unsigned long)dev;
 	tp->timer.function = tulip_tbl[tp->chip_id].media_timer;
 	add_timer(&tp->timer);
+}
+
+static int
+tulip_open(struct net_device *dev)
+{
+	struct tulip_private *tp = (struct tulip_private *)dev->priv;
+
+	if (request_irq(dev->irq, &tulip_interrupt, SA_SHIRQ, dev->name, dev))
+		return -EAGAIN;
+
+	tulip_init_ring(dev);
+
+	tulip_up(dev);
+	tp->open = 1;
+	MOD_INC_USE_COUNT;
 
 	return 0;
 }
 
 /* Set up the transceiver control registers for the selected media type. */
-static void select_media(struct device *dev, int startup)
+static void select_media(struct net_device *dev, int startup)
 {
 	long ioaddr = dev->base_addr;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
@@ -1871,7 +1896,7 @@ static void select_media(struct device *dev, int startup)
   Return 0 if everything is OK.
   Return < 0 if the transceiver is missing or has no link beat.
   */
-static int check_duplex(struct device *dev)
+static int check_duplex(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
@@ -1916,7 +1941,7 @@ static int check_duplex(struct device *dev)
 
 static void tulip_timer(unsigned long data)
 {
-	struct device *dev = (struct device *)data;
+	struct net_device *dev = (struct net_device *)data;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	u32 csr12 = inl(ioaddr + CSR12);
@@ -2072,7 +2097,7 @@ static void tulip_timer(unsigned long data)
    of available transceivers.  */
 static void t21142_timer(unsigned long data)
 {
-	struct device *dev = (struct device *)data;
+	struct net_device *dev = (struct net_device *)data;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int csr12 = inl(ioaddr + CSR12);
@@ -2145,7 +2170,7 @@ static void t21142_timer(unsigned long data)
 	add_timer(&tp->timer);
 }
 
-static void t21142_start_nway(struct device *dev)
+static void t21142_start_nway(struct net_device *dev)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -2170,7 +2195,7 @@ static void t21142_start_nway(struct device *dev)
 	outl(0x1301, ioaddr + CSR12); 		/* Trigger NWAY. */
 }
 
-static void t21142_lnk_change(struct device *dev, int csr5)
+static void t21142_lnk_change(struct net_device *dev, int csr5)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -2277,7 +2302,7 @@ static void t21142_lnk_change(struct device *dev, int csr5)
 
 static void mxic_timer(unsigned long data)
 {
-	struct device *dev = (struct device *)data;
+	struct net_device *dev = (struct net_device *)data;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int next_tick = 60*HZ;
@@ -2294,7 +2319,7 @@ static void mxic_timer(unsigned long data)
 
 static void pnic_timer(unsigned long data)
 {
-	struct device *dev = (struct device *)data;
+	struct net_device *dev = (struct net_device *)data;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int csr12 = inl(ioaddr + CSR12);
@@ -2379,7 +2404,7 @@ static void pnic_timer(unsigned long data)
 
 static void comet_timer(unsigned long data)
 {
-	struct device *dev = (struct device *)data;
+	struct net_device *dev = (struct net_device *)data;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int next_tick = 60*HZ;
@@ -2392,7 +2417,7 @@ static void comet_timer(unsigned long data)
 	add_timer(&tp->timer);
 }
 
-static void tulip_tx_timeout(struct device *dev)
+static void tulip_tx_timeout(struct net_device *dev)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -2497,7 +2522,7 @@ static void tulip_tx_timeout(struct device *dev)
 
 
 /* Initialize the Rx and Tx rings, along with various 'dev' bits. */
-static void tulip_init_ring(struct device *dev)
+static void tulip_init_ring(struct net_device *dev)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	int i;
@@ -2546,7 +2571,7 @@ static void tulip_init_ring(struct device *dev)
 }
 
 static int
-tulip_start_xmit(struct sk_buff *skb, struct device *dev)
+tulip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	int entry;
@@ -2608,7 +2633,7 @@ tulip_start_xmit(struct sk_buff *skb, struct device *dev)
    after the Tx thread. */
 static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 {
-	struct device *dev = (struct device *)dev_instance;
+	struct net_device *dev = (struct net_device *)dev_instance;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int csr5, work_budget = max_interrupt_work;
@@ -2780,7 +2805,7 @@ static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 }
 
 static int
-tulip_rx(struct device *dev)
+tulip_rx(struct net_device *dev)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	int entry = tp->cur_rx % RX_RING_SIZE;
@@ -2888,8 +2913,8 @@ tulip_rx(struct device *dev)
 	return work_done;
 }
 
-static int
-tulip_close(struct device *dev)
+static void
+tulip_down(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
@@ -2897,10 +2922,6 @@ tulip_close(struct device *dev)
 
 	dev->start = 0;
 	dev->tbusy = 1;
-
-	if (tulip_debug > 1)
-		printk(KERN_DEBUG "%s: Shutting down ethercard, status was %2.2x.\n",
-			   dev->name, inl(ioaddr + CSR5));
 
 	/* Disable interrupts by clearing the interrupt mask. */
 	outl(0x00000000, ioaddr + CSR7);
@@ -2915,9 +2936,24 @@ tulip_close(struct device *dev)
 
 	del_timer(&tp->timer);
 
-	free_irq(dev->irq, dev);
-
 	dev->if_port = tp->saved_if_port;
+}
+
+static int
+tulip_close(struct net_device *dev)
+{
+	long ioaddr = dev->base_addr;
+	struct tulip_private *tp = (struct tulip_private *)dev->priv;
+	int i;
+
+	if (tulip_debug > 1)
+		printk(KERN_DEBUG "%s: Shutting down ethercard, status was %2.2x.\n",
+			   dev->name, inl(ioaddr + CSR5));
+
+	if (dev->start)
+		tulip_down(dev);
+
+	free_irq(dev->irq, dev);
 
 	/* Free all the skbuffs in the Rx queue. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
@@ -2940,11 +2976,11 @@ tulip_close(struct device *dev)
 	}
 
 	MOD_DEC_USE_COUNT;
-
+	tp->open = 0;
 	return 0;
 }
 
-static struct net_device_stats *tulip_get_stats(struct device *dev)
+static struct net_device_stats *tulip_get_stats(struct net_device *dev)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -2957,7 +2993,7 @@ static struct net_device_stats *tulip_get_stats(struct device *dev)
 
 #ifdef HAVE_PRIVATE_IOCTL
 /* Provide ioctl() calls to examine the MII xcvr state. */
-static int private_ioctl(struct device *dev, struct ifreq *rq, int cmd)
+static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
@@ -3072,7 +3108,7 @@ static inline u32 ether_crc(int length, unsigned char *data)
     return crc;
 }
 
-static void set_rx_mode(struct device *dev)
+static void set_rx_mode(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
 	int csr6 = inl(ioaddr + CSR6) & ~0x00D5;
@@ -3202,7 +3238,7 @@ static void set_rx_mode(struct device *dev)
 
 static dev_node_t *tulip_attach(dev_locator_t *loc)
 {
-	struct device *dev;
+	struct net_device *dev;
 	u16 dev_id;
 	u16 vendor_id;
 	u32 io;
@@ -3232,52 +3268,42 @@ static dev_node_t *tulip_attach(dev_locator_t *loc)
 
 static void tulip_suspend(dev_node_t *node)
 {
-	struct device **devp, **next;
+	struct net_device *dev, *next;
 	printk(KERN_INFO "tulip_suspend(%s)\n", node->dev_name);
-	for (devp = &root_tulip_dev; *devp; devp = next) {
-		next = &((struct tulip_private *)(*devp)->priv)->next_module;
-		if (strcmp((*devp)->name, node->dev_name) == 0) break;
+	for (dev = root_tulip_dev; dev; dev = next) {
+		next = ((struct tulip_private *)dev->priv)->next_module;
+		if (strcmp(dev->name, node->dev_name) == 0) break;
 	}
-	if (*devp) {
-		long ioaddr = (*devp)->base_addr;
-		struct tulip_private *tp = (struct tulip_private *)(*devp)->priv;
-		int csr6 = inl(ioaddr + CSR6);
-		/* Disable interrupts, stop the chip, gather stats. */
-		if (csr6 != 0xffffffff) {
-			outl(0x00000000, ioaddr + CSR7);
-			outl_CSR6(csr6 & ~0x2002, ioaddr, tp->chip_id);
-			tp->stats.rx_missed_errors += inl(ioaddr + CSR8) & 0xffff;
-		}
-		/* Put the 21143 into sleep mode. */
-		pcibios_write_config_dword(tp->pci_bus,tp->pci_devfn, 0x40,0x80000000);
+	if (dev) {
+		struct tulip_private *tp = (struct tulip_private *)dev->priv;
+		if (tp->open) tulip_down(dev);
 	}
 }
 
 static void tulip_resume(dev_node_t *node)
 {
-	struct device **devp, **next;
+	struct net_device *dev, *next;
 	printk(KERN_INFO "tulip_resume(%s)\n", node->dev_name);
-	for (devp = &root_tulip_dev; *devp; devp = next) {
-		next = &((struct tulip_private *)(*devp)->priv)->next_module;
-		if (strcmp((*devp)->name, node->dev_name) == 0) break;
+	for (dev = root_tulip_dev; dev; dev = next) {
+		next = ((struct tulip_private *)dev->priv)->next_module;
+		if (strcmp(dev->name, node->dev_name) == 0) break;
 	}
-	if (*devp) {
-		struct tulip_private *tp = (struct tulip_private *)(*devp)->priv;
-		pcibios_write_config_dword(tp->pci_bus, tp->pci_devfn, 0x40, 0x0000);
-		tulip_open(*devp);
+	if (dev) {
+		struct tulip_private *tp = (struct tulip_private *)dev->priv;
+		if (tp->open) tulip_up(dev);
 	}
 }
 
 static void tulip_detach(dev_node_t *node)
 {
-	struct device **devp, **next;
+	struct net_device **devp, **next;
 	printk(KERN_INFO "tulip_detach(%s)\n", node->dev_name);
 	for (devp = &root_tulip_dev; *devp; devp = next) {
 		next = &((struct tulip_private *)(*devp)->priv)->next_module;
 		if (strcmp((*devp)->name, node->dev_name) == 0) break;
 	}
 	if (*devp) {
-		struct device *dev = *devp;
+		struct net_device *dev = *devp;
 		struct tulip_private *tp = dev->priv;
 		unregister_netdev(dev);
 		kfree(dev);
@@ -3309,7 +3335,7 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	struct device *next_dev;
+	struct net_device *next_dev;
 
 #ifdef CARDBUS
 	unregister_driver(&tulip_ops);

@@ -1,3 +1,33 @@
+[10-Sep-99] Version 3.1.0
+-- Changed output of "cardctl config" to have a more consistent look,
+   and added stuff for reporting memory windows.
+-- Added PCI id's for TI 1211 and 1420 CardBus bridges.
+-- Added check to i82365 module for bad bridge register mappings.
+-- Added more entries to the PnP device list.
+-- Added /sbin/pump support to network script.
+-- Added broken-interrupt detection and recovery to pcnet_cs driver.
+-- Minor cosmetic update to Wavelan driver.
+-- Updated Configure script: made CC and LD options only available
+   from the command line, since they're not used much.
+-- Minimal changes to accommodate 2.3.13 resource management code.
+-- Better system resource conflict avoidance, using PnP BIOS services,
+   and added PnP utilities lspnp & setpnp.
+-- Commented out a couple of bogus config file entries that were
+   causing the tulip_cb driver to load for various 16-bit cards.
+-- Fixed 2.3.16 serial_cb/serial_cs and CardBus breakage.
+-- Fixed smc91c92_cs 100baseT operation with smc91c100fd chipsets.
+-- Fixed module cleanup bug in apa1480_cb driver causing kernel panics
+   if there are no attached devices.
+-- Fixed IDE setup script to create missing device files.
+-- Fixed Toshiba ToPIC initial card type detection.
+-- Fixed network drivers for 2.3.14 kernel.
+-- Fixed install bug causing /etc/conf.modules to accumulate cruft.
+-- Fixed obscure bug in tcic driver causing irq 11 to be tied up if
+   polled status changes are selected.
+-- Three CardBus bug fixes: fixed /proc/bus/pci/* for multifunction
+   cards, fixed a kernel oops if a 32-bit driver is loaded for a
+   16-bit card, and added more sanity checks to CIS reading code.
+
 [30-Jul-99] Version 3.0.14
 -- Updated license to version 1.1 of MPL.
 -- Updated for 2.3.12 kernel.

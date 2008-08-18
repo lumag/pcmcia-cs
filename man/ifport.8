@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" ifport.8 1.5 1998/05/04 23:28:11
+.\" ifport.8 1.6 1999/08/31 06:15:46
 .\"
-.TH IFPORT 8 "1998/05/04 23:28:11" "pcmcia-cs"
+.TH IFPORT 8 "1999/08/31 06:15:46" "pcmcia-cs"
 .SH NAME
 ifport \- select the transceiver type for a network interface
 .SH SYNOPSIS
@@ -28,8 +28,20 @@ The network drivers may not reconfigure a card for a new transceiver
 type if the interface is already open.  It is best to invoke
 .B ifport
 prior to configuring the interface with
-.BR ifconfig
+.B ifconfig
 to ensure that the new setting takes effect immediately.
+.PP
+This utility only works with a limited set of 16-bit PC Card drivers:
+.BR 3c589_cs ,
+.BR nmclan_cs ,
+.BR pcnet_cs ,
+.BR smc91c92_cs ,
+and
+.BR xirc2ps_cs .
+If invoked for other drivers,
+.B ifport
+may report bogus transceiver
+settings, or report ``Operation not supported''.
 .SH AUTHOR
 David Hinds \- dhinds@hyper.stanford.edu
 .SH "SEE ALSO"

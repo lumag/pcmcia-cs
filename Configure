@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.114 1999/07/27 18:34:13
+# Configure 1.117 1999/09/08 16:55:53
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -14,7 +14,17 @@
 #
 # The initial developer of the original code is David A. Hinds
 # <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-# are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+# are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+#
+# Alternatively, the contents of this file may be used under the terms
+# of the GNU Public License version 2 (the "GPL"), in which case the
+# provisions of the GPL are applicable instead of the above.  If you
+# wish to allow the use of your version of this file only under the
+# terms of the GPL and not to allow others to use your version of this
+# file under the MPL, indicate your decision by deleting the provisions
+# above and replace them with the notice and other provisions required
+# by the GPL.  If you do not delete the provisions above, a recipient
+# may use your version of this file under either the MPL or the GPL.
 #
 #=======================================================================
 
@@ -56,7 +66,22 @@ usage () {
     echo "usage: $0 [-n|--noprompt] [--kernel=src-dir] [--target=dir]"
     echo "    [--moddir=dir] [--cc=path] [--ld=path] [--debug=debug-flags]"
     echo "    [--uflags=user-flags] [--kflags=kernel-flags]"
-    echo "    [--{no}trust] [--{no}cardbus] [--current] [--srctree] [--manual]"
+    echo "    [--{no}trust] [--{no}cardbus] [--current] [--srctree]"
+    echo ""
+    echo "  -n, --noprompt     non-interactive mode: no prompting"
+    echo "  --kernel=DIR       use kernel source tree at DIR"
+    echo "  --target=DIR       install all files using DIR as root"
+    echo "  --moddir=DIR       install modules under DIR"
+    echo "  --cc=PATH          use another C compiler"
+    echo "  --ld=PATH          use another linker"
+    echo "  --debug=FLAGS      set compiler flags for debugging"
+    echo "  --uflags=FLAGS     set compiler flags for user-mode tools"
+    echo "  --kflags=FLAGS     set compiler flags for kernel modules"
+    echo "  --{no}cardbus      disable or enable CardBus card support"
+    echo "  --{no}trust        disable or enable trusted user tools"
+    echo "  --{no}pnp          disable or enable PnP BIOS support"
+    echo "  --current          read configuration of current kernel"
+    echo "  --srctree          read kernel configuration from source tree"
     exit 1
 }
 
@@ -75,9 +100,10 @@ while [ $# -gt 0 ] ; do
     --notrust)		UNSAFE_TOOLS=n		;;
     --cardbus)		CONFIG_CARDBUS=y	;;
     --nocardbus)	CONFIG_CARDBUS=n	;;
+    --pnp)		CONFIG_PNP_BIOS=y	;;
+    --nopnp)		CONFIG_PNP_BIOS=n	;;
     --current)		CONF_SRC=1		;;
     --srctree)		CONF_SRC=2		;;
-    --manual)		CONF_SRC=3		;;
     *)			usage			;;
     esac
     shift
@@ -131,7 +157,7 @@ write_str () {
 prompt () {
     eval $3=\"$2\"
     if [ "$PROMPT" = "y" ] ; then
-	/bin/echo "$1 [$2]: \c"
+	/bin/echo -e "$1 [$2]: \c"
 	read tmp
 	if [ ! -t 1 ] ; then echo $tmp ; fi
 	if [ -n "$tmp" ] ; then eval $3=\"$tmp\" ; fi
@@ -236,14 +262,18 @@ else
 fi
 ask_str "  Module install directory" MODDIR
 
-ask_str "C compiler name" CC
-ask_str "Linker name" LD
 ask_str "Compiler flags for debugging" PCDEBUG
 write_str KFLAGS
 write_str UFLAGS
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
 ask_bool "Include 32-bit (CardBus) card support" CONFIG_CARDBUS
+if [ $ARCH = "i386" ] ; then
+    ask_bool "Include PnP BIOS resource checking" CONFIG_PNP_BIOS
+else
+    CONFIG_PNP_BIOS=n
+    write_bool CONFIG_PNP_BIOS
+fi
 
 echo ""
 echo "The PCMCIA drivers need to be compiled to match the kernel they"
@@ -295,7 +325,7 @@ configcheck () {
 
 printflag() {
     value=`eval echo '$'$2`
-    /bin/echo "    $1 is \c"
+    /bin/echo -e "    $1 is \c"
     if [ "$value" = "y" ] ; then
 	echo "enabled."
     else
@@ -369,6 +399,7 @@ case $CONF_SRC in
 	echo "/* Options from current kernel */" >> $CONFIG_H
 	echo "CHECK=\"/proc/version\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < /proc/version`\"" >> $CONFIG
+	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
 	symcheck smp_invalidate_needed CONFIG_SMP
 	symcheck pcibios CONFIG_PCI
 	symcheck apm_register_callback CONFIG_APM
@@ -418,6 +449,7 @@ case $CONF_SRC in
 	echo "/* Options from $AUTOCONF */" >> $CONFIG_H
 	echo "CHECK=\"$AUTOCONF\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < $AUTOCONF`\"" >> $CONFIG
+	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
 	if grep "^ *SMP *= *1" $LINUX/Makefile >/dev/null ; then
 	    CONFIG_SMP=y
 	else
@@ -445,6 +477,7 @@ case $CONF_SRC in
 	echo "# Configured manually" >> $CONFIG
 	echo "# Configured manually" >> $CONFIG_MK
 	echo "/* Configured manually */" >> $CONFIG_H
+	echo "#define CONFIG_MODULES 1" >> $CONFIG_H
 	ask_bool "Symmetric multiprocessing support" CONFIG_SMP
 	ask_bool "PCI BIOS support" CONFIG_PCI
 	tweak

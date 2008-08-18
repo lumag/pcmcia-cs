@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# ide 1.5 1998/10/08 19:44:18 (David Hinds)
+# ide 1.6 1999/08/26 15:55:38 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ATA/IDE adapter
 #
@@ -23,6 +23,10 @@ if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 
 # Get device attributes
 get_info $DEVICE
+
+if [ ! -b /dev/$DEVICE ] ; then
+    cd /dev ; ./MAKEDEV $DEVICE
+fi
 eval `/sbin/ide_info /dev/$DEVICE` || usage
 
 # Load site-specific settings

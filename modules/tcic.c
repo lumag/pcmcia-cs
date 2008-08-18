@@ -2,7 +2,7 @@
 
     Device driver for Databook TCIC-2 PCMCIA controller
 
-    tcic.c 1.102 1999/07/20 16:01:33
+    tcic.c 1.105 1999/09/06 06:55:14
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -16,7 +16,18 @@
 
     The initial developer of the original code is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+    Alternatively, the contents of this file may be used under the
+    terms of the GNU Public License version 2 (the "GPL"), in which
+    case the provisions of the GPL are applicable instead of the
+    above.  If you wish to allow the use of your version of this file
+    only under the terms of the GPL and not to allow others to use
+    your version of this file under the MPL, indicate your decision
+    by deleting the provisions above and replace them with the notice
+    and other provisions required by the GPL.  If you do not delete
+    the provisions above, a recipient may use your version of this
+    file under either the MPL or the GPL.
     
 ======================================================================*/
 
@@ -50,7 +61,7 @@
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"tcic.c 1.102 1999/07/20 16:01:33 (David Hinds)";
+"tcic.c 1.105 1999/09/06 06:55:14 (David Hinds)";
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 #else
 #define DEBUG(n, args...)
@@ -124,6 +135,10 @@ static socket_cap_t tcic_cap = {
 };
 
 /*====================================================================*/
+
+/* Trick when selecting interrupts: the TCIC sktirq pin is supposed
+   to map to irq 11, but is coded as 0 or 1 in the irq registers. */
+#define TCIC_IRQ(x) ((x) ? (((x) == 11) ? 1 : (x)) : 15)
 
 #ifdef PCMCIA_DEBUG_X
 static u_char tcic_getb(u_char reg)
@@ -205,7 +220,7 @@ static int to_cycles(int ns)
 	return 0;
     else
 	return 2*(ns-14)/cycle_time;
-} /* speed_convert */
+}
 
 static int to_ns(int cycles)
 {
@@ -226,22 +241,22 @@ static u_int try_irq(int irq)
     u_short cfg;
 
     irq_hits = 0;
-    if (REQUEST_IRQ(irq, irq_count, 0, "irq scan", NULL) != 0)
+    if (request_irq(irq, irq_count, 0, "irq scan", NULL) != 0)
 	return -1;
     mdelay(10);
     if (irq_hits) {
-	FREE_IRQ(irq, NULL);
+	free_irq(irq, NULL);
 	return -1;
     }
 
     /* Generate one interrupt */
     cfg = TCIC_SYSCFG_AUTOBUSY | 0x0a00;
-    tcic_aux_setw(TCIC_AUX_SYSCFG, cfg | (irq == 11 ? 1 : irq));
+    tcic_aux_setw(TCIC_AUX_SYSCFG, cfg | TCIC_IRQ(irq));
     tcic_setb(TCIC_IENA, TCIC_IENA_ERR | TCIC_IENA_CFG_HIGH);
     tcic_setb(TCIC_ICSR, TCIC_ICSR_ERR | TCIC_ICSR_JAM);
 
     udelay(1000);
-    FREE_IRQ(irq, NULL);
+    free_irq(irq, NULL);
 
     /* Turn off interrupts */
     tcic_setb(TCIC_IENA, TCIC_IENA_CFG_OFF);
@@ -282,9 +297,9 @@ static u_int irq_scan(u_int mask0)
 	/* Fallback: just find interrupts that aren't in use */
 	for (i = 0; i < 16; i++)
 	    if ((mask0 & (1 << i)) &&
-		(REQUEST_IRQ(i, irq_count, 0, "x", NULL) == 0)) {
+		(request_irq(i, irq_count, 0, "x", NULL) == 0)) {
 		mask1 |= (1 << i);
-		FREE_IRQ(i, NULL);
+		free_irq(i, NULL);
 	    }
 	printk("default");
     }
@@ -451,7 +466,7 @@ int tcic_init(void)
 	u_int cs_mask = mask & ((cs_irq) ? (1<<cs_irq) : ~(1<<12));
 	for (i = 15; i > 0; i--)
 	    if ((cs_mask & (1 << i)) &&
-		(REQUEST_IRQ(i, tcic_interrupt, 0, "tcic", NULL) == 0))
+		(request_irq(i, tcic_interrupt, 0, "tcic", NULL) == 0))
 		break;
 	cs_irq = i;
 	if (cs_irq == 0) poll_interval = HZ;
@@ -477,7 +492,7 @@ int tcic_init(void)
 	printk(KERN_NOTICE "tcic: register_ss_entry() failed\n");
 	release_region(tcic_base, 16);
 	if (cs_irq != 0)
-	    FREE_IRQ(cs_irq, NULL);
+	    free_irq(cs_irq, NULL);
 	return -ENODEV;
     }
 
@@ -495,7 +510,7 @@ static void tcic_finish(void)
     cli();
     if (cs_irq != 0) {
 	tcic_aux_setw(TCIC_AUX_SYSCFG, TCIC_SYSCFG_AUTOBUSY|0x0a00);
-	FREE_IRQ(cs_irq, NULL);
+	free_irq(cs_irq, NULL);
     }
     if (tcic_timer_pending)
 	del_timer(&poll_timer);
@@ -709,7 +724,7 @@ static int tcic_set_socket(u_short lsock, socket_state_t *state)
     
     tcic_setw(TCIC_ADDR, TCIC_SCF1(psock));
     scf1 = TCIC_SCF1_FINPACK;
-    scf1 |= ((state->io_irq == 11) ? 1 : state->io_irq);
+    scf1 |= TCIC_IRQ(state->io_irq);
     if (state->flags & SS_IOCARD) {
 	scf1 |= TCIC_SCF1_IOSTS;
 	if (state->flags & SS_SPKR_ENA)
@@ -723,7 +738,7 @@ static int tcic_set_socket(u_short lsock, socket_state_t *state)
     reg = TCIC_WAIT_ASYNC | TCIC_WAIT_SENSE | to_cycles(250);
     tcic_aux_setb(TCIC_AUX_WCTL, reg);
     tcic_aux_setw(TCIC_AUX_SYSCFG, TCIC_SYSCFG_AUTOBUSY|0x0a00|
-		  ((cs_irq == 11) ? 1 : cs_irq));
+		  TCIC_IRQ(cs_irq));
     
     /* Card status change interrupt mask */
     tcic_setw(TCIC_ADDR, TCIC_SCF2(psock));

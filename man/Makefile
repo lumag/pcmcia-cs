@@ -1,5 +1,5 @@
 #
-# man/Makefile 1.40 1999/07/23 20:06:23 (David Hinds)
+# man/Makefile 1.41 1999/08/12 05:53:46 (David Hinds)
 #
 
 # Include site dependent options
@@ -15,7 +15,8 @@ MAN4 = pcmcia_core.4 tcic.4 i82365.4 tc589_cs.4 pcnet_cs.4 dummy_cs.4 \
 	memory_cb.4 ibmtr_cs.4 smc91c92_cs.4
 MAN5 = pcmcia.5 stab.5
 MAN8 = cardmgr.8 cardctl.8 ftl_format.8 ftl_check.8 scsi_info.8 \
-	ifport.8 ifuser.8 ide_info.8 pcinitrd.8 pack_cis.8 dump_cis.8
+	ifport.8 ifuser.8 ide_info.8 pcinitrd.8 pack_cis.8 dump_cis.8 \
+	lspnp.8 setpnp.8
 
 all: $(MAN1) $(MAN4) $(MAN5) $(MAN8)
 

@@ -438,17 +438,17 @@ static void nmclan_release(u_long arg);
 static int nmclan_event(event_t event, int priority,
 		       event_callback_args_t *args);
 
-static void nmclan_reset(struct device *dev);
-static int mace_config(struct device *dev, struct ifmap *map);
-static int mace_open(struct device *dev);
-static int mace_close(struct device *dev);
-static int mace_start_xmit(struct sk_buff *skb, struct device *dev);
-static void mace_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs);
-static struct net_device_stats *mace_get_stats(struct device *dev);
-static int mace_rx(struct device *dev, unsigned char RxCnt);
-static void restore_multicast_list(struct device *dev);
+static void nmclan_reset(struct net_device *dev);
+static int mace_config(struct net_device *dev, struct ifmap *map);
+static int mace_open(struct net_device *dev);
+static int mace_close(struct net_device *dev);
+static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static void mace_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static struct net_device_stats *mace_get_stats(struct net_device *dev);
+static int mace_rx(struct net_device *dev, unsigned char RxCnt);
+static void restore_multicast_list(struct net_device *dev);
 
-static void set_multicast_list(struct device *dev);
+static void set_multicast_list(struct net_device *dev);
 
 static dev_link_t *nmclan_attach(void);
 static void nmclan_detach(dev_link_t *);
@@ -485,7 +485,7 @@ nmclan_init
 	We never need to do anything when a nmclan device is "initialized"
 	by the net software, because we only register already-found cards.
 ---------------------------------------------------------------------------- */
-static int nmclan_init(struct device *dev)
+static int nmclan_init(struct net_device *dev)
 {
   return 0;
 } /* nmclan_init */
@@ -501,7 +501,7 @@ static dev_link_t *nmclan_attach(void)
 {
   client_reg_t client_reg;
   dev_link_t *link;
-  struct device *dev;
+  struct net_device *dev;
   int i, ret;
 
   DEBUG(0, "nmclan_attach()\n");
@@ -530,8 +530,8 @@ static dev_link_t *nmclan_attach(void)
   link->conf.ConfigIndex = 1;
   link->conf.Present = PRESENT_OPTION;
 
-  dev = kmalloc(sizeof(struct device), GFP_KERNEL);
-  memset(dev, 0, sizeof(struct device));
+  dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+  memset(dev, 0, sizeof(struct net_device));
 
   /* Allocate private data area for this device. */
   dev->priv = kmalloc(sizeof(mace_private), GFP_KERNEL);
@@ -607,14 +607,14 @@ static void nmclan_detach(dev_link_t *link)
   /* Unlink device structure, free bits */
   *linkp = link->next;
   if (link->priv) {
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
     if (link->dev != NULL)
       unregister_netdev(dev);
     if (dev->priv)
-      kfree_s(dev->priv, sizeof(mace_private));
-    kfree_s(link->priv, sizeof(struct device));
+      kfree(dev->priv);
+    kfree(link->priv);
   }
-  kfree_s(link, sizeof(struct dev_link_t));
+  kfree(link);
 
 } /* nmclan_detach */
 
@@ -754,7 +754,7 @@ while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 static void nmclan_config(dev_link_t *link)
 {
   client_handle_t handle;
-  struct device *dev;
+  struct net_device *dev;
   tuple_t tuple;
   cisparse_t parse;
   u_char buf[64];
@@ -906,7 +906,7 @@ static int nmclan_event(event_t event, int priority,
 		       event_callback_args_t *args)
 {
   dev_link_t *link = args->client_data;
-  struct device *dev = link->priv;
+  struct net_device *dev = link->priv;
 
   DEBUG(1, "nmclan_event(0x%06x)\n", event);
     
@@ -915,7 +915,7 @@ static int nmclan_event(event_t event, int priority,
       link->state &= ~DEV_PRESENT;
       if (link->state & DEV_CONFIG) {
 	dev->tbusy = 0xFF; dev->start = 0;
-	link->release.expires = RUN_AT(HZ/20);
+	link->release.expires = jiffies + HZ/20;
 	add_timer(&link->release);
       }
       break;
@@ -961,7 +961,7 @@ static int nmclan_event(event_t event, int priority,
 nmclan_reset
 	Reset and restore all of the Xilinx and MACE registers.
 ---------------------------------------------------------------------------- */
-static void nmclan_reset(struct device *dev)
+static void nmclan_reset(struct net_device *dev)
 {
 
 #if RESET_XILINX
@@ -1020,7 +1020,7 @@ mace_config
 	standard?  If so, there should be defines to indicate 1=10Base-T,
 	2=10Base-2, etc. including limited automatic detection.]
 ---------------------------------------------------------------------------- */
-static int mace_config(struct device *dev, struct ifmap *map)
+static int mace_config(struct net_device *dev, struct ifmap *map)
 {
   if ((map->port != (u_char)(-1)) && (map->port != dev->if_port)) {
     if (map->port <= 2) {
@@ -1039,7 +1039,7 @@ static int mace_config(struct device *dev, struct ifmap *map)
 mace_open
 	Open device driver.
 ---------------------------------------------------------------------------- */
-static int mace_open(struct device *dev)
+static int mace_open(struct net_device *dev)
 {
   int ioaddr = dev->base_addr;
   dev_link_t *link;
@@ -1069,7 +1069,7 @@ static int mace_open(struct device *dev)
 mace_close
 	Closes device driver.
 ---------------------------------------------------------------------------- */
-static int mace_close(struct device *dev)
+static int mace_close(struct net_device *dev)
 {
   int ioaddr = dev->base_addr;
   dev_link_t *link;
@@ -1088,7 +1088,7 @@ static int mace_close(struct device *dev)
   link->open--;
   dev->start = 0;
   if (link->state & DEV_STALE_CONFIG) {
-    link->release.expires = RUN_AT(HZ/20);
+    link->release.expires = jiffies + HZ/20;
     link->state |= DEV_RELEASE_PENDING;
     add_timer(&link->release);
   }
@@ -1109,7 +1109,7 @@ mace_start_xmit
 	driver."  If _start_xmit returns non-zero, the "transmission
 	failed, put skb back into a list."
 ---------------------------------------------------------------------------- */
-static int mace_start_xmit(struct sk_buff *skb, struct device *dev)
+static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
   mace_private *lp = (mace_private *)dev->priv;
   int ioaddr = dev->base_addr;
@@ -1217,9 +1217,9 @@ static int mace_start_xmit(struct sk_buff *skb, struct device *dev)
 mace_interrupt
 	The interrupt handler.
 ---------------------------------------------------------------------------- */
-static void mace_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
+static void mace_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-  struct device *dev = (struct device *)DEV_ID;
+  struct net_device *dev = (struct net_device *)dev_id;
   mace_private *lp = (mace_private *)dev->priv;
   int ioaddr = dev->base_addr;
   int status;
@@ -1372,7 +1372,7 @@ exception:
 mace_rx
 	Receives packets.
 ---------------------------------------------------------------------------- */
-static int mace_rx(struct device *dev, unsigned char RxCnt)
+static int mace_rx(struct net_device *dev, unsigned char RxCnt)
 {
   mace_private *lp = (mace_private *)dev->priv;
   int ioaddr = dev->base_addr;
@@ -1544,7 +1544,7 @@ update_stats
 	card's SRAM fast enough.  If this happens, something is
 	seriously wrong with the hardware.
 ---------------------------------------------------------------------------- */
-static void update_stats(int ioaddr, struct device *dev)
+static void update_stats(int ioaddr, struct net_device *dev)
 {
   mace_private *lp = (mace_private *)dev->priv;
     
@@ -1602,7 +1602,7 @@ static void update_stats(int ioaddr, struct device *dev)
 mace_get_stats
 	Gathers ethernet statistics from the MACE chip.
 ---------------------------------------------------------------------------- */
-static struct net_device_stats *mace_get_stats(struct device *dev)
+static struct net_device_stats *mace_get_stats(struct net_device *dev)
 {
   mace_private *lp = (mace_private *)dev->priv;
 
@@ -1703,7 +1703,7 @@ Input
 	multicast_num_addrs
 	multicast_ladrf[]
 ---------------------------------------------------------------------------- */
-static void restore_multicast_list(struct device *dev)
+static void restore_multicast_list(struct net_device *dev)
 {
   mace_private *lp = (mace_private *)dev->priv;
   int num_addrs = lp->multicast_num_addrs;
@@ -1762,7 +1762,7 @@ Output
 	multicast_ladrf[]
 ---------------------------------------------------------------------------- */
 
-static void set_multicast_list(struct device *dev)
+static void set_multicast_list(struct net_device *dev)
 {
   mace_private *lp = (mace_private *)dev->priv;
   int adr[ETHER_ADDR_LEN] = {0}; /* Ethernet address */
@@ -1802,7 +1802,7 @@ static void set_multicast_list(struct device *dev)
 
 #endif /* BROKEN_MULTICAST */
 
-static void restore_multicast_list(struct device *dev)
+static void restore_multicast_list(struct net_device *dev)
 {
   short ioaddr = dev->base_addr;
 
@@ -1822,7 +1822,7 @@ static void restore_multicast_list(struct device *dev)
   }
 } /* restore_multicast_list */
 
-static void set_multicast_list(struct device *dev)
+static void set_multicast_list(struct net_device *dev)
 {
   mace_private *lp = (mace_private *)dev->priv;
 
@@ -1854,7 +1854,7 @@ int init_module(void)
     printk(KERN_NOTICE "nmclan_cs: Card Services release does not match!\n");
     return -1;
   }
-  register_pcmcia_driver(&dev_info, &nmclan_attach, &nmclan_detach);
+  register_pccard_driver(&dev_info, &nmclan_attach, &nmclan_detach);
   return 0;
 } /* init_module */
 
@@ -1866,7 +1866,7 @@ cleanup_module
 void cleanup_module(void)
 {
   DEBUG(0, "nmclan_cs: unloading\n");
-  unregister_pcmcia_driver(&dev_info);
+  unregister_pccard_driver(&dev_info);
   while (dev_list != NULL)
     nmclan_detach(dev_list);
 } /* cleanup_module */

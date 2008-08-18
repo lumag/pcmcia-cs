@@ -110,22 +110,22 @@ static void fmvj18x_config(dev_link_t *link);
 static void fmvj18x_release(u_long arg);
 static int fmvj18x_event(event_t event, int priority,
 			  event_callback_args_t *args);
-static int fmvj18x_init(struct device *dev);
+static int fmvj18x_init(struct net_device *dev);
 static dev_link_t *fmvj18x_attach(void);
 static void fmvj18x_detach(dev_link_t *);
 
 /*
     LAN controler(MBH86960A) specific routines
  */
-static int fjn_config(struct device *dev, struct ifmap *map);
-static int fjn_open(struct device *dev);
-static int fjn_close(struct device *dev);
-static int fjn_start_xmit(struct sk_buff *skb, struct device *dev);
-static void fjn_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs);
-static void fjn_rx(struct device *dev);
-static void fjn_reset(struct device *dev);
-static struct net_device_stats *fjn_get_stats(struct device *dev);
-static void set_rx_mode(struct device *dev);
+static int fjn_config(struct net_device *dev, struct ifmap *map);
+static int fjn_open(struct net_device *dev);
+static int fjn_close(struct net_device *dev);
+static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static void fjn_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static void fjn_rx(struct net_device *dev);
+static void fjn_reset(struct net_device *dev);
+static struct net_device_stats *fjn_get_stats(struct net_device *dev);
+static void set_rx_mode(struct net_device *dev);
 
 static dev_info_t dev_info = "fmvj18x_cs";
 static dev_link_t *dev_list = NULL;
@@ -276,7 +276,7 @@ static dev_link_t *fmvj18x_attach(void)
 {
     client_reg_t client_reg;
     dev_link_t *link;
-    struct device *dev;
+    struct net_device *dev;
     int i, ret;
     
     DEBUG(0, "fmvj18x_attach()\n");
@@ -310,8 +310,8 @@ static dev_link_t *fmvj18x_attach(void)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* Make up a FMVJ18x specific data structure */
-    dev = kmalloc(sizeof(struct device), GFP_KERNEL);
-    memset(dev, 0, sizeof(struct device));
+    dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+    memset(dev, 0, sizeof(struct net_device));
     dev->priv = kmalloc(sizeof(local_info_t), GFP_KERNEL);
     memset(dev->priv, 0, sizeof(local_info_t));
 
@@ -388,14 +388,14 @@ static void fmvj18x_detach(dev_link_t *link)
     /* Unlink device structure, free pieces */
     *linkp = link->next;
     if (link->priv) {
-	struct device *dev = link->priv;
+	struct net_device *dev = link->priv;
 	if (link->dev != NULL)
 	    unregister_netdev(dev);
 	if (dev->priv) 
-	    kfree_s(dev->priv, sizeof(local_info_t));
-	kfree_s(dev, sizeof(struct device));
+	    kfree(dev->priv);
+	kfree(dev);
     }
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(link);
     
 } /* fmvj18x_detach */
 
@@ -409,7 +409,7 @@ static void fmvj18x_config(dev_link_t *link)
     client_handle_t handle;
     tuple_t tuple;
     cisparse_t parse;
-    struct device *dev;
+    struct net_device *dev;
     u_short buf[32];
     int i, last_fn, last_ret;
     short ioaddr;
@@ -595,7 +595,7 @@ static int fmvj18x_event(event_t event, int priority,
 			  event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    struct device *dev = link->priv;
+    struct net_device *dev = link->priv;
 
     DEBUG(1, "fmvj18x_event(0x%06x)\n", event);
     
@@ -605,7 +605,7 @@ static int fmvj18x_event(event_t event, int priority,
 	if (link->state & DEV_CONFIG) {
 	    dev->tbusy = 0xFF; 
 	    dev->start = 0;
-	    link->release.expires = RUN_AT(HZ/20);
+	    link->release.expires = jiffies + HZ/20;
 	    add_timer(&link->release);
 	}
 	break;
@@ -642,7 +642,7 @@ static int fmvj18x_event(event_t event, int priority,
     return 0;
 } /* fmvj18x_event */
 
-static int fmvj18x_init(struct device *dev)
+static int fmvj18x_init(struct net_device *dev)
 {
     return 0;
 } /* fmvj18x_init */
@@ -659,7 +659,7 @@ int init_module(void)
 	       "does not match!\n");
 	return -1;
     }
-    register_pcmcia_driver(&dev_info, &fmvj18x_attach, &fmvj18x_detach);
+    register_pccard_driver(&dev_info, &fmvj18x_attach, &fmvj18x_detach);
     return 0;
 }
 
@@ -668,16 +668,16 @@ int init_module(void)
 void cleanup_module(void)
 {
     DEBUG(0, "fmvj18x_cs: unloading\n");
-    unregister_pcmcia_driver(&dev_info);
+    unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
 	fmvj18x_detach(dev_list);
 }
 
 /*====================================================================*/
 
-static void fjn_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
+static void fjn_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-    struct device *dev = (struct device *)DEV_ID;
+    struct net_device *dev = (struct net_device *)dev_id;
     int ioaddr;
     local_info_t *lp;
     unsigned short tx_stat, rx_stat;
@@ -753,7 +753,7 @@ static void fjn_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 
 /*====================================================================*/
 
-static int fjn_start_xmit(struct sk_buff *skb, struct device *dev)
+static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
     int ioaddr = dev->base_addr;
@@ -867,7 +867,7 @@ static int fjn_start_xmit(struct sk_buff *skb, struct device *dev)
 
 /*====================================================================*/
 
-static void fjn_reset(struct device *dev)
+static void fjn_reset(struct net_device *dev)
 {
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
     int ioaddr = dev->base_addr;
@@ -951,7 +951,7 @@ static void fjn_reset(struct device *dev)
 
 /*====================================================================*/
 
-static void fjn_rx(struct device *dev)
+static void fjn_rx(struct net_device *dev)
 {
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
     int ioaddr = dev->base_addr;
@@ -1049,11 +1049,11 @@ static void fjn_rx(struct device *dev)
 
 /*====================================================================*/
 
-static int fjn_config(struct device *dev, struct ifmap *map){
+static int fjn_config(struct net_device *dev, struct ifmap *map){
     return 0;
 } /* fjn_config */
 
-static int fjn_open(struct device *dev)
+static int fjn_open(struct net_device *dev)
 {
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
     dev_link_t *link;
@@ -1085,7 +1085,7 @@ static int fjn_open(struct device *dev)
 
 /*====================================================================*/
 
-static int fjn_close(struct device *dev)
+static int fjn_close(struct net_device *dev)
 {
     int ioaddr = dev->base_addr;
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
@@ -1125,7 +1125,7 @@ static int fjn_close(struct device *dev)
     link->open--;
     dev->start = 0;
     if (link->state & DEV_STALE_CONFIG) {
-	link->release.expires = RUN_AT(HZ/20);
+	link->release.expires = jiffies + HZ/20;
 	link->state |= DEV_RELEASE_PENDING;
 	add_timer(&link->release);
     }
@@ -1136,7 +1136,7 @@ static int fjn_close(struct device *dev)
 
 /*====================================================================*/
 
-static struct net_device_stats *fjn_get_stats(struct device *dev)
+static struct net_device_stats *fjn_get_stats(struct net_device *dev)
 {
     local_info_t *lp = (local_info_t *)dev->priv;
     return &lp->stats;
@@ -1169,7 +1169,7 @@ static inline unsigned ether_crc_le(int length, unsigned char *data)
     return crc;
 }
 
-static void set_rx_mode(struct device *dev)
+static void set_rx_mode(struct net_device *dev)
 {
     int ioaddr = dev->base_addr;
     struct local_info_t *lp = (struct local_info_t *)dev->priv;

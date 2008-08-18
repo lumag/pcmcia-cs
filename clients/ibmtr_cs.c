@@ -116,7 +116,7 @@ MODULE_PARM(ringspeed, "i");
 /*====================================================================*/
 
 static void ibmtr_config(dev_link_t *link);
-static void ibmtr_hw_setup(struct device *dev);
+static void ibmtr_hw_setup(struct net_device *dev);
 static void ibmtr_release(u_long arg);
 static int ibmtr_event(event_t event, int priority,
                        event_callback_args_t *args);
@@ -129,13 +129,13 @@ static void ibmtr_detach(dev_link_t *);
 static dev_link_t *dev_list = NULL;
 
 #if (LINUX_VERSION_CODE >= VERSION(2,2,0))
-extern int ibmtr_probe(struct device *dev);
+extern int ibmtr_probe(struct net_device *dev);
 unsigned char pcmcia_reality_check(unsigned char gss);
 #endif
 
-extern int trdev_init(struct device *dev);
+extern int trdev_init(struct net_device *dev);
 extern void tok_interrupt(int irq, struct pt_regs *regs);
-extern int tok_init_card(struct device *dev);
+extern int tok_init_card(struct net_device *dev);
 extern unsigned char get_sram_size(struct tok_info *ti);
 #if (LINUX_VERSION_CODE < VERSION(2,1,100))
 extern struct timer_list tr_timer;
@@ -144,7 +144,7 @@ extern struct timer_list tr_timer;
 /*====================================================================*/
 
 typedef struct ibmtr_dev_t {
-    struct device       *dev; /* Changed for 2.2.0 */ 
+    struct net_device       *dev; /* Changed for 2.2.0 */ 
     dev_node_t          node;
     window_handle_t     sram_win_handle;
 } ibmtr_dev_t;
@@ -188,7 +188,7 @@ static dev_link_t *ibmtr_attach(void)
     client_reg_t client_reg;
     dev_link_t *link;
     ibmtr_dev_t *info;
-    struct device *dev;
+    struct net_device *dev;
     struct tok_info *ti;
     int i, ret;
     
@@ -220,8 +220,8 @@ static dev_link_t *ibmtr_attach(void)
     memset(info, 0, sizeof(struct ibmtr_dev_t));
 
 #if (LINUX_VERSION_CODE < VERSION(2,2,0))
-    dev = kmalloc(sizeof(struct device), GFP_KERNEL);
-    memset(dev,0,sizeof(struct device));
+    dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+    memset(dev,0,sizeof(struct net_device));
 #else
     dev = NULL; /* Pass NULL pointers or kmallloc'ed pointers only */ 
     dev = init_trdev(dev,0);
@@ -287,7 +287,7 @@ static void ibmtr_detach(dev_link_t *link)
 {
     struct ibmtr_dev_t *info = link->priv;
     dev_link_t **linkp;
-    struct device *dev; 
+    struct net_device *dev; 
     long flags;
 
     DEBUG(0, "ibmtr_detach(0x%p)\n", link);
@@ -340,7 +340,7 @@ static void ibmtr_detach(dev_link_t *link)
 	if (dev) {
 	    if (dev->priv)
 		kfree_s(dev->priv, sizeof(struct tok_info));
-	    kfree_s(dev, sizeof(struct device));
+	    kfree_s(dev, sizeof(struct net_device));
 	}
 	kfree_s(info, sizeof(struct ibmtr_dev_t));
     }
@@ -367,7 +367,7 @@ static void ibmtr_config(dev_link_t *link)
     win_req_t req;
     memreq_t mem;
     ibmtr_dev_t *info;
-    struct device *dev;
+    struct net_device *dev;
     struct tok_info *ti;
     int i, last_ret, last_fn;
     u_char buf[64];
@@ -501,7 +501,7 @@ static void ibmtr_release(u_long arg)
 {
     dev_link_t *link = (dev_link_t *)arg;
     ibmtr_dev_t *info = link->priv;
-    struct device *dev = info->dev;
+    struct net_device *dev = info->dev;
 
     DEBUG(0, "ibmtr_release(0x%p)\n", link);
 
@@ -540,7 +540,7 @@ static int ibmtr_event(event_t event, int priority,
 {
     dev_link_t *link = args->client_data;
     ibmtr_dev_t *info = link->priv;
-    struct device *dev = info->dev;
+    struct net_device *dev = info->dev;
 
     DEBUG(1, "ibmtr_event(0x%06x)\n", event);
     
@@ -549,7 +549,7 @@ static int ibmtr_event(event_t event, int priority,
         link->state &= ~DEV_PRESENT;
         if (link->state & DEV_CONFIG) {
             dev->tbusy = 1; dev->start = 0;
-            link->release.expires = RUN_AT(HZ/20);
+            link->release.expires = jiffies + HZ/20;
             link->state |= DEV_RELEASE_PENDING;
             add_timer(&link->release);
         }
@@ -587,7 +587,7 @@ static int ibmtr_event(event_t event, int priority,
 
 /*====================================================================*/
 
-static void ibmtr_hw_setup(struct device *dev)
+static void ibmtr_hw_setup(struct net_device *dev)
 {
     struct tok_info *ti;
     int i; 
@@ -725,14 +725,14 @@ int init_module(void)
 	       "does not match!\n");
         return -1;
     }
-    register_pcmcia_driver(&dev_info, &ibmtr_attach, &ibmtr_detach);
+    register_pccard_driver(&dev_info, &ibmtr_attach, &ibmtr_detach);
     return 0;
 }
 
 void cleanup_module(void)
 {
     DEBUG(0, "ibmtr_cs: unloading\n");
-    unregister_pcmcia_driver(&dev_info);
+    unregister_pccard_driver(&dev_info);
     while (dev_list != NULL)
         ibmtr_detach(dev_list);
 }

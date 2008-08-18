@@ -244,21 +244,21 @@ static void mdio_sync(int ioaddr, int bits);
 static int mdio_read(int ioaddr, int phy_id, int location);
 static void mdio_write(int ioaddr, int phy_id, int location, int value);
 static ushort read_eeprom(int ioaddr, int index);
-static void wait_for_completion(struct device *dev, int cmd);
+static void wait_for_completion(struct net_device *dev, int cmd);
 
-static void tc574_reset(struct device *dev);
+static void tc574_reset(struct net_device *dev);
 static void media_check(u_long arg);
-static int el3_open(struct device *dev);
-static int el3_start_xmit(struct sk_buff *skb, struct device *dev);
-static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs);
-static void update_stats(int addr, struct device *dev);
-static struct net_device_stats *el3_get_stats(struct device *dev);
-static int el3_rx(struct device *dev, int worklimit);
-static int el3_close(struct device *dev);
+static int el3_open(struct net_device *dev);
+static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static void update_stats(int addr, struct net_device *dev);
+static struct net_device_stats *el3_get_stats(struct net_device *dev);
+static int el3_rx(struct net_device *dev, int worklimit);
+static int el3_close(struct net_device *dev);
 #ifdef HAVE_PRIVATE_IOCTL
-static int private_ioctl(struct device *dev, struct ifreq *rq, int cmd);
+static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 #endif
-static void set_rx_mode(struct device *dev);
+static void set_rx_mode(struct net_device *dev);
 
 static dev_info_t dev_info = "3c574_cs";
 
@@ -292,7 +292,7 @@ static void cs_error(client_handle_t handle, int func, int ret)
    by the net software, because we only register already-found cards.
 */
 
-static int tc574_init(struct device *dev)
+static int tc574_init(struct net_device *dev)
 {
 	return 0;
 }
@@ -307,7 +307,7 @@ static dev_link_t *tc574_attach(void)
 {
 	client_reg_t client_reg;
 	dev_link_t *link;
-	struct device *dev;
+	struct net_device *dev;
 	int i, ret;
 
 	DEBUG(0, "3c574_attach()\n");
@@ -336,8 +336,8 @@ static dev_link_t *tc574_attach(void)
 	link->conf.Present = PRESENT_OPTION;
 
 	/* Create the network device object. */
-	dev = kmalloc(sizeof(struct device), GFP_KERNEL);
-	memset(dev, 0, sizeof(struct device));
+	dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+	memset(dev, 0, sizeof(struct net_device));
 
 	/* Make up a Odie-specific data structure. */
 	dev->priv = kmalloc(sizeof(struct el3_private), GFP_KERNEL);
@@ -428,14 +428,14 @@ static void tc574_detach(dev_link_t *link)
 	/* Unlink device structure, free bits */
 	*linkp = link->next;
 	if (link->priv) {
-		struct device *dev = link->priv;
+		struct net_device *dev = link->priv;
 		if (link->dev != NULL)
 			unregister_netdev(dev);
 		if (dev->priv)
-			kfree_s(dev->priv, sizeof(struct el3_private));
-		kfree_s(link->priv, sizeof(struct device));
+			kfree(dev->priv);
+		kfree(link->priv);
 	}
-	kfree_s(link, sizeof(struct dev_link_t));
+	kfree(link);
 
 } /* tc574_detach */
 
@@ -451,7 +451,7 @@ while ((last_ret=CardServices(last_fn=(fn), args))!=0) goto cs_failed
 static void tc574_config(dev_link_t *link)
 {
 	client_handle_t handle;
-	struct device *dev;
+	struct net_device *dev;
 	struct el3_private *lp;
 	tuple_t tuple;
 	cisparse_t parse;
@@ -637,7 +637,7 @@ failed:
 static void tc574_release(u_long arg)
 {
 	dev_link_t *link = (dev_link_t *)arg;
-	struct device *dev = link->priv;
+	struct net_device *dev = link->priv;
 
 	DEBUG(0, "3c574_release(0x%p)\n", link);
 
@@ -671,7 +671,7 @@ static int tc574_event(event_t event, int priority,
 					   event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	struct device *dev = link->priv;
+	struct net_device *dev = link->priv;
 
 	DEBUG(1, "3c574_event(0x%06x)\n", event);
 
@@ -680,7 +680,7 @@ static int tc574_event(event_t event, int priority,
 		link->state &= ~DEV_PRESENT;
 		if (link->state & DEV_CONFIG) {
 			dev->tbusy = 1; dev->start = 0;
-			link->release.expires = RUN_AT(HZ/20);
+			link->release.expires = jiffies + HZ/20;
 			add_timer(&link->release);
 		}
 		break;
@@ -715,7 +715,7 @@ static int tc574_event(event_t event, int priority,
 	return 0;
 } /* tc574_event */
 
-static void dump_status(struct device *dev)
+static void dump_status(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 	EL3WINDOW(1);
@@ -733,7 +733,7 @@ static void dump_status(struct device *dev)
 /*
   Use this for commands that may take time to finish
 */
-static void wait_for_completion(struct device *dev, int cmd)
+static void wait_for_completion(struct net_device *dev, int cmd)
 {
     int i = 1500;
     outw(cmd, dev->base_addr + EL3_CMD);
@@ -836,7 +836,7 @@ static void mdio_write(int ioaddr, int phy_id, int location, int value)
 }
 
 /* Reset and restore all of the 3c574 registers. */
-static void tc574_reset(struct device *dev)
+static void tc574_reset(struct net_device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	int i, ioaddr = dev->base_addr;
@@ -915,7 +915,7 @@ static void tc574_reset(struct device *dev)
 		 | AdapterFailure | RxEarly, ioaddr + EL3_CMD);
 }
 
-static int el3_open(struct device *dev)
+static int el3_open(struct net_device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	dev_link_t *link;
@@ -932,7 +932,7 @@ static int el3_open(struct device *dev)
 	tc574_reset(dev);
 	lp->media.function = &media_check;
 	lp->media.data = (u_long)dev;
-	lp->media.expires = RUN_AT(HZ);
+	lp->media.expires = jiffies + HZ;
 	add_timer(&lp->media);
 	
 	DEBUG(2, "%s: opened, status %4.4x.\n",
@@ -941,7 +941,7 @@ static int el3_open(struct device *dev)
 	return 0;					/* Always succeed */
 }
 
-static void el3_tx_timeout(struct device *dev)
+static void el3_tx_timeout(struct net_device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	int ioaddr = dev->base_addr;
@@ -956,7 +956,7 @@ static void el3_tx_timeout(struct device *dev)
 	dev->tbusy = 0;
 }
 
-static void pop_tx_status(struct device *dev)
+static void pop_tx_status(struct net_device *dev)
 {
     struct el3_private *lp = (struct el3_private *)dev->priv;
     int ioaddr = dev->base_addr;
@@ -979,7 +979,7 @@ static void pop_tx_status(struct device *dev)
     }
 }
 
-static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
+static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 	long flags = 0;
@@ -1040,9 +1040,9 @@ static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
 }
 
 /* The EL3 interrupt handler. */
-static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
+static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	struct device *dev = (struct device *)DEV_ID;
+	struct net_device *dev = (struct net_device *)dev_id;
 	struct el3_private *lp;
 	int ioaddr, status;
 	int work_budget = max_interrupt_work;
@@ -1139,7 +1139,7 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 */
 static void media_check(u_long arg)
 {
-    struct device *dev = (struct device *)(arg);
+    struct net_device *dev = (struct net_device *)(arg);
     struct el3_private *lp = (struct el3_private *)dev->priv;
     int ioaddr = dev->base_addr;
     u_long flags;
@@ -1153,12 +1153,12 @@ static void media_check(u_long arg)
 		(inb(ioaddr + Timer) == 0xff)) {
 		if (!lp->fast_poll)
 			printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-		el3_interrupt IRQ(dev->irq, dev, NULL);
+		el3_interrupt(dev->irq, dev, NULL);
 		lp->fast_poll = HZ;
     }
     if (lp->fast_poll) {
 		lp->fast_poll--;
-		lp->media.expires = RUN_AT(2);
+		lp->media.expires = jiffies + 2;
 		add_timer(&lp->media);
 		return;
     }
@@ -1210,11 +1210,11 @@ static void media_check(u_long arg)
 	}
 
 reschedule:
-    lp->media.expires = RUN_AT(HZ);
+    lp->media.expires = jiffies + HZ;
     add_timer(&lp->media);
 }
 
-static struct net_device_stats *el3_get_stats(struct device *dev)
+static struct net_device_stats *el3_get_stats(struct net_device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 
@@ -1227,7 +1227,7 @@ static struct net_device_stats *el3_get_stats(struct device *dev)
 	Suprisingly this need not be run single-threaded, but it effectively is.
 	The counters clear when read, so the adds must merely be atomic.
  */
-static void update_stats(int ioaddr, struct device *dev)
+static void update_stats(int ioaddr, struct net_device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	u8 upper_cnt;
@@ -1266,7 +1266,7 @@ static void update_stats(int ioaddr, struct device *dev)
 	EL3WINDOW(1);
 }
 
-static int el3_rx(struct device *dev, int worklimit)
+static int el3_rx(struct net_device *dev, int worklimit)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	int ioaddr = dev->base_addr;
@@ -1338,7 +1338,7 @@ static int el3_rx(struct device *dev, int worklimit)
 
 #ifdef HAVE_PRIVATE_IOCTL
 /* Provide ioctl() calls to examine the MII xcvr state. */
-static int private_ioctl(struct device *dev, struct ifreq *rq, int cmd)
+static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct el3_private *vp = (struct el3_private *)dev->priv;
 	int ioaddr = dev->base_addr;
@@ -1396,7 +1396,7 @@ static int private_ioctl(struct device *dev, struct ifreq *rq, int cmd)
    typical PC card machines, so we omit the message.
    */
 
-static void set_rx_mode(struct device *dev)
+static void set_rx_mode(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 
@@ -1409,7 +1409,7 @@ static void set_rx_mode(struct device *dev)
 		outw(SetRxFilter | RxStation | RxBroadcast, ioaddr + EL3_CMD);
 }
 
-static int el3_close(struct device *dev)
+static int el3_close(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 	dev_link_t *link;
@@ -1439,7 +1439,7 @@ static int el3_close(struct device *dev)
 	dev->start = 0;
 	del_timer(&((struct el3_private *)dev->priv)->media);
 	if (link->state & DEV_STALE_CONFIG) {
-		link->release.expires = RUN_AT(HZ/20);
+		link->release.expires = jiffies + HZ/20;
 		link->state |= DEV_RELEASE_PENDING;
 		add_timer(&link->release);
 	}
@@ -1462,14 +1462,14 @@ int init_module(void)
 			   "does not match!\n");
 		return -1;
 	}
-	register_pcmcia_driver(&dev_info, &tc574_attach, &tc574_detach);
+	register_pccard_driver(&dev_info, &tc574_attach, &tc574_detach);
 	return 0;
 }
 
 void cleanup_module(void)
 {
 	DEBUG(0, "3c574_cs: unloading\n");
-	unregister_pcmcia_driver(&dev_info);
+	unregister_pccard_driver(&dev_info);
 	while (dev_list != NULL)
 		tc574_detach(dev_list);
 }
