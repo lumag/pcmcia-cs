@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/01/26 02:37:40
+		Last updated: 2000/02/02 04:30:06
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -338,6 +338,7 @@ SCSI adapters:
 	Qlogic FastSCSI
 	Panasonic KXL-D740, KXL-DN740A, KXL-DN740A-NB 4X CD-ROM
 	Panasonic KXL-810AN, KXL-783A
+	Pioneer PCP-PR2W
 	Raven CD-Note 4X
 	RATOC REX-9530 SCSI-2
 	Toshiba NWB0107ABK, SCSC200A, SCSC200B
@@ -427,6 +428,7 @@ ATA/IDE card drives:
 ATA/IDE Interface Cards:
 
 	[ide_cs driver] [x86]
+	Apricorn ATA card, EZ-GIG transfer kit
 	Archos Zip100 MiniDrive
 	Microtech International XpressDock
 	DataStor Technology PCMCIA ATA/ATAPI Card

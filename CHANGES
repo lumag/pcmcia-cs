@@ -1,5 +1,10 @@
-[26-Jan-00] Version 3.1.9
+[01-Feb-00] Version 3.1.10
+-- More complete PCI interrupt lookup code for 2.2.* kernels.
+-- Fixed dumb bug that broke 2.0.* kernel builds.
+-- Fixed no-PCI compilation bug in i82365 driver.
+-- Fixed airo_cs and ftl_cs drivers for recent 2.3.* kernels.
 
+[26-Jan-00] Version 3.1.9
 -- Added workaround for serial-driver initialization bug, that messes
    up devices at non-standard IO ports.
 -- Made PCI interrupt table lookup mandatory, and changed pci_csc and
@@ -1058,7 +1063,7 @@ Version 2.7.1
 -- Fixed module unloading in network drivers.
 -- Fixed problem with new timer behavior in 1.3.X.
 
-Version 2.7.0
+[22-Sep-95?] Version 2.7.0
 -- New interactive configuration procedure.
 -- Updated to work with 1.3.X kernels.
 -- Fixed iflash2_mtd driver to work with IBM flash cards.  Added more
@@ -1114,7 +1119,7 @@ Version 2.6.1
 -- Fixed uninitialized variable bug in CIS parsing stuff in network
    drivers.
 
-Version 2.6.0
+[12-May-95] Version 2.6.0
 -- More robust handling of some i82365 timing parameters.
 -- Moved all CIS handling stuff from cs.c to cistpl.c.  Added more CIS
    parsing, mainly for memory cards.  Changed default for "strict_cis"
@@ -1164,7 +1169,7 @@ Version 2.5.4
    not-present strings.
 -- A few new sanity checks for 'make prereq' and 'make install-etc'.
 
-Version 2.5.3
+[03-Apr-95?] Version 2.5.3
 -- Another fix to cistpl.c version string parsing.
 -- Another fix to CIS end-of-chain handling.
 
@@ -1189,7 +1194,7 @@ Version 2.5.1
 -- Fixed race condition in socket initialization that could sometimes
    cause a card to be configured twice.
 
-Version 2.5.0
+[22-Mar-95?] Version 2.5.0
 -- Verified with Linux 1.2.0
 -- Added a lot of new text to the Programmer's Guide.
 -- Added Roger Pao's alpha driver for New Media Ethernet.
@@ -1345,7 +1350,7 @@ Version 2.3.5
    stuff in i82365 and tcic, and adding event handling to all clients.
 -- Changes for Qlogic SCSI support
 
-Version 2.3.4
+[15-Nov-94] Version 2.3.4
 -- Added support for Cirrus PCI controller.
 -- Cleaned up serial driver shutdown code.
 -- Added 'patches' subdirectory for useful kernel patches.
@@ -1355,7 +1360,7 @@ Version 2.3.4
 -- Fixed bug in dump_tcic -- mode register wasn't read correctly.
 -- Fixed TCIC-2 event handler problem
 
-Version 2.3.3
+[08-Nov-94] Version 2.3.3
 -- Fixed some TCIC-2 bugs.
 
 Version 2.3.2
@@ -1438,7 +1443,7 @@ Version 2.2.1
 -- Checked with 1.1.49.
 -- Minor install bug fixes.
 
-Version 2.2
+[30-Aug-94] Version 2.2
 -- Cleaned up README's
 
 Version 2.1.4
@@ -1507,7 +1512,7 @@ Version 2.0
    set if_port from insmod: "insmod 3c589_cs.o if_port=#".  This still
    isn't useful, because cardmgr doesn't allow arguments for modules.
 
-Version 1.7
+[06-Aug-94] Version 1.7
 -- Changed serial driver to actually use the ports specified in the
    CIS.  This fixes Intel modems (and others??).
 -- Support for 3Com 3c589 ethernet!

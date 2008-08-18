@@ -11,7 +11,7 @@
 static inline u_long copy_from_user(void *to, const void *from, u_long n)
 {
     int i;
-    if ((i = verify_area(VERIFY_READ, to, n)) != 0)
+    if ((i = verify_area(VERIFY_READ, from, n)) != 0)
 	return i;
     memcpy_fromfs(to, from, n);
     return 0;

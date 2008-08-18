@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.134 2000/01/25 19:39:46
+# Configure 1.135 2000/01/28 02:12:03
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -272,7 +272,7 @@ write_bool USE_APM
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
 ask_bool "Include 32-bit (CardBus) card support" CONFIG_CARDBUS
-if [ $ARCH = "i386" ] ; then
+if [ $ARCH = "i386" -a $VERSION_CODE -lt `version 2 3 37` ] ; then
     ask_bool "Include PnP BIOS resource checking" CONFIG_PNP_BIOS
 else
     CONFIG_PNP_BIOS=n

@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.17 1999/12/17 03:27:49
+ * ti113x.h 1.18 2000/01/27 19:07:48
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -36,6 +36,9 @@
 
 #ifndef PCI_DEVICE_ID_TI_1130
 #define PCI_DEVICE_ID_TI_1130		0xac12
+#endif
+#ifndef PCI_DEVICE_ID_TI_1031
+#define PCI_DEVICE_ID_TI_1031		0xac13
 #endif
 #ifndef PCI_DEVICE_ID_TI_1131
 #define PCI_DEVICE_ID_TI_1131		0xac15

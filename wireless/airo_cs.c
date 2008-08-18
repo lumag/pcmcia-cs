@@ -85,9 +85,9 @@ MODULE_PARM(irq_list, "1-4i");
    event handler. 
 */
 
-struct device *init_airo_card( int, int );
-void stop_airo_card( struct device * );
-int reset_airo_card( struct device * );
+struct net_device *init_airo_card( int, int );
+void stop_airo_card( struct net_device * );
+int reset_airo_card( struct net_device * );
 
 static void airo_config(dev_link_t *link);
 static void airo_release(u_long arg);
@@ -155,7 +155,7 @@ static dev_link_t *dev_list = NULL;
 typedef struct local_info_t {
 	dev_node_t	node;
 	int		stop;
-	struct device *eth_dev;
+	struct net_device *eth_dev;
 } local_info_t;
 
 /*====================================================================*/

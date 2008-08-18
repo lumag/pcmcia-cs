@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.289 2000/01/24 06:51:58
+    i82365.c 1.290 2000/01/28 00:21:38
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.289 2000/01/24 06:51:58 (David Hinds)";
+"i82365.c 1.290 2000/01/28 00:21:38 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -294,6 +294,7 @@ static struct timer_list poll_timer;
 
 /* Some PCI shortcuts */
 
+#ifdef CONFIG_PCI
 static int pci_readb(socket_info_t *s, int r, u_char *v)
 { return pcibios_read_config_byte(s->bus, s->devfn, r, v); }
 static int pci_writeb(socket_info_t *s, int r, u_char v)
@@ -306,6 +307,7 @@ static int pci_readl(socket_info_t *s, int r, u_int *v)
 { return pcibios_read_config_dword(s->bus, s->devfn, r, v); }
 static int pci_writel(socket_info_t *s, int r, u_int v)
 { return pcibios_write_config_dword(s->bus, s->devfn, r, v); }
+#endif
 
 #define cb_readb(s, r)		readb((s)->cb_virt + (r))
 #define cb_readl(s, r)		readl((s)->cb_virt + (r))

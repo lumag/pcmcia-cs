@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.103 2000/01/11 01:04:56
+ * k_compat.h 1.104 2000/01/28 00:03:14
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -300,6 +300,13 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 
 #if (LINUX_VERSION_CODE < VERSION(2,3,38))
 #define block_device_operations file_operations
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,3,40))
+#define register_disk(dev, drive, minors, ops, size) \
+    do { (dev)->part[(drive)*(minors)].nr_sects = size; \
+	if (size == 0) (dev)->part[(drive)*(minors)].start_sect = -1; \
+	resetup_one_dev(dev, drive); } while (0);
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

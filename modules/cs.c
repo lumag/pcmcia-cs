@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.247 2000/01/15 04:30:35
+    cs.c 1.248 2000/01/28 17:47:33
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -74,7 +74,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.247 2000/01/15 04:30:35 (David Hinds)";
+"cs.c 1.248 2000/01/28 17:47:33 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -2324,7 +2324,7 @@ static int __init init_pcmcia_cs(void)
     if (do_apm)
 	apm_register_callback(&handle_apm_event);
 #endif
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && defined(__i386__)
     scan_pirq_table();
 #endif
 #ifdef CONFIG_PNP_BIOS

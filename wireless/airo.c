@@ -226,6 +226,14 @@ static spinlock_t xxx_lock = SPIN_LOCK_UNLOCKED;
 #define KFREE_SKB(a,b)  dev_kfree_skb(a,b)
 #define PROC_REGISTER(a,b) proc_register_dynamic(a,b)
 #endif 
+#if (LINUX_VERSION_CODE < 0x020311)
+#define PROC_UNREGISTER(root, entry) proc_unregister(root, (entry)->low_ino)
+#else
+#define PROC_UNREGISTER(root, entry) remove_proc_entry((entry)->name, root)
+#endif
+#if (LINUX_VERSION_CODE < 0x02030e)
+#define net_device device
+#endif
 
 #define min(x,y) ((x<y)?x:y)
 
@@ -550,7 +558,7 @@ struct airo_info {
 	struct net_device_stats	stats;
 	int open;
 	char name[8];
-	struct device                 *dev;
+	struct net_device             *dev;
 	/* Note, we can have MAX_FIDS outstanding.  FIDs are 16-bits, so we
 	   use the high bit to mark wether it is in use. */
 #define MAX_FIDS 6
@@ -573,17 +581,17 @@ struct airo_info {
 #define FLAG_RADIO_OFF 0x02
 };
 
-static int setup_proc_entry( struct device *dev,
+static int setup_proc_entry( struct net_device *dev,
 			     struct airo_info *apriv );
-static int takedown_proc_entry( struct device *dev,
+static int takedown_proc_entry( struct net_device *dev,
 				struct airo_info *apriv );
 
 
-static int airo_init( struct device *dev ) {
+static int airo_init( struct net_device *dev ) {
 	return 0;
 }
 
-static int airo_open(struct device *dev) {
+static int airo_open(struct net_device *dev) {
 	struct airo_info *info = dev->priv;
 
 	MOD_INC_USE_COUNT;
@@ -597,7 +605,7 @@ static int airo_open(struct device *dev) {
 	return 0;
 }
 
-static int airo_start_xmit(struct sk_buff *skb, struct device *dev) {
+static int airo_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 	s16 len;
 	s16 retval = 0;
 	u16 status;
@@ -661,11 +669,11 @@ static int airo_start_xmit(struct sk_buff *skb, struct device *dev) {
 	return 0;
 }
 
-static struct net_device_stats *airo_get_stats(struct device *dev) {
+static struct net_device_stats *airo_get_stats(struct net_device *dev) {
 	return &(((struct airo_info*)dev->priv)->stats);
 }
 
-static void airo_set_multicast_list(struct device *dev) {
+static void airo_set_multicast_list(struct net_device *dev) {
         struct airo_info *ai = (struct airo_info*)dev->priv;
 
         ai->flags &= ~FLAG_PROMISC;
@@ -676,12 +684,12 @@ static void airo_set_multicast_list(struct device *dev) {
 	}
 }
 
-static int private_ioctl(struct device *dev, struct ifreq *rq, 
+static int private_ioctl(struct net_device *dev, struct ifreq *rq, 
 			 int cmd) {
 	return 0;
 }
 
-static int airo_close(struct device *dev) { 
+static int airo_close(struct net_device *dev) { 
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	ai->open--;
 	if ( !ai->open ) {
@@ -692,9 +700,9 @@ static int airo_close(struct device *dev) {
 	return 0;
 }
 
-static void del_airo_dev( struct device *dev );
+static void del_airo_dev( struct net_device *dev );
 
-void stop_airo_card( struct device *dev ) 
+void stop_airo_card( struct net_device *dev ) 
 {
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	takedown_proc_entry( dev, ai );
@@ -712,17 +720,17 @@ void stop_airo_card( struct device *dev )
 	if (auto_wep) del_timer(&(ai)->timer);
 }
 
-static void add_airo_dev( struct device *dev ); 
+static void add_airo_dev( struct net_device *dev ); 
 
-struct device *init_airo_card( unsigned short irq, int port )
+struct net_device *init_airo_card( unsigned short irq, int port )
 {
-	struct device *dev;
+	struct net_device *dev;
 	struct airo_info *ai;
 	int i;
 	
 	/* Create the network device object. */
-	dev = kmalloc(sizeof(struct device), GFP_KERNEL);
-	memset(dev, 0, sizeof(struct device));
+	dev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+	memset(dev, 0, sizeof(struct net_device));
 	
 	/* Space for the info structure. */
 	dev->priv = kmalloc(sizeof(struct airo_info), GFP_KERNEL);
@@ -791,7 +799,7 @@ struct device *init_airo_card( unsigned short irq, int port )
 	return dev;
 }
 
-int reset_airo_card( struct device *dev ) {
+int reset_airo_card( struct net_device *dev ) {
 	int i;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 
@@ -821,7 +829,7 @@ int reset_airo_card( struct device *dev ) {
 }
 
 static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
-	struct device *dev = (struct device *)dev_id;
+	struct net_device *dev = (struct net_device *)dev_id;
 	u16 len;
 	u16 status;
 	u16 fid;
@@ -1372,8 +1380,6 @@ static int transmit_802_3_packet(struct airo_info *ai, u16 txFid,
  */
 
 #if (LINUX_VERSION_CODE > 0x20155)
-#define NULLOPS1 NULL,
-#define NULLOPS2 , NULL, NULL, NULL, NULL, NULL
 static ssize_t proc_read( struct file *file,
 			  char *buffer,
 			  size_t len,
@@ -1385,8 +1391,6 @@ static ssize_t proc_write( struct file *file,
 			   loff_t *offset );
 static int proc_close( struct inode *inode, struct file *file );
 #else
-#define NULLOPS1 
-#define NULLOPS2 
 static int proc_read( struct inode *inode,
 		      struct file *file,
 		      char *buffer,
@@ -1408,13 +1412,9 @@ static int proc_wepkey_open( struct inode *inode, struct file *file );
 
 
 static struct file_operations proc_statsdelta_ops = {
-	NULL,
-	proc_read,
-	NULL, NULL, NULL, NULL, NULL,
-	proc_statsdelta_open,
-	NULLOPS1
-	proc_close
-	NULLOPS2
+	read:		proc_read,
+	open:		proc_statsdelta_open,
+	release:	proc_close
 };
 
 static struct inode_operations proc_inode_statsdelta_ops = {
@@ -1423,13 +1423,9 @@ static struct inode_operations proc_inode_statsdelta_ops = {
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 
 static struct file_operations proc_stats_ops = {
-	NULL,
-	proc_read,
-	NULL, NULL, NULL, NULL, NULL,
-	proc_stats_open,
-	NULLOPS1
-	proc_close
-	NULLOPS2
+	read:		proc_read,
+	open:		proc_stats_open,
+	release:	proc_close
 };
 
 static struct inode_operations proc_inode_stats_ops = {
@@ -1438,13 +1434,9 @@ static struct inode_operations proc_inode_stats_ops = {
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 
 static struct file_operations proc_status_ops = {
-	NULL,
-	proc_read,
-	NULL, NULL, NULL, NULL, NULL,
-	proc_status_open,
-	NULLOPS1
-	proc_close
-	NULLOPS2
+	read:		proc_read,
+	open:		proc_status_open,
+	release:	proc_close
 };
 
 static struct inode_operations proc_inode_status_ops = {
@@ -1453,14 +1445,10 @@ static struct inode_operations proc_inode_status_ops = {
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 
 static struct file_operations proc_SSID_ops = {
-	NULL,
-	proc_read,
-	proc_write,
-	NULL, NULL, NULL, NULL,
-	proc_SSID_open,
-	NULLOPS1
-	proc_close
-	NULLOPS2
+	read:		proc_read,
+	write:		proc_write,
+	open:		proc_SSID_open,
+	release:	proc_close
 };
 
 static struct inode_operations proc_inode_SSID_ops = {
@@ -1469,14 +1457,10 @@ static struct inode_operations proc_inode_SSID_ops = {
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 
 static struct file_operations proc_config_ops = {
-	NULL,
-	proc_read,
-	proc_write,
-	NULL, NULL, NULL, NULL,
-	proc_config_open,
-	NULLOPS1
-	proc_close
-	NULLOPS2
+	read:		proc_read,
+	write:		proc_write,
+	open:		proc_config_open,
+	release:	proc_close
 };
 
 static struct inode_operations proc_inode_config_ops = {
@@ -1485,14 +1469,10 @@ static struct inode_operations proc_inode_config_ops = {
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 
 static struct file_operations proc_wepkey_ops = {
-	NULL,
-	proc_read,
-	proc_write,
-	NULL, NULL, NULL, NULL,
-	proc_wepkey_open,
-	NULLOPS1
-	proc_close
-	NULLOPS2
+	read:		proc_read,
+	write:		proc_write,
+	open:		proc_wepkey_open,
+	release:	proc_close
 };
 
 static struct inode_operations proc_inode_wepkey_ops = {
@@ -1543,7 +1523,7 @@ static struct proc_dir_entry airo_entry = {
 	44,
 	&airo_inode_ops,
 	0, // get_info
-#if (LINUX_VERSION_CODE > 0x20155)
+#if ((LINUX_VERSION_CODE > 0x20155) && (LINUX_VERSION_CODE < 0x20311))
 	airo_fill_inode
 #endif
 };
@@ -1600,7 +1580,7 @@ struct proc_data {
 	void (*on_close) (struct inode *, struct file *);
 };
 
-static int setup_proc_entry( struct device *dev,
+static int setup_proc_entry( struct net_device *dev,
 			     struct airo_info *apriv ) {
 	/* First setup the device directory */
 	memset( &apriv->proc_entry, 0, sizeof( apriv->proc_entry ) );
@@ -1655,16 +1635,16 @@ static int setup_proc_entry( struct device *dev,
 	return 0;
 }
 
-static int takedown_proc_entry( struct device *dev,
+static int takedown_proc_entry( struct net_device *dev,
 				struct airo_info *apriv ) {
 	if ( !apriv->proc_entry.namelen ) return 0;
-	proc_unregister( &apriv->proc_entry, apriv->proc_statsdelta_entry.low_ino );
-	proc_unregister( &apriv->proc_entry, apriv->proc_stats_entry.low_ino );
-	proc_unregister( &apriv->proc_entry, apriv->proc_status_entry.low_ino );
-	proc_unregister( &apriv->proc_entry, apriv->proc_config_entry.low_ino );
-	proc_unregister( &apriv->proc_entry, apriv->proc_SSID_entry.low_ino );
-	proc_unregister( &apriv->proc_entry, apriv->proc_wepkey_entry.low_ino );
-	proc_unregister( &airo_entry, apriv->proc_entry.low_ino );
+	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_statsdelta_entry );
+	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_stats_entry );
+	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_status_entry );
+	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_config_entry );
+	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_SSID_entry );
+	PROC_UNREGISTER( &apriv->proc_entry, &apriv->proc_wepkey_entry );
+	PROC_UNREGISTER( &airo_entry, &apriv->proc_entry );
 	return 0;
 }
 
@@ -1765,7 +1745,7 @@ static int proc_status_open( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
 	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
-	struct device *dev = dp->data;
+	struct net_device *dev = dp->data;
 	struct airo_info *apriv = (struct airo_info *)dev->priv;
 	CapabilityRid cap_rid;
 	StatusRid status_rid;
@@ -1847,7 +1827,7 @@ static int proc_stats_rid_open( struct inode *inode,
 	struct proc_data *data;
 	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
-	struct device *dev = dp->data;
+	struct net_device *dev = dp->data;
 	struct airo_info *apriv = (struct airo_info *)dev->priv;
 	char buffer[1024];
 	int i, j;
@@ -1915,7 +1895,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 	struct proc_data *data = file->private_data;
 	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
-	struct device *dev = dp->data;
+	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	ConfigRid config;
 	Cmd cmd;
@@ -2098,7 +2078,7 @@ static int proc_config_open( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
 	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
-	struct device *dev = dp->data;
+	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	ConfigRid config;
 	int i;
@@ -2190,7 +2170,7 @@ static int proc_config_open( struct inode *inode, struct file *file ) {
 static void proc_SSID_on_close( struct inode *inode, struct file *file ) {
 	struct proc_data *data = (struct proc_data *)file->private_data;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
-	struct device *dev = dp->data;
+	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	SsidRid SSID_rid;
 	int i;
@@ -2267,7 +2247,7 @@ static u8 hexVal(char c) {
 static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
-	struct device *dev = dp->data;
+	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	int i;
 	char key[5];
@@ -2295,7 +2275,7 @@ static int proc_wepkey_open( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
 	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
-	struct device *dev = dp->data;
+	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	char *ptr;
 	WepKeyRid wkr;
@@ -2342,7 +2322,7 @@ static int proc_SSID_open( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
 	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
-	struct device *dev = dp->data;
+	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	int i;
 	char *ptr;
@@ -2408,9 +2388,9 @@ static void proc_close( struct inode *inode, struct file *file )
 #endif
 }
 
-static struct device_list {
-	struct device *dev;
-	struct device_list *next;
+static struct net_device_list {
+	struct net_device *dev;
+	struct net_device_list *next;
 } *airo_devices = 0;
 
 /* Since the card doesnt automatically switch to the right WEP mode,
@@ -2419,7 +2399,7 @@ static struct device_list {
    associated we will check every minute to see if anything has
    changed. */
 static void timer_func( u_long data ) {
-	struct device *dev = (struct device*)data;
+	struct net_device *dev = (struct net_device*)data;
 	struct airo_info *apriv = (struct airo_info *)dev->priv;
 	u16 linkstat = IN4500(apriv, LINKSTAT);
 	
@@ -2469,9 +2449,9 @@ static void timer_func( u_long data ) {
 	add_timer(&apriv->timer);
 }
 
-static void add_airo_dev( struct device *dev ) {
-	struct device_list *node =
-		(struct device_list*)kmalloc( sizeof( *node ), GFP_KERNEL );
+static void add_airo_dev( struct net_device *dev ) {
+	struct net_device_list *node =
+		(struct net_device_list*)kmalloc( sizeof( *node ), GFP_KERNEL );
 	if ( !node ) {
 		printk( KERN_WARNING "airo_pci:  Out of memory\n" );
 	} else {
@@ -2493,8 +2473,8 @@ static void add_airo_dev( struct device *dev ) {
 	}
 }
 
-static void del_airo_dev( struct device *dev ) {
-	struct device_list **p = &airo_devices;
+static void del_airo_dev( struct net_device *dev ) {
+	struct net_device_list **p = &airo_devices;
 	while( *p && ( (*p)->dev != dev ) )
 		p = &(*p)->next;
 	if ( *p && (*p)->dev == dev )
@@ -2507,9 +2487,9 @@ int init_module( void )
 	
 #if (LINUX_VERSION_CODE > 0x20155)
 	airo_entry.ops->lookup = 
-		proc_dir_inode_operations.lookup;
+		proc_net->ops->lookup;
 	airo_entry.ops->default_file_ops->readdir = 
-		proc_dir_inode_operations.default_file_ops->readdir;
+		proc_net->ops->default_file_ops->readdir;
 #else
 	airo_entry.ops = proc_net.ops;
 #endif
@@ -2532,8 +2512,12 @@ int init_module( void )
 			while((dev = pci_find_device(card_ids[i].vendor, card_ids[i].id,
 						     dev))) {
 				init_airo_card( dev->irq, 
-						dev->base_address[2] & PCI_BASE_ADDRESS_IO_MASK );
-			}
+#if (LINUX_VERSION_CODE < 0x2030d)
+						dev->base_address[2] & PCI_BASE_ADDRESS_IO_MASK
+#else
+						dev->resource[2].start
+#endif
+			); }
 #else
 			int j;
 			unsigned char bus, fun;
@@ -2563,7 +2547,7 @@ void cleanup_module( void )
 		printk( KERN_WARNING "Unregistering %s\n", airo_devices->dev->name );
 		stop_airo_card( airo_devices->dev );
 	}
-	proc_unregister( &proc_root, airo_entry.low_ino );
+	PROC_UNREGISTER( &proc_root, &airo_entry );
 }
 
   

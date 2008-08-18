@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.60 2000/01/11 01:04:46
+    ftl_cs.c 1.62 2000/02/01 00:59:04
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -118,7 +118,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.60 2000/01/11 01:04:46 (David Hinds)";
+"ftl_cs.c 1.62 2000/02/01 00:59:04 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -206,17 +206,16 @@ static int ftl_blocksizes[MINOR_NR(MAX_DEV, 0, 0)];
 static wait_queue_head_t ftl_wait_open;
 
 static struct gendisk ftl_gendisk = {
-    0,			/* Major device number */
-    "ftl",
-    PART_BITS,		/* Bits in partition # */
-    MAX_PART,		/* Partitions per device */
-    MAX_DEV*MAX_PART,	/* maximum number of devices */
-    NULL,		/* init function */
-    ftl_hd,		/* hd_struct */
-    ftl_sizes,		/* block sizes */
-    MAX_DEV*MAX_PART,	/* number of "real" devices */
-    NULL,
-    NULL
+    major:		0,
+    major_name:		"ftl",
+    minor_shift:	PART_BITS,
+    max_p:		MAX_PART,
+#if (LINUX_VERSION_CODE < VERSION(2,3,40))
+    max_nr:		MAX_DEV*MAX_PART,
+#endif
+    part:		ftl_hd,
+    sizes:		ftl_sizes,
+    nr_real:		MAX_DEV*MAX_PART
 };
 
 /*====================================================================*/
@@ -512,7 +511,8 @@ static int scan_header(partition_t *part)
     erase_unit_header_t header;
     mem_op_t req;
     int ret;
-    
+
+    part->header.FormattedSize = 0;
     /* Search first megabyte for a valid FTL header */
     req.Attributes = MEM_OP_BUFFER_KERNEL;
     req.Count = sizeof(header);
@@ -1446,13 +1446,10 @@ static int ftl_reread_partitions(int minor)
 	ftl_hd[whole+i].nr_sects = 0;
     }
 
-    if (scan_header(part) == 0)
-	ftl_hd[whole].nr_sects =
-	    part->header.FormattedSize/SECTOR_SIZE;
-    else
-	ftl_hd[whole].start_sect = -1;
-    resetup_one_dev(&ftl_gendisk, whole >> PART_BITS);
-    
+    scan_header(part);
+    register_disk(&ftl_gendisk, whole >> PART_BITS, MAX_PART,
+		  &ftl_blk_fops, part->header.FormattedSize/SECTOR_SIZE);
+
 #ifdef PCMCIA_DEBUG
     for (i = 0; i < MAX_PART; i++) {
 	if (ftl_hd[whole+i].nr_sects > 0)
@@ -1544,7 +1541,7 @@ static int __init init_ftl_cs(void)
 	ftl_blocksizes[i] = 1024;
     for (i = 0; i < MAX_DEV*MAX_PART; i++) {
 	ftl_hd[i].nr_sects = 0;
-	ftl_hd[i].start_sect = -1;
+	ftl_hd[i].start_sect = 0;
     }
     blksize_size[major_dev] = ftl_blocksizes;
     ftl_gendisk.major = major_dev;

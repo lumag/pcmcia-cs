@@ -1,4 +1,4 @@
-Known problems with the 3.1.9 PCMCIA release
+Known problems with the 3.1.10 PCMCIA release
 =============================================
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
@@ -32,14 +32,6 @@ o The apa1480_cb driver is based on the kernel aic7xxx driver.  This
   Prognosis: If you have a problem with an older kernel, try upgrading
   to a newer one before reporting a bug.
 
-o Automatic determination of PCI interrupt routing for CardBus bridges
-  is unreliable, so by default, we don't use PCI interrupts at all.
-  
-  Prognosis: this is a difficult issue due to the lack of proper plug
-  and play support in the Linux kernel.  Without that, safe resource
-  allocation for hot swappable devices will always be a problem.  The
-  newer 2.3 kernels do a better job of PCI interrupt discovery.
-  
 o Interrupt routing on O2Micro CardBus bridges seems to have problems.
   Toshiba ToPIC97 bridges also seem to have problems, particularly
   with Cardbus cards.
@@ -93,23 +85,13 @@ o The 2.3.6 kernel update broke the PCMCIA parport_cs driver.
   Prognosis: it should be fixable in newer 2.3.* kernels, but I just
   have not gotten around to doing it.
 
-o Recent 2.3.* kernels may make mistakes when autoconfiguring CardBus
+o Some 2.3.* kernels may make mistakes when autoconfiguring CardBus
   bridges.  Specifically, the kernel may memory map bridges at invalid
   addresses.
 
   Prognosis: the PCI driver layer is taking on a job that it can't
   quite handle yet.  There is no trivial workaround, other than 
   reverting to a 2.2.* kernel.
-
-o The current serial driver seems to have a bug that results in a bad
-  interaction between Red Hat 6.1's "kudzu" hardware discovery tool,
-  and subsequent configuration of PCMCIA serial devices.  The problem
-  seems to only crop up with certain hardware combinations, so it has
-  not yet been localized.
-
-  Prognosis: I'll try to track down the bug; the workaround is to
-  either disable kudzu, or adding a "-s" flag to its invocation in
-  /etc/rc.d/init.d/kudzu.
 
 o Xircom CBEM support in the tulip_cb driver seems to be extremely
   unreliable.  A wide range of symptoms are reported, ranging from no

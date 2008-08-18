@@ -99,10 +99,14 @@ void scan_pirq_table(void)
 
     router = pci_find_slot(r->bus, r->devfn);
     if (router) {
-	for (i = 0; i < ROUTER_COUNT; i++)
+	for (i = 0; i < ROUTER_COUNT; i++) {
 	    if ((router->vendor == irq_router[i].vendor) &&
 		(router->device == irq_router[i].device))
 		break;
+	    if (((r->compat & 0xffff) == irq_router[i].vendor) &&
+		((r->compat >> 16) == irq_router[i].device))
+		break;
+	}
 	if (i == ROUTER_COUNT)
 	    printk(KERN_INFO "  unknown PCI interrupt router %04x:%04x\n",
 		   router->vendor, router->device);

@@ -2,7 +2,7 @@
 
     A driver for the Qlogic SCSI card
 
-    qlogic_cs.c 1.76 2000/01/09 01:44:55
+    qlogic_cs.c 1.77 2000/02/01 19:08:09
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -77,7 +77,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"qlogic_cs.c 1.76 2000/01/09 01:44:55 (David Hinds)";
+"qlogic_cs.c 1.77 2000/02/01 19:08:09 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -276,6 +276,7 @@ static void qlogic_config(dev_link_t *link)
     CS_CHECK(RequestConfiguration, handle, &link->conf);
 
     if ((info->manf_id == MANFID_MACNICA) ||
+	(info->manf_id == MANFID_PIONEER) ||
 	(info->manf_id == 0x0098)) {
 	/* set ATAcmd */
 	outb(0xb4, link->io.BasePort1+0xd);
@@ -409,7 +410,9 @@ static int qlogic_event(event_t event, int priority,
 	if (link->state & DEV_CONFIG) {
 	    scsi_info_t *info = link->priv;
 	    CardServices(RequestConfiguration, link->handle, &link->conf);
-	    if (info->manf_id == MANFID_MACNICA) {
+	    if ((info->manf_id == MANFID_MACNICA) ||
+		(info->manf_id == MANFID_PIONEER) ||
+		(info->manf_id == 0x0098)) {
 		outb( 0x80, link->io.BasePort1+0xd);
 		outb( 0x24, link->io.BasePort1+0x9);
 		outb( 0x04, link->io.BasePort1+0xd);
