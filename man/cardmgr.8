@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" cardmgr.8 1.30 1999/01/15 18:10:49
+.\" cardmgr.8 1.31 1999/10/13 23:38:57
 .\"
-.TH CARDMGR 8 "1999/01/15 18:10:49" "pcmcia-cs"
+.TH CARDMGR 8 "1999/10/13 23:38:57" "pcmcia-cs"
 .SH NAME
 cardmgr \- PCMCIA device manager
 .SH SYNOPSIS
@@ -19,7 +19,7 @@ cardmgr \- PCMCIA device manager
 .I modpath\c
 ]
 .RB [ "\-p\ "\c
-.I pidpath\c
+.I pidfile\c
 ]
 .RB [ "\-s\ "\c
 .I stabfile\c
@@ -42,7 +42,9 @@ All insertion and removal events, device driver loads and unloads, and
 startup and shutdown commands are reported in the system log file.
 Warnings and errors will also be logged.  Current card and device
 information for each socket is recorded in
-.IR /var/run/stab .
+.I /var/state/pcmcia/stab
+or
+.IR /var/lib/pcmcia/stab .
 .PP
 Normally, when a card is identified,
 .I cardmgr
@@ -110,13 +112,13 @@ Look for loadable kernel modules in the specified directory, instead
 of
 .IR /lib/modules/`uname -r` .
 .TP
-.BI "\-p " pidpath
+.BI "\-p " pidfile
 Write the PID of the cardmgr process to the specified file, instead of
 .IR /var/run/cardmgr.pid .
 .TP
-.BI "\-s " stabpath
+.BI "\-s " stabfile
 Write current socket information to the specified file, instead of
-.IR /var/run/stab .
+.IR /var/{state,lib}/pcmcia/stab .
 .SH FILES
 .PD 0
 .TP \w'/etc/pcmcia/config.opts\ \ \ \|\|'u
@@ -129,7 +131,7 @@ Local resource settings for PCMCIA devices
 /var/run/cardmgr.pid
 PID of active cardmgr process
 .TP
-/var/run/stab
+/var/{state,lib}/pcmcia/stab
 Current card and device information for each socket.
 .SH AUTHOR
 David Hinds \- dhinds@hyper.stanford.edu

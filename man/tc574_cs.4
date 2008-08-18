@@ -2,18 +2,23 @@
 .\" tc574_cs.4 1.0 1998/01/12 19:11:01
 .\"
 .TH 3C574_CS 4 "1998/01/12 19:11:01" "CESDIS"
+
 .SH NAME
 3c574_cs \- 3Com 3c574 Etherlink XL 10/100 PC Card device driver
+
 .SH SYNOPSIS
 .B insmod 3c574_cs.o
 .RB [ pc_debug=\c
-.IR n ]
-.RB [ tc574_debug=\c
 .IR n ]
 .RB [ if_port=\c
 .IR n ]
 .RB [ irq_list=\c
 .IR i,j,... ]
+.RB [ full_duplex=\c
+.IR n ]
+.RB [ max_interrupt_work=\c
+.IR n ]
+
 .SH DESCRIPTION
 .B 3c574_cs
 is the low-level Card Services driver for the 3Com 3c574 EtherLink XL
@@ -23,12 +28,10 @@ allocates the next available ethernet device
 This device name will be reported in the kernel log file, and passed on to
 .BR cardmgr (8).
 .PP
-The driver uses the N-Way autonegotiating transceiver to negotiate the speed
-and duplex of the network link.  If the link partner does not support
-negotiation only the link speed is detected.
-.PP
-If the on-card EEPROM is programmed for a full-duplex (FD) link, only FD media
-types are advertised and the link is assumed to be full-duplex.
+The driver uses the N-Way autonegotiating transceiver to negotiate the
+speed and duplex of the network link.  If the link partner does not
+support negotiation, only the link speed is detected.
+
 .SH PARAMETERS
 .TP
 .BI pc_debug= n
@@ -45,29 +48,22 @@ autonegotiating transceiver selects the media speed and duplex used.
 This option limits the set of interrupts that may be allocated by this driver.
 The default is all normally-usable IRQs.
 .TP
+.BI full_duplex= n
+This flag determines if only full-duplex modes are advertised.  It
+defaults to 0 (false).
+.TP
 .BI max_interrupt_work= work-limit
 This option selects the maximum amount of work handled during each
 interrupt.  Each received packet counts as one unit of work, as does
-updating statistics counters and handling errors.  The default value is 10.
+updating statistics counters and handling errors.  The default is 32.
+
+.SH DIAGNOSTICS
 .TP
-.BI use_fifo_buffer= b
-A non-zero value enables an acceleration buffer in front of the transmit and
-receive data FIFOs.  This option may cause the system to silently hang if the
-system PCMCIA interface timing is not properly configured, and thus is
-normally disabled.
-.TP
-.BI use_memory_ops= b
-A non-zero value specifies using memory operations instead of I/O operations
-when accessing the FIFO.  This results in faster data transfer in specific
-systems.  This option is normally disabled and should only be enabled if
-use_fifo_buffer is also enabled.
-.TP
-.BI no_wait= b
-A non-zero value specifies that no WAIT signal is gererated by the card.
-This option should only be used with already slow systems that be become
-even slower if the encounter a WAIT condition.  This option can cause data
-corruption, so do not enable it unless tests verify that it both results in
-improved performance and reliable operation.
+.B eth#: interrupt(s) dropped!
+Indicates that the driver did not receive an interrupt notification
+for some reason.  The driver will poll the card (with a significant
+performance penalty) if the problem persists.  The most likely cause
+is an interrupt conflict and/or host bridge configuration problem.
 
 .SH AUTHOR
 Driver core: Donald Becker \- becker@cesdis.gsfc.nasa.gov.

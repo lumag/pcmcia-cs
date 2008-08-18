@@ -149,10 +149,6 @@ MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");
 
 #define RUN_AT(x) (jiffies + (x))
 
-#if (LINUX_VERSION_CODE >= 0x20100)
-char kernel_version[] = UTS_RELEASE;
-#endif
-
 #if LINUX_VERSION_CODE < 0x20123
 #define hard_smp_processor_id() smp_processor_id()
 #define test_and_set_bit(val, addr) set_bit(val, addr)
@@ -390,7 +386,7 @@ static struct tulip_chip_table {
   { "Compex 9881 PMAC", 128, 0x0001ebef,
 	HAS_MII | HAS_MEDIA_TABLE | CSR12_IN_SROM, mxic_timer },
   { "Xircom Cardbus Adapter (DEC 21143 compatible mode)", 128, 0x0801fbff,
-       HAS_MII | HAS_ACPI, t21142_timer }, 
+       HAS_MII | HAS_ACPI, tulip_timer }, 
   {0},
 };
 /* This matches the table above.  Note 21142 == 21143. */
@@ -563,7 +559,7 @@ static void set_rx_mode(struct net_device *dev);
 
 static void outl_CSR6 (u32 newcsr6, long ioaddr, int chip_idx)
 {
-	const static strict_bits = 0x0063ff22;
+	const int strict_bits = 0x0060e202;
     int csr5, csr5_22_20, csr5_19_17, currcsr6, attempts = 200;
     long flags;
     save_flags(flags);
@@ -573,8 +569,12 @@ static void outl_CSR6 (u32 newcsr6, long ioaddr, int chip_idx)
 		restore_flags(flags);
 		return;
     }
+    newcsr6 &= 0x726cfeca; /* mask out the reserved CSR6 bits that always */
+			   /* read 0 on the Xircom cards */
+    newcsr6 |= 0x320c0000; /* or in the reserved bits that always read 1 */
     currcsr6 = inl(ioaddr + CSR6);
-    if ((newcsr6 & strict_bits) == (currcsr6 & strict_bits & ~0x2002)) {
+    if (((newcsr6 & strict_bits) == (currcsr6 & strict_bits)) ||
+	((currcsr6 & ~0x2002) == 0)) {
 		outl(newcsr6, ioaddr + CSR6);	/* safe */
 		restore_flags(flags);
 		return;
@@ -598,6 +598,7 @@ static void outl_CSR6 (u32 newcsr6, long ioaddr, int chip_idx)
 			return;
 		}
 		outl(currcsr6, ioaddr + CSR6);
+		udelay(1);
     }
     /* now it is safe to change csr6 */
     outl(newcsr6, ioaddr + CSR6);
@@ -651,7 +652,7 @@ int tulip_probe(struct net_device *dev)
 			struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
 			ioaddr = pdev->base_address[0] & ~3;
 			irq = pdev->irq;
-#elseif defined(PCI_SUPPORT_VER3)
+#elif defined(PCI_SUPPORT_VER3)
 			struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
 			ioaddr = pdev->resource[0].start;
 			irq = pdev->irq;
@@ -891,8 +892,6 @@ static struct net_device *tulip_probe1(int pci_bus, int pci_devfn,
 	tp->revision = chip_rev;
 	tp->csr0 = csr0;
 	tp->setup_frame = (u16 *)(((unsigned long)tp->setup_buf + 7) & ~7);
-	/* Setup frame layout for Xircom is screwed up somehow */
-	tp->setup_frame += 2;
 
 	/* BugFixes: The 21143-TD hangs with PCI Write-and-Invalidate cycles.
 	   And the ASIX must have a burst limit or horrible things happen. */
@@ -1038,10 +1037,16 @@ static struct net_device *tulip_probe1(int pci_bus, int pci_devfn,
 		}
 		break;
 	case X3201_3:
-		outl_CSR6(0xb2420200, ioaddr, chip_idx);
 		outl(0x0008, ioaddr + CSR15);
+		udelay(5);  /* The delays are Xircom recommended to give the
+					 * chipset time to reset the actual hardware
+					 * on the PCMCIA card
+					 */
 		outl(0xa8050000, ioaddr + CSR15);
-		outl(0xa00f0000, ioaddr + CSR15); 
+		udelay(5);
+		outl(0xa00f0000, ioaddr + CSR15);
+		udelay(5);
+		outl_CSR6(0x32000200, ioaddr, chip_idx);
 		break;
 	case LC82C168:
 		if ( ! tp->mii_cnt) {
@@ -1515,7 +1520,7 @@ tulip_up(struct net_device *dev)
 			outl(0, ioaddr + 0xAC);
 			outl(0, ioaddr + 0xB0);
 		}
-	} else {
+	} else if (tp->chip_id != X3201_3) {
 		/* This is set_rx_mode(), but without starting the transmitter. */
 		u16 *eaddrs = (u16 *)dev->dev_addr;
 		u16 *setup_frm = &tp->setup_frame[15*6];
@@ -1532,8 +1537,28 @@ tulip_up(struct net_device *dev)
 		tp->tx_ring[0].status = DescOwned;
 
 		tp->cur_tx++;
-	}
+	} else { /* X3201_3 */
+		u16 *eaddrs = (u16 *)dev->dev_addr;
+		u16 *setup_frm = &tp->setup_frame[0*6];
+		
+		/* fill the table with the broadcast address */
+		memset(tp->setup_frame, 0xff, 96*sizeof(u16));
+		/* re-fill the first 14 table entries with our address */
+		for(i=0; i<14; i++) {
+			*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
+			*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
+			*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
+		}
 
+		/* Put the setup frame on the Tx list. */
+		tp->tx_ring[0].length = 0x08000000 | 192;
+		/* Lie about the address of our setup frame to make the */
+		/* chip happy */
+		tp->tx_ring[0].buffer1 = (virt_to_bus(tp->setup_frame) + 4);
+		tp->tx_ring[0].status = DescOwned;
+
+		tp->cur_tx++;
+	}
 	outl(virt_to_bus(tp->rx_ring), ioaddr + CSR3);
 	outl(virt_to_bus(tp->tx_ring), ioaddr + CSR4);
 
@@ -1612,9 +1637,13 @@ media_picked:
 		outl(0x0000, ioaddr + CSR14);
 		outl(0x0008, ioaddr + CSR15);
 	} else if (tp->chip_id == X3201_3) {
+		outl(0x0008, ioaddr + CSR15);
+		udelay(5);
 		outl(0xa8050000, ioaddr + CSR15);
+		udelay(5);
 		outl(0xa00f0000, ioaddr + CSR15); 
-		tp->csr6  = 0xb2020000;
+		udelay(5);
+		tp->csr6  = 0x32400000;
 	} else if (tp->chip_id == COMET) {
 		dev->if_port = 0;
 		tp->csr6 = 0x00040000;
@@ -1859,12 +1888,14 @@ static void select_media(struct net_device *dev, int startup)
 	} else if (tp->chip_id == X3201_3) {					/* Xircom */
 		if (tp->default_port == 0)
 			dev->if_port = tp->mii_cnt ? 11 : 3;
-		if (media_cap[dev->if_port] & MediaIsMII) {
+/* Someone is on crack, the Xircom only does MII, no Fx */
+/*		if (media_cap[dev->if_port] & MediaIsMII) {
 			new_csr6 = 0x020E0000;
 		} else if (media_cap[dev->if_port] & MediaIsFx) {
 			new_csr6 = 0x028600000;
 		} else
-			new_csr6 = 0x038600000;
+			new_csr6 = 0x038600000;*/
+		new_csr6 = 0x324c0000;
 		if (tulip_debug > 1)
 			printk(KERN_DEBUG "%s: Xircom CardBus Adapter: "
 				   "%s transceiver, CSR12 %2.2x.\n",
@@ -2104,7 +2135,7 @@ static void t21142_timer(unsigned long data)
 	int next_tick = 60*HZ;
 	int new_csr6 = 0;
 
-	if (tulip_debug > 2)
+	if ((tulip_debug > 2) && !(media_cap[dev->if_port] & MediaIsMII))
 		printk(KERN_INFO"%s: 21143 negotiation status %8.8x, %s.\n",
 			   dev->name, csr12, medianame[dev->if_port]);
 	if (media_cap[dev->if_port] & MediaIsMII) {
@@ -2918,7 +2949,6 @@ tulip_down(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
-	int i;
 
 	dev->start = 0;
 	dev->tbusy = 1;
@@ -3156,7 +3186,7 @@ static void set_rx_mode(struct net_device *dev)
 
 		/* Note that only the low-address shortword of setup_frame is valid!
 		   The values are doubled for big-endian architectures. */
-		if (dev->mc_count > 14) { /* Must use a multicast hash table. */
+		if ((dev->mc_count > 14) || ((dev->mc_count > 6) && (tp->chip_id == X3201_3))) { /* Must use a multicast hash table. */
 			u16 hash_table[32];
 			tx_flags = 0x08400000 | 192;		/* Use hash filter. */
 			memset(hash_table, 0, sizeof(hash_table));
@@ -3171,7 +3201,7 @@ static void set_rx_mode(struct net_device *dev)
 				*setup_frm++ = hash_table[i];
 			}
 			setup_frm = &tp->setup_frame[13*6];
-		} else {
+		} else if(tp->chip_id != X3201_3) {
 			/* We have <= 14 addresses so we can use the wonderful
 			   16 address perfect filtering of the Tulip. */
 			for (i = 0, mclist = dev->mc_list; i < dev->mc_count;
@@ -3184,7 +3214,32 @@ static void set_rx_mode(struct net_device *dev)
 			/* Fill the unused entries with the broadcast address. */
 			memset(setup_frm, 0xff, (15-i)*12);
 			setup_frm = &tp->setup_frame[15*6];
+		} else {
+			/* fill the first two table entries with our address */
+			eaddrs = (u16 *)dev->dev_addr;
+			for(i=0; i<2; i++) {
+				*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
+				*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
+				*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
+			}
+			/* Double fill each entry to accomodate chips that */
+			/* don't like to parse these correctly */
+			for (i=0, mclist=dev->mc_list; i<dev->mc_count;
+				 i++, mclist=mclist->next) {
+				eaddrs = (u16 *)mclist->dmi_addr;
+				*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
+				*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
+				*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
+				*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
+				*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
+				*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
+			}
+			i=((i+1)*2);
+			/* Fill the unused entries with the broadcast address. */
+			memset(setup_frm, 0xff, (15-i)*12);
+			setup_frm = &tp->setup_frame[15*6];
 		}
+
 		/* Fill the final entry with our physical address. */
 		eaddrs = (u16 *)dev->dev_addr;
 		*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
@@ -3216,7 +3271,10 @@ static void set_rx_mode(struct net_device *dev)
 			if (entry == TX_RING_SIZE-1)
 				tx_flags |= DESC_RING_WRAP;		/* Wrap ring. */
 			tp->tx_ring[entry].length = tx_flags;
-			tp->tx_ring[entry].buffer1 = virt_to_bus(tp->setup_frame);
+			if(tp->chip_id == X3201_3)
+				tp->tx_ring[entry].buffer1 = (virt_to_bus(tp->setup_frame) + 4);
+			else
+				tp->tx_ring[entry].buffer1 = virt_to_bus(tp->setup_frame);
 			tp->tx_ring[entry].status = DescOwned;
 			if (tp->cur_tx - tp->dirty_tx >= TX_RING_SIZE - 2) {
 				set_bit(0, (void*)&dev->tbusy);

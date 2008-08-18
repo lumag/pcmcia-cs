@@ -344,6 +344,11 @@
  *	- Add the (short) list of bit-rates in range
  *	- Developp a new sensitivity... (sens.value & sens.fixed)
  *
+ * Changes made for release in 3.1.2 :
+ * ---------------------------------
+ *	- Fix check for root permission (break instead of exit)
+ *	- New nwid & encoding setting (Wireless Extension 9)
+ *
  * Wishes & dreams:
  * ----------------
  *	- Cleanup and integrate the roaming code
@@ -356,6 +361,7 @@
 #include <pcmcia/k_compat.h>
 
 /* Linux headers that we need */
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -448,7 +454,7 @@
 /************************ CONSTANTS & MACROS ************************/
 
 #ifdef DEBUG_VERSION_SHOW
-static const char *version = "wavelan_cs.c : v20 (wireless extensions) 30/7/99\n";
+static const char *version = "wavelan_cs.c : v21 (wireless extensions) 18/10/99\n";
 #endif
 
 /* Watchdog temporisation */
@@ -524,7 +530,7 @@ struct wavepoint_table
 /****************************** TYPES ******************************/
 
 /* Shortcuts */
-typedef struct net_device		device;
+typedef struct net_device	device;
 typedef struct net_device_stats	en_stats;
 typedef struct iw_statistics	iw_stats;
 typedef struct iw_quality	iw_qual;

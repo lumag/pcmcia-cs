@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.71 1999/09/15 15:32:19
+    rsrc_mgr.c 1.73 1999/10/19 00:54:04
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -102,10 +102,6 @@ static irq_info_t irq_table[NR_IRQS] = { { 0, 0, 0 }, /* etc */ };
 
 #endif
 
-#ifdef USE_SPIN_LOCKS
-static spinlock_t rsrc_lock = SPIN_LOCK_UNLOCKED;
-#endif
-
 /*======================================================================
 
     Linux resource management extensions
@@ -114,6 +110,16 @@ static spinlock_t rsrc_lock = SPIN_LOCK_UNLOCKED;
 
 #ifdef __LINUX__
 
+#ifdef USE_SPIN_LOCKS
+static spinlock_t rsrc_lock = SPIN_LOCK_UNLOCKED;
+#endif
+
+#ifndef CONFIG_PNP_BIOS
+#define check_io_region(b,n) (0)
+#endif
+
+#if defined(CONFIG_PNP_BIOS) || !defined(HAVE_MEMRESERVE)
+
 typedef struct resource_entry_t {
     u_long			base, num;
     char			*name;
@@ -121,7 +127,9 @@ typedef struct resource_entry_t {
 } resource_entry_t;
 
 /* Ordered linked lists of allocated IO and memory blocks */
+#ifdef CONFIG_PNP_BIOS
 static resource_entry_t io_list = { 0, 0, NULL, NULL };
+#endif
 #ifndef HAVE_MEMRESERVE
 static resource_entry_t mem_list = { 0, 0, NULL, NULL };
 #endif
@@ -199,6 +207,7 @@ static int check_my_resource(resource_entry_t *list,
     return 0;
 }
 
+#ifdef CONFIG_PNP_BIOS
 int check_io_region(u_long base, u_long num)
 {
     return check_my_resource(&io_list, base, num);
@@ -226,6 +235,7 @@ int proc_read_io(char *buf, char **start, off_t pos,
     spin_unlock_irqrestore(&rsrc_lock, flags);
     return (p - buf);
 }
+#endif
 #endif
 
 #ifndef HAVE_MEMRESERVE
@@ -259,6 +269,7 @@ int proc_read_mem(char *buf, char **start, off_t pos,
 #endif
 #endif
 
+#endif /* defined(CONFIG_PNP_BIOS) || !defined(HAVE_MEMRESERVE) */
 #endif /* __LINUX__ */
 
 #ifdef __BEOS__
@@ -895,7 +906,9 @@ int adjust_resource_info(client_handle_t handle, adjust_t *adj)
 void release_resource_db(void)
 {
     resource_map_t *p, *q;
+#if defined(CONFIG_PNP_BIOS) || !defined(HAVE_MEMRESERVE)
     resource_entry_t *u, *v;
+#endif
     
     for (p = mem_db.next; p != &mem_db; p = q) {
 	q = p->next;
@@ -905,10 +918,12 @@ void release_resource_db(void)
 	q = p->next;
 	kfree(p);
     }
+#ifdef CONFIG_PNP_BIOS
     for (u = io_list.next; u; u = v) {
 	v = u->next;
 	kfree(u);
     }
+#endif
 #ifndef HAVE_MEMRESERVE
     for (u = mem_list.next; u; u = v) {
 	v = u->next;

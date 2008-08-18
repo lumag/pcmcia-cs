@@ -92,9 +92,7 @@ static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
 
 #include <linux/delay.h>
 
-#if (LINUX_VERSION_CODE >= 0x20100)
-char kernel_version[] = UTS_RELEASE;
-#else
+#if (LINUX_VERSION_CODE <= 0x20100)
 #ifndef __alpha__
 #define ioremap(a,b) \
 	(((a)<0x100000) ? (void *)((u_long)(a)) : vremap(a,b))
@@ -292,6 +290,9 @@ static struct pci_id_info pci_tbl[] = {
 	{"3c575 Boomerang CardBus",		0x10B7, 0x5057, 0xffff,
 	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG|HAS_MII, 64, vortex_probe1},
 	{"3CCFE575 Cyclone CardBus",	0x10B7, 0x5157, 0xffff,
+	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS,
+	 128, vortex_probe1},
+	{"3CCFE575CT Cyclone CardBus",	0x10B7, 0x5257, 0xffff,
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS,
 	 128, vortex_probe1},
 	{"3CCFE656 Cyclone CardBus",	0x10B7, 0x6560, 0xffff,
@@ -722,7 +723,7 @@ static int vortex_scan(struct net_device *dev, struct pci_id_info pci_tbl[])
 				struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
 				ioaddr = pdev->resource[0].start;
 				irq = pdev->irq;
-#elsif LINUX_VERSION_CODE >= 0x20155
+#elif LINUX_VERSION_CODE >= 0x20155
 				struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
 				ioaddr = pdev->base_address[0] & ~3;
 				irq = pdev->irq;
@@ -1130,11 +1131,14 @@ vortex_up(struct net_device *dev)
 	for (; i < 12; i+=2)
 		outw(0, ioaddr + i);
 	if (vp->cb_fn_base) {
+		u_short n = inw(ioaddr + Wn2_ResetOptions);
 		/* Inverted LED polarity */
-		u_short n = inw(ioaddr + Wn2_ResetOptions) | 0x0010;
+		if (pci_tbl[vp->chip_id].device_id != 0x5257)
+			n |= 0x0010;
 		/* Inverted polarity of MII power bit */
 		if ((pci_tbl[vp->chip_id].device_id == 0x6560) ||
-			(pci_tbl[vp->chip_id].device_id == 0x6562))
+			(pci_tbl[vp->chip_id].device_id == 0x6562) ||
+			(pci_tbl[vp->chip_id].device_id == 0x5257))
 			n |= 0x4000;
 		outw(n, ioaddr + Wn2_ResetOptions);
 	}
@@ -1211,9 +1215,7 @@ vortex_up(struct net_device *dev)
 static int
 vortex_open(struct net_device *dev)
 {
-	long ioaddr = dev->base_addr;
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
-	union wn3_config config;
 	int i;
 
 	/* Use the now-standard shared IRQ implementation. */
@@ -1300,6 +1302,7 @@ static void vortex_timer(unsigned long data)
 							 dev->name, vp->full_duplex ? "full" : "half",
 							 vp->phys[0], mii_reg5);
 					  /* Set the full-duplex bit. */
+					  EL3WINDOW(3);
 					  outb((vp->full_duplex ? 0x20 : 0) |
 						   (dev->mtu > 1500 ? 0x40 : 0),
 						   ioaddr + Wn3_MAC_Ctrl);
@@ -1360,7 +1363,6 @@ static void vortex_tx_timeout(struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
-	int j;
 
 	printk(KERN_ERR "%s: transmit timed out, tx_status %2.2x status %4.4x.\n",
 		   dev->name, inb(ioaddr + TxStatus),
@@ -1430,7 +1432,6 @@ vortex_error(struct net_device *dev, int status)
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 	int do_tx_reset = 0;
-	int i;
 
 	if (status & TxComplete) {			/* Really "TxError" for us. */
 		unsigned char tx_status = inb(ioaddr + TxStatus);
@@ -1476,9 +1477,8 @@ vortex_error(struct net_device *dev, int status)
 		u16 fifo_diag;
 		EL3WINDOW(4);
 		fifo_diag = inw(ioaddr + Wn4_FIFODiag);
-		if (vortex_debug > 0)
-			printk(KERN_ERR "%s: Host error, FIFO diagnostic register %4.4x.\n",
-				   dev->name, fifo_diag);
+		printk(KERN_ERR "%s: Host error, FIFO diagnostic register %4.4x.\n",
+			   dev->name, fifo_diag);
 		/* Adapter failure requires Tx/Rx reset and reinit. */
 		if (vp->full_bus_master_tx) {
 			wait_for_completion(dev, TotalReset | 0xff);
@@ -1576,7 +1576,6 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct boom_tx_desc *prev_entry =
 			&vp->tx_ring[(vp->cur_tx-1) % TX_RING_SIZE];
 		unsigned long flags;
-		int i;
 
 		if (vortex_debug > 3)
 			printk(KERN_DEBUG "%s: Trying to send a packet, Tx index %d.\n",
@@ -2047,6 +2046,14 @@ static void update_stats(long ioaddr, struct net_device *dev)
 	/* New: On the Vortex we must also clear the BadSSD counter. */
 	EL3WINDOW(4);
 	inb(ioaddr + 12);
+
+#if LINUX_VERSION_CODE > 0x020119
+	{
+		u8 up = inb(ioaddr + 13);
+		vp->stats.rx_bytes += (up & 0x0f) << 16;
+		vp->stats.tx_bytes += (up & 0xf0) << 12;
+	}
+#endif
 
 	/* We change back to window 7 (not 1) with the Vortex. */
 	EL3WINDOW(old_window >> 13);

@@ -1,5 +1,5 @@
 #
-# shared 1.12 1998/10/19 09:55:48 (David Hinds)
+# shared 1.13 1999/10/16 01:19:34 (David Hinds)
 #
 
 usage ()
@@ -122,9 +122,18 @@ grep_stab ()
 
 get_info ()
 {
-    SCHEME=`cat /var/run/pcmcia-scheme`
+    if [ -d /var/state/pcmcia ] ; then
+	SCHEME=`cat /var/state/pcmcia/scheme`
+	STAB=/var/state/pcmcia/stab
+    elif [ -d /var/lib/pcmcia ] ; then
+	SCHEME=`cat /var/lib/pcmcia/scheme`
+	STAB=/var/lib/pcmcia/stab
+    else
+	SCHEME=`cat /var/run/pcmcia-scheme`
+	STAB=/var/run/stab
+    fi
     if [ ! "$SCHEME" ] ; then SCHEME="default" ; fi
-    grep_stab $1 < /var/run/stab || usage
+    grep_stab $1 < $STAB || usage
 }
 
 # A bit of stuff to do right away...

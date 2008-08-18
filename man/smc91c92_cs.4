@@ -1,9 +1,11 @@
 .\" Copyright (C) 1999 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" smc91c92_cs.4 1.1 1999/07/23 20:06:27
+.\" smc91c92_cs.4 1.2 1999/10/15 19:31:01
 .\"
-.TH SMC91C92_CS 4 "1999/07/23 20:06:27" "pcmcia-cs"
+.TH SMC91C92_CS 4 "1999/10/15 19:31:01" "pcmcia-cs"
+
 .SH NAME
 smc91c92_cs \- SMC 91cxx device driver
+
 .SH SYNOPSIS
 .B insmod smc91c92_cs.o
 .RB [ pc_debug=\c
@@ -12,6 +14,7 @@ smc91c92_cs \- SMC 91cxx device driver
 .IR n ]
 .RB [ irq_list=\c
 .IR i,j,... ]
+
 .SH DESCRIPTION
 .B Smc91c92_cs
 is the low-level Card Services driver for SMC 91c92, 91c94,
@@ -33,6 +36,7 @@ necessary to explicitly select the interface type when the module is
 loaded or with the 
 .B ifport
 command.
+
 .SH PARAMETERS
 .TP
 .BI pc_debug= n
@@ -54,7 +58,17 @@ Indicates that the driver did not receive an interrupt notification
 for some reason.  The driver will poll the card (with a significant
 performance penalty) if the problem persists.  The most likely cause
 is an interrupt conflict and/or host bridge configuration problem.
+
+.SH DIAGNOSTICS
+.TP
+.B eth#: interrupt(s) dropped!
+Indicates that the driver did not receive an interrupt notification
+for some reason.  The driver will poll the card (with a significant
+performance penalty) if the problem persists.  The most likely cause
+is an interrupt conflict and/or host bridge configuration problem.
+
 .SH AUTHOR
 David Hinds \- dhinds@hyper.stanford.edu
+
 .SH "SEE ALSO"
 cardmgr(8), pcmcia(5), ifport(8).

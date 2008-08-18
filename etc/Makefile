@@ -1,5 +1,5 @@
 #
-# etc/Makefile 1.46 1999/08/26 15:56:34 (David Hinds)
+# etc/Makefile 1.48 1999/10/16 04:56:49 (David Hinds)
 #
 
 # Include site dependent options
@@ -22,9 +22,6 @@ endif
 
 # Don't change this without editing the device-specific scripts
 ETC = $(PREFIX)/etc/pcmcia
-
-# Configuration file for depmod
-CONF = $(PREFIX)/etc/conf.modules
 
 all:	$(EXTRA) $(CLIENTS) $(CLIENT_OPTS)
 	set -e ; $(MAKE) -C cis
@@ -95,13 +92,22 @@ install-extra: $(EXTRA)
 	    [ -r $(ETC)/$$f ] && mv $(ETC)/$$f $(ETC)/$$f.O ;	\
 	    cp $$f $(ETC)/$$f ;					\
 	done
+	if [ -d /var/state ] ; then				\
+	    mkdir -p $(PREFIX)/var/state/pcmcia ;		\
+	elif [ -d /var/lib ] ; then				\
+	    mkdir -p $(PREFIX)/var/lib/pcmcia ;			\
+	fi
 
 install-depmod:
-	grep -qs path $(CONF) || echo keep >> $(CONF)
-	grep -q pcmcia $(CONF) || ( \
-	    echo 'path[pcmcia]=/lib/modules/`uname -r`' >> $(CONF) && \
-	    echo 'path[pcmcia]=/lib/modules/default' >> $(CONF) && \
-	    echo 'path[pcmcia]=/lib/modules/preferred' >> $(CONF) )
+	CONF=$(PREFIX)/etc/modules.conf ;			\
+	if [ ! -r $$CONF -a -r $(PREFIX)/etc/conf.modules ] ; then \
+	    CONF=$(PREFIX)/etc/conf.modules ;			\
+	fi ;							\
+	grep -qs path $$CONF || echo keep >> $$CONF ;		\
+	grep -q pcmcia $$CONF || (				\
+	    echo 'path[pcmcia]=/lib/modules/`uname -r`' >> $$CONF && \
+	    echo 'path[pcmcia]=/lib/modules/default' >> $$CONF && \
+	    echo 'path[pcmcia]=/lib/modules/preferred' >> $$CONF )
 	if [ "$(PREFIX)" = "" ] ; then depmod -a ; fi
 
 install: $(INST) $(ETC) install-extra install-clients

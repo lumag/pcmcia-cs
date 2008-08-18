@@ -126,6 +126,7 @@ Include Files
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -627,7 +628,7 @@ mace_read
 	assuming that during normal operation, the MACE is always in
 	bank 0.
 ---------------------------------------------------------------------------- */
-static int mace_read(int ioaddr, int reg)
+static int mace_read(ioaddr_t ioaddr, int reg)
 {
   int data = 0xFF;
   unsigned long flags;
@@ -657,7 +658,7 @@ mace_write
 	are assuming that during normal operation, the MACE is always in
 	bank 0.
 ---------------------------------------------------------------------------- */
-static void mace_write(int ioaddr, int reg, int data)
+static void mace_write(ioaddr_t ioaddr, int reg, int data)
 {
   unsigned long flags;
 
@@ -682,7 +683,7 @@ static void mace_write(int ioaddr, int reg, int data)
 mace_init
 	Resets the MACE chip.
 ---------------------------------------------------------------------------- */
-static void mace_init(int ioaddr, char *enet_addr)
+static void mace_init(ioaddr_t ioaddr, char *enet_addr)
 {
   int i;
 
@@ -760,12 +761,13 @@ static void nmclan_config(dev_link_t *link)
   cisparse_t parse;
   u_char buf[64];
   int i, last_ret, last_fn;
-  short ioaddr, *phys_addr;
+  ioaddr_t ioaddr;
+  u_short *phys_addr;
 
 
   handle = link->handle;
   dev = link->priv;
-  phys_addr = (short *)dev->dev_addr;
+  phys_addr = (u_short *)dev->dev_addr;
 
   DEBUG(0, "nmclan_config(0x%p)\n", link);
 
@@ -1042,7 +1044,7 @@ mace_open
 ---------------------------------------------------------------------------- */
 static int mace_open(struct net_device *dev)
 {
-  int ioaddr = dev->base_addr;
+  ioaddr_t ioaddr = dev->base_addr;
   dev_link_t *link;
 
 
@@ -1072,7 +1074,7 @@ mace_close
 ---------------------------------------------------------------------------- */
 static int mace_close(struct net_device *dev)
 {
-  int ioaddr = dev->base_addr;
+  ioaddr_t ioaddr = dev->base_addr;
   dev_link_t *link;
 
 
@@ -1113,7 +1115,7 @@ mace_start_xmit
 static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
   mace_private *lp = (mace_private *)dev->priv;
-  int ioaddr = dev->base_addr;
+  ioaddr_t ioaddr = dev->base_addr;
   dev_link_t *link;
 
 #if TIMEOUT_TX
@@ -1222,7 +1224,7 @@ static void mace_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
   struct net_device *dev = (struct net_device *)dev_id;
   mace_private *lp = (mace_private *)dev->priv;
-  int ioaddr = dev->base_addr;
+  ioaddr_t ioaddr = dev->base_addr;
   int status;
   int IntrCnt = MACE_MAX_IR_ITERATIONS;
 
@@ -1376,7 +1378,7 @@ mace_rx
 static int mace_rx(struct net_device *dev, unsigned char RxCnt)
 {
   mace_private *lp = (mace_private *)dev->priv;
-  int ioaddr = dev->base_addr;
+  ioaddr_t ioaddr = dev->base_addr;
   unsigned char rx_framecnt;
   unsigned short rx_status;
 
@@ -1545,7 +1547,7 @@ update_stats
 	card's SRAM fast enough.  If this happens, something is
 	seriously wrong with the hardware.
 ---------------------------------------------------------------------------- */
-static void update_stats(int ioaddr, struct net_device *dev)
+static void update_stats(ioaddr_t ioaddr, struct net_device *dev)
 {
   mace_private *lp = (mace_private *)dev->priv;
     
@@ -1709,7 +1711,7 @@ static void restore_multicast_list(struct net_device *dev)
   mace_private *lp = (mace_private *)dev->priv;
   int num_addrs = lp->multicast_num_addrs;
   int *ladrf = lp->multicast_ladrf;
-  short ioaddr = dev->base_addr;
+  ioaddr_t ioaddr = dev->base_addr;
   int i;
 
 
@@ -1805,7 +1807,7 @@ static void set_multicast_list(struct net_device *dev)
 
 static void restore_multicast_list(struct net_device *dev)
 {
-  short ioaddr = dev->base_addr;
+  ioaddr_t ioaddr = dev->base_addr;
 
   DEBUG(2, "%s: restoring Rx mode to %d addresses.\n", dev->name,
 	((mace_private *)(dev->priv))->multicast_num_addrs);

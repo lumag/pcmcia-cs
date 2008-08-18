@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.100 1999/09/16 03:59:08
+# Makefile 1.101 1999/10/19 21:22:37
 #
 
 # Include site dependent options and kernel configuration
@@ -45,7 +45,7 @@ clean:
 
 install install-modules: $(MODULES)
 	mkdir -p $(PREFIX)/$(MODDIR)/pcmcia
-	cp -p $(MODULES) $(PREFIX)/$(MODDIR)/pcmcia
+	cp $(MODULES) $(PREFIX)/$(MODDIR)/pcmcia
 
 .c.s:
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S $<

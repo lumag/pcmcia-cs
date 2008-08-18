@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.44 1999/09/28 04:05:57
+    probe.c 1.45 1999/10/16 01:19:08
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -91,6 +91,7 @@ pci_id_t pci_id[] = {
     { 0x1217, 0x673a, "O2 Micro 6730", "O2Micro OZ6730" },
     { 0x1217, 0x6832, "O2 Micro 6832/6833", "O2Micro OZ6832/OZ6833" },
     { 0x1217, 0x6836, "O2 Micro 6836/6860", "O2Micro OZ6836/OZ6860" },
+    { 0x1217, 0x6872, "O2 Micro 6812", "O2Micro OZ6812" },
     { 0x1179, 0x0603, "Toshiba ToPIC95-A", "Toshiba ToPIC95-A" },
     { 0x1179, 0x060a, "Toshiba ToPIC95-B", "Toshiba ToPIC95-B" },
     { 0x1179, 0x060f, "Toshiba ToPIC97", "Toshiba ToPIC97" },

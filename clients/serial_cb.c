@@ -2,7 +2,7 @@
 
     A driver for CardBus serial devices
 
-    serial_cb.c 1.10 1999/09/16 03:57:08
+    serial_cb.c 1.11 1999/10/21 00:56:19
 
     Copyright 1998, 1999 by Donald Becker and David Hinds
     
@@ -39,7 +39,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cb.c 1.10 1999/09/16 03:57:08 (David Hinds)";
+"serial_cb.c 1.11 1999/10/21 00:56:19 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -101,7 +101,7 @@ static dev_node_t *serial_attach(dev_locator_t *loc)
     serial.flags = ASYNC_SKIP_TEST | ASYNC_SHARE_IRQ;
 
     /* Some devices seem to need extra time */
-    current->state = TASK_INTERRUPTIBLE;
+    __set_current_state(TASK_UNINTERRUPTIBLE);
     schedule_timeout(HZ/50);
 
     line = register_serial(&serial);

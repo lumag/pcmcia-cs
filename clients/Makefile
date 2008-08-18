@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.105 1999/09/16 03:59:01
+# Makefile 1.106 1999/10/19 21:22:31
 #
 
 # Include site dependent options and kernel configuration
@@ -169,7 +169,7 @@ clean:
 
 install-modules: $(MODULES)
 	mkdir -p $(PREFIX)/$(MODDIR)/pcmcia
-	cp -p $(MODULES) $(PREFIX)/$(MODDIR)/pcmcia
+	cp $(MODULES) $(PREFIX)/$(MODDIR)/pcmcia
 
 install-extra: $(EXTRA)
 	if [ -f 8390.o ] ; then				\

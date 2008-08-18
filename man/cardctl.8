@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" cardctl.8 1.12 1998/06/05 08:44:52
+.\" cardctl.8 1.13 1999/10/13 23:38:57
 .\"
-.TH CARDCTL 8 "1998/06/05 08:44:52" "pcmcia-cs"
+.TH CARDCTL 8 "1999/10/13 23:38:57" "pcmcia-cs"
 .SH NAME
 cardctl \- PCMCIA card control utility
 .SH SYNOPSIS
@@ -15,7 +15,7 @@ cardctl \- PCMCIA card control utility
 .I config\c
 ]
 .RB [ "\-f\ "\c
-.I schemefile\c
+.I scheme\c
 ]
 .RB [ "\-s\ "\c
 .I stab\c
@@ -86,14 +86,14 @@ Look for the card configuration database and card configuration
 scripts in the specified directory, instead of 
 .IR /etc/pcmcia .
 .TP
-.BI "\-f " schemefile
+.BI "\-f " scheme
 Use the specified file to keep track of the current configuration
 scheme, instead of
-.IR /var/run/pcmcia-scheme .
+.IR /var/{state,lib}/pcmcia/scheme .
 .TP
 .BI "\-s " stab
 Read current socket information from the specified file, instead of
-.IR /var/run/stab .
+.IR /var/{state,lib}/pcmcia/stab .
 .SH AUTHOR
 David Hinds \- dhinds@hyper.stanford.edu
 .SH "SEE ALSO"

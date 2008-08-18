@@ -74,6 +74,7 @@ earlier 3Com products.
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -106,10 +107,12 @@ earlier 3Com products.
 MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
 MODULE_PARM(max_interrupt_work, "i");
+MODULE_PARM(full_duplex, "i");
+#ifdef BROKEN_FEATURES
 MODULE_PARM(use_fifo_buffer, "i");
 MODULE_PARM(use_memory_ops, "i");
 MODULE_PARM(no_wait, "i");
-MODULE_PARM(full_duplex, "i");
+#endif
 
 /* Now-standard PC card module parameters. */
 static u_int irq_mask = 0xdeb8;			/* IRQ3,4,5,7,9,10,11,12,14,15 */
@@ -119,8 +122,12 @@ static int irq_list[4] = { -1 };
 #define TX_TIMEOUT  ((800*HZ)/1000)
 
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
-static int max_interrupt_work = 32;
+static int max_interrupt_work = 64;
 
+/* Force full duplex modes? */
+static int full_duplex = 0;
+
+#ifdef BROKEN_FEATURES
 /* Performance features: best left disabled. */
 /* Set to buffer all Tx/RxFIFO accesses. */
 static int use_fifo_buffer = 0;
@@ -128,8 +135,7 @@ static int use_fifo_buffer = 0;
 static int use_memory_ops = 0;
 /* Set iff disabling the WAIT signal is reliable and faster. */
 static int no_wait = 0;
-/* Advertise full duplex modes? */
-static int full_duplex = 0;
+#endif
 
 /* To minimize the size of the driver source and make the driver more
    readable not all constants are symbolically defined.
@@ -207,7 +213,7 @@ enum Window4 {		/* Window 4: Xcvr/media bits. */
 struct el3_private {
 	dev_node_t node;
 	struct net_device_stats stats;
-	u16 advertising;					/* NWay media advertisement */
+	u16 advertising, partner;			/* NWay media advertisement */
 	unsigned char phys[2];				/* MII device addresses. */
 	unsigned int
 	  autoselect:1, default_media:3;	/* Read from the EEPROM/Wn3_Config. */
@@ -240,10 +246,10 @@ static void tc574_release(u_long arg);
 static int tc574_event(event_t event, int priority,
 					   event_callback_args_t *args);
 
-static void mdio_sync(int ioaddr, int bits);
-static int mdio_read(int ioaddr, int phy_id, int location);
-static void mdio_write(int ioaddr, int phy_id, int location, int value);
-static ushort read_eeprom(int ioaddr, int index);
+static void mdio_sync(ioaddr_t ioaddr, int bits);
+static int mdio_read(ioaddr_t ioaddr, int phy_id, int location);
+static void mdio_write(ioaddr_t ioaddr, int phy_id, int location, int value);
+static u_short read_eeprom(ioaddr_t ioaddr, int index);
 static void wait_for_completion(struct net_device *dev, int cmd);
 
 static void tc574_reset(struct net_device *dev);
@@ -251,7 +257,7 @@ static void media_check(u_long arg);
 static int el3_open(struct net_device *dev);
 static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-static void update_stats(int addr, struct net_device *dev);
+static void update_stats(ioaddr_t addr, struct net_device *dev);
 static struct net_device_stats *el3_get_stats(struct net_device *dev);
 static int el3_rx(struct net_device *dev, int worklimit);
 static int el3_close(struct net_device *dev);
@@ -457,7 +463,7 @@ static void tc574_config(dev_link_t *link)
 	cisparse_t parse;
 	u_short buf[32];
 	int last_fn, last_ret, i, j;
-	int ioaddr;
+	ioaddr_t ioaddr;
 	u16 *phys_addr;
 	char *cardname;
 
@@ -494,6 +500,7 @@ static void tc574_config(dev_link_t *link)
 	CS_CHECK(RequestConfiguration, link->handle, &link->conf);
 
 	dev->mem_start = 0;
+#ifdef BROKEN_FEATURES
 	if (use_memory_ops) {
 		win_req_t req;
 		memreq_t mem;
@@ -511,6 +518,7 @@ static void tc574_config(dev_link_t *link)
 		} else
 			cs_error(link->handle, RequestWindow, i);
 	}
+#endif
 
 	dev->irq = link->irq.AssignedIRQ;
 	dev->base_addr = link->io.BasePort1;
@@ -611,9 +619,9 @@ static void tc574_config(dev_link_t *link)
 		i = mdio_read(ioaddr, lp->phys[0], 16) | 0x40;
 		mdio_write(ioaddr, lp->phys[0], 16, i);
 		lp->advertising = mdio_read(ioaddr, lp->phys[0], 4);
-		if (!full_duplex) {
-			/* Only advertise the HD media types. */
-			lp->advertising &= 0x00af;
+		if (full_duplex) {
+			/* Only advertise the FD media types. */
+			lp->advertising &= ~0x02a0;
 			mdio_write(ioaddr, lp->phys[0], 4, lp->advertising);
 		}
 	}
@@ -717,7 +725,7 @@ static int tc574_event(event_t event, int priority,
 
 static void dump_status(struct net_device *dev)
 {
-	int ioaddr = dev->base_addr;
+	ioaddr_t ioaddr = dev->base_addr;
 	EL3WINDOW(1);
     printk(KERN_INFO "  irq status %04x, rx status %04x, tx status "
 		   "%02x, tx free %04x\n", inw(ioaddr+EL3_STATUS),
@@ -747,7 +755,7 @@ static void wait_for_completion(struct net_device *dev, int cmd)
 /* Read a word from the EEPROM using the regular EEPROM access register.
    Assume that we are in register window zero.
  */
-static ushort read_eeprom(int ioaddr, int index)
+static u_short read_eeprom(ioaddr_t ioaddr, int index)
 {
 	int timer;
 	outw(EEPROM_Read + index, ioaddr + Wn0EepromCmd);
@@ -775,7 +783,7 @@ static ushort read_eeprom(int ioaddr, int index)
 
 /* Generate the preamble required for initial synchronization and
    a few older transceivers. */
-static void mdio_sync(int ioaddr, int bits)
+static void mdio_sync(ioaddr_t ioaddr, int bits)
 {
 	int mdio_addr = ioaddr + Wn4_PhysicalMgmt;
 
@@ -786,7 +794,7 @@ static void mdio_sync(int ioaddr, int bits)
 	}
 }
 
-static int mdio_read(int ioaddr, int phy_id, int location)
+static int mdio_read(ioaddr_t ioaddr, int phy_id, int location)
 {
 	int i;
 	int read_cmd = (0xf6 << 10) | (phy_id << 5) | location;
@@ -811,7 +819,7 @@ static int mdio_read(int ioaddr, int phy_id, int location)
 	return (retval>>1) & 0xffff;
 }
 
-static void mdio_write(int ioaddr, int phy_id, int location, int value)
+static void mdio_write(ioaddr_t ioaddr, int phy_id, int location, int value)
 {
 	int write_cmd = 0x50020000 | (phy_id << 23) | (location << 18) | value;
 	int mdio_addr = ioaddr + Wn4_PhysicalMgmt;
@@ -842,7 +850,8 @@ static void tc574_reset(struct net_device *dev)
 	int i, ioaddr = dev->base_addr;
 
 	wait_for_completion(dev, TotalReset|0x10);
- 
+
+#ifdef BROKEN_FEATURES
 	/* Set the PIO ctrl bits in the PC card LAN COR using Runner window 1. */
 	if (dev->mem_start || no_wait) {
 		u8 lan_cor;
@@ -854,6 +863,7 @@ static void tc574_reset(struct net_device *dev)
 			lan_cor |= 0x20;
 		outw(lan_cor, ioaddr);
 	}
+#endif
 	/* Clear any transactions in progress. */
 	outw(0, ioaddr + RunnerWrCtrl);
 	outw(0, ioaddr + RunnerRdCtrl);
@@ -865,11 +875,9 @@ static void tc574_reset(struct net_device *dev)
 	for (; i < 12; i+=2)
 		outw(0, ioaddr + i);
 
-	/* Set the full-duplex bit. */
-	EL3WINDOW(3);
-	outb((full_duplex ? 0x20 : 0) |
-		 (dev->mtu > 1500 ? 0x40 : 0), ioaddr + Wn3_MAC_Ctrl);
 	/* Reset config options */
+	EL3WINDOW(3);
+	outb((dev->mtu > 1500 ? 0x40 : 0), ioaddr + Wn3_MAC_Ctrl);
 	outl((lp->autoselect ? 0x01000000 : 0) | 0x0062001b,
 		 ioaddr + Wn3_Config);
 	
@@ -944,7 +952,7 @@ static int el3_open(struct net_device *dev)
 static void el3_tx_timeout(struct net_device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
-	int ioaddr = dev->base_addr;
+	ioaddr_t ioaddr = dev->base_addr;
 	
 	printk(KERN_NOTICE "%s: Transmit timed out!\n", dev->name);
 	dump_status(dev);
@@ -959,7 +967,7 @@ static void el3_tx_timeout(struct net_device *dev)
 static void pop_tx_status(struct net_device *dev)
 {
     struct el3_private *lp = (struct el3_private *)dev->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     int i;
     
     /* Clear the Tx status stack. */
@@ -981,8 +989,10 @@ static void pop_tx_status(struct net_device *dev)
 
 static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	int ioaddr = dev->base_addr;
+	ioaddr_t ioaddr = dev->base_addr;
+#ifdef BROKEN_FEATURES
 	long flags = 0;
+#endif
 
 	/* Transmitter timeout, serious problems. */
 	if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
@@ -995,6 +1005,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		  "status %4.4x.\n", dev->name, (long)skb->len,
 		  inw(ioaddr + EL3_STATUS));
 
+#ifdef BROKEN_FEATURES
 	if (use_fifo_buffer) {
 		/* Avoid other accesses to the chip while RunnerWrCtrl is non-zero. */
 		save_flags(flags);
@@ -1022,7 +1033,12 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			  inw(ioaddr + TxFree));
 		restore_flags(flags);
 	}
-	
+#else
+	outw(skb->len, ioaddr + TX_FIFO);
+	outw(0, ioaddr + TX_FIFO);
+	outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
+#endif
+
 	dev->trans_start = jiffies;
 
 	/* TxFree appears only in Window 1, not offset 0x1c. */
@@ -1044,7 +1060,7 @@ static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct el3_private *lp;
-	int ioaddr, status;
+	ioaddr_t ioaddr, status;
 	int work_budget = max_interrupt_work;
 
 	if ((dev == NULL) || !dev->start)
@@ -1114,8 +1130,8 @@ static void el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		}
 
 		if (--work_budget < 0) {
-			printk(KERN_NOTICE "%s: Too much work in interrupt, "
-				   "status %4.4x.\n", dev->name, status);
+			DEBUG(0, "%s: Too much work in interrupt, "
+				  "status %4.4x.\n", dev->name, status);
 			/* Clear all interrupts */
 			outw(AckIntr | 0xFF, ioaddr + EL3_CMD);
 			break;
@@ -1141,7 +1157,7 @@ static void media_check(u_long arg)
 {
     struct net_device *dev = (struct net_device *)(arg);
     struct el3_private *lp = (struct el3_private *)dev->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     u_long flags;
 	u_short /* cable, */ media, partner;
 	
@@ -1187,11 +1203,13 @@ static void media_check(u_long arg)
 			printk(KERN_INFO "%s: %s link beat\n", dev->name,
 				   (lp->media_status & 0x0004) ? "lost" : "found");
 		if ((media ^ lp->media_status) & 0x0020) {
+			lp->partner = 0;
 			if (lp->media_status & 0x0020) {
 				printk(KERN_INFO "%s: autonegotiation restarted\n",
 					   dev->name);
 			} else if (partner) {
 				partner &= lp->advertising;
+				lp->partner = partner;
 				printk(KERN_INFO "%s: autonegotiation complete: "
 					   "%sbaseT-%cD selected\n", dev->name,
 					   ((partner & 0x0180) ? "100" : "10"),
@@ -1200,6 +1218,12 @@ static void media_check(u_long arg)
 				printk(KERN_INFO "%s: link partner did not autonegotiate\n",
 					   dev->name);
 			}
+
+			EL3WINDOW(3);
+			outb((partner & 0x0140 ? 0x20 : 0) |
+				 (dev->mtu > 1500 ? 0x40 : 0), ioaddr + Wn3_MAC_Ctrl);
+			EL3WINDOW(1);
+
 		}
 		if (media & 0x0010)
 			printk(KERN_INFO "%s: remote fault detected\n",
@@ -1227,7 +1251,7 @@ static struct net_device_stats *el3_get_stats(struct net_device *dev)
 	Suprisingly this need not be run single-threaded, but it effectively is.
 	The counters clear when read, so the adds must merely be atomic.
  */
-static void update_stats(int ioaddr, struct net_device *dev)
+static void update_stats(ioaddr_t ioaddr, struct net_device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
 	u8 upper_cnt;
@@ -1269,7 +1293,7 @@ static void update_stats(int ioaddr, struct net_device *dev)
 static int el3_rx(struct net_device *dev, int worklimit)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
-	int ioaddr = dev->base_addr;
+	ioaddr_t ioaddr = dev->base_addr;
 	short rx_status;
 	
 	DEBUG(3, "%s: in rx_packet(), status %4.4x, rx_status %4.4x.\n",
@@ -1299,12 +1323,12 @@ static int el3_rx(struct net_device *dev, int worklimit)
 				skb->dev = dev;
 				skb_reserve(skb, 2);
 
+#ifdef BROKEN_FEATURES
 				if (use_fifo_buffer) {
 					outw(((pkt_len+3)>>2)<<1, ioaddr + RunnerRdCtrl);
 					DEBUG(0,"Start Rx %x -- RunnerRdCtrl is %4.4x.\n",
 						  pkt_len, inw(ioaddr + RunnerRdCtrl));
 				}
-				
 				if (dev->mem_start) {
 					copy_from_pc(skb_put(skb, pkt_len),
 								 (void*)dev->mem_start, (pkt_len+3)&~3);
@@ -1312,7 +1336,6 @@ static int el3_rx(struct net_device *dev, int worklimit)
 					insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
 							((pkt_len+3)>>2));
 				}
-
 				if (use_fifo_buffer) {
 					DEBUG(0," RunnerRdCtrl is now %4.4x.\n",
 						  inw(ioaddr + RunnerRdCtrl));
@@ -1320,7 +1343,11 @@ static int el3_rx(struct net_device *dev, int worklimit)
 					DEBUG(0, " Rx packet with data %2.2x:%2.2x:%2.2x\n",
 						  skb->head[0], skb->head[1], skb->head[2]);
 				}
-				
+#else
+				insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
+						((pkt_len+3)>>2));
+#endif
+
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
 				lp->stats.rx_packets++;
@@ -1341,7 +1368,7 @@ static int el3_rx(struct net_device *dev, int worklimit)
 static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct el3_private *vp = (struct el3_private *)dev->priv;
-	int ioaddr = dev->base_addr;
+	ioaddr_t ioaddr = dev->base_addr;
 	u16 *data = (u16 *)&rq->ifr_data;
 	int phy = vp->phys[0] & 0x1f;
 
@@ -1398,7 +1425,7 @@ static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static void set_rx_mode(struct net_device *dev)
 {
-	int ioaddr = dev->base_addr;
+	ioaddr_t ioaddr = dev->base_addr;
 
 	if (dev->flags & IFF_PROMISC)
 		outw(SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm,
@@ -1411,7 +1438,7 @@ static void set_rx_mode(struct net_device *dev)
 
 static int el3_close(struct net_device *dev)
 {
-	int ioaddr = dev->base_addr;
+	ioaddr_t ioaddr = dev->base_addr;
 	dev_link_t *link;
 
 	for (link = dev_list; link; link = link->next)

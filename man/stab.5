@@ -1,12 +1,13 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" stab.5 1.8 1998/05/04 23:28:23
+.\" stab.5 1.9 1999/10/13 23:38:57
 .\"
-.TH STAB 5 "1998/05/04 23:28:23" "pcmcia-cs"
+.TH STAB 5 "1999/10/13 23:38:57" "pcmcia-cs"
 .SH NAME
-stab \- Current PCMCIA device status
+stab \- Current PCMCIA socket status
 .SH DESCRIPTION
-.I /var/run/stab
-is created by
+The
+.I stab
+file is created by
 .B cardmgr
 and contains identification and device driver information for PCMCIA
 cards.  Each socket is described by one header line, followed by one
@@ -31,6 +32,15 @@ whenever a card is inserted or ejected, and when
 receives a
 .B SIGHUP
 signal.
+.PP
+The
+.I stab
+file will normally be created in either
+.I /var/state/pcmcia
+or
+.IR /var/lib/pcmcia ,
+but if neither directory is available, it will be found in
+.IR /var/run .
 .SH AUTHOR
 David Hinds \- dhinds@hyper.stanford.edu
 .SH "SEE ALSO"

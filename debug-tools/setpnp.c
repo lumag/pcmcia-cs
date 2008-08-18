@@ -2,7 +2,7 @@
 
     A utility for reconfiguring PnP BIOS devices
 
-    setpnp.c 1.4 1999/09/28 04:05:19
+    setpnp.c 1.5 1999/10/19 20:34:20
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -237,7 +237,7 @@ static int parse_resources(char *argv[], int argc,
 	for (j = 0; j < NRSRC; j++)
 	    if (strcmp(rsrc_type[j], argv[i]) == 0) break;
 	if (j == NRSRC) {
-	    fprintf(stderr, "bad resource type\n");
+	    fprintf(stderr, "bad resource type: '%s'\n", argv[i]);
 	    return EXIT_FAILURE;
 	}
 	s = strtok(argv[i+1], ", \t");
@@ -245,7 +245,7 @@ static int parse_resources(char *argv[], int argc,
 	    base = strtoul(s, &t, 0);
 	    len = ((*t == '-') ? strtoul(t+1, &t, 0)-base+1 : 1);
 	    if ((*s == '\0') || (*t != '\0')) {
-		fprintf(stderr, "bad resource argument\n");
+		fprintf(stderr, "bad resource argument: '%s'\n", t);
 		return EXIT_FAILURE;
 	    }
 	    res->base[j][res->nr[j]] = base;
@@ -291,11 +291,14 @@ int main(int argc, char *argv[])
 
     /* Special commands */
     if (argc == optind+1) {
-	if (strcmp(argv[optind], "off") == 0)
+	if (strcmp(argv[optind], "off") == 0) {
 	    res.nr[0] = res.nr[1] = res.nr[2] = res.nr[3] = 7;
-	else if (strcmp(argv[optind], "on") == 0)
+	    optind++;
+	} else if (strcmp(argv[optind], "on") == 0) {
 	    return reset_resources(i);
-	optind++;
+	} else {
+	    usage(argv[0]);
+	}
     } else if (argc == optind)
 	usage(argv[0]);
     

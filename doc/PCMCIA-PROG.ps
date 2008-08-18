@@ -8,7 +8,7 @@
 %DVIPSWebPage: (www.radicaleye.com)
 %DVIPSCommandLine: dvips -t letter PCMCIA-PROG.dvi -o PCMCIA-PROG.ps
 %DVIPSParameters: dpi=600, compressed
-%DVIPSSource:  TeX output 1999.09.10:0943
+%DVIPSSource:  TeX output 1999.10.20:1903
 %%BeginProcSet: texc.pro
 %!
 /TeXDict 300 dict def TeXDict begin/N{def}def/B{bind def}N/S{exch}N/X{S
@@ -1639,10 +1639,10 @@ letter
 y(X)h(L)398 145 y Fl(A)435 162 y Fm(T)481 180 y(E)527
 162 y(X)0 353 y Fk(Linux)54 b(PCMCIA)f(Programmer's)g(Guide)p
 0 467 3900 24 v 0 580 a Fm(Da)n(vid)27 b(Hinds,)h Fj(dhinds@hyper.sta)o
-(nfo)o(rd)o(.e)o(du)p Fm(.)1348 b(v2.16,)26 b(10)g(Septem)n(b)r(er)i
-(1999)0 886 y Fi(This)34 b(do)r(cument)f(describ)r(es)g(ho)n(w)g(to)g
-(write)g(k)n(ernel)g(device)h(drivers)g(fo)n(r)f(the)h(Linux)g(PCMCIA)f
-(Ca)n(rd)h(Services)g(interface.)55 b(It)0 1000 y(also)28
+(nfo)o(rd)o(.e)o(du)p Fm(.)1438 b(v2.17,)26 b(21)g(Octob)r(er)h(1999)0
+886 y Fi(This)34 b(do)r(cument)f(describ)r(es)g(ho)n(w)g(to)g(write)g
+(k)n(ernel)g(device)h(drivers)g(fo)n(r)f(the)h(Linux)g(PCMCIA)f(Ca)n
+(rd)h(Services)g(interface.)55 b(It)0 1000 y(also)28
 b(describ)r(es)h(ho)n(w)f(to)h(write)g(user-mo)r(de)g(utilities)f(fo)n
 (r)h(communicating)e(with)i(Ca)n(rd)g(Services.)42 b(The)30
 b(latest)e(version)h(of)g(this)0 1113 y(do)r(cument)g(can)g(alw)n(a)n
@@ -3073,95 +3073,103 @@ b(Services)f(Subfunction)g(Descriptions)2008 b Fm(24)0
 (card)e(memory)i(in)n(to)f(the)h(host)0 485 y(system)24
 b(address)e(space.)35 b(A)24 b(PC)g(Card)f(device)h(can)f(address)g(at)
 h(most)f(16MB)g(of)h(b)r(oth)g(common)f(and)h(attribute)g(memory)-7
-b(.)0 599 y(Windo)n(ws)25 b(should)f(t)n(ypically)h(b)r(e)g(sized)g(to)
-g(a)g(p)r(o)n(w)n(er)f(of)h(t)n(w)n(o,)g(and)f(b)r(e)i(aligned)e(on)h
-(a)g(b)r(oundary)f(that)h(is)g(a)g(m)n(ultiple)h(of)f(the)0
-712 y(windo)n(w)i(size)g(in)h(b)r(oth)g(the)g(host)f(and)h(card)e
-(address)h(spaces.)0 869 y(A)e(memory)f(windo)n(w)g(is)h(initialized)g
-(b)n(y)f(a)g(call)h(to)f Fh(RequestWindow)p Fm(.)31 b(Some)24
-b(windo)n(w)g(attributes)h(can)f(b)r(e)h(mo)r(di\034ed)g(using)0
-983 y Fh(ModifyWindow)p Fm(.)k(The)20 b(segmen)n(t)f(of)h(card)e
-(memory)h(mapp)r(ed)h(to)g(the)g(windo)n(w)f(can)g(b)r(e)h(mo)r
-(di\034ed)g(using)f Fh(MapMemPage)p Fm(.)31 b(And)0 1096
-y(windo)n(ws)24 b(are)g(released)g(with)i Fh(ReleaseWindow)p
-Fm(.)k(Unlik)n(e)25 b(almost)g(all)g(other)f(Card)h(Services)f
-(subfunctions,)h(the)h(memory)0 1210 y(windo)n(w)h(functions)h
-(normally)e(act)i(on)f Fh(window_handle_t)21 b Fm(handles,)27
-b(rather)g(than)h Fh(client_handle_t)21 b Fm(handles.)0
-1482 y Ff(3.5.1)94 b(RequestWindo)m(w)208 1672 y Fd(int)39
-b(CardServices\(RequestWindow,)46 b(client_handle_t)c(*handle,)f
-(win_req_t)g(*req\);)0 1907 y Fm(The)28 b Fh(win_req_t)23
-b Fm(structure)k(is)h(giv)n(en)f(b)n(y:)208 2116 y Fd(typedef)40
-b(struct)h(win_req_t)g({)521 2220 y(u_int)433 b(Attributes;)521
-2325 y(u_long)394 b(Base;)521 2429 y(u_int)433 b(Size;)521
-2533 y(u_int)g(AccessSpeed;)208 2637 y(})39 b(win_req_t;)0
-2856 y Fh(RequestWindow)32 b Fm(maps)k(a)h(windo)n(w)g(of)g(card)f
-(memory)g(in)n(to)h(system)g(memory)-7 b(.)65 b(On)36
-b(en)n(try)-7 b(,)39 b(the)f Fh(handle)d Fm(parameter)0
-2970 y(should)c(p)r(oin)n(t)g(to)g(a)f(v)-5 b(alid)31
-b(clien)n(t)g(handle.)47 b(On)31 b(return,)g(this)g(will)h(b)r(e)f
-(replaced)f(b)n(y)h(a)f Fh(window_handle_t)25 b Fm(handle)31
-b(that)0 3083 y(should)c(b)r(e)h(used)g(in)g(subsequen)n(t)f(calls)g
-(to)g Fh(ModifyWindow)p Fm(,)c Fh(MapMemPage)p Fm(,)g(and)28
-b Fh(ReleaseWindow)p Fm(.)0 3240 y(The)g(follo)n(wing)e(\035ags)h(can)g
-(b)r(e)h(sp)r(eci\034ed)g(in)f Fh(Attributes)p Fm(:)0
-3459 y Fh(WIN_MEMORY_TYPE)208 3605 y Fm(This)33 b(\034eld)h(can)f(b)r
-(e)h(either)f Fh(WIN_MEMORY_TYPE_)o(CM)27 b Fm(for)33
-b(common)g(memory)-7 b(,)34 b(or)f Fh(WIN_MEMORY_TYPE)o(_A)o(M)28
-b Fm(for)33 b(at-)208 3719 y(tribute)27 b(memory)-7 b(.)0
-3897 y Fh(WIN_DATA_WIDTH)208 4043 y Fm(Either)28 b Fh(WIN_DATA_WIDTH_)o
-(16)21 b Fm(for)27 b(16-bit)g(accesses,)f(or)h Fh(WIN_DATA_WIDTH_)o(8)
-21 b Fm(for)27 b(8-bit)h(access.)0 4221 y Fh(WIN_ENABLE)208
-4367 y Fm(If)g(this)f(is)h(set,)g(the)f(windo)n(w)g(is)h(turned)g(on.)0
-4545 y Fh(WIN_USE_WAIT)208 4691 y Fm(Sp)r(eci\034es)f(that)h(the)g(con)
-n(troller)e(should)h(observ)n(e)f(the)i(card's)e(MW)-9
-b(AIT)28 b(signal.)0 4910 y Fh(Base)21 b Fm(sp)r(eci\034es)h(the)h
-(base)e(ph)n(ysical)h(address)f(of)h(the)g(windo)n(w)g(in)h(system)f
-(memory)-7 b(.)34 b(If)23 b(zero,)f(Card)g(Services)f(will)h(set)h
-Fh(Base)0 5024 y Fm(to)32 b(the)h(\034rst)g(a)n(v)-5
-b(ailable)31 b(windo)n(w)h(address.)50 b Fh(Size)31 b
-Fm(sp)r(eci\034es)i(the)g(windo)n(w)f(size)g(in)h(b)n(ytes.)51
-b(If)33 b(zero,)g(Card)e(Services)h(will)0 5137 y(set)e
-Fh(Size)f Fm(to)i(the)f(smallest)g(windo)n(w)g(size)g(supp)r(orted)g(b)
-n(y)h(the)f(host)h(con)n(troller.)43 b Fh(AccessSpeed)26
-b Fm(sp)r(eci\034es)k(the)h(memory)0 5251 y(access)26
-b(sp)r(eed,)i(in)g(nanoseconds.)0 5407 y(Return)g(co)r(des:)p
+b(.)0 599 y(Windo)n(ws)30 b(should)g(t)n(ypically)g(b)r(e)g(sized)g(to)
+h(a)f(p)r(o)n(w)n(er)f(of)h(t)n(w)n(o.)44 b(Dep)r(ending)31
+b(on)f(so)r(c)n(k)n(et)f(capabilities,)i(they)f(ma)n(y)g(need)g(to)0
+712 y(b)r(e)e(aligned)f(on)g(a)g(b)r(oundary)g(that)h(is)f(a)h(m)n
+(ultiple)g(of)f(the)h(windo)n(w)f(size)g(in)h(b)r(oth)g(the)g(host)f
+(and)h(card)e(address)h(spaces.)0 869 y(A)e(memory)f(windo)n(w)g(is)h
+(initialized)g(b)n(y)f(a)g(call)h(to)f Fh(RequestWindow)p
+Fm(.)31 b(Some)24 b(windo)n(w)g(attributes)h(can)f(b)r(e)h(mo)r
+(di\034ed)g(using)0 983 y Fh(ModifyWindow)p Fm(.)k(The)20
+b(segmen)n(t)f(of)h(card)e(memory)h(mapp)r(ed)h(to)g(the)g(windo)n(w)f
+(can)g(b)r(e)h(mo)r(di\034ed)g(using)f Fh(MapMemPage)p
+Fm(.)31 b(And)0 1096 y(windo)n(ws)24 b(are)g(released)g(with)i
+Fh(ReleaseWindow)p Fm(.)k(Unlik)n(e)25 b(almost)g(all)g(other)f(Card)h
+(Services)f(subfunctions,)h(the)h(memory)0 1210 y(windo)n(w)h
+(functions)h(normally)e(act)i(on)f Fh(window_handle_t)21
+b Fm(handles,)27 b(rather)g(than)h Fh(client_handle_t)21
+b Fm(handles.)0 1480 y Ff(3.5.1)94 b(RequestWindo)m(w)208
+1669 y Fd(int)39 b(CardServices\(RequestWindow,)46 b(client_handle_t)c
+(*handle,)f(win_req_t)g(*req\);)0 1898 y Fm(The)28 b
+Fh(win_req_t)23 b Fm(structure)k(is)h(giv)n(en)f(b)n(y:)208
+2102 y Fd(typedef)40 b(struct)h(win_req_t)g({)521 2206
+y(u_int)433 b(Attributes;)521 2310 y(u_long)394 b(Base;)521
+2415 y(u_int)433 b(Size;)521 2519 y(u_int)g(AccessSpeed;)208
+2623 y(})39 b(win_req_t;)0 2837 y Fh(RequestWindow)32
+b Fm(maps)k(a)h(windo)n(w)g(of)g(card)f(memory)g(in)n(to)h(system)g
+(memory)-7 b(.)65 b(On)36 b(en)n(try)-7 b(,)39 b(the)f
+Fh(handle)d Fm(parameter)0 2950 y(should)c(p)r(oin)n(t)g(to)g(a)f(v)-5
+b(alid)31 b(clien)n(t)g(handle.)47 b(On)31 b(return,)g(this)g(will)h(b)
+r(e)f(replaced)f(b)n(y)h(a)f Fh(window_handle_t)25 b
+Fm(handle)31 b(that)0 3064 y(should)c(b)r(e)h(used)g(in)g(subsequen)n
+(t)f(calls)g(to)g Fh(ModifyWindow)p Fm(,)c Fh(MapMemPage)p
+Fm(,)g(and)28 b Fh(ReleaseWindow)p Fm(.)0 3220 y(The)g(follo)n(wing)e
+(\035ags)h(can)g(b)r(e)h(sp)r(eci\034ed)g(in)f Fh(Attributes)p
+Fm(:)0 3435 y Fh(WIN_MEMORY_TYPE)208 3579 y Fm(This)33
+b(\034eld)h(can)f(b)r(e)h(either)f Fh(WIN_MEMORY_TYPE_)o(CM)27
+b Fm(for)33 b(common)g(memory)-7 b(,)34 b(or)f Fh(WIN_MEMORY_TYPE)o(_A)
+o(M)28 b Fm(for)33 b(at-)208 3693 y(tribute)27 b(memory)-7
+b(.)0 3868 y Fh(WIN_DATA_WIDTH)208 4013 y Fm(Either)28
+b Fh(WIN_DATA_WIDTH_)o(16)21 b Fm(for)27 b(16-bit)g(accesses,)f(or)h
+Fh(WIN_DATA_WIDTH_)o(8)21 b Fm(for)27 b(8-bit)h(access.)0
+4188 y Fh(WIN_ENABLE)208 4333 y Fm(If)g(this)f(is)h(set,)g(the)f(windo)
+n(w)g(is)h(turned)g(on.)0 4509 y Fh(WIN_USE_WAIT)208
+4653 y Fm(Sp)r(eci\034es)f(that)h(the)g(con)n(troller)e(should)h
+(observ)n(e)f(the)i(card's)e(MW)-9 b(AIT)28 b(signal.)0
+4829 y Fh(WIN_MAP_BELOW_1M)o(B)208 4973 y Fm(Requests)e(that)g(the)h
+(windo)n(w)f(b)r(e)g(mapp)r(ed)h(b)r(elo)n(w)f(the)h(1MB)f(address)f(b)
+r(oundary)-7 b(.)35 b(This)27 b(ma)n(y)e(not)i(b)r(e)f(p)r(ossible)g
+(on)208 5087 y(some)h(platforms.)0 5263 y Fh(WIN_STRICT_ALIGN)208
+5407 y Fm(Requests)g(that)h(the)g(windo)n(w)f(base)g(b)r(e)g(aligned)g
+(to)h(a)f(m)n(ultiple)h(of)g(the)g(windo)n(w)f(size.)p
 eop
 %%Page: 25 25
 25 24 bop 0 -167 3900 5 v 0 -200 a Ff(3.)73 b(Card)33
 b(Services)f(Subfunction)g(Descriptions)2008 b Fm(25)0
-162 y Fh(CS_BAD_HANDLE)208 308 y Fm(The)27 b(clien)n(t)h(handle)f(is)h
-(in)n(v)-5 b(alid.)0 488 y Fh(CS_NO_CARD)208 635 y Fm(The)27
-b(so)r(c)n(k)n(et)g(assigned)f(to)h(this)h(clien)n(t)g(is)f(curren)n
-(tly)g(v)-5 b(acan)n(t.)0 815 y Fh(CS_BAD_ATTRIBUTE)208
-962 y Fm(An)28 b(unsupp)r(orted)f(windo)n(w)g(attribute)h(w)n(as)e
-(requested.)0 1142 y Fh(CS_OUT_OF_RESOUR)o(CE)208 1289
-y Fm(The)h(maxim)n(um)h(n)n(um)n(b)r(er)f(of)g(memory)g(windo)n(ws)g
-(for)g(this)h(so)r(c)n(k)n(et)e(are)h(already)f(b)r(eing)h(used.)0
-1469 y Fh(CS_IN_USE)208 1616 y(RequestWindow)22 b Fm(w)n(as)k(unable)i
-(to)f(\034nd)h(a)f(free)h(windo)n(w)f(of)g(system)g(memory)-7
-b(.)0 1888 y Ff(3.5.2)94 b(Mo)s(difyWindo)m(w)208 2079
-y Fd(int)39 b(CardServices\(ModifyWindow,)45 b(window_handle_t)e
-(handle,)e(modwin_t)g(*mod\);)0 2319 y Fm(The)28 b Fh(modwin_t)c
-Fm(structure)j(is)g(giv)n(en)g(b)n(y:)208 2532 y Fd(typedef)40
-b(struct)h(modwin_t)g({)521 2636 y(u_int)433 b(Attributes;)521
-2740 y(u_int)g(AccessSpeed;)208 2844 y(})39 b(modwin_t;)0
-3067 y Fh(ModifyWindow)28 b Fm(mo)r(di\034es)k(the)h(attributes)f(of)h
-(a)f(windo)n(w)g(handle)g(returned)g(b)n(y)g(a)h(previous)e(call)h(to)g
-Fh(RequestWindow)p Fm(.)0 3181 y(The)c(follo)n(wing)e(attributes)h(can)
-h(b)r(e)g(c)n(hanged:)0 3404 y Fh(WIN_MEMORY_TYPE)208
-3550 y Fm(This)33 b(\034eld)h(can)f(b)r(e)h(either)f
-Fh(WIN_MEMORY_TYPE_)o(CM)27 b Fm(for)33 b(common)g(memory)-7
-b(,)34 b(or)f Fh(WIN_MEMORY_TYPE)o(_A)o(M)28 b Fm(for)33
-b(at-)208 3664 y(tribute)27 b(memory)-7 b(.)0 3844 y
-Fh(WIN_DATA_WIDTH)208 3991 y Fm(Either)28 b Fh(WIN_DATA_WIDTH_)o(16)21
-b Fm(for)27 b(16-bit)g(accesses,)f(or)h Fh(WIN_DATA_WIDTH_)o(8)21
-b Fm(for)27 b(8-bit)h(access.)0 4171 y Fh(WIN_ENABLE)208
-4318 y Fm(If)g(this)f(is)h(set,)g(the)f(windo)n(w)g(is)h(turned)g(on.)0
-4540 y Fh(AccessSpeed)23 b Fm(giv)n(es)j(the)i(new)g(memory)f(access)f
-(sp)r(eed,)i(in)g(nanoseconds.)0 4697 y(Return)g(co)r(des:)0
-4920 y Fh(CS_BAD_HANDLE)208 5067 y Fm(The)f(windo)n(w)g(handle)h(is)f
-(in)n(v)-5 b(alid.)p eop
+162 y Fh(Base)21 b Fm(sp)r(eci\034es)h(the)h(base)e(ph)n(ysical)h
+(address)f(of)h(the)g(windo)n(w)g(in)h(system)f(memory)-7
+b(.)34 b(If)23 b(zero,)f(Card)g(Services)f(will)h(set)h
+Fh(Base)0 275 y Fm(to)32 b(the)h(\034rst)g(a)n(v)-5 b(ailable)31
+b(windo)n(w)h(address.)50 b Fh(Size)31 b Fm(sp)r(eci\034es)i(the)g
+(windo)n(w)f(size)g(in)h(b)n(ytes.)51 b(If)33 b(zero,)g(Card)e
+(Services)h(will)0 389 y(set)e Fh(Size)f Fm(to)i(the)f(smallest)g
+(windo)n(w)g(size)g(supp)r(orted)g(b)n(y)h(the)f(host)h(con)n(troller.)
+43 b Fh(AccessSpeed)26 b Fm(sp)r(eci\034es)k(the)h(memory)0
+502 y(access)26 b(sp)r(eed,)i(in)g(nanoseconds.)0 659
+y(Return)g(co)r(des:)0 852 y Fh(CS_BAD_HANDLE)208 992
+y Fm(The)f(clien)n(t)h(handle)f(is)h(in)n(v)-5 b(alid.)0
+1157 y Fh(CS_NO_CARD)208 1297 y Fm(The)27 b(so)r(c)n(k)n(et)g(assigned)
+f(to)h(this)h(clien)n(t)g(is)f(curren)n(tly)g(v)-5 b(acan)n(t.)0
+1462 y Fh(CS_BAD_ATTRIBUTE)208 1602 y Fm(An)28 b(unsupp)r(orted)f
+(windo)n(w)g(attribute)h(w)n(as)e(requested.)0 1767 y
+Fh(CS_OUT_OF_RESOUR)o(CE)208 1906 y Fm(The)h(maxim)n(um)h(n)n(um)n(b)r
+(er)f(of)g(memory)g(windo)n(ws)g(for)g(this)h(so)r(c)n(k)n(et)e(are)h
+(already)f(b)r(eing)h(used.)0 2072 y Fh(CS_IN_USE)208
+2211 y(RequestWindow)22 b Fm(w)n(as)k(unable)i(to)f(\034nd)h(a)f(free)h
+(windo)n(w)f(of)g(system)g(memory)-7 b(.)0 2478 y Ff(3.5.2)94
+b(Mo)s(difyWindo)m(w)208 2661 y Fd(int)39 b
+(CardServices\(ModifyWindow,)45 b(window_handle_t)e(handle,)e(modwin_t)
+g(*mod\);)0 2864 y Fm(The)28 b Fh(modwin_t)c Fm(structure)j(is)g(giv)n
+(en)g(b)n(y:)208 3048 y Fd(typedef)40 b(struct)h(modwin_t)g({)521
+3152 y(u_int)433 b(Attributes;)521 3256 y(u_int)g(AccessSpeed;)208
+3361 y(})39 b(modwin_t;)0 3554 y Fh(ModifyWindow)28 b
+Fm(mo)r(di\034es)k(the)h(attributes)f(of)h(a)f(windo)n(w)g(handle)g
+(returned)g(b)n(y)g(a)h(previous)e(call)h(to)g Fh(RequestWindow)p
+Fm(.)0 3668 y(The)c(follo)n(wing)e(attributes)h(can)h(b)r(e)g(c)n
+(hanged:)0 3861 y Fh(WIN_MEMORY_TYPE)208 4001 y Fm(This)33
+b(\034eld)h(can)f(b)r(e)h(either)f Fh(WIN_MEMORY_TYPE_)o(CM)27
+b Fm(for)33 b(common)g(memory)-7 b(,)34 b(or)f Fh(WIN_MEMORY_TYPE)o(_A)
+o(M)28 b Fm(for)33 b(at-)208 4114 y(tribute)27 b(memory)-7
+b(.)0 4280 y Fh(WIN_DATA_WIDTH)208 4419 y Fm(Either)28
+b Fh(WIN_DATA_WIDTH_)o(16)21 b Fm(for)27 b(16-bit)g(accesses,)f(or)h
+Fh(WIN_DATA_WIDTH_)o(8)21 b Fm(for)27 b(8-bit)h(access.)0
+4585 y Fh(WIN_ENABLE)208 4724 y Fm(If)g(this)f(is)h(set,)g(the)f(windo)
+n(w)g(is)h(turned)g(on.)0 4918 y Fh(AccessSpeed)23 b
+Fm(giv)n(es)j(the)i(new)g(memory)f(access)f(sp)r(eed,)i(in)g
+(nanoseconds.)0 5074 y(Return)g(co)r(des:)0 5268 y Fh(CS_BAD_HANDLE)208
+5407 y Fm(The)f(windo)n(w)g(handle)h(is)f(in)n(v)-5 b(alid.)p
+eop
 %%Page: 26 26
 26 25 bop 0 -167 3900 5 v 0 -200 a Ff(3.)73 b(Card)33
 b(Services)f(Subfunction)g(Descriptions)2008 b Fm(26)0

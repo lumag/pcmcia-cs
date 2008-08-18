@@ -1,3 +1,30 @@
+[20-Oct-99] Version 3.1.2
+-- Minor wavelan & netwave driver update.
+-- Updated Xircom support in tulip_cb, from Doug Ledford.
+-- Added WIN_STRICT_ALIGN option for aligning memory windows, for the
+   nasty ibmtr cards.
+-- Added 3CCFE575CT support to 3c575_cb driver.
+-- Added 'free_ports' option to dummy_cs module, so it can be used to
+   prepare a card for use by a non-PCMCIA-aware driver.
+-- Changed etc/Makefile to prefer to use /etc/modules.conf over
+   /etc/conf.modules.
+-- Moved the stab and pcmcia scheme files: they will go either to
+   /var/state/pcmcia or /var/lib/pcmcia, depending on /var layout.
+-- Added O2Micro OZ6812 bridge info.
+-- Switched on PCI card status irq's in i82365 module, by default.
+-- Changed module Makefiles to use "install", set ownership to root.
+-- Better argument checking for 'setpnp'.
+-- Fixed NFS mount unwinding bug in network script.
+-- Fixed duplex selection and tx/rx byte counts in 3c575_cb driver.
+-- Fixed bug where ifuser skipped the first line of routing info.
+-- Cleaned up data types for IO port addresses.
+-- In 3c574_cs, changed "too much work" to a debugging message, since
+   it is mostly normal and we can't do anything about it.
+-- Fixed PCMCIA shutdown bug affecting sockets with Cardbus cards.
+-- Fixed 3c574_cs to autonegotiate full duplex without help.
+-- Fixed a card status interrupt bug that could cause unhandled PCI
+   interrupts.
+
 [28-Sep-99] Version 3.1.1
 -- A bunch of code tweaks to simplify kernel integration.
 -- Fixed data structure corruption bug in cardmgr config file reload.

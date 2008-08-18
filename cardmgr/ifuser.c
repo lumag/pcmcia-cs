@@ -9,7 +9,7 @@
     The exit code is 0 if any host is using the specified interface,
     and 1 if the interface is not in use (just like fuser).
     
-    ifuser.c 1.12 1999/09/21 03:48:51
+    ifuser.c 1.13 1999/10/11 03:19:13
 
     1998/10/24: Regis "HPReg" Duchesne <regis@via.ecp.fr>
       . Added network names (/etc/networks) management
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
     } while (!feof(f) && !isdigit(s[0]));
     
     tail = &tbl;
-    while (fgets(s, 128, f) != NULL) {
+    do {
 	r = malloc(sizeof(route_t));
 	if (r == NULL) {
 	    fprintf(stderr, "%s: out of memory\n", argv[0]);
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
 	resolv_name(mask, &r->mask);
 	r->match = (strcmp(iface, dev) == 0);
 	*tail = r; tail = &(r->next);
-    }
+    } while (fgets(s, 128, f) != NULL);
     *tail = NULL;
     pclose(f);
 

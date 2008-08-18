@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    smc91c92_cs.c 1.77 1999/09/15 15:33:08
+    smc91c92_cs.c 1.79 1999/10/19 00:38:29
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -28,6 +28,7 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -649,8 +650,8 @@ static void mot_config(dev_link_t *link)
 {
     struct net_device *dev = link->priv;
     struct smc_private *lp = dev->priv;
-    int ioaddr = dev->base_addr;
-    int iouart = link->io.BasePort2;
+    ioaddr_t ioaddr = dev->base_addr;
+    ioaddr_t iouart = link->io.BasePort2;
     
     /* Set UART base address and force map with COR bit 1 */
     writeb(iouart & 0xff,        lp->base + MOT_UART + CISREG_IOBASE_0);
@@ -668,7 +669,7 @@ static void mot_config(dev_link_t *link)
 
 static int mot_setup(dev_link_t *link) {
     struct net_device *dev = link->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     int i, wait, loop;
     unsigned int addr;
 
@@ -776,7 +777,7 @@ static int smc_setup(dev_link_t *link)
 static int osi_config(dev_link_t *link)
 {
     struct net_device *dev = link->priv;
-    static u_short com[4] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
+    static ioaddr_t com[4] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
     int i, j;
     
     link->conf.Attributes |= CONF_ENABLE_SPKR;
@@ -1024,7 +1025,7 @@ static void smc91c92_config(dev_link_t *link)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
     if (rev > 0) {
 	u_long mir, mcr, mii;
-	u_short ioaddr = dev->base_addr;
+	ioaddr_t ioaddr = dev->base_addr;
 	SMC_SELECT_BANK(0);
 	mir = inw(ioaddr + MEMINFO) & 0xff;
 	if (mir == 0xff) mir++;
@@ -1165,8 +1166,8 @@ static int smc91c92_event(event_t event, int priority,
 #ifdef PCMCIA_DEBUG
 static void smc_dump(struct net_device *dev)
 {
-    u_short i, w, save, ioaddr;
-    ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
+    u_short i, w, save;
     save = inw(ioaddr + BANK_SELECT);
     for (w = 0; w < 4; w++) {
 	SMC_SELECT_BANK(w);
@@ -1220,7 +1221,7 @@ static int smc91c92_open(struct net_device *dev)
 
 static int smc91c92_close(struct net_device *dev)
 {
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     dev_link_t *link;
 
     DEBUG(0, "%s: smc91c92_close(), status %4.4x.\n",
@@ -1271,7 +1272,7 @@ static void smc_hardware_send_packet( struct net_device * dev )
 {
     struct smc_private *lp = (struct smc_private *)dev->priv;
     struct sk_buff *skb = lp->saved_skb;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     unsigned char packet_no;
     
     if ( !skb ) {
@@ -1346,7 +1347,7 @@ static void smc_hardware_send_packet( struct net_device * dev )
 static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
     struct smc_private *lp = (struct smc_private *)dev->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     unsigned short num_pages;
     short time_out, ir;
     
@@ -1435,7 +1436,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void smc_tx_err( struct net_device * dev )
 {
     struct smc_private *lp = (struct smc_private *)dev->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     int saved_packet = inw(ioaddr + PNR_ARR) & 0xff;
     int packet_no = inw(ioaddr + FIFO_PORTS) & 0x7f;
     int tx_status;
@@ -1479,7 +1480,7 @@ static void smc_tx_err( struct net_device * dev )
 static void smc_eph_irq(struct net_device *dev)
 {
     struct smc_private *lp = dev->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     unsigned short card_stats, ephs;
     
     SMC_SELECT_BANK(0);
@@ -1514,10 +1515,9 @@ static void smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
     struct net_device *dev = dev_id;
     struct smc_private *lp;
-    int ioaddr;
-    unsigned short saved_bank, saved_pointer;
+    ioaddr_t ioaddr;
+    u_short saved_bank, saved_pointer, mask, status;
     char bogus_cnt = INTR_WORK;		/* Work we are willing to do. */
-    u_short mask, status;
 
     if ((dev == NULL) || !dev->start)
 	return;
@@ -1643,7 +1643,7 @@ irq_done:
 static void smc_rx(struct net_device *dev)
 {
     struct smc_private *lp = (struct smc_private *)dev->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     int rx_status;
     int packet_length;	/* Caution: not frame length, rather words
 			   to transfer from the chip. */
@@ -1776,7 +1776,7 @@ static void fill_multicast_tbl(int count, struct dev_mc_list *addrs,
 
 static void set_rx_mode(struct net_device *dev)
 {
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     unsigned int multicast_table[ 2 ] = { 0, };
     long flags;
     uint16 rx_cfg_setting;
@@ -1841,7 +1841,8 @@ static int s9k_config(struct net_device *dev, struct ifmap *map)
 static void smc_set_xcvr(struct net_device *dev, int if_port)
 {
     struct smc_private *lp = (struct smc_private *)dev->priv;
-    ushort saved_bank, ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
+    u_short saved_bank;
 
     saved_bank = inw(ioaddr + BANK_SELECT);
     SMC_SELECT_BANK(1);
@@ -1863,7 +1864,7 @@ static void smc_set_xcvr(struct net_device *dev, int if_port)
 
 static void smc_reset(struct net_device *dev)
 {
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     struct smc_private *lp = dev->priv;
     int i;
 
@@ -1929,7 +1930,7 @@ static void media_check(u_long arg)
 {
     struct net_device *dev = (struct net_device *)(arg);
     struct smc_private *lp = (struct smc_private *)dev->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     u_short i, media, saved_bank;
 
     if (dev->start == 0) goto reschedule;

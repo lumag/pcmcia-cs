@@ -40,6 +40,7 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -217,7 +218,7 @@ static void netwave_detach(dev_link_t *);    /* Destroy instance */
 static void netwave_flush_stale_links(void);	     /* Destroy all staled instances */
 
 /* Hardware configuration */
-static void netwave_doreset(unsigned long iobase, u_char* ramBase);
+static void netwave_doreset(ioaddr_t iobase, u_char* ramBase);
 static void netwave_reset(struct net_device *dev);
 
 /* Misc device stuff */
@@ -355,7 +356,7 @@ static inline void wait_WOC(unsigned int iobase)
 
 #ifdef WIRELESS_EXT
 static void netwave_snapshot(netwave_private *priv, u_char *ramBase, 
-			     unsigned short iobase) { 
+			     ioaddr_t iobase) { 
     u_short resultBuffer;
 
     /* if time since last snapshot is > 1 sec. (100 jiffies?)  then take 
@@ -388,7 +389,7 @@ static void netwave_snapshot(netwave_private *priv, u_char *ramBase,
 static struct iw_statistics *netwave_get_wireless_stats(struct net_device *dev)
 {	
     unsigned long flags;
-    unsigned short iobase = dev->base_addr;
+    ioaddr_t iobase = dev->base_addr;
     netwave_private *priv = (netwave_private *) dev->priv;
     u_char *ramBase = priv->ramBase;
     struct iw_statistics* wstats;
@@ -641,7 +642,7 @@ static int netwave_ioctl(struct net_device *dev, /* ioctl device */
     unsigned long flags;
     int			ret = 0;
 #ifdef WIRELESS_EXT
-    unsigned short iobase = dev->base_addr;
+    ioaddr_t iobase = dev->base_addr;
     netwave_private *priv = (netwave_private *) dev->priv;
     u_char *ramBase = priv->ramBase;
     struct iwreq *wrq = (struct iwreq *) rq;
@@ -663,8 +664,13 @@ static int netwave_ioctl(struct net_device *dev, /* ioctl device */
 	break;
     case SIOCSIWNWID:
 	/* Set domain */
+#if WIRELESS_EXT > 8
+	if(!wrq->u.nwid.disabled) {
+	    domain = wrq->u.nwid.value;
+#else	/* WIRELESS_EXT > 8 */
 	if(wrq->u.nwid.on) {
 	    domain = wrq->u.nwid.nwid;
+#endif	/* WIRELESS_EXT > 8 */
 	    printk( KERN_DEBUG "Setting domain to 0x%x%02x\n", 
 		    (domain >> 8) & 0x01, domain & 0xff);
 	    wait_WOC(iobase);
@@ -675,9 +681,55 @@ static int netwave_ioctl(struct net_device *dev, /* ioctl device */
 	} break;
     case SIOCGIWNWID:
 	/* Read domain*/
+#if WIRELESS_EXT > 8
+	wrq->u.nwid.value = domain;
+	wrq->u.nwid.disabled = 0;
+	wrq->u.nwid.fixed = 1;
+#else	/* WIRELESS_EXT > 8 */
 	wrq->u.nwid.nwid = domain;
 	wrq->u.nwid.on = 1;
+#endif	/* WIRELESS_EXT > 8 */
 	break;
+#if WIRELESS_EXT > 8	/* Note : The API did change... */
+    case SIOCGIWENCODE:
+	/* Get scramble key */
+	if(wrq->u.encoding.pointer != (caddr_t) 0)
+	  {
+	    char	key[2];
+	    key[1] = scramble_key & 0xff;
+	    key[0] = (scramble_key>>8) & 0xff;
+	    wrq->u.encoding.flags = IW_ENCODE_ENABLED;
+	    wrq->u.encoding.length = 2;
+	    if(copy_to_user(wrq->u.encoding.pointer, key, 2))
+	      ret = -EFAULT;
+	  }
+	break;
+    case SIOCSIWENCODE:
+	/* Set  scramble key */
+	if(wrq->u.encoding.pointer != (caddr_t) 0)
+	  {
+	    char	key[2];
+	    if(copy_from_user(key, wrq->u.encoding.pointer, 2))
+	      {
+		ret = -EFAULT;
+		break;
+	      }
+	    scramble_key = (key[0] << 8) | key[1];
+	    wait_WOC(iobase);
+	    writeb(NETWAVE_CMD_SSK, ramBase + NETWAVE_EREG_CB + 0);
+	    writeb(scramble_key & 0xff, ramBase + NETWAVE_EREG_CB + 1);
+	    writeb((scramble_key>>8) & 0xff, ramBase + NETWAVE_EREG_CB + 2);
+	    writeb(NETWAVE_CMD_EOC, ramBase + NETWAVE_EREG_CB + 3);
+	  }
+	break;
+    case SIOCGIWMODE:
+      /* Mode of operation */
+	if(domain & 0x100)
+	  wrq->u.mode = IW_MODE_INFRA;
+	else
+	  wrq->u.mode = IW_MODE_ADHOC;
+      break;
+#else /* WIRELESS_EXT > 8 */
     case SIOCGIWENCODE:
 	/* Get scramble key */
 	wrq->u.encoding.code = scramble_key;
@@ -692,25 +744,20 @@ static int netwave_ioctl(struct net_device *dev, /* ioctl device */
 	writeb((scramble_key>>8) & 0xff, ramBase + NETWAVE_EREG_CB + 2);
 	writeb(NETWAVE_CMD_EOC, ramBase + NETWAVE_EREG_CB + 3);
 	break;
+#endif /* WIRELESS_EXT > 8 */
    case SIOCGIWRANGE:
        /* Basic checking... */
        if(wrq->u.data.pointer != (caddr_t) 0) {
 	   struct iw_range	range;
 		   
-	   /* Verify the user buffer */
-	   ret = verify_area(VERIFY_WRITE, wrq->u.data.pointer,
-			     sizeof(struct iw_range));
-	   if(ret)
-	       break;
-		   
 	   /* Set the length (useless : its constant...) */
 	   wrq->u.data.length = sizeof(struct iw_range);
 		   
 	   /* Set information in the range struct */
-	   range.throughput = 1.6 * 1024 * 1024;	/* don't argue on this ! */
+	   range.throughput = 450 * 1000;	/* don't argue on this ! */
 	   range.min_nwid = 0x0000;
 	   range.max_nwid = 0x01FF;
-		   
+
 	   range.num_channels = range.num_frequency = 0;
 		   
 	   range.sensitivity = 0x3F;
@@ -718,9 +765,21 @@ static int netwave_ioctl(struct net_device *dev, /* ioctl device */
 	   range.max_qual.level = 255;
 	   range.max_qual.noise = 0;
 		   
+#if WIRELESS_EXT > 7
+	   range.num_bitrates = 1;
+	   range.bitrate[0] = 1000000;	/* 1 Mb/s */
+#endif /* WIRELESS_EXT > 7 */
+
+#if WIRELESS_EXT > 8
+	   range.encoding_size[0] = 2;		/* 16 bits scrambling */
+	   range.num_encoding_sizes = 1;
+	   range.max_encoding_tokens = 1;	/* Only one key possible */
+#endif /* WIRELESS_EXT > 8 */
+
 	   /* Copy structure to the user buffer */
-	   copy_to_user(wrq->u.data.pointer, &range,
-			sizeof(struct iw_range));
+	   if(copy_to_user(wrq->u.data.pointer, &range,
+			sizeof(struct iw_range)))
+	     ret = -EFAULT;
        }
        break;
     case SIOCGIWPRIV:
@@ -733,36 +792,28 @@ static int netwave_ioctl(struct net_device *dev, /* ioctl device */
 		  "getsitesurvey" },
 	    };
 			
-	    /* Verify the user buffer */
-	    ret = verify_area(VERIFY_WRITE, wrq->u.data.pointer,
-			      sizeof(priv));
-	    if(ret)
-		break;
-	    
 	    /* Set the number of ioctl available */
 	    wrq->u.data.length = 1;
 			
 	    /* Copy structure to the user buffer */
-	    copy_to_user(wrq->u.data.pointer, (u_char *) priv,
-			 sizeof(priv));
+	    if(copy_to_user(wrq->u.data.pointer, (u_char *) priv,
+			 sizeof(priv)))
+	      ret = -EFAULT;
 	} 
 	break;
     case SIOCGIPSNAP:
 	if(wrq->u.data.pointer != (caddr_t) 0) {
 	    /* Take snapshot of environment */
 	    netwave_snapshot( priv, ramBase, iobase);
-	    /* Verify the user buffer */
-	    ret = verify_area(VERIFY_WRITE, wrq->u.data.pointer,
-			      sizeof(struct site_survey));
-	    if(ret) {
-		printk(KERN_DEBUG "Bad buffer!\n");
-		break;
-	    }
 	    wrq->u.data.length = priv->nss.length;
 	    /* Copy structure to the user buffer */
-	    copy_to_user(wrq->u.data.pointer, 
+	    if(copy_to_user(wrq->u.data.pointer, 
 			 (u_char *) &priv->nss,
-			 sizeof( struct site_survey));
+			 sizeof( struct site_survey)))
+	      {
+		printk(KERN_DEBUG "Bad buffer!\n");
+		break;
+	      }
 
 	    priv->lastExec = jiffies;
 	}
@@ -1020,7 +1071,7 @@ static int netwave_event(event_t event, int priority,
  *
  *    Proper hardware reset of the card.
  */
-static void netwave_doreset(unsigned long ioBase, u_char* ramBase) {
+static void netwave_doreset(ioaddr_t ioBase, u_char* ramBase) {
     /* Reset card */
     wait_WOC(ioBase);
     outb(0x80, ioBase + NETWAVE_REG_PMR);
@@ -1037,7 +1088,7 @@ static void netwave_reset(struct net_device *dev) {
     /* u_char state; */
     netwave_private *priv = (netwave_private*) dev->priv;
     u_char *ramBase = priv->ramBase;
-    unsigned long iobase = dev->base_addr;
+    ioaddr_t iobase = dev->base_addr;
 
     DEBUG(0, "netwave_reset: Done with hardware reset\n");
 
@@ -1131,7 +1182,7 @@ static int netwave_hw_xmit(unsigned char* data, int len,
 	
     netwave_private *priv = (netwave_private *) dev->priv;
     u_char* ramBase = priv->ramBase;
-    unsigned long iobase = dev->base_addr;
+    ioaddr_t iobase = dev->base_addr;
 	
 	
     /* Disable interrupts & save flags */
@@ -1274,7 +1325,7 @@ static int netwave_start_xmit(struct sk_buff *skb, struct net_device *dev) {
  *	  3. A command has completed execution.
  */
 static void netwave_interrupt(int irq, void* dev_id, struct pt_regs *regs) {
-    unsigned long iobase;
+    ioaddr_t iobase;
     u_char *ramBase;
     struct net_device *dev = (struct net_device *)dev_id;
     struct netwave_private *priv;
@@ -1419,7 +1470,7 @@ static void netwave_interrupt(int irq, void* dev_id, struct pt_regs *regs) {
  */
 static void netwave_watchdog(u_long a) {
     struct net_device *dev;
-    unsigned short iobase;
+    ioaddr_t iobase;
 	
     dev = (struct net_device *) a;
     iobase = dev->base_addr;
@@ -1471,7 +1522,7 @@ static void update_stats(struct net_device *dev) {
 static int netwave_rx(struct net_device *dev) {
     netwave_private *priv = (netwave_private*)(dev->priv);
     u_char *ramBase = priv->ramBase;
-    u_long iobase   = dev->base_addr;
+    ioaddr_t iobase = dev->base_addr;
     u_char rxStatus;
     struct sk_buff *skb = NULL;
     unsigned int curBuffer,
@@ -1651,7 +1702,7 @@ module_exit(exit_netwave_cs);
  */
 static void set_multicast_list(struct net_device *dev)
 {
-    short iobase = dev->base_addr;
+    ioaddr_t iobase = dev->base_addr;
     u_char* ramBase = ((netwave_private*) dev->priv)->ramBase;
     u_char  rcvMode = 0;
    

@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.48 1999/09/06 06:54:39
+    cardctl.c 1.50 1999/10/16 01:19:08
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -64,9 +64,7 @@ static char *configpath = ETC;
 static char *configpath = "/etc/pcmcia";
 #endif
 
-static char *scheme = "/var/run/pcmcia-scheme";
-
-static char *stabfile = "/var/run/stab";
+static char *scheme, *stabfile;
 
 /*====================================================================*/
 
@@ -264,14 +262,14 @@ static void print_config(config_info_t *config)
 
 static void print_windows(int fd)
 {
-    ds_ioctl_arg_t arg;
+    ds_ioctl_arg_t arg1, arg2;
     int ret;
-    win_req_t *win = &arg.win_info.window;
-    memreq_t *req = &arg.win_info.map;
+    win_req_t *win = &arg1.win_info.window;
+    memreq_t *req = &arg2.win_info.map;
     
-    ret = ioctl(fd, DS_GET_FIRST_WINDOW, &arg);
+    ret = ioctl(fd, DS_GET_FIRST_WINDOW, &arg1);
     while (ret == 0) {
-	ioctl(fd, DS_GET_MEM_PAGE, &arg);
+	ioctl(fd, DS_GET_MEM_PAGE, &arg2);
 	printf("  memory 0x%04x-0x%04x @ 0x%08lx",
 	       req->CardOffset, req->CardOffset+win->Size-1,
 	       win->Base);
@@ -289,7 +287,7 @@ static void print_windows(int fd)
 	case WIN_DATA_WIDTH_32:
 	    printf(" [32bit]\n"); break;
 	}
-	ret = ioctl(fd, DS_GET_NEXT_WINDOW, &arg);
+	ret = ioctl(fd, DS_GET_NEXT_WINDOW, &arg1);
     }
 }
 
@@ -439,7 +437,7 @@ static int fetch_stab(void)
     char s[133];
     FILE *f;
 
-    f = fopen("/var/run/stab", "r");
+    f = fopen(stabfile, "r");
     if (f == NULL)
 	return -1;
     for (nstab = 0; fgets(s, 132, f); ) {
@@ -605,6 +603,17 @@ int main(int argc, char *argv[])
     int optch, errflg = 0;
     char *s, *opts = (getuid() == 0) ? "Vc:f:s:" : "V";
 
+    if (access("/var/state/pcmcia", R_OK) == 0) {
+	scheme = "/var/state/pcmcia/scheme";
+	stabfile = "/var/state/pcmcia/stab";
+    } else if (access("/var/lib/pcmcia", R_OK) == 0) {
+	scheme = "/var/lib/pcmcia/scheme";
+	stabfile = "/var/lib/pcmcia/stab";
+    } else {
+	scheme = "/var/run/pcmcia-scheme";
+	stabfile = "/var/run/stab";
+    }
+    
     while ((optch = getopt(argc, argv, opts)) != -1) {
 	switch (optch) {
 	case 'V':

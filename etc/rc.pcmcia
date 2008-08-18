@@ -1,15 +1,21 @@
 #!/bin/sh
 
-# chkconfig: 345 45 96
+# rc.pcmcia 1.29 1999/10/21 02:26:21 (David Hinds)
+#
+# This is designed to work in BSD as well as SysV init setups.  See
+# the HOWTO for customization instructions.
+
+# Tags for Red Hat init configuration tools
+#
+# chkconfig: 2345 45 96
 # processname: cardmgr
 # pidfile: /var/run/cardmgr.pid
 # config: /etc/pcmcia/config
 # config: /etc/pcmcia/config.opts
-
-# rc.pcmcia 1.27 1999/09/27 16:45:01 (David Hinds)
-#
-# This is designed to work in BSD as well as SysV init setups.  See
-# the HOWTO for customization instructions.
+# description: PCMCIA support is usually to support things like ethernet \
+#              and modems in laptops.  It won't get started unless \
+#              configured so it is safe to have it installed on machines \
+#              that don't need it.
 
 usage()
 {
@@ -67,7 +73,16 @@ for x in "1" ; do
 
     start)
 	echo -n "Starting PCMCIA services:"
-	SC=/var/run/pcmcia-scheme
+	if [ -d /var/state/pcmcia ] ; then
+	    SC=/var/state/pcmcia/scheme
+	    STAB=/var/state/pcmcia/stab
+	elif [ -d /var/lib/pcmcia ] ; then
+	    SC=/var/lib/pcmcia/scheme
+	    STAB=/var/lib/pcmcia/stab
+	else
+	    SC=/var/run/pcmcia-scheme
+	    STAB=/var/run/stab
+	fi
 	if [ -L $SC -o ! -O $SC ] ; then rm -f $SC ; fi
 	if [ ! -f $SC ] ; then umask 022 ; touch $SC ; fi
 	if [ "$SCHEME" ] ; then umask 022 ; echo $SCHEME > $SC ; fi
@@ -92,8 +107,8 @@ for x in "1" ; do
 	    kill -0 `cat /var/run/cardmgr.pid` 2>/dev/null ; then
 	    echo " cardmgr is already running."
 	else
-	    if [ -r /var/run/stab ] ; then
-		cat /var/run/stab | cleanup
+	    if [ -r $STAB ] ; then
+		cat $STAB | cleanup
 	    fi
 	    echo " cardmgr."
 	    /sbin/cardmgr $CARDMGR_OPTS

@@ -1,5 +1,5 @@
 /*
- * cs.h 1.67 1999/09/02 18:34:59
+ * cs.h 1.68 1999/10/20 18:59:32
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -292,6 +292,7 @@ typedef struct win_req_t {
 #define WIN_SHARED		0x0040
 #define WIN_FIRST_SHARED	0x0080
 #define WIN_USE_WAIT		0x0100
+#define WIN_STRICT_ALIGN	0x0200
 #define WIN_MAP_BELOW_1MB	0x0400
 #define WIN_PREFETCH		0x0800
 #define WIN_CACHEABLE		0x1000

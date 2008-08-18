@@ -1,12 +1,14 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" dummy_cs.4 1.4 1999/02/08 08:02:00
+.\" dummy_cs.4 1.5 1999/10/18 19:12:40
 .\"
-.TH DUMMY_CS 4 "1999/02/08 08:02:00" "pcmcia-cs"
+.TH DUMMY_CS 4 "1999/10/18 19:12:40" "pcmcia-cs"
 .SH NAME
 dummy_cs \- PCMCIA dummy device driver
 .SH SYNOPSIS
 .B insmod dummy_cs.o
 .RB [ pc_debug=\c
+.IR n ]
+.RB [ free_ports=\c
 .IR n ]
 .RB [ irq_list=\c
 .IR i,j,... ]
@@ -38,6 +40,12 @@ better or worse.
 Selects the PCMCIA debugging level.  This parameter is only available
 if the module is compiled with debugging enabled.  A non-zero value
 enables debugging.
+.TP
+.BI free_ports= n
+A flag indicating if the IO ports allocated for the card should be
+freed from the kernel resource maps.  This is useful if the dummy
+driver is being used to configure a card in preparation for loading a
+specific PCMCIA-unaware driver.  The default is 0 (false).
 .TP
 .BI irq_list= i,j,...
 Specifies the set of interrupts that may be allocated by this driver.

@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.97 1999/09/28 16:41:05 (David Hinds)
+# config 1.99 1999/10/20 19:11:42 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -560,6 +560,10 @@ card "RPTI EP401 Ethernet"
   version "RPTI", "EP401 Ethernet NE2000 Compatible"
   bind "pcnet_cs"
 
+card "RPTI 1625B Ethernet"
+  version "RP", "1625B Ethernet NE2000 Compatible"
+  bind "pcnet_cs"
+
 card "SCM Ethernet Combo"
   version "SCM", "Ethernet Combo card"
   bind "pcnet_cs"
@@ -701,7 +705,7 @@ card "Ositech Seven of Diamonds Fast Ethernet"
   version "Ositech", "Trumpcard:Seven of Diamonds Ethernet"
   bind "smc91c92_cs"
 
-card "Planet FNW-3600 Fast Ethernet"
+card "Planex FNW-3600T Fast Ethernet"
   version "Fast Ethernet", "Adapter"
   bind "pcnet_cs"
 
@@ -1385,6 +1389,10 @@ card "3Com 3CCFE575B/3CXFE575B Fast EtherLink XL"
   manfid 0x0101, 0x5157
   bind "3c575_cb"
 
+card "3Com 3CCFE575CT/3CXFE575CT Fast EtherLink XL"
+  manfid 0x0101, 0x5257
+  bind "3c575_cb"
+
 card "3Com 3CCFEM656B w/Winmodem"
   manfid 0x0102, 0x6560
   bind "3c575_cb"
@@ -1418,8 +1426,16 @@ card "D-Link DFE-660 Fast Ethernet"
   manfid 0x50c7, 0xcafe
   bind "tulip_cb"
 
+card "Genius MF3000 Fast Ethernet"
+  version "CardBus", "10/100Mbps LanCard"
+  bind "tulip_cb"
+
 card "IBM 10/100 EtherJet CardBus"
   manfid 0x00a4, 0x0113
+  bind "tulip_cb"
+
+card "Intel EtherExpress PRO/100 CardBus Mobile Adapter32"
+  manfid 0x0089, 0x0102
   bind "tulip_cb"
 
 card "Kingston KNE-CB4TX Fast Ethernet"

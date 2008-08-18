@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.129 1999/09/26 01:36:50
+    cardmgr.c 1.130 1999/10/16 01:19:08
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -115,7 +115,7 @@ static char *modpath = NULL;
 #endif
 
 /* Default path for socket info table */
-static char *stabfile = "/var/run/stab";
+static char *stabfile;
 
 /* If set, don't generate beeps when cards are inserted */
 static int be_quiet = 0;
@@ -1272,6 +1272,14 @@ int main(int argc, char *argv[])
     int delay_fork = 0;
     struct timeval tv;
     fd_set fds;
+
+    if (access("/var/state/pcmcia", R_OK) == 0) {
+	stabfile = "/var/state/pcmcia/stab";
+    } else if (access("/var/lib/pcmcia", R_OK) == 0) {
+	stabfile = "/var/lib/pcmcia/stab";
+    } else {
+	stabfile = "/var/run/stab";
+    }
 
     errflg = 0;
     while ((optch = getopt(argc, argv, "Vqdvofc:m:p:s:")) != -1) {

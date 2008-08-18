@@ -30,6 +30,7 @@
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -145,9 +146,9 @@ typedef struct local_info_t {
     long open_time;
     uint tx_started:1;
     uint tx_queue;
-    ushort tx_queue_len;
+    u_short tx_queue_len;
     cardtype_t cardtype;
-    ushort sent;
+    u_short sent;
     u_char mc_filter[8];
 } local_info_t;
 
@@ -413,7 +414,7 @@ static void fmvj18x_config(dev_link_t *link)
     struct net_device *dev;
     u_short buf[32];
     int i, last_fn, last_ret;
-    short ioaddr;
+    ioaddr_t ioaddr;
     cardtype_t cardtype;
     char *card_name = "unknown";
     u_char *node_id;
@@ -680,7 +681,7 @@ module_exit(exit_fmvj18x_cs);
 static void fjn_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
     struct net_device *dev = (struct net_device *)dev_id;
-    int ioaddr;
+    ioaddr_t ioaddr;
     local_info_t *lp;
     unsigned short tx_stat, rx_stat;
 
@@ -758,7 +759,7 @@ static void fjn_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
 
     if (dev->tbusy) {
 	/* If we get here, some higher level has decided we are broken.
@@ -872,7 +873,7 @@ static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void fjn_reset(struct net_device *dev)
 {
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     int i;
 
     if (fmvj18x_debug > 4) {
@@ -956,7 +957,7 @@ static void fjn_reset(struct net_device *dev)
 static void fjn_rx(struct net_device *dev)
 {
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     int boguscount = 10;	/* 5 -> 10: by agy 19940922 */
 
     if (fmvj18x_debug > 4)
@@ -964,7 +965,7 @@ static void fjn_rx(struct net_device *dev)
                dev->name, inb(ioaddr + RX_STATUS));
 
     while ((inb(ioaddr + RX_MODE) & F_BUF_EMP) == 0) {
-	ushort status = inw(ioaddr + DATAPORT);
+	u_short status = inw(ioaddr + DATAPORT);
 
 	if (fmvj18x_debug > 4)
 	    printk(KERN_DEBUG "%s: Rxing packet mode %02x status %04x.\n",
@@ -982,7 +983,7 @@ static void fjn_rx(struct net_device *dev)
 	    if (status & F_CRC_ERR) lp->stats.rx_crc_errors++;
 	    if (status & F_OVR_FLO) lp->stats.rx_over_errors++;
 	} else {
-	    ushort pkt_len = inw(ioaddr + DATAPORT);
+	    u_short pkt_len = inw(ioaddr + DATAPORT);
 	    /* Malloc up new buffer. */
 	    struct sk_buff *skb;
 
@@ -1089,7 +1090,7 @@ static int fjn_open(struct net_device *dev)
 
 static int fjn_close(struct net_device *dev)
 {
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
     dev_link_t *link;
 
@@ -1173,7 +1174,7 @@ static inline unsigned ether_crc_le(int length, unsigned char *data)
 
 static void set_rx_mode(struct net_device *dev)
 {
-    int ioaddr = dev->base_addr;
+    ioaddr_t ioaddr = dev->base_addr;
     struct local_info_t *lp = (struct local_info_t *)dev->priv;
     unsigned char mc_filter[8];		 /* Multicast hash filter */
     long flags;

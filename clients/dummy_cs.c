@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.19 1999/09/16 03:56:52
+    dummy_cs.c 1.20 1999/10/18 19:12:32
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -68,7 +68,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"dummy_cs.c 1.19 1999/09/16 03:56:52 (David Hinds)";
+"dummy_cs.c 1.20 1999/10/18 19:12:32 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -77,12 +77,16 @@ static char *version =
 
 /* Parameters that can be set with 'insmod' */
 
+/* Release IO ports after configuration? */
+static int free_ports = 0;
+
 /* The old way: bit map of interrupts to choose from */
 /* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4, and 3 */
 static u_int irq_mask = 0xdeb8;
 /* Newer, simpler way of listing specific interrupts */
 static int irq_list[4] = { -1 };
 
+MODULE_PARM(free_ports, "i");
 MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
 
@@ -472,6 +476,18 @@ static void dummy_config(dev_link_t *link)
        card and host interface into "Memory and IO" mode.
     */
     CS_CHECK(RequestConfiguration, link->handle, &link->conf);
+
+    /*
+      We can release the IO port allocations here, if some other
+      driver for the card is going to loaded, and will expect the
+      ports to be available.
+    */
+    if (free_ports) {
+	if (link->io.BasePort1)
+	    release_region(link->io.BasePort1, link->io.NumPorts1);
+	if (link->io.BasePort2)
+	    release_region(link->io.BasePort2, link->io.NumPorts2);
+    }
 
     /*
       At this point, the dev_node_t structure(s) need to be

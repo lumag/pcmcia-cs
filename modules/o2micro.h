@@ -1,5 +1,5 @@
 /*
- * o2micro.h 1.11 1999/09/25 06:24:17
+ * o2micro.h 1.12 1999/10/16 01:43:24
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -44,6 +44,9 @@
 #endif
 #ifndef PCI_DEVICE_ID_O2_6836
 #define PCI_DEVICE_ID_O2_6836		0x6836
+#endif
+#ifndef PCI_DEVICE_ID_O2_6812
+#define PCI_DEVICE_ID_O2_6812		0x6872
 #endif
 
 /* Additional PCI configuration registers */

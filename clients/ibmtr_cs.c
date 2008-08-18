@@ -418,7 +418,7 @@ static void ibmtr_config(dev_link_t *link)
 
     /* Allocate the MMIO memory window */
     req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
-    req.Attributes |= WIN_USE_WAIT;
+    req.Attributes |= WIN_USE_WAIT|WIN_STRICT_ALIGN;
     req.Base = mmiobase;
     req.Size = 0x2000;
     req.AccessSpeed = 250;
@@ -432,7 +432,7 @@ static void ibmtr_config(dev_link_t *link)
 
     /* Allocate the SRAM memory window */
     req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
-    req.Attributes |= WIN_USE_WAIT | WIN_MAP_BELOW_1MB;
+    req.Attributes |= WIN_USE_WAIT|WIN_MAP_BELOW_1MB;
     req.Base = srambase;
     req.Size = sramsize * 1024;
     req.AccessSpeed = 250;

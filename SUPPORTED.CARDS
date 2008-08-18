@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/09/28 16:41:09
+		Last updated: 1999/10/20 19:12:47
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -53,6 +53,7 @@ Ethernet cards:
 	Argosy EN210
 	Asante FriendlyNet	[ new cards seem to not work!! ]
 	AST 1082 Ethernet
+	Atelco ethernet
 	Billionton LNT-10TB, LNT-10TN
 	California Access LAN Adapter
 	CeLAN EPCMCIA
@@ -120,7 +121,7 @@ Ethernet cards:
 	Psion Gold Card Ethernet
 	Relia RE2408T Ethernet
 	Reliasys 2400A Ethernet
-	RPTI EP400, EP401 Ethernet
+	RPTI EP400, EP401, 1625B Ethernet
 	SCM Ethernet		[ Yes, SCM != SMC ]
 	Sky Link Express
 	SMC 8022 EZCard-10
@@ -148,7 +149,7 @@ Ethernet cards:
 Fast Ethernet (10/100baseT) adapters:
 
 	[3c574_cs driver] [x86]
-	3Com 3c574TX, 3CCFE574BT
+	3Com 3c574TX, 3CCFE574BT, 3CXFE574BT
 
 	[pcnet_cs driver] [x86]
 	Abocom LinkMate FE1000
@@ -170,7 +171,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Microcom TravelCard 10/100
 	Micronet EtherFast Adapter
 	NetGear FA410TXC
-	Planet FNW-3600T
+	Planex FNW-3600T
 
 	[smc91c92_cs driver] [x86]
 	Argosy EN220
@@ -181,14 +182,17 @@ Fast Ethernet (10/100baseT) adapters:
 	WiseCom WC-PC400
 	
 	[xirc2ps_cs driver] [x86,axp]
+	[ some cards seem to misbehave at either 10baseT, or 100baseT,
+	or both: the driver seems to not know how to configure the
+	transceiver correctly ]
 	Accton Fast EtherCard-16
 	Compaq Netelligent 10/100
-	Intel EtherExpress PRO/100 [ 16-bit, NOT 32-bit ]
+	Intel EtherExpress PRO/100 16-bit
 	Toshiba IPC5008A, Advanced Network 10/100
-	Xircom CreditCard CE3 [ beware: new cards may not work ]
+	Xircom CreditCard CE3
 
 	[3c575_cb driver] [x86]
-	3Com 3c575TX, 3CCFE575BT, 3CXFE575BT CardBus
+	3Com 3c575TX, 3CCFE575BT, 3CXFE575BT, 3CCFE575CT, 3CXFE575CT
 
 	[epic_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
@@ -201,7 +205,7 @@ Fast Ethernet (10/100baseT) adapters:
 	AmbiCom AMB8100
 	Compex Linkport TX
 	D-Link DFE-660TX
-	IBM 10/100 EtherJet CardBus
+	Genius MF3000
 	Kingston KNE-CB4TX
 	LevelOne FPC-0101TX 10/100Mbps CardBus
 	Linksys PCMPC200 EtherFast CardBus
@@ -209,6 +213,9 @@ Fast Ethernet (10/100baseT) adapters:
 	SVEC FD606 10/100 Ethernet
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
 	UMAX Technologies UMAX250
+	[ Not recommended: driver seems to be unreliable ]
+	IBM 10/100 EtherJet CardBus
+	Intel EtherExpress PRO/100 CardBus Mobile Adapter32
 	Xircom CBEII-10/100, RBE-100
 
 Token-ring adapters:
@@ -337,7 +344,7 @@ Multifunction ethernet/modem cards:
 	Asus combo card
 	Billionton LM5LT-10B
 	Dayna Communicard
-	D-Link DME336T, DMF560TX
+	D-Link DME-336T, DMF-560TX, DMF-560TXD
 	Grey Cell GCS3400
 	GVC LAN modem
 	IBM Home and Away
@@ -347,7 +354,6 @@ Multifunction ethernet/modem cards:
 	Linksys EtherFast LANmodem 56K (PCMLM56)
 	PREMAX LAN modem
 	Psion V.34 Gold Card
-	Psion Gold Card Netglobal 56K+10Mb 
 	Rover ComboCard 33.6
 	TDK 3000/3400/5670
 	Telecom Device SuperSocket LM336
@@ -357,6 +363,7 @@ Multifunction ethernet/modem cards:
 	Megahertz/U.S. Robotics EM1144, EM3288, EM3336
 	Motorola Mariner
 	Ositech Jack of Diamonds, Jack of Hearts
+	Psion Gold Card Netglobal 56K+10Mb 
 
 	[xirc2ps_cs driver] [x86]
 	Compaq Microcom CPQ550 Modem + 10/100 LAN
@@ -373,6 +380,7 @@ Multifunction ethernet/modem cards:
 	Psion Gold Card Netglobal 56K+10/100Mb [ ethernet only!! ]
 
 	[tulip_cb driver] [x86]
+	[ Not recommended: driver seems to be unreliable ]
 	Xircom RBEM56G-100BTX, CBEM56G-100BTX
 
 ATA/IDE card drives:
@@ -468,6 +476,7 @@ cannot test them.  All are available on the Linux PCMCIA FTP site, in
 
 	[teles_cs driver]
 	Teles ISDN adapter
+	  http://home.wtal.de/petig/ISDN/index.html
 	  (Christof Petig <ea0141@uni-wuppertal.de>)
 
 	[ss5136dn_cs driver]  
@@ -554,3 +563,4 @@ help, that their cards are likely to be better supported under Linux.
 	Ositech		[ ethernet/modem combo cards ]
 	Sandisk		[ ATA/IDE flash cards ]
 	Quatech		[ parallel port adapters ]
+	Xircom		[ ethernet and multifunction cards ]

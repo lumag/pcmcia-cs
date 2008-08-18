@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.92 1999/09/28 05:27:34
+ * k_compat.h 1.93 1999/10/21 01:08:09
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -174,6 +174,10 @@ typedef struct wait_queue *wait_queue_head_t;
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,104))
 #define mdelay(x) { int i; for (i=0;i<x;i++) udelay(1000); }
+#endif
+
+#if (LINUX_VERSION_CODE < VERSION(2,3,16))
+#define __set_current_state(n)	do { current->state = (n); } while (0)
 #endif
 
 #define wacquire(w)		do { } while (0)

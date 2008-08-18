@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.256 1999/09/27 06:47:39
+    i82365.c 1.260 1999/10/21 00:56:07
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -38,6 +38,7 @@
 #ifdef __LINUX__
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/string.h>
@@ -80,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.256 1999/09/27 06:47:39 (David Hinds)";
+"i82365.c 1.260 1999/10/21 00:56:07 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -204,7 +205,7 @@ MODULE_PARM(cb_write_post, "i");
 #ifdef CONFIG_ISA
 #ifdef CONFIG_PCI
 /* PCI card status change interrupts? */
-static int pci_csc = 0;
+static int pci_csc = 1;
 /* PCI IO card functional interrupts? */
 static int pci_int = 0;
 MODULE_PARM(pci_csc, "i");
@@ -255,7 +256,7 @@ typedef struct topic_state_t {
 typedef struct socket_info_t {
     u_short		type, flags;
     socket_cap_t	cap;
-    u_short		ioaddr;
+    ioaddr_t		ioaddr;
     u_short		psock;
     u_char		cs_irq, intr;
     void		(*handler)(void *info, u_int events);
@@ -350,7 +351,7 @@ typedef enum pcic_id {
 #ifdef CONFIG_PCI
     IS_PD6729, IS_PD6730, IS_OZ6729, IS_OZ6730,
     IS_I82092AA, IS_OM82C092G,
-    IS_PD6832, IS_OZ6832, IS_OZ6836,
+    IS_PD6832, IS_OZ6832, IS_OZ6836, IS_OZ6812,
     IS_RL5C465, IS_RL5C466, IS_RL5C475, IS_RL5C476, IS_RL5C478,
     IS_SMC34C90,
     IS_TI1130, IS_TI1131, IS_TI1250A, IS_TI1220, IS_TI1221, IS_TI1210,
@@ -416,6 +417,8 @@ static pcic_t pcic[] = {
       PCI_VENDOR_ID_O2, PCI_DEVICE_ID_O2_6832 },
     { "O2Micro OZ6836/OZ6860", IS_O2MICRO|IS_CARDBUS|IS_VG_PWR,
       PCI_VENDOR_ID_O2, PCI_DEVICE_ID_O2_6836 },
+    { "O2Micro OZ6812", IS_O2MICRO|IS_CARDBUS|IS_VG_PWR,
+      PCI_VENDOR_ID_O2, PCI_DEVICE_ID_O2_6812 },
     { "Ricoh RL5C465", IS_RICOH|IS_CARDBUS|IS_DF_PWR,
       PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C465 },
     { "Ricoh RL5C466", IS_RICOH|IS_CARDBUS|IS_DF_PWR,
@@ -494,7 +497,7 @@ static u_char i365_get(u_short sock, u_short reg)
     else
 #endif
     {
-	u_short port = socket[sock].ioaddr;
+	ioaddr_t port = socket[sock].ioaddr;
 	u_char val;
 	reg = I365_REG(socket[sock].psock, reg);
 	outb(reg, port); val = inb(port+1);
@@ -510,7 +513,7 @@ static void i365_set(u_short sock, u_short reg, u_char data)
     else
 #endif
     {
-	u_short port = socket[sock].ioaddr;
+	ioaddr_t port = socket[sock].ioaddr;
 	u_char val = I365_REG(socket[sock].psock, reg);
 	outb(val, port); outb(data, port+1);
     }
@@ -1297,7 +1300,7 @@ static u_int __init test_irq(u_short sock, int irq, int pci)
     if (_request_irq(irq, irq_count, (pci?SA_SHIRQ:0), "scan") != 0)
 	return 1;
     irq_hits = 0; irq_sock = sock;
-    current->state = TASK_INTERRUPTIBLE;
+    __set_current_state(TASK_UNINTERRUPTIBLE);
     schedule_timeout(HZ/100);
     if (irq_hits) {
 	_free_irq(irq, irq_count);
@@ -1775,7 +1778,7 @@ static void __init add_cb_bridge(int type, u_char bus, u_char devfn,
 
     /* Re-do card type & voltage detection */
     cb_writel(sockets-ns, CB_SOCKET_FORCE, CB_SF_CVSTEST);
-    current->state = TASK_INTERRUPTIBLE;
+    __set_current_state(TASK_UNINTERRUPTIBLE);
     schedule_timeout(HZ/5);
 
 #ifdef __LINUX__
@@ -1831,9 +1834,8 @@ static void __init pci_probe(u_int class, void (add_fn)
 
 static void __init isa_probe(void)
 {
-    int i, j, sock, k;
-    int ns, id;
-    u_short port;
+    int i, j, sock, k, ns, id;
+    ioaddr_t port;
 
 #ifndef __BEOS__
     if (check_region(i365_base, 2) != 0) {
@@ -2227,7 +2229,8 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
     i365_get(sock, I365_CSC);
 #ifdef CONFIG_PCI
     if (t->flags & IS_CARDBUS) {
-	cb_writel(sock, CB_SOCKET_MASK, CB_SM_CCD);
+	if (t->cs_irq || (pci_csc && t->cap.pci_irq))
+	    cb_writel(sock, CB_SOCKET_MASK, CB_SM_CCD);
 	cb_writel(sock, CB_SOCKET_EVENT, -1);
     }
 #endif
@@ -2409,7 +2412,7 @@ static void cb_get_power(u_short sock, socket_state_t *state)
     case CB_SC_VCC_3V:		state->Vcc = 33; break;
     case CB_SC_VCC_5V:		state->Vcc = 50; break;
     }
-    switch (reg & CB_SC_VCC_MASK) {
+    switch (reg & CB_SC_VPP_MASK) {
     case CB_SC_VPP_3V:		state->Vpp = 33; break;
     case CB_SC_VPP_5V:		state->Vpp = 50; break;
     case CB_SC_VPP_12V:		state->Vpp = 120; break;
@@ -2504,7 +2507,8 @@ static int cb_set_socket(u_short sock, socket_state_t *state)
     if (state->csc_mask & SS_DETECT) reg |= I365_CSC_DETECT;
     i365_set(sock, I365_CSCINT, reg);
     i365_get(sock, I365_CSC);
-    cb_writel(sock, CB_SOCKET_MASK, CB_SM_CCD);
+    if (s->cs_irq || (pci_csc && s->cap.pci_irq))
+	cb_writel(sock, CB_SOCKET_MASK, CB_SM_CCD);
     cb_writel(sock, CB_SOCKET_EVENT, -1);
     
     return 0;
@@ -2656,7 +2660,7 @@ static int proc_read_cardbus(char *buf, char **start, off_t pos,
 
     top = (socket[sock].flags & IS_O2MICRO) ? 0x30 : 0x20;
     for (i = 0; i < top; i += 0x10)
-	p += sprintf(buf, "%08x %08x %08x %08x\n",
+	p += sprintf(p, "%08x %08x %08x %08x\n",
 		     cb_readl(sock,i+0x00), cb_readl(sock,i+0x04),
 		     cb_readl(sock,i+0x08), cb_readl(sock,i+0x0c));
     return (p - buf);
@@ -2868,8 +2872,11 @@ static void __exit exit_i82365(void)
     }
 #endif
     for (i = 0; i < sockets; i++) {
+	/* Turn off all interrupt sources! */
 	i365_set(i, I365_CSCINT, 0);
 #ifdef CONFIG_PCI
+	if (socket[i].flags & IS_CARDBUS)
+	    cb_writel(i, CB_SOCKET_MASK, 0);
 	if (socket[i].cb_virt) {
 	    iounmap(socket[i].cb_virt);
 	    release_mem_region(socket[i].cb_phys, 0x1000);

@@ -196,7 +196,7 @@ psa_write(device *	dev,
 {
   u_char *	ptr = ((u_char *) dev->mem_start) + PSA_ADDR + (o << 1);
   int		count = 0;
-  u_long	base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
   /* As there seem to have no flag PSA_BUSY as in the ISA model, we are
    * oblige to verify this address to know when the PSA is ready... */
   volatile u_char *	verify = ((u_char *) dev->mem_start) + PSA_ADDR +
@@ -753,7 +753,7 @@ void wl_update_history(wavepoint_history *wavepoint, unsigned char sigqual, unsi
 /* Perform a handover to a new WavePoint */
 void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp)
 {
-  unsigned short        base = lp->dev->base_addr;  
+  ioaddr_t              base = lp->dev->base_addr;  
   mm_t                  m;
   unsigned long         x;
   
@@ -864,7 +864,7 @@ wv_82593_cmd(device *	dev,
 	     int	cmd,
 	     int	result)
 {
-  u_long	base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
   net_local *	lp = (net_local *)dev->priv;
   int		status;
   long		spin;
@@ -970,7 +970,7 @@ read_ringbuf(device *	dev,
 	     char *	buf,
 	     int	len)
 {
-  u_long	base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
   int		ring_ptr = addr;
   int		chunk_len;
   char *	buf_ptr = buf;
@@ -1044,7 +1044,7 @@ wv_82593_reconfig(device *	dev)
  */
 static void wavelan_dump(device *dev)
 {
-  u_long base = dev->base_addr;
+  ioaddr_t base = dev->base_addr;
   int i, c;
 
   /* disable receiver so we can use channel 1 */
@@ -1186,7 +1186,7 @@ wv_psa_show(psa_t *	p)
 static void
 wv_mmc_show(device *	dev)
 {
-  u_long	base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
   net_local *	lp = (net_local *)dev->priv;
   mmr_t		m;
 
@@ -1366,7 +1366,7 @@ wv_packet_info(u_char *		p,		/* Packet to dump */
 static inline void
 wv_init_info(device *	dev)
 {
-  short		base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
   psa_t		psa;
   int		i;
 
@@ -1909,7 +1909,7 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 	      struct ifreq *	rq,	/* Data passed */
 	      int		cmd)	/* Ioctl number */
 {
-  u_long		base = dev->base_addr;
+  ioaddr_t		base = dev->base_addr;
   net_local *		lp = (net_local *)dev->priv;	/* lp is not unused */
   struct iwreq *	wrq = (struct iwreq *) rq;
   psa_t			psa;
@@ -1935,18 +1935,26 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 
     case SIOCSIWNWID:
       /* Set NWID in wavelan */
+#if WIRELESS_EXT > 8
+      if(!wrq->u.nwid.disabled)
+	{
+	  /* Set NWID in psa */
+	  psa.psa_nwid[0] = (wrq->u.nwid.value & 0xFF00) >> 8;
+	  psa.psa_nwid[1] = wrq->u.nwid.value & 0xFF;
+#else	/* WIRELESS_EXT > 8 */
       if(wrq->u.nwid.on)
 	{
 	  /* Set NWID in psa */
 	  psa.psa_nwid[0] = (wrq->u.nwid.nwid & 0xFF00) >> 8;
 	  psa.psa_nwid[1] = wrq->u.nwid.nwid & 0xFF;
+#endif	/* WIRELESS_EXT > 8 */
 	  psa.psa_nwid_select = 0x01;
 	  psa_write(dev, (char *)psa.psa_nwid - (char *)&psa,
 		    (unsigned char *)psa.psa_nwid, 3);
 
 	  /* Set NWID in mmc */
-	  m.w.mmw_netw_id_l = wrq->u.nwid.nwid & 0xFF;
-	  m.w.mmw_netw_id_h = (wrq->u.nwid.nwid & 0xFF00) >> 8;
+	  m.w.mmw_netw_id_l = psa.psa_nwid[1];
+	  m.w.mmw_netw_id_h = psa.psa_nwid[0];
 	  mmc_write(base, (char *)&m.w.mmw_netw_id_l - (char *)&m,
 		    (unsigned char *)&m.w.mmw_netw_id_l, 2);
 	  mmc_out(base, mmwoff(0, mmw_loopt_sel), 0x00);
@@ -1969,8 +1977,14 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
       /* Read the NWID */
       psa_read(dev, (char *)psa.psa_nwid - (char *)&psa,
 	       (unsigned char *)psa.psa_nwid, 3);
+#if WIRELESS_EXT > 8
+      wrq->u.nwid.value = (psa.psa_nwid[0] << 8) + psa.psa_nwid[1];
+      wrq->u.nwid.disabled = !(psa.psa_nwid_select);
+      wrq->u.nwid.fixed = 1;	/* Superfluous */
+#else	/* WIRELESS_EXT > 8 */
       wrq->u.nwid.nwid = (psa.psa_nwid[0] << 8) + psa.psa_nwid[1];
       wrq->u.nwid.on = psa.psa_nwid_select;
+#endif	/* WIRELESS_EXT > 8 */
       break;
 
     case SIOCSIWFREQ:
@@ -2039,80 +2053,90 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 #endif	/* WIRELESS_EXT > 7 */
       break;
 
-     case SIOCSIWENCODE:
-       /* Set encryption key */
-       if(!mmc_encr(base))
-	 {
-	   ret = -EOPNOTSUPP;
-	   break;
-	 }
+#if WIRELESS_EXT > 8
+    case SIOCSIWENCODE:
+      /* Set encryption key */
+      if(!mmc_encr(base))
+	{
+	  ret = -EOPNOTSUPP;
+	  break;
+	}
 
-       if(wrq->u.encoding.method)
-	 {	/* enable encryption */
-	   int		i;
-	   long long	key = wrq->u.encoding.code;
+      /* Basic checking... */
+      if(wrq->u.encoding.pointer != (caddr_t) 0)
+	{
+	  /* Check the size of the key */
+	  if(wrq->u.encoding.length != 8)
+	    {
+	      ret = -EINVAL;
+	      break;
+	    }
 
-	   for(i = 7; i >= 0; i--)
-	     {
-	       psa.psa_encryption_key[i] = key & 0xFF;
-	       key >>= 8;
-	     }
-           psa.psa_encryption_select = 1;
-	   psa_write(dev, (char *) &psa.psa_encryption_select - (char *) &psa,
-		     (unsigned char *) &psa.psa_encryption_select, 8+1);
+	  /* Copy the key in the driver */
+	  if(copy_from_user(psa.psa_encryption_key, wrq->u.encoding.pointer,
+			    wrq->u.encoding.length))
+	    {
+	      ret = -EFAULT;
+	      break;
+	    }
 
-           mmc_out(base, mmwoff(0, mmw_encr_enable),
-		   MMW_ENCR_ENABLE_EN | MMW_ENCR_ENABLE_MODE);
-           mmc_write(base, mmwoff(0, mmw_encr_key),
-		     (unsigned char *) &psa.psa_encryption_key, 8);
-	 }
-       else
-	 {	/* disable encryption */
-	   psa.psa_encryption_select = 0;
-	   psa_write(dev, (char *) &psa.psa_encryption_select - (char *) &psa,
-		     (unsigned char *) &psa.psa_encryption_select, 1);
+	  psa.psa_encryption_select = 1;
+	  psa_write(dev, (char *) &psa.psa_encryption_select - (char *) &psa,
+		    (unsigned char *) &psa.psa_encryption_select, 8+1);
 
-	   mmc_out(base, mmwoff(0, mmw_encr_enable), 0);
-	 }
-       /* update the Wavelan checksum */
-       update_psa_checksum(dev);
-       break;
+	  mmc_out(base, mmwoff(0, mmw_encr_enable),
+		  MMW_ENCR_ENABLE_EN | MMW_ENCR_ENABLE_MODE);
+	  mmc_write(base, mmwoff(0, mmw_encr_key),
+		    (unsigned char *) &psa.psa_encryption_key, 8);
+	}
 
-     case SIOCGIWENCODE:
-       /* Read the encryption key */
-       if(!mmc_encr(base))
-	 {
-	   ret = -EOPNOTSUPP;
-	   break;
-	 }
+      if(wrq->u.encoding.flags & IW_ENCODE_DISABLED)
+	{	/* disable encryption */
+	  psa.psa_encryption_select = 0;
+	  psa_write(dev, (char *) &psa.psa_encryption_select - (char *) &psa,
+		    (unsigned char *) &psa.psa_encryption_select, 1);
 
-       /* only super-user can see encryption key */
-       if(!suser())
-	 {
-	   ret = -EPERM;
-	   break;
-	 }
-       else
-	 {
-	   int		i;
-	   long long	key = 0;
+	  mmc_out(base, mmwoff(0, mmw_encr_enable), 0);
+	}
+      /* update the Wavelan checksum */
+      update_psa_checksum(dev);
+      break;
 
-	   psa_read(dev, (char *) &psa.psa_encryption_select - (char *) &psa,
-		    (unsigned char *) &psa.psa_encryption_select, 1+8);
-	   for(i = 0; i < 8; i++)
-	     {
-	       key <<= 8;
-	       key += psa.psa_encryption_key[i];
-	     }
-	   wrq->u.encoding.code = key;
+    case SIOCGIWENCODE:
+      /* Read the encryption key */
+      if(!mmc_encr(base))
+	{
+	  ret = -EOPNOTSUPP;
+	  break;
+	}
 
-	   /* encryption is enabled */
-	   if(psa.psa_encryption_select)
-	     wrq->u.encoding.method = mmc_encr(base);
-	   else
-	     wrq->u.encoding.method = 0;
-	 }
-       break;
+      /* only super-user can see encryption key */
+      if(!suser())
+	{
+	  ret = -EPERM;
+	  break;
+	}
+
+      /* Basic checking... */
+      if(wrq->u.encoding.pointer != (caddr_t) 0)
+	{
+	  psa_read(dev, (char *) &psa.psa_encryption_select - (char *) &psa,
+		   (unsigned char *) &psa.psa_encryption_select, 1+8);
+
+	  /* encryption is enabled ? */
+	  if(psa.psa_encryption_select)
+	    wrq->u.encoding.flags = IW_ENCODE_ENABLED;
+	  else
+	    wrq->u.encoding.flags = IW_ENCODE_DISABLED;
+	  wrq->u.encoding.flags |= mmc_encr(base);
+
+	  /* Copy the key to the user buffer */
+	  wrq->u.encoding.length = 8;
+	  if(copy_to_user(wrq->u.encoding.pointer, psa.psa_encryption_key, 8))
+	    ret = -EFAULT;
+	}
+      break;
+#endif	/* WIRELESS_EXT > 8 */
 
 #ifdef WAVELAN_ROAMING_EXT
 #if WIRELESS_EXT > 5
@@ -2134,14 +2158,12 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 		break;
 	      }
 
-	    /* Verify the user buffer */
-	    ret = verify_area(VERIFY_READ, wrq->u.data.pointer,
-			      wrq->u.data.length);
-	    if(ret)
-	      break;
-
 	    /* Copy the string in the driver */
-	    copy_from_user(essid, wrq->u.data.pointer, wrq->u.data.length);
+	    if(copy_from_user(essid, wrq->u.data.pointer, wrq->u.data.length))
+	      {
+		ret = -EFAULT;
+		break;
+	      }
 	    essid[IW_ESSID_MAX_SIZE] = '\0';
 
 #ifdef DEBUG_IOCTL_INFO
@@ -2167,12 +2189,6 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 	{
 	  char		essid[IW_ESSID_MAX_SIZE + 1];
 
-	  /* Verify the user buffer */
-	  ret = verify_area(VERIFY_WRITE, wrq->u.data.pointer,
-			    IW_ESSID_MAX_SIZE + 1);
-	  if(ret)
-	    break;
-
 	  /* Is the domain ID active ? */
 	  wrq->u.data.flags = lp->filter_domains;
 
@@ -2185,7 +2201,8 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 	  wrq->u.data.length = strlen(essid) + 1;
 
 	  /* Copy structure to the user buffer */
-	  copy_to_user(wrq->u.data.pointer, essid, wrq->u.data.length);
+	  if(copy_to_user(wrq->u.data.pointer, essid, wrq->u.data.length))
+	    ret = -EFAULT;
 	}
       break;
 
@@ -2213,17 +2230,44 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 #endif	/* WIRELESS_EXT > 5 */
 #endif	/* WAVELAN_ROAMING_EXT */
 
+#if WIRELESS_EXT > 8
+#ifdef WAVELAN_ROAMING
+    case SIOCSIWMODE:
+      switch(wrq->u.mode)
+	{
+	case IW_MODE_ADHOC:
+	  if(do_roaming)
+	    {
+	      wv_roam_cleanup(dev);
+	      do_roaming = 0;
+	    }
+	  break;
+	case IW_MODE_INFRA:
+	  if(!do_roaming)
+	    {
+	      wv_roam_init(dev);
+	      do_roaming = 1;
+	    }
+	  break;
+	default:
+	  ret = -EINVAL;
+	}
+      break;
+
+    case SIOCGIWMODE:
+      if(do_roaming)
+	wrq->u.mode = IW_MODE_INFRA;
+      else
+	wrq->u.mode = IW_MODE_ADHOC;
+      break;
+#endif	/* WAVELAN_ROAMING */
+#endif /* WIRELESS_EXT > 8 */
+
     case SIOCGIWRANGE:
       /* Basic checking... */
       if(wrq->u.data.pointer != (caddr_t) 0)
 	{
 	  struct iw_range	range;
-
-	  /* Verify the user buffer */
-	  ret = verify_area(VERIFY_WRITE, wrq->u.data.pointer,
-			    sizeof(struct iw_range));
-	  if(ret)
-	    break;
 
 	  /* Set the length (useless : its constant...) */
 	  wrq->u.data.length = sizeof(struct iw_range);
@@ -2252,11 +2296,27 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 #if WIRELESS_EXT > 7
 	  range.num_bitrates = 1;
 	  range.bitrate[0] = 2000000;	/* 2 Mb/s */
-#endif WIRELESS_EXT
+#endif /* WIRELESS_EXT > 7 */
+
+#if WIRELESS_EXT > 8
+	  /* Encryption supported ? */
+	  if(mmc_encr(base))
+	    {
+	      range.encoding_size[0] = 8;	/* DES = 64 bits key */
+	      range.num_encoding_sizes = 1;
+	      range.max_encoding_tokens = 1;	/* Only one key possible */
+	    }
+	  else
+	    {
+	      range.num_encoding_sizes = 0;
+	      range.max_encoding_tokens = 0;
+	    }
+#endif /* WIRELESS_EXT > 8 */
 
 	  /* Copy structure to the user buffer */
-	  copy_to_user(wrq->u.data.pointer, &range,
-		       sizeof(struct iw_range));
+	  if(copy_to_user(wrq->u.data.pointer, &range,
+			  sizeof(struct iw_range)))
+	    ret = -EFAULT;
 	}
       break;
 
@@ -2274,18 +2334,13 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 	    { SIOCGIPROAM, 0, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, "getroam" },
 	  };
 
-	  /* Verify the user buffer */
-	  ret = verify_area(VERIFY_WRITE, wrq->u.data.pointer,
-			    sizeof(priv));
-	  if(ret)
-	    break;
-
 	  /* Set the number of ioctl available */
 	  wrq->u.data.length = 6;
 
 	  /* Copy structure to the user buffer */
-	  copy_to_user(wrq->u.data.pointer, (u_char *) priv,
-		       sizeof(priv));
+	  if(copy_to_user(wrq->u.data.pointer, (u_char *) priv,
+		       sizeof(priv)))
+	    ret = -EFAULT;
 	}
       break;
 
@@ -2307,14 +2362,13 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 	  struct sockaddr	address[IW_MAX_SPY];
 	  int			i;
 
-	  /* Verify where the user has set his addresses */
-	  ret = verify_area(VERIFY_READ, wrq->u.data.pointer,
-			    sizeof(struct sockaddr) * lp->spy_number);
-	  if(ret)
-	    break;
 	  /* Copy addresses to the driver */
-	  copy_from_user(address, wrq->u.data.pointer,
-			 sizeof(struct sockaddr) * lp->spy_number);
+	  if(copy_from_user(address, wrq->u.data.pointer,
+			    sizeof(struct sockaddr) * lp->spy_number))
+	    {
+	      ret = -EFAULT;
+	      break;
+	    }
 
 	  /* Copy addresses to the lp structure */
 	  for(i = 0; i < lp->spy_number; i++)
@@ -2353,13 +2407,6 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 	  struct sockaddr	address[IW_MAX_SPY];
 	  int			i;
 
-	  /* Verify the user buffer */
-	  ret = verify_area(VERIFY_WRITE, wrq->u.data.pointer,
-			    (sizeof(iw_qual) + sizeof(struct sockaddr))
-			    * IW_MAX_SPY);
-	  if(ret)
-	    break;
-
 	  /* Copy addresses from the lp structure */
 	  for(i = 0; i < lp->spy_number; i++)
 	    {
@@ -2369,13 +2416,21 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 	    }
 
 	  /* Copy addresses to the user buffer */
-	  copy_to_user(wrq->u.data.pointer, address,
-		       sizeof(struct sockaddr) * lp->spy_number);
+	  if(copy_to_user(wrq->u.data.pointer, address,
+		       sizeof(struct sockaddr) * lp->spy_number))
+	    {
+	      ret = -EFAULT;
+	      break;
+	    }
 
 	  /* Copy stats to the user buffer (just after) */
-	  copy_to_user(wrq->u.data.pointer +
+	  if(copy_to_user(wrq->u.data.pointer +
 		       (sizeof(struct sockaddr) * lp->spy_number),
-		       lp->spy_stat, sizeof(iw_qual) * lp->spy_number);
+		       lp->spy_stat, sizeof(iw_qual) * lp->spy_number))
+	    {
+	      ret = -EFAULT;
+	      break;
+	    }
 
 	  /* Reset updated flags */
 	  for(i = 0; i < lp->spy_number; i++)
@@ -2443,14 +2498,13 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
       /* If there is some addresses to copy */
       if(lp->his_number > 0)
 	{
-	  /* Verify where the user has set his addresses */
-	  ret = verify_area(VERIFY_READ, wrq->u.data.pointer,
-			    sizeof(char) * lp->his_number);
-	  if(ret)
-	    break;
 	  /* Copy interval ranges to the driver */
-	  copy_from_user(lp->his_range, wrq->u.data.pointer,
-			 sizeof(char) * lp->his_number);
+	  if(copy_from_user(lp->his_range, wrq->u.data.pointer,
+			 sizeof(char) * lp->his_number))
+	    {
+	      ret = -EFAULT;
+	      break;
+	    }
 
 	  /* Reset structure... */
 	  memset(lp->his_sum, 0x00, sizeof(long) * 16);
@@ -2464,15 +2518,11 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
       /* Give back the distribution statistics */
       if((lp->his_number > 0) && (wrq->u.data.pointer != (caddr_t) 0))
 	{
-	  /* Verify the user buffer */
-	  ret = verify_area(VERIFY_WRITE, wrq->u.data.pointer,
-			    sizeof(long) * 16);
-	  if(ret)
-	    break;
-
 	  /* Copy data to the user buffer */
-	  copy_to_user(wrq->u.data.pointer, lp->his_sum,
-		       sizeof(long) * lp->his_number);
+	  if(copy_to_user(wrq->u.data.pointer, lp->his_sum,
+		       sizeof(long) * lp->his_number))
+	    ret = -EFAULT;
+
 	}	/* if(pointer != NULL) */
       break;
 #endif	/* HISTOGRAM */
@@ -2500,7 +2550,7 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 static iw_stats *
 wavelan_get_wireless_stats(device *	dev)
 {
-  u_long		base = dev->base_addr;
+  ioaddr_t		base = dev->base_addr;
   net_local *		lp = (net_local *) dev->priv;
   mmr_t			m;
   iw_stats *		wstats;
@@ -2566,7 +2616,7 @@ wv_start_of_frame(device *	dev,
 		  int		rfp,	/* end of frame */
 		  int		wrap)	/* start of buffer */
 {
-  u_long	base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
   int		rp;
   int		len;
 
@@ -2745,7 +2795,7 @@ wv_packet_read(device *		dev,
 static inline void
 wv_packet_rcv(device *	dev)
 {
-  u_long	base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
   net_local *	lp = (net_local *) dev->priv;
   int		newrfp;
   int		rp;
@@ -2882,7 +2932,7 @@ wv_packet_write(device *	dev,
 		short		length)
 {
   net_local *		lp = (net_local *) dev->priv;
-  u_long		base = dev->base_addr;
+  ioaddr_t		base = dev->base_addr;
   unsigned long		x;
   int			clen = length;
   register u_short	xmtdata_base = TX_BASE;
@@ -3046,7 +3096,7 @@ wavelan_packet_xmit(struct sk_buff *	skb,
 static inline int
 wv_mmc_init(device *	dev)
 {
-  u_long	base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
   psa_t		psa;
   mmw_t		m;
   int		configured;
@@ -3240,7 +3290,7 @@ wv_mmc_init(device *	dev)
 static int
 wv_ru_stop(device *	dev)
 {
-  u_long	base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
   unsigned long	opri;
   int		status;
   int		spin;
@@ -3302,7 +3352,7 @@ wv_ru_stop(device *	dev)
 static int
 wv_ru_start(device *	dev)
 {
-  u_long	base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
   net_local *	lp = (net_local *) dev->priv;
 
 #ifdef DEBUG_CONFIG_TRACE
@@ -3386,7 +3436,7 @@ wv_ru_start(device *	dev)
 static int
 wv_82593_config(device *	dev)
 {
-  u_long			base = dev->base_addr;
+  ioaddr_t			base = dev->base_addr;
   net_local *			lp = (net_local *) dev->priv;
   struct i82593_conf_block	cfblk;
 
@@ -3619,7 +3669,7 @@ static int
 wv_hw_config(device *	dev)
 {
   net_local *		lp = (net_local *) dev->priv;
-  short			base = dev->base_addr;
+  ioaddr_t		base = dev->base_addr;
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: ->wv_hw_config()\n", dev->name);
@@ -3976,7 +4026,7 @@ wavelan_interrupt(int		irq,
 {
   device *	dev;
   net_local *	lp;
-  u_long	base;
+  ioaddr_t	base;
   int		status0;
   u_int		tx_status;
 
@@ -4246,7 +4296,7 @@ wavelan_watchdog(u_long		a)
 {
   device *		dev;
   net_local *		lp;
-  u_long		base;
+  ioaddr_t		base;
   int			spin;
 
   dev = (device *) a;
@@ -4325,7 +4375,7 @@ wavelan_open(device *	dev)
 {
   dev_link_t *	link = ((net_local *) dev->priv)->link;
   net_local *	lp = (net_local *)dev->priv;
-  short		base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
 
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "%s: ->wavelan_open(dev=0x%x)\n", dev->name,
@@ -4383,7 +4433,7 @@ wavelan_close(device *	dev)
 {
   dev_link_t *	link = ((net_local *) dev->priv)->link;
   net_local *	lp = (net_local *)dev->priv;
-  short		base = dev->base_addr;
+  ioaddr_t	base = dev->base_addr;
 
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "%s: ->wavelan_close(dev=0x%x)\n", dev->name,

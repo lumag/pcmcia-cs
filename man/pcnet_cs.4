@@ -1,9 +1,11 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" pcnet_cs.4 1.11 1999/04/27 16:41:21
+.\" pcnet_cs.4 1.12 1999/10/15 19:31:01
 .\"
-.TH PCNET_CS 4 "1999/04/27 16:41:21" "pcmcia-cs"
+.TH PCNET_CS 4 "1999/10/15 19:31:01" "pcmcia-cs"
+
 .SH NAME
 pcnet_cs \- Generic NS8390-based PCMCIA Ethernet Driver
+
 .SH SYNOPSIS
 .B insmod pcnet_cs.o
 .RB [ pc_debug=\c
@@ -22,6 +24,7 @@ pcnet_cs \- Generic NS8390-based PCMCIA Ethernet Driver
 .IR n ]
 .RB [ hw_addr=\c
 .IR n,n,n,n,n,n ]
+
 .SH DESCRIPTION
 .B Pcnet_cs
 is a driver for all NS8390-based PCMCIA ethernet cards.  It can use
@@ -37,6 +40,7 @@ allocates the next available ethernet device
 This
 device name will be reported in the kernel log file, and passed on to
 .BR cardmgr (8).
+
 .SH PARAMETERS
 .TP
 .BI pc_debug= n
@@ -75,7 +79,17 @@ For cards whose hardware ethernet addresses can't be identified by the
 current driver, this is a hack for hardwiring a specific address.  The
 argument should consist of exactly six byte-sized numbers, separated
 by commas, with no spaces.  Numbers may be in decimal or hex ('0xNN').
+
+.SH DIAGNOSTICS
+.TP
+.B eth#: interrupt(s) dropped!
+Indicates that the driver did not receive an interrupt notification
+for some reason.  The driver will poll the card (with a significant
+performance penalty) if the problem persists.  The most likely cause
+is an interrupt conflict and/or host bridge configuration problem.
+
 .SH AUTHOR
 David Hinds \- dhinds@hyper.stanford.edu
+
 .SH "SEE ALSO"
 cardmgr(8), pcmcia(5).

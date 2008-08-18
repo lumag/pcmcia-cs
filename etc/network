@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.55 1999/08/23 06:12:04 (David Hinds)
+# network 1.56 1999/10/18 21:12:03 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -124,13 +124,14 @@ case "$ACTION" in
 	# Shut down all NFS mounts on this interface
 	nfsstop ()
 	{
-	    while read HOST MT ; do
+	    local HOST MT
+	    if read HOST MT ; then
 		nfsstop
 		if /sbin/ifuser $DEVICE $HOST ; then
 		    fuser -s -k -m $MT
 		    umount -v $MT
 		fi
-	    done
+	    fi
 	}
 	mount -t nfs | sed -e 's/:.* on \(.*\) type .*/ \1/' | nfsstop
 
