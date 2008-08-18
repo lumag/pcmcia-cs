@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.112 2001/10/13 00:08:28
+    ds.c 1.113 2002/02/17 23:31:03
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -72,7 +72,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.112 2001/10/13 00:08:28 (David Hinds)";
+"ds.c 1.113 2002/02/17 23:31:03 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -914,7 +914,7 @@ int __init init_pcmcia_ds(void)
     CardServices(GetCardServicesInfo, &serv);
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "ds: Card Services release does not match!\n");
-	return -1;
+	return -EINVAL;
     }
     if (serv.Count == 0) {
 	printk(KERN_NOTICE "ds: no socket drivers loaded!\n");

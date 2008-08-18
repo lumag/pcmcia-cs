@@ -1,5 +1,5 @@
 /*
- * o2micro.h 1.18 2001/08/24 12:15:34
+ * o2micro.h 1.19 2002/02/28 03:58:14
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -47,6 +47,15 @@
 #endif
 #ifndef PCI_DEVICE_ID_O2_6812
 #define PCI_DEVICE_ID_O2_6812		0x6872
+#endif
+#ifndef PCI_DEVICE_ID_O2_6922
+#define PCI_DEVICE_ID_O2_6922		0x6825
+#endif
+#ifndef PCI_DEVICE_ID_O2_6933
+#define PCI_DEVICE_ID_O2_6933		0x6933
+#endif
+#ifndef PCI_DEVICE_ID_O2_6912
+#define PCI_DEVICE_ID_O2_6912		0x6972
 #endif
 
 /* Additional PCI configuration registers */
@@ -142,6 +151,9 @@ typedef struct o2micro_state_t {
     { "O2Micro OZ6730", IS_O2MICRO|IS_PCI|IS_VG_PWR, ID(O2, 6730) },	\
     { "O2Micro OZ6832/33", IS_O2MICRO|IS_CARDBUS, ID(O2, 6832) },	\
     { "O2Micro OZ6836/60", IS_O2MICRO|IS_CARDBUS, ID(O2, 6836) },	\
-    { "O2Micro OZ6812", IS_O2MICRO|IS_CARDBUS, ID(O2, 6812) }
+    { "O2Micro OZ6812", IS_O2MICRO|IS_CARDBUS, ID(O2, 6812) },		\
+    { "O2Micro OZ6922", IS_O2MICRO|IS_CARDBUS, ID(O2, 6922) },		\
+    { "O2Micro OZ6933", IS_O2MICRO|IS_CARDBUS, ID(O2, 6933) },		\
+    { "O2Micro OZ6912", IS_O2MICRO|IS_CARDBUS, ID(O2, 6912) }
 
 #endif /* _LINUX_O2MICRO_H */

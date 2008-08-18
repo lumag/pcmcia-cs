@@ -127,7 +127,7 @@ INT_MODULE_PARM(auto_polarity, 1);
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c574_cs.c 1.65 2001/10/13 00:08:50 Donald Becker/David Hinds, becker@scyld.com.\n";
+"3c574_cs.c 1.66 2002/02/17 23:30:20 Donald Becker/David Hinds, becker@scyld.com.\n";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -1323,7 +1323,7 @@ static int __init init_3c574_cs(void)
 	if (serv.Revision != CS_RELEASE_CODE) {
 		printk(KERN_NOTICE "3c574_cs: Card Services release "
 			   "does not match!\n");
-		return -1;
+		return -EINVAL;
 	}
 	register_pccard_driver(&dev_info, &tc574_attach, &tc574_detach);
 	return 0;

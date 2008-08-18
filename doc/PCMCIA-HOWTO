@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.97, 29 December 2001
+  v2.98, 28 February 2002
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -194,7 +194,8 @@
 
   +o  Intel i82365sl B, C, and DF steps, 82092AA
 
-  +o  O2Micro OZ6729, OZ6730, OZ6812, OZ6832, OZ6833, OZ6836, OZ6860
+  +o  O2Micro OZ6729, OZ6730, OZ6812, OZ6832, OZ6833, OZ6836, OZ6860,
+     OZ6922, OZ6933, OZ6912
 
   +o  Omega Micro 82C365G, 82C092G
 
@@ -390,7 +391,6 @@
   configuration options (like SLIP compression) for a loadable module,
   so it is probably better to just link SLIP into the kernel if you need
   it.
-
   In order to use a PCMCIA token ring adapter, your kernel should be
   configured with ``Token Ring driver support'' (CONFIG_TR) enabled,
   though you should leave CONFIG_IBMTR off.

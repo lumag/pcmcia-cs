@@ -748,7 +748,7 @@ static int __init init_fmvj18x_cs(void)
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "fmvj18x: Card Services release "
 	       "does not match!\n");
-	return -1;
+	return -EINVAL;
     }
     register_pccard_driver(&dev_info, &fmvj18x_attach, &fmvj18x_detach);
     return 0;

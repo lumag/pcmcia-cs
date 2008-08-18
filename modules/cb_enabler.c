@@ -2,7 +2,7 @@
 
     CardBus device enabler
 
-    cb_enabler.c 1.36 2001/10/13 00:08:39
+    cb_enabler.c 1.37 2002/02/17 23:31:03
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -70,7 +70,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.36 2001/10/13 00:08:39 (David Hinds)";
+"cb_enabler.c 1.37 2002/02/17 23:31:03 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -411,7 +411,7 @@ static int __init init_cb_enabler(void)
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "cb_enabler: Card Services release "
 	       "does not match!\n");
-	return -1;
+	return -EINVAL;
     }
     register_symtab(&cb_enabler_symtab);
     return 0;

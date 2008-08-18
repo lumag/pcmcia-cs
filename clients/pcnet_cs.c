@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.144 2001/11/07 04:06:56
+    pcnet_cs.c 1.147 2002/03/02 21:37:36
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -76,7 +76,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.144 2001/11/07 04:06:56 (David Hinds)";
+"pcnet_cs.c 1.147 2002/03/02 21:37:36 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -772,6 +772,8 @@ static void pcnet_config(dev_link_t *link)
 	u_char id = inb(dev->base_addr + 0x1a);
 	dev->do_ioctl = &ei_ioctl;
 	mii_phy_probe(dev);
+	if ((id == 0x30) && !info->pna_phy && (info->eth_phy == 4))
+	    info->eth_phy = 0;
 	printk(KERN_INFO "%s: NE2000 (DL100%d rev %02x): ",
 	       dev->name, ((info->flags & IS_DL10022) ? 22 : 19), id);
 	if (info->pna_phy)
@@ -1050,6 +1052,7 @@ static int pcnet_close(struct net_device *dev)
 
     DEBUG(2, "pcnet_close('%s')\n", dev->name);
 
+    ei_close(dev);
     free_irq(dev->irq, dev);
     
     link->open--;
@@ -1584,7 +1587,7 @@ static int __init init_pcnet_cs(void)
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "pcnet_cs: Card Services release "
 	       "does not match!\n");
-	return -1;
+	return -EINVAL;
     }
     register_pccard_driver(&dev_info, &pcnet_attach, &pcnet_detach);
     return 0;

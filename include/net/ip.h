@@ -3,7 +3,7 @@
 
 #include <linux/version.h>
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,9))
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,4,9))
 #include <linux/kernel.h>
 #undef min
 #undef max

@@ -1,5 +1,5 @@
 #
-# man/Makefile 1.49 2000/12/11 01:51:52 (David Hinds)
+# man/Makefile 1.50 2002/01/23 02:00:06 (David Hinds)
 #
 
 # Include site dependent options
@@ -27,8 +27,10 @@ dep:
 clean:
 
 install-man1-x11: $(MAN1_X11)
+ifdef HAS_FORMS
 	@mkdir -p $(XMANDIR)/man1
 	cp $(MAN1_X11) $(XMANDIR)/man1
+endif
 
 install-man4: $(MAN4)
 	@mkdir -p $(MANDIR)/man4

@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.167 2001/12/01 01:19:22
+    cardmgr.c 1.171 2002/02/17 18:47:07
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -963,6 +963,10 @@ static void do_insert(int sn)
 	if (ret != 0) {
 	    syslog(LOG_INFO, "get dev info on socket %d failed: %m",
 		   sn);
+	    if (errno == EAGAIN)
+		syslog(LOG_INFO, "wrong module '%s' for device '%s'?",
+		       dev[i]->module[dev[i]->modules-1],
+		       (char *)bind->dev_info);
 	    ioctl(s->fd, DS_UNBIND_REQUEST, bind);
 	    beep(BEEP_TIME, BEEP_ERR);
 	    write_stab();
@@ -1198,15 +1202,11 @@ static void adjust_resources(void)
     
 /*====================================================================*/
 
-static int cleanup_files = 0;
-
 static void fork_now(void)
 {
     int ret;
-    if ((ret = fork()) > 0) {
-	cleanup_files = 0;
+    if ((ret = fork()) > 0)
 	exit(0);
-    }
     if (ret == -1)
 	syslog(LOG_ERR, "forking: %m");
     if (setsid() < 0)
@@ -1216,10 +1216,8 @@ static void fork_now(void)
 static void done(void)
 {
     syslog(LOG_INFO, "exiting");
-    if (cleanup_files) {
-	unlink(pidfile);
-	unlink(stabfile);
-    }
+    unlink(pidfile);
+    unlink(stabfile);
 }
 
 /*====================================================================*/
@@ -1285,7 +1283,10 @@ static int init_sockets(void)
 	syslog(LOG_ERR, "open_sock(socket %d) failed: %m", i);
     sockets = i;
     if (sockets == 0) {
-	syslog(LOG_ERR, "no sockets found!");
+	if (errno == ENODEV)
+	    syslog(LOG_ERR, "no sockets found!");
+	else if (errno == EBUSY)
+	    syslog(LOG_ERR, "another cardmgr is already running?");
 	return -1;
     } else
 	syslog(LOG_INFO, "watching %d sockets", sockets);
@@ -1353,20 +1354,13 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
-#ifdef DEBUG
     openlog("cardmgr", LOG_PID|LOG_PERROR, LOG_DAEMON);
-#else
-    openlog("cardmgr", LOG_PID|LOG_CONS, LOG_DAEMON);
-    close(0); close(1); close(2);
-    if (!delay_fork && !one_pass)
-	fork_now();
-#endif
     
-    syslog(LOG_INFO, "starting, version is " CS_RELEASE);
-    atexit(&done);
     putenv("PATH=/bin:/sbin:/usr/bin:/usr/sbin");
     if (verbose)
 	putenv("VERBOSE=1");
+    if (one_pass)
+	putenv("ONEPASS=1");
 
     if (modpath == NULL) {
 	if (access("/lib/modules/preferred", X_OK) == 0)
@@ -1391,10 +1385,17 @@ int main(int argc, char *argv[])
     if (init_sockets() != 0)
 	exit(EXIT_FAILURE);
 
+    closelog();
+    close(0); close(1); close(2);
+    if (!delay_fork && !one_pass)
+	fork_now();
+    openlog("cardmgr", LOG_PID|LOG_CONS, LOG_DAEMON);
+    syslog(LOG_INFO, "starting, version is " CS_RELEASE);
+
     /* If we've gotten this far, then clean up pid and stab at exit */
+    atexit(&done);
     write_pid();
     write_stab();
-    cleanup_files = 1;
     
     if (signal(SIGHUP, catch_signal) == SIG_ERR)
 	syslog(LOG_ERR, "signal(SIGHUP): %m");
@@ -1406,7 +1407,7 @@ int main(int argc, char *argv[])
     if (signal(SIGPWR, catch_signal) == SIG_ERR)
 	syslog(LOG_ERR, "signal(SIGPWR): %m");
 #endif
-    
+
     for (i = max_fd = 0; i < sockets; i++)
 	max_fd = (socket[i].fd > max_fd) ? socket[i].fd : max_fd;
 

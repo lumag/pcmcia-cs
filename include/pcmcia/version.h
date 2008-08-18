@@ -1,7 +1,7 @@
-/* version.h 1.104 2001/12/01 01:19:10 (David Hinds) */
+/* version.h 1.105 2002/01/02 03:05:03 (David Hinds) */
 
-#define CS_PKG_RELEASE		"3.1.31"
-#define CS_PKG_RELEASE_CODE	0x311f
+#define CS_PKG_RELEASE		"3.1.32"
+#define CS_PKG_RELEASE_CODE	0x3120
 
 #ifdef CONFIG_PCMCIA
 #include_next <pcmcia/version.h>

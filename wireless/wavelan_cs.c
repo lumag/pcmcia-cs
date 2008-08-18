@@ -537,6 +537,10 @@ void wv_roam_init(struct net_device *dev)
 {
   net_local  *lp= (net_local *)dev->priv;
 
+  /* Won't enable roaming if the interface is down */
+  if (!lp->link->open || !netif_running(dev) || netif_queue_stopped(dev))
+    return;
+
   /* Do not remove this unless you have a good reason */
   printk(KERN_NOTICE "%s: Warning, you have enabled roaming on"
 	 " device %s !\n", dev->name, dev->name);
@@ -797,7 +801,7 @@ static inline void wl_roam_gather(device *  dev,
   wavepoint_history *wavepoint=NULL;                /* WavePoint table entry */
   net_local *lp=(net_local *)dev->priv;              /* Device info */
 
-#if 0
+#ifdef I_NEED_THIS_FEATURE
   /* Some people don't need this, some other may need it */
   nwid=nwid^ntohs(beacon->domain_id);
 #endif
@@ -1417,7 +1421,7 @@ wv_init_info(device *	dev)
 	  printk("2430.5");
 	  break;
 	default:
-	  printk("???");
+	  printk("unknown");
 	}
     }
 
@@ -1732,7 +1736,7 @@ wv_set_frequency(u_long		base,	/* i/o port of the card */
 	 memcmp(dac, dac_verify, 2 * 2))
 	{
 #ifdef DEBUG_IOCTL_ERROR
-	  printk(KERN_INFO "Wavelan: wv_set_frequency : unable to write new frequency to EEprom (??)\n");
+	  printk(KERN_INFO "Wavelan: wv_set_frequency : unable to write new frequency to EEprom (?)\n");
 #endif
 	  return -EOPNOTSUPP;
 	}
@@ -1981,7 +1985,7 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 
     case SIOCGIWFREQ:
       /* Attempt to recognise 2.00 cards (2.4 GHz frequency selectable)
-       * (does it work for everybody ??? - especially old cards...) */
+       * (does it work for everybody ? - especially old cards...) */
       if(!(mmc_in(base, mmroff(0, mmr_fee_status)) &
 	   (MMR_FEE_STATUS_DWLD | MMR_FEE_STATUS_BUSY)))
 	{
@@ -3178,7 +3182,7 @@ wv_mmc_init(device *	dev)
    */
 
   /* Attempt to recognise 2.00 cards (2.4 GHz frequency selectable)
-   * (does it work for everybody ??? - especially old cards...) */
+   * (does it work for everybody ? - especially old cards...) */
   /* Note : WFREQSEL verify that it is able to read from EEprom
    * a sensible frequency (address 0x00) + that MMR_FEE_STATUS_ID
    * is 0xA (Xilinx version) or 0xB (Ariadne version).
@@ -4763,7 +4767,7 @@ wavelan_event(event_t		event,		/* The event received */
 	 * obliged to close nicely the wavelan here. David, could you
 	 * close the device before suspending them ? And, by the way,
 	 * could you, on resume, add a "route add -net ..." after the
-	 * ifconfig up ??? Thanks... */
+	 * ifconfig up ? Thanks... */
 
 	/* Stop receiving new messages and wait end of transmission */
 	wv_ru_stop(dev);
@@ -4790,7 +4794,7 @@ wavelan_event(event_t		event,		/* The event received */
 	if(link->state & DEV_CONFIG)
 	  {
       	    CardServices(RequestConfiguration, link->handle, &link->conf);
-      	    if(link->open)	/* If RESET -> True, If RESUME -> False ??? */
+      	    if(link->open)	/* If RESET -> True, If RESUME -> False ? */
 	      {
 		wv_hw_reset(dev);
 		netif_device_attach(dev);
@@ -4833,7 +4837,7 @@ init_wavelan_cs(void)
 #ifdef DEBUG_CONFIG_ERRORS
       printk(KERN_WARNING "init_wavelan_cs: Card Services release does not match!\n");
 #endif
-      return -1;
+      return -EINVAL;
     }
 
   register_pccard_driver(&dev_info, &wavelan_attach, &wavelan_detach);

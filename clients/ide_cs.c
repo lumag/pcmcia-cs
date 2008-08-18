@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.34 2001/11/19 13:46:41
+    ide_cs.c 1.35 2002/02/17 23:30:23
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -77,7 +77,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.34 2001/11/19 13:46:41 (David Hinds)";
+"ide_cs.c 1.35 2002/02/17 23:30:23 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -462,7 +462,7 @@ static int __init init_ide_cs(void)
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "ide_cs: Card Services release "
 	       "does not match!\n");
-	return -1;
+	return -EINVAL;
     }
     register_pccard_driver(&dev_info, &ide_attach, &ide_detach);
     return 0;

@@ -1,14 +1,18 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.189 2001/12/20 13:50:57 (David Hinds)
+# config 1.199 2002/02/26 04:56:57 (David Hinds)
 #
 
-# config.opts is now included at the very end
+# config.opts is now included at the very end.  In general, it is a
+# good idea to add things to that file rather than to this one.
 
 #
 # Device driver definitions
 #
+# These should generally not be changed!
+#
+
 device "3c589_cs"
   class "network" module "3c589_cs"
 
@@ -506,6 +510,10 @@ card "MACNICA Ethernet"
   version "MACNICA", "ME1-JEIDA"
   bind "pcnet_cs"
 
+card "Macsense MPC-10 Ethernet"
+  version "Macsense", "MPC-10"
+  bind "pcnet_cs"
+
 card "Maxtech PCN2000 Ethernet"
   version "MAXTECH", "PCN2000"
   bind "pcnet_cs"
@@ -785,6 +793,10 @@ card "Buffalo LPC3-CLX Fast Ethernet"
   manfid 0x026f, 0x0301
   bind "axnet_cs"
 
+card "Buffalo LPC4-TX Fast Ethernet"
+  manfid 0x026f, 0x0303
+  bind "axnet_cs"
+
 card "CNet CNF301 Fast Ethernet"
   version "CNet", "CNF301"
   #manfid 0xffff, 0x1090
@@ -946,6 +958,14 @@ card "Psion Gold Card NetGlobal 10/100 Fast Ethernet"
   manfid 0x016c, 0x0023
   bind "smc91c92_cs"
 
+card "SMC 8041TX 10/100 Fast Ethernet"
+  manfid 0x01bf, 0x8041
+  bind "pcnet_cs"
+
+card "Socket CF+ 10/100 Fast Ethernet"
+  manfid 0x0104, 0x0145
+  bind "pcnet_cs"
+
 card "Toshiba Advanced Network Fast Ethernet"
   version "Toshiba Information Systems", "*", "TPCENET"
   bind "xirc2ps_cs"
@@ -989,6 +1009,10 @@ card "350 Series Wireless LAN Adapter"
   manfid 0x015f, 0x000a
   bind "airo_cs"
 
+card "3Com AirConnect"
+  version "3Com", "3CRWE737A AirConnect Wireless LAN PC Card"
+  bind "orinoco_cs"
+
 card "Aironet PC4500"
   manfid 0x015f, 0x0005
   bind "airo_cs"
@@ -1001,41 +1025,81 @@ card "AT&T WaveLAN Adapter"
   version "AT&T", "WaveLAN/PCMCIA"
   bind "wavelan_cs"
 
+card "Avaya World Card"
+  version "Avaya Communication", "Avaya Wireless PC Card"
+  bind "orinoco_cs"
+
 card "Cabletron RoamAbout 802.11 DS"
   version "Cabletron", "RoamAbout 802.11 DS"
-  bind "wvlan_cs"
+  bind "orinoco_cs"
 
 card "Compaq WL100 11 Mbps Wireless Adapter"
   manfid 0x0138, 0x0002
-  bind "wvlan_cs"
+  bind "orinoco_cs"
+
+card "Compaq HNW-100 11 Mbps Wireless Adapter"
+  manfid 0x028a, 0x0002
+  bind "orinoco_cs"
 
 card "Digital RoamAbout/DS"
   version "Digital", "RoamAbout/DS"
   bind "wavelan_cs"
 
+card "D-Link DWL-650"
+  version "D", "Link DWL-650 11Mbps WLAN Card"
+  bind "orinoco_cs"
+
+card "D-Link DRC-650"
+  version "D", "Link DRC-650 11Mbps WLAN Card"
+  bind "orinoco_cs"
+
 card "ELSA AirLancer MC-11"
   version "ELSA", "AirLancer MC-11"
-  bind "wvlan_cs"
+  bind "orinoco_cs"
+
+card "Farallon SkyLINE"
+  version "INTERSIL", "HFA384x/IEEE"
+  bind "orinoco_cs"
+
+card "HyperLink Wireless PC Card 11Mbps"
+  version "HyperLink", "Wireless PC Card 11Mbps"
+  bind "orinoco_cs"
+
+card "Intersil PRISM2 11 Mbps Wireless Adapter"
+  manfid 0x0156, 0x0002
+  bind "orinoco_cs"
+
+card "Intel PRO/Wireless 2011"
+  manfid 0x0089, 0x0001
+  bind "orinoco_cs"
+
+card "LA4111 Spectrum24 Wireless LAN PC Card"
+  version "Symbol Technologies"
+  bind "orinoco_cs"
+
+card "Linksys WPC11 11Mbps 802.11b WLAN Card"
+  version "Instant Wireless ", " Network PC CARD", "Version 01.02"
+  bind "orinoco_cs"
+
+card "Lucent Technologies WaveLAN/IEEE Adapter"
+  version "Lucent Technologies", "WaveLAN/IEEE"
+  bind "orinoco_cs"
 
 card "Lucent Technologies WaveLAN Adapter"
   version "Lucent Technologies", "WaveLAN/PCMCIA"
   bind "wavelan_cs"
 
-card "Intersil PRISM2 11 Mbps Wireless Adapter"
-  manfid 0x0156, 0x0002
-  bind "wvlan_cs"
-
-card "Lucent Technologies WaveLAN/IEEE Adapter"
-  version "Lucent Technologies", "WaveLAN/IEEE"
-  bind "wvlan_cs"
-
 card "MELCO WLI-PCM-L11"
   version "MELCO", "WLI-PCM-L11"
-  bind "wvlan_cs"
+  bind "orinoco_cs"
 
 card "MELCO WLI-PCM-L11G"
   version "MELCO", "WLI-PCM-L11G"
-  bind "wvlan_cs"
+  bind "orinoco_cs"
+
+card "MELCO WLI-PCM-L11G"
+  version "BUFFALO", "WLI-PCM-L11G"
+  bind "orinoco_cs"
 
 card "NCR WaveLAN Adapter"
   version "NCR", "WaveLAN/PCMCIA"
@@ -1043,24 +1107,36 @@ card "NCR WaveLAN Adapter"
 
 card "NCR WaveLAN/IEEE Adapter"
   version "NCR", "WaveLAN/IEEE"
-  bind "wvlan_cs"
+  bind "orinoco_cs"
 
 card "PLANEX GeoWave/GW-CF110"
   version "PLANEX", "GeoWave/GW-CF110"
-  bind "wvlan_cs"
+  bind "orinoco_cs"
+
+card "PROXIM LAN PC CARD HARMONY 80211B"
+  version "PROXIM", "LAN PC CARD HARMONY 80211B"
+  bind "orinoco_cs"
 
 card "RayLink PC Card WLAN Adapter"
   manfid 0x01a6, 0x0000
   bind "ray_cs"
 
+card "SAMSUNG 11Mbps WLAN Card"
+  version "SAMSUNG", "11Mbps WLAN Card"
+  bind "orinoco_cs"
+
 card "Xircom CreditCard Netwave"
   version "Xircom", "CreditCard Netwave"
   bind "netwave_cs"
 
+card "Xircom Wireless Network Adapter"
+  manfid 0x0105, 0x0007
+  bind "airo_cs"
+
 card "ZCOMAX AirRunner/XI-300"
   #version "ZCOMAX", "AirRunner/XI-300"
   manfid 0xd601, 0x0002
-  bind "wvlan_cs"
+  bind "orinoco_cs"
 
 #
 # Modems and other serial devices
@@ -1974,6 +2050,10 @@ card "NetGear FA510C Fast Ethernet"
 
 card "NetGear FA510C Fast Ethernet"
   pci 0x1011, 0x0019
+  bind "tulip_cb"
+
+card "NetGear FA511 Fast Ethernet"
+  pci 0x1317, 0x1985
   bind "tulip_cb"
 
 card "PLANET ENW-3502-FC"

@@ -1,3 +1,30 @@
+[02-Mar-02] Version 3.1.32
+-- Added "--extraver" flag to Configure script to override the kernel
+   Makefile EXTRAVERSION setting, from Luca Montecchiani.
+-- Changed cards bound to "wvlan_cs" to bind "orinoco_cs" instead.
+-- Changed cardmgr behavior to report startup problems on stderr as
+   well as to the system log.
+-- Added AX88790 chipset support to axnet_cs, from Komuro.
+-- Update to m8xx_pcmcia socket driver from Matthew Locke, to fix bus
+   frequency computations.
+-- Update for smc91c92_cs from Komuro: adds full duplex support for
+   smc91c100 cards, and adds support for MII ioctl's for mii-tool.
+-- Updated orinoco_cs driver to version 0.09b.
+-- Update to ray_cs wireless extensions from Jean Tourrilhes.
+-- Fixed 3V 16-bit card support for ToPIC bridges from UENO Katsuhiro.
+-- Fixed init_module() exit codes to -EINVAL, from Pavel Roskin.
+-- Fixed buffer overrun in lspnp, from Pavel Roskin.
+-- Fixed serial_cs to correctly handle voltage selection for 3.3V
+   multiport cards. 
+-- Fixed man/Makefile to only install cardinfo man page when cardinfo
+   is built, from Niels Kristian.
+-- Fixed wavelan_cs to not crash at shutdown when roaming is enabled,
+   from Pavel Roskin.
+-- Fixed wedged PCI irq at shutdown in pcnet_cs, axnet_cs drivers,
+   from Pavel Roskin.
+-- Fixed cardmgr to accurately indicate when it is already running.
+-- Fixed 3c589_cs breakage introduced in 3.1.31.
+
 [01-Jan-02] Version 3.1.31
 -- Changed cardmgr, cardctl to report their version info, not the
    version of the kernel PCMCIA drivers, on 2.4.* kernels.

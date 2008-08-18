@@ -1,6 +1,6 @@
 		Linux PCMCIA Maintainers List
 
-		Last updated: 2001/09/10 13:48:23
+		Last updated: 2002/02/23 03:47:11
 
 The following PCMCIA driver components have active maintainers.  Bug
 reports and questions are often best addressed to the maintainer of
@@ -26,11 +26,15 @@ Jun Komuro <komujun@nifty.com>
 Mike Phillips <phillim@amtrak.com>
 http://www.linuxtr.org
 
-[m8xx-pcmcia]
+[m8xx_pcmcia]
+Magnus Damm <damm@opensource.se>
 Matthew Locke <mlocke@mvista.com>
 
 [netwave_cs]
 Dag Brattli <dagb@cs.uit.no>
+
+[orinoco_cs]
+David Gibson <hermes@gibson.dropbear.id.au>
 
 [pcilynx_cb]
 Albrecht Dreﬂ <ad@mpifr-bonn.mpg.de>

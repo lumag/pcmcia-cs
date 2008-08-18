@@ -647,7 +647,7 @@ int init_module(void)
 	if (serv.Revision != CS_RELEASE_CODE) {
 		printk(KERN_NOTICE "airo_cs: Card Services release "
 		       "does not match!\n");
-		return -1;
+		return -EINVAL;
 	}
 	register_pcmcia_driver(&dev_info, &airo_attach, &airo_detach);
 	return 0;

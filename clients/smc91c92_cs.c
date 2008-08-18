@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.113 2001/10/13 00:08:53
+    smc91c92_cs.c 1.115 2002/02/17 23:30:24
     
     This driver contains code written by Donald Becker
     (becker@scyld.com), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -125,6 +125,8 @@ struct smc_private {
     u_short			fast_poll;
     u_short			link_status;
     int				phy_id;
+    int				duplex;
+    int				rx_ovrn;
 };
 
 /* Special definitions for Megahertz multifunction cards */
@@ -284,6 +286,7 @@ static int smc91c92_event(event_t event, int priority,
 
 static int smc91c92_open(struct net_device *dev);
 static int smc91c92_close(struct net_device *dev);
+static int smc91c92_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void smc_tx_timeout(struct net_device *dev);
 static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void smc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
@@ -375,6 +378,7 @@ static dev_link_t *smc91c92_attach(void)
     init_dev_name(dev, smc->node);
     dev->open = &smc91c92_open;
     dev->stop = &smc91c92_close;
+    dev->do_ioctl = &smc91c92_ioctl;
 #ifdef HAVE_TX_TIMEOUT
     dev->tx_timeout = smc_tx_timeout;
     dev->watchdog_timeo = TX_TIMEOUT;
@@ -1001,6 +1005,8 @@ static void smc91c92_config(dev_link_t *link)
     copy_dev_name(smc->node, dev);
     link->dev = &smc->node;
     link->state &= ~DEV_CONFIG_PENDING;
+    smc->duplex = 0;
+    smc->rx_ovrn = 0;
 
     rev = check_sig(link);
     name = "???";
@@ -1334,6 +1340,39 @@ static int smc91c92_close(struct net_device *dev)
     return 0;
 } /* smc91c92_close */
 
+static int smc91c92_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+    struct smc_private *smc = dev->priv;
+    u16 *data = (u16 *)&rq->ifr_data;
+    ushort saved_bank;
+    ioaddr_t ioaddr = dev->base_addr;
+    ioaddr_t mii_addr = dev->base_addr + MGMT;
+
+    if (!(smc->cfg & CFG_MII_SELECT)) 
+	return -EOPNOTSUPP;
+
+    saved_bank = inw(ioaddr + BANK_SELECT);
+    SMC_SELECT_BANK(3);
+
+    switch (cmd) {
+    case SIOCDEVPRIVATE:
+	data[0] = smc->phy_id;
+    case SIOCDEVPRIVATE+1:
+	data[3] = mdio_read(mii_addr, data[0], data[1] & 0x1f);
+	SMC_SELECT_BANK(saved_bank);
+	return 0;
+    case SIOCDEVPRIVATE+2:
+	if (!capable(CAP_NET_ADMIN)) {
+	    SMC_SELECT_BANK(saved_bank);
+	    return -EPERM;
+	}
+	mdio_write(mii_addr, data[0], data[1] & 0x1f, data[2]);
+	SMC_SELECT_BANK(saved_bank);
+	return 0;
+    }
+    SMC_SELECT_BANK(saved_bank);
+    return -EOPNOTSUPP;
+}
 /*======================================================================
 
    Transfer a packet to the hardware and trigger the packet send.
@@ -1353,7 +1392,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
 	printk(KERN_ERR "%s: In XMIT with no packet to send.\n", dev->name);
 	return;
     }
-    
+
     /* There should be a packet slot waiting. */
     packet_no = inw(ioaddr + PNR_ARR) >> 8;
     if (packet_no & 0x80) {
@@ -1458,6 +1497,12 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
     
     SMC_SELECT_BANK(2);	/* Paranoia, we should always be in window 2 */
     
+    /* need MC_RESET to keep the memory consistent. errata? */
+    if (smc->rx_ovrn) {
+	outw(MC_RESET, ioaddr + MMU_CMD);
+	smc->rx_ovrn = 0;
+    }	
+
     /* Allocate the memory; send the packet now if we win. */
     outw(MC_ALLOC | num_pages, ioaddr + MMU_CMD);
     for (time_out = MEMORY_WAIT_TIME; time_out >= 0; time_out--) {
@@ -1513,7 +1558,7 @@ static void smc_tx_err(struct net_device * dev)
     }
     /* re-enable transmit */
     SMC_SELECT_BANK(0);
-    outw(inw(ioaddr + TCR) | TCR_ENABLE, ioaddr + TCR);
+    outw(inw(ioaddr + TCR) | TCR_ENABLE | smc->duplex, ioaddr + TCR);
     SMC_SELECT_BANK(2);
     
     outw(MC_FREEPKT, ioaddr + MMU_CMD); 	/* Free the packet memory. */
@@ -1549,7 +1594,7 @@ static void smc_eph_irq(struct net_device *dev)
     card_stats >>= 4;			/* excess deferred */
 #endif
     /* If we had a transmit error we must re-enable the transmitter. */
-    outw(inw(ioaddr + TCR) | TCR_ENABLE, ioaddr + TCR);
+    outw(inw(ioaddr + TCR) | TCR_ENABLE | smc->duplex, ioaddr + TCR);
 
     /* Clear a link error interrupt. */
     SMC_SELECT_BANK(1);
@@ -1629,6 +1674,8 @@ static void smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (status & IM_RX_OVRN_INT) {
 	    smc->stats.rx_errors++;
 	    smc->stats.rx_fifo_errors++;		
+	    if (smc->duplex)
+		smc->rx_ovrn = 1; /* need MC_RESET outside smc_interrupt */
 	    outw(IM_RX_OVRN_INT, ioaddr + INTERRUPT);
 	}
 	if (status & IM_EPH_INT)
@@ -1941,7 +1988,7 @@ static void smc_reset(struct net_device *dev)
     /* Re-enable the chip. */
     SMC_SELECT_BANK(0);
     outw(((smc->cfg & CFG_MII_SELECT) ? 0 : TCR_MONCSN) |
-	 TCR_ENABLE | TCR_PAD_EN, ioaddr + TCR);
+	 TCR_ENABLE | TCR_PAD_EN | smc->duplex, ioaddr + TCR);
     set_rx_mode(dev);
 
     if (smc->cfg & CFG_MII_SELECT) {
@@ -1949,6 +1996,9 @@ static void smc_reset(struct net_device *dev)
 
 	/* Reset MII */
 	mdio_write(ioaddr + MGMT, smc->phy_id, 0, 0x8000);
+
+	/* Advertise 100F, 100H, 10F, 10H */
+	mdio_write(ioaddr + MGMT, smc->phy_id, 4, 0x01e1); 
 
 	/* Restart MII autonegotiation */
 	mdio_write(ioaddr + MGMT, smc->phy_id, 0, 0x0000);
@@ -1982,6 +2032,12 @@ static void media_check(u_long arg)
 	goto reschedule;
 
     SMC_SELECT_BANK(2);
+
+    /* need MC_RESET to keep the memory consistent. errata? */
+    if (smc->rx_ovrn) {
+	outw(MC_RESET, ioaddr + MMU_CMD);
+	smc->rx_ovrn = 0;
+    }	
     i = inw(ioaddr + INTERRUPT);
     SMC_SELECT_BANK(0);
     media = inw(ioaddr + EPH) & EPH_LINK_OK;
@@ -2021,18 +2077,21 @@ static void media_check(u_long arg)
 	    u_short p = mdio_read(mii_addr, smc->phy_id, 5);
 	    printk(KERN_INFO "%s: %s link beat\n", dev->name,
 		(link) ? "found" : "lost");
+	    
+	    smc->duplex = (((p & 0x0100) || ((p & 0x1c0) == 0x40))
+			? TCR_FDUPLX : 0);
 	    if (link) {
 	        printk(KERN_INFO "%s: autonegotiation complete: "
 	   	    "%sbaseT-%cD selected\n", dev->name,
 		    ((p & 0x0180) ? "100" : "10"),
-		    (((p & 0x0100) || ((p & 0x1c0) == 0x40)) ? 'F' : 'H'));
+		    (smc->duplex  ? 'F' : 'H'));
 	    }
+	    SMC_SELECT_BANK(0);
+	    outw(inw(ioaddr + TCR) | smc->duplex, ioaddr + TCR);
 	    smc->link_status = link;
 	}
-    }
-
-    if (smc->cfg & CFG_MII_SELECT)
 	goto reschedule;
+    }
 
     /* Ignore collisions unless we've had no rx's recently */
     if (jiffies - dev->last_rx > HZ) {
@@ -2085,7 +2144,7 @@ static int __init init_smc91c92_cs(void)
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_ERR
 	       "smc91c92_cs: Card Services release does not match!\n");
-	return -1;
+	return -EINVAL;
     }
     register_pccard_driver(&dev_info, &smc91c92_attach, &smc91c92_detach);
     return 0;

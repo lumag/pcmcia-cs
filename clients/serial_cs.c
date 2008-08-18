@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.128 2001/10/18 12:18:35
+    serial_cs.c 1.130 2002/02/17 23:30:24
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -79,7 +79,7 @@ INT_MODULE_PARM(do_sound, 1);
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.128 2001/10/18 12:18:35 (David Hinds)";
+"serial_cs.c 1.130 2002/02/17 23:30:24 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -172,7 +172,6 @@ static dev_link_t *serial_attach(void)
 	for (i = 0; i < 4; i++)
 	    link->irq.IRQInfo2 |= 1 << irq_list[i];
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Vcc = 50;
     if (do_sound) {
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
 	link->conf.Status = CCSR_AUDIO_ENA;
@@ -255,7 +254,7 @@ static int setup_serial(serial_info_t *info, ioaddr_t port, int irq)
     if (line < 0) {
 	printk(KERN_NOTICE "serial_cs: register_serial() at 0x%04lx,"
 	       " irq %d failed\n", (u_long)serial.port, serial.irq);
-	return -1;
+	return -EINVAL;
     }
     
     info->line[info->ndev] = line;
@@ -393,7 +392,11 @@ static int multi_config(dev_link_t *link)
     u_char buf[256];
     cisparse_t parse;
     cistpl_cftable_entry_t *cf = &parse.cftable_entry;
+    config_info_t config;
     int i, base2 = 0;
+
+    CardServices(GetConfigurationInfo, handle, &config);
+    link->conf.Vcc = config.Vcc;
 
     tuple.TupleData = (cisdata_t *)buf;
     tuple.TupleOffset = 0; tuple.TupleDataMax = 255;

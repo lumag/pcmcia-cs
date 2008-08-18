@@ -402,7 +402,7 @@
 
 /***************************** INCLUDES *****************************/
 
-#undef IN_KERNEL_SOURCE
+//#define IN_KERNEL_SOURCE
 #ifndef IN_KERNEL_SOURCE		/* David : check this out ! */
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
@@ -464,53 +464,53 @@
 
 /************************** DRIVER OPTIONS **************************/
 /*
- * `#define' or `#undef' the following constant to change the behaviour
+ * `#define' or the following symbols to change the behaviour
  * of the driver...
  */
 #define WAVELAN_ROAMING		/* Include experimental roaming code */
-#undef WAVELAN_ROAMING_EXT	/* Enable roaming wireless extensions */
-#undef SET_PSA_CRC		/* Set the CRC in PSA (slower) */
+//#define WAVELAN_ROAMING_EXT	/* Enable roaming wireless extensions */
+//#define SET_PSA_CRC		/* Set the CRC in PSA (slower) */
 #define USE_PSA_CONFIG		/* Use info from the PSA */
-#undef STRUCT_CHECK		/* Verify padding of structures */
-#undef EEPROM_IS_PROTECTED	/* Doesn't seem to be necessary */
+//#define STRUCT_CHECK		/* Verify padding of structures */
+//#define EEPROM_IS_PROTECTED	/* Doesn't seem to be necessary */
 #define MULTICAST_AVOID		/* Avoid extra multicast (I'm sceptical) */
-#undef SET_MAC_ADDRESS		/* Experimental */
+//#define SET_MAC_ADDRESS	/* Experimental */
 
 #ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
 /* Warning : these stuff will slow down the driver... */
 #define WIRELESS_SPY		/* Enable spying addresses */
-#undef HISTOGRAM		/* Enable histogram of sig level... */
+//#define HISTOGRAM		/* Enable histogram of sig level... */
 #endif
 
 /****************************** DEBUG ******************************/
 
-#undef DEBUG_MODULE_TRACE	/* Module insertion/removal */
-#undef DEBUG_CALLBACK_TRACE	/* Calls made by Linux */
-#undef DEBUG_INTERRUPT_TRACE	/* Calls to handler */
-#undef DEBUG_INTERRUPT_INFO	/* type of interrupt & so on */
+//#define DEBUG_MODULE_TRACE	/* Module insertion/removal */
+//#define DEBUG_CALLBACK_TRACE	/* Calls made by Linux */
+//#define DEBUG_INTERRUPT_TRACE	/* Calls to handler */
+//#define DEBUG_INTERRUPT_INFO	/* type of interrupt & so on */
 #define DEBUG_INTERRUPT_ERROR	/* problems */
-#undef DEBUG_CONFIG_TRACE	/* Trace the config functions */
-#undef DEBUG_CONFIG_INFO	/* What's going on... */
+//#define DEBUG_CONFIG_TRACE	/* Trace the config functions */
+//#define DEBUG_CONFIG_INFO	/* What's going on... */
 #define DEBUG_CONFIG_ERRORS	/* Errors on configuration */
-#undef DEBUG_TX_TRACE		/* Transmission calls */
-#undef DEBUG_TX_INFO		/* Header of the transmitted packet */
-#undef DEBUG_TX_FAIL		/* Normal failure conditions */
+//#define DEBUG_TX_TRACE	/* Transmission calls */
+//#define DEBUG_TX_INFO		/* Header of the transmitted packet */
+//#define DEBUG_TX_FAIL		/* Normal failure conditions */
 #define DEBUG_TX_ERROR		/* Unexpected conditions */
-#undef DEBUG_RX_TRACE		/* Transmission calls */
-#undef DEBUG_RX_INFO		/* Header of the transmitted packet */
-#undef DEBUG_RX_FAIL		/* Normal failure conditions */
+//#define DEBUG_RX_TRACE	/* Transmission calls */
+//#define DEBUG_RX_INFO		/* Header of the transmitted packet */
+//#define DEBUG_RX_FAIL		/* Normal failure conditions */
 #define DEBUG_RX_ERROR		/* Unexpected conditions */
-#undef DEBUG_PACKET_DUMP	32	/* Dump packet on the screen */
-#undef DEBUG_IOCTL_TRACE	/* Misc call by Linux */
-#undef DEBUG_IOCTL_INFO		/* Various debug info */
+//#define DEBUG_PACKET_DUMP 32	/* Dump packet on the screen */
+//#define DEBUG_IOCTL_TRACE	/* Misc call by Linux */
+//#define DEBUG_IOCTL_INFO	/* Various debug info */
 #define DEBUG_IOCTL_ERROR	/* What's going wrong */
 #define DEBUG_BASIC_SHOW	/* Show basic startup info */
-#undef DEBUG_VERSION_SHOW	/* Print version info */
-#undef DEBUG_PSA_SHOW		/* Dump psa to screen */
-#undef DEBUG_MMC_SHOW		/* Dump mmc to screen */
-#undef DEBUG_SHOW_UNUSED	/* Show also unused fields */
-#undef DEBUG_I82593_SHOW	/* Show i82593 status */
-#undef DEBUG_DEVICE_SHOW	/* Show device parameters */
+//#define DEBUG_VERSION_SHOW	/* Print version info */
+//#define DEBUG_PSA_SHOW	/* Dump psa to screen */
+//#define DEBUG_MMC_SHOW	/* Dump mmc to screen */
+//#define DEBUG_SHOW_UNUSED	/* Show also unused fields */
+//#define DEBUG_I82593_SHOW	/* Show i82593 status */
+//#define DEBUG_DEVICE_SHOW	/* Show device parameters */
 
 /************************ CONSTANTS & MACROS ************************/
 

@@ -2063,7 +2063,7 @@ init_xirc2ps_cs(void)
     CardServices(GetCardServicesInfo, &serv);
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KNOT_XIRC "Card Services release does not match!\n");
-	return -1;
+	return -EINVAL;
     }
     DEBUG(0, "pc_debug=%d\n", pc_debug);
     register_pccard_driver(&dev_info, &xirc2ps_attach, &xirc2ps_detach);

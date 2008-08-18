@@ -3365,7 +3365,7 @@ extern int __init init_wvlan_cs (void)
 	if (serv.Revision != CS_RELEASE_CODE)
 	{
 		printk(KERN_WARNING "%s: CardServices release does not match!\n", dev_info);
-		return -1;
+		return -EINVAL;
 	}
 
 	// Register PCMCIA driver

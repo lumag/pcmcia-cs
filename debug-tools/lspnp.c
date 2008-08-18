@@ -2,7 +2,7 @@
 
     A utility for dumping resource information for PnP devices
 
-    lspnp.c 1.7 2001/08/24 12:16:44
+    lspnp.c 1.8 2002/02/13 05:45:01
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -396,7 +396,7 @@ static void dump_mem_info(__u8 info)
 
 static void dump_ansi(union pnp_large_resource *r, int sz)
 {
-    printf("\tidentifier '%*s'\n", sz, r->ansi.str);
+    printf("\tidentifier '%.*s'\n", sz, r->ansi.str);
 }
 
 static void dump_mem(union pnp_large_resource *r)
@@ -464,7 +464,7 @@ static char *dump_chain(u_char *buf, int nr)
 	    case PNP_RES_LGTAG_MEM:
 		dump_mem(r); break;
 	    case PNP_RES_LGTAG_ID_ANSI:
-		dump_ansi(r, sz); break;
+		dump_ansi(r, sz-2); break;
 	    case PNP_RES_LGTAG_ID_UNICODE:
 		/* dump_unicode(r); */ break;
 	    case PNP_RES_LGTAG_MEM32:

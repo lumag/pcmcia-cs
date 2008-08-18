@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.201 2002/01/02 01:09:31
+# Configure 1.204 2002/02/23 03:54:40
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -79,7 +79,7 @@ usage () {
     echo "    [--kcc=path] [--ld=path] [--uflags=flags] [--kflags=flags]"
     echo "    [--debug=flags] [--{no}trust] [--{no}cardbus] [--{no}pnp]"
     echo "    [--{no}apm] [--force] [--current] [--srctree] [--sysv]"
-    echo "    [--bsd] [--rcdir=dir]"
+    echo "    [--bsd] [--rcdir=dir] [--extraver=ver]"
     echo ""
     echo "  -n, --noprompt     non-interactive mode: no prompting"
     echo "  --kernel=DIR       use kernel source tree at DIR"
@@ -102,6 +102,7 @@ usage () {
     echo "  --sysv             target has SysV init script layout"
     echo "  --bsd              target uses BSD init scripts"
     echo "  --rcdir=DIR        SysV init scripts are under DIR"
+    echo "  --extraver=VER     overrides EXTRAVERSION in kernel Makefile"
     exit 1
 }
 
@@ -133,6 +134,7 @@ while [ $# -gt 0 ] ; do
     --sysv)		SYSV_INIT=y		;;
     --bsd)		SYSV_INIT=n		;;
     --rcdir=*)		arg RC_DIR "$1"		;;
+    --extraver=*)	arg EXTRAVER "$1"	;;
     *)			usage			;;
     esac
     shift
@@ -253,6 +255,10 @@ echo ""
 for TAG in VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION ; do
     eval `sed -ne "/^$TAG/s/[ 	]//gp" $LINUX/Makefile`
 done
+if [ "$EXTRAVER" != "" ] ; then
+    EXTRAVERSION=$EXTRAVER
+    write_str EXTRAVER
+fi
 SRC_RELEASE=$VERSION.$PATCHLEVEL.$SUBLEVEL$EXTRAVERSION
 SRC_BASE=$VERSION.$PATCHLEVEL.$SUBLEVEL
 VERSION_CODE=`version $VERSION $PATCHLEVEL $SUBLEVEL`
@@ -954,7 +960,7 @@ fi
 md ()
 {
     L=`env LANG=en_US man -w $1 2>/dev/null | sed -ne 's+/man/.*+/man/+p'`
-    if [ -f "$L" ] ; then echo $L ; else echo $2 ; fi
+    if [ -d "$L" ] ; then echo $L ; else echo $2 ; fi
 }
 
 MANDIR=`md ls /usr/man`

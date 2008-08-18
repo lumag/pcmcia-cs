@@ -1723,7 +1723,7 @@ static int __init init_nmclan_cs(void)
   CardServices(GetCardServicesInfo, &serv);
   if (serv.Revision != CS_RELEASE_CODE) {
     printk(KERN_NOTICE "nmclan_cs: Card Services release does not match!\n");
-    return -1;
+    return -EINVAL;
   }
   register_pccard_driver(&dev_info, &nmclan_attach, &nmclan_detach);
   return 0;

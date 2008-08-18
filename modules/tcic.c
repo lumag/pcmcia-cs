@@ -2,7 +2,7 @@
 
     Device driver for Databook TCIC-2 PCMCIA controller
 
-    tcic.c 1.121 2001/10/13 00:08:33
+    tcic.c 1.122 2002/02/17 23:31:02
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -83,7 +83,7 @@ INT_MODULE_PARM(cycle_time, 70);	/* in ns, 70 = 14.31818 MHz */
 #ifdef PCMCIA_DEBUG
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 static const char *version =
-"tcic.c 1.121 2001/10/13 00:08:33 (David Hinds)";
+"tcic.c 1.122 2002/02/17 23:31:02 (David Hinds)";
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 #else
 #define DEBUG(n, args...)
@@ -361,7 +361,7 @@ static int __init init_tcic(void)
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "tcic: Card Services release "
 	       "does not match!\n");
-	return -1;
+	return -EINVAL;
     }
     
     printk(KERN_INFO "Databook TCIC-2 PCMCIA probe: ");

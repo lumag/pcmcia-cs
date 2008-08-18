@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.32 2001/10/13 00:08:51
+    dummy_cs.c 1.33 2002/02/17 23:30:21
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -90,7 +90,7 @@ INT_MODULE_PARM(irq_mask, 0xdeb8);
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"dummy_cs.c 1.32 2001/10/13 00:08:51 (David Hinds)";
+"dummy_cs.c 1.33 2002/02/17 23:30:21 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -649,7 +649,7 @@ static int __init init_dummy_cs(void)
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "dummy_cs: Card Services release "
 	       "does not match!\n");
-	return -1;
+	return -EINVAL;
     }
     register_pccard_driver(&dev_info, &dummy_attach, &dummy_detach);
     return 0;

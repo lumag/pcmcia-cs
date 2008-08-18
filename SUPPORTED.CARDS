@@ -1,15 +1,16 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2001/12/20 13:50:56
+		Last updated: 2002/02/26 04:56:58
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
 on this list, please let me know.  This list is complete to the best
 of my knowledge.
 
-CardBus cards are listed at the end of each section.  At this time,
-some CardBus drivers should be treated as experimental.  Beware that
-some cards have 16-bit and CardBus versions with very similar names.
+CardBus cards are listed towards the end of each section.  All 16-bit
+PCMCIA drivers have names ending in "_cs", while CardBus drivers have
+names ending in "_cb".  Beware that some cards have 16-bit and CardBus
+versions with similar names, but completely different implementations.
 If the CardBus version is not specifically listed as supported here,
 then you should not expect it to work.
 
@@ -117,6 +118,7 @@ Ethernet cards:
 	Logitec LPM-LN10T, LPM-LN10BA, LPM-LN20T Ethernet
 	Longshine ShineNet LCS-8534TB Ethernet
 	Macnica ME-1 Ethernet
+	Macsense MPC-10 Ethernet
 	Maxtech PCN2000 Ethernet
 	Melco LPC-TJ, LPC-TS, LPC-T, LPC2-T
 	Microdyne NE4200 Ethernet
@@ -181,7 +183,7 @@ Fast Ethernet (10/100baseT) adapters:
 	[axnet_cs driver]
 	AmbiCom AMB8110
 	Billionton LNA-100B
-	Buffalo LPC3-CLX
+	Buffalo LPC3-CLX, LPC4-TX
 	Edimax EP-4101
 	CNet CNF301
 	FEP501 Fast Ethernet
@@ -193,6 +195,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Planex FNW-3700-T
 	Repotec RP-1638
 	Surecom EP-427X
+	Topcom Xplorer 2700
 
 	[pcnet_cs driver] [x86,ppc,axp]
 	Abocom LinkMate FE1000, FE1500
@@ -226,7 +229,9 @@ Fast Ethernet (10/100baseT) adapters:
 	NetGear FA410TXC, FA411
 	Net-Lynx 10/100 Fast Ethernet
 	New Media LiveWire 10/100
-	Planex FNW-3600T
+	Planex FNW-3600T, FNW-3600TX
+	SMC 8041TX
+	Socket CF+ 10/100
 	WiseCom iPort 10/100
 	ZONET Fast Ethernet
 
@@ -281,7 +286,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Linksys PCMPC200 EtherFast CardBus
 	Macsense MPC-200
 	NDC Communications Sohoware NCB100
-	NetGear FA510C
+	NetGear FA510C, FA511
 	OvisLink LFS PCM 32
 	PLANET ENW-3502-FC
 	PrimeXpress Fast Ethernet
@@ -328,31 +333,38 @@ Wireless network adapters:
 	AT&T / NCR / Lucent WaveLAN version 2.0
 	DEC RoamAbout/DS
 
-	[wvlan_cs driver] [x86,axp,ppc,smp]
+	[orinoco_cs driver] [x86,axp,ppc,smp]
+	3Com AirConnect
 	1stWave 1ST-PC-DSS11IS, DSS11IG, DSS11ES, DSS11EG
 	ARtem Onair ComCard STD & EMB versions, 128- & 64-bit
+	Avaya World Card
 	Cabletron/Enterasys RoamAbout 802.11 DS
+	Compaq HNW-100
 	ELSA AirLancer MC-11
+	Ericsson WLAN Card C11
 	HP F2136B
 	IBM High Rate Wireless LAN
+	Intel PRO/Wireless 2011
 	Lucent Orinoco WaveLAN/IEEE 802.11(b)
 	Melco WLI-PCM-L11, WLI-PCM-L11G
 	NCR WaveLAN/IEEE 802.11
 	PLANEX GeoWave/GW-CF110
+	Proxim Harmony 802.11b
+	Samsung 11Mbps WLAN
 	[ PrismII based cards: limited functionality ]
 	Addtron AWP-100
 	Ambicom WL1100 PC
+	Belkin F5D6020
 	Compaq WL100
 	Dell TrueMobile 1150 Series
-	D-Link DWL-650
+	D-Link DWL-650, DRC-650
+	Farallon SkyLINE
+	HyperLink Wireless
+	LA4111 Spectrum24 Wireless LAN
 	Linksys WPC11 Instant Wireless
+	Netgear MA401
 	SMC2632W
 	ZCOMAX AirRunner/XI=300
-
-	[orinoco_cs driver]
-	[ experimental backport of 2.4 driver for 2.2 kernels,
-	supports same cards as wvlan_cs, requires wireless
-	extensions version 10 or later ]
 
 Modem and serial cards:
 

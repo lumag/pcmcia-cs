@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.344 2001/11/30 16:00:57
+    i82365.c 1.347 2002/02/26 04:50:28
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -141,7 +141,7 @@ INT_MODULE_PARM(pci_int, 1);		/* PCI IO card irqs? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.344 2001/11/30 16:00:57 (David Hinds)";
+"i82365.c 1.347 2002/02/26 04:50:28 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -727,6 +727,7 @@ static u_int __init ricoh_set_opts(socket_info_t *s, char *buf)
     }
     if (irq_mode == 0) {
 	mask = 0;
+	p->misc &= ~RL5C47X_MISC_SRIRQ_ENA;
 	sprintf(buf, " [pci only]");
 	buf += strlen(buf);
     } else if (!old) {
@@ -862,6 +863,7 @@ static void __init topic_get_state(socket_info_t *s)
     pci_readb(s, TOPIC_CARD_CONTROL, &p->ccr);
     pci_readb(s, TOPIC_CARD_DETECT, &p->cdr);
     pci_readl(s, TOPIC_REGISTER_CONTROL, &p->rcr);
+    p->fcr = i365_get(s, TOPIC_FUNCTION_CONTROL);
 }
 
 static void topic_set_state(socket_info_t *s)
@@ -869,9 +871,11 @@ static void topic_set_state(socket_info_t *s)
     topic_state_t *p = &s->state.topic;
     u_int state;
     pci_writeb(s, TOPIC_SLOT_CONTROL, p->slot);
+    pci_writeb(s, TOPIC_SLOT_CONTROL, p->slot);
     pci_writeb(s, TOPIC_CARD_CONTROL, p->ccr);
     pci_writeb(s, TOPIC_CARD_DETECT, p->cdr);
     pci_writel(s, TOPIC_REGISTER_CONTROL, p->rcr);
+    i365_set(s, TOPIC_FUNCTION_CONTROL, p->fcr);
     state = cb_readl(s, CB_SOCKET_STATE);
     if (!(state & CB_SS_32BIT))
 	cb_writel(s, CB_SOCKET_CONTROL, 0);
@@ -883,10 +887,12 @@ static u_int __init topic_set_opts(socket_info_t *s, char *buf)
 {
     topic_state_t *p = &s->state.topic;
 
-    p->slot |= TOPIC_SLOT_SLOTON|TOPIC_SLOT_SLOTEN|TOPIC_SLOT_ID_LOCK;
+    p->slot |= TOPIC_SLOT_SLOTON|TOPIC_SLOT_SLOTEN;
+    p->slot &= ~TOPIC_SLOT_ID_LOCK;
     p->cdr |= TOPIC_CDR_MODE_PC32;
     p->cdr &= ~(TOPIC_CDR_SW_DETECT);
     p->ccr |= TOPIC97_ICR_IRQSEL;
+    p->fcr |= TOPIC_FCR_3V_ENA;
     sprintf(buf, " [slot 0x%02x] [ccr 0x%02x] [cdr 0x%02x] [rcr 0x%02x]",
 	    p->slot, p->ccr, p->cdr, p->rcr);
     return 0xffff;
@@ -1640,7 +1646,7 @@ static void __init isa_probe(ioaddr_t base)
 
     if (check_region(base, 2) != 0) {
 	if (sockets == 0)
-	    printk("port conflict at %#x\n", i365_base);
+	    printk("port conflict at %#x\n", base);
 	return;
     }
 
@@ -1648,7 +1654,7 @@ static void __init isa_probe(ioaddr_t base)
     if ((id == IS_I82365DF) && (isa_identify(base, 1) != id)) {
 	for (i = 0; i < 4; i++) {
 	    if (i == ignore) continue;
-	    port = i365_base + ((i & 1) << 2) + ((i & 2) << 1);
+	    port = base + ((i & 1) << 2) + ((i & 2) << 1);
 	    sock = (i & 1) << 1;
 	    if (isa_identify(port, sock) == IS_I82365DF) {
 		add_socket(port, sock, IS_VLSI);
@@ -2454,7 +2460,7 @@ static int __init init_i82365(void)
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "i82365: Card Services release "
 	       "does not match!\n");
-	return -1;
+	return -EINVAL;
     }
     DEBUG(0, "%s\n", version);
     printk(KERN_INFO "Intel ISA/PCI/CardBus PCIC probe:\n");

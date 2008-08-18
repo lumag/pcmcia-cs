@@ -1,7 +1,7 @@
 /* 
  * m8xx_pcmcia.c - Linux PCMCIA socket driver for the mpc8xx series.
  *
- * (C) 1999-2000 Magnus Damm <damm@bitsmart.com>
+ * (C) 1999-2000 Magnus Damm <damm@opensource.se>
  *
  * "The ExCA standard specifies that socket controllers should provide 
  * two IO and five memory windows per socket, which can be independently 
@@ -50,6 +50,7 @@
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
+#include <pcmcia/k_compat.h>
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
@@ -136,15 +137,12 @@ static const char *version = "Version 0.03, 14-Feb-2000, Magnus Damm";
 #error m8xx_pcmcia: Bad configuration!
 #endif
 
-#ifdef CONFIG_BD_IS_MHZ
-#ifdef CONFIG_CPU_PPC_8xx
-#define M8XX_BUSFREQ ((((bd_t *)&(__res))->bi_busfreq) * 1000000)
-#else
-#define M8XX_BUSFREQ ((mpc8xx_bdinfo->bi_busfreq) * 1000000)
-#endif
-#else
-#ifdef CONFIG_CPU_PPC_8xx
+#if (LINUX_VERSION_CODE >= VERSION(2,4,0))
+/* 2.4.x has this always in HZ */
 #define M8XX_BUSFREQ ((((bd_t *)&(__res))->bi_busfreq))
+#else /* 2.2.x */
+#ifdef CONFIG_BD_IS_MHZ
+#define M8XX_BUSFREQ ((mpc8xx_bdinfo->bi_busfreq) * 1000000)
 #else
 #define M8XX_BUSFREQ (mpc8xx_bdinfo->bi_busfreq)
 #endif
@@ -467,7 +465,7 @@ static int __init m8xx_init(void)
 	CardServices(GetCardServicesInfo, &serv);
 	if (serv.Revision != CS_RELEASE_CODE) {
 		PCMCIA_ERROR("Card Services release does not match!\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	PCMCIA_INFO(PCMCIA_BOARD_MSG " using " PCMCIA_SLOT_MSG 
