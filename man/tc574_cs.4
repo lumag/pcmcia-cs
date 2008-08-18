@@ -1,32 +1,25 @@
 .\" Copyright (c) 1998 Donald Becker and David Hinds.
-.\" tc574_cs.4 1.0 1998/01/12 19:11:01
+.\" tc574_cs.4 1.6 2000/06/14 23:31:08
 .\"
-.TH 3C574_CS 4 "1998/01/12 19:11:01" "CESDIS"
+.TH 3C574_CS 4 "$Date" "pcmcia-cs"
 
 .SH NAME
 3c574_cs \- 3Com 3c574 Etherlink XL 10/100 PC Card device driver
 
 .SH SYNOPSIS
 .B insmod 3c574_cs.o
-.RB [ pc_debug=\c
-.IR n ]
-.RB [ if_port=\c
-.IR n ]
-.RB [ irq_list=\c
-.IR i,j,... ]
-.RB [ full_duplex=\c
-.IR n ]
-.RB [ max_interrupt_work=\c
-.IR n ]
+[\fBpc_debug=\fIn\fR]
+[\fBif_port=\fIn\fR]
+[\fBirq_list=\fIi,j,...\fR]
+[\fBfull_duplex=\fIn\fR]
+[\fBmax_interrupt_work=\fIn\fR]
 
 .SH DESCRIPTION
-.B 3c574_cs
-is the low-level Card Services driver for the 3Com 3c574 EtherLink XL
-PCMCIA ethernet adapter.  When this driver is attached to a card, it
-allocates the next available ethernet device
-.RB ( eth0 .. eth# ).
-This device name will be reported in the kernel log file, and passed on to
-.BR cardmgr (8).
+\fB3c574_cs\fR is the low-level Card Services driver for the 3Com
+3c574 EtherLink XL PCMCIA ethernet adapter.  When this driver is
+attached to a card, it allocates the next available ethernet device
+(\fBeth0\fR..\fBeth#\fR).  This device name will be reported in the
+kernel log file, and passed on to \fBcardmgr\fR(8).
 .PP
 The driver uses the N-Way autonegotiating transceiver to negotiate the
 speed and duplex of the network link.  If the link partner does not
@@ -66,9 +59,10 @@ performance penalty) if the problem persists.  The most likely cause
 is an interrupt conflict and/or host bridge configuration problem.
 
 .SH AUTHOR
-Driver core: Donald Becker \- becker@cesdis.gsfc.nasa.gov.
+Driver core: Donald Becker \- becker@scyld.com
 .PP
-PC Card interface: David Hinds \- dhinds@pcmcia.sourceforge.org
+PC Card interface: David Hinds \- dahinds@users.sourceforge.net
+
 .SH "SEE ALSO"
 cardmgr(8), pcmcia(5), ifport(8).
 

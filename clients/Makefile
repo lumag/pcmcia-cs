@@ -1,7 +1,7 @@
 #
-# Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
+# Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.126 2000/04/29 02:00:26
+# Makefile 1.129 2000/06/15 02:15:27
 #
 
 # Include site dependent options and kernel configuration
@@ -24,17 +24,17 @@ EXTRA   =
 I_EXTRA =
 
 ifdef CONFIG_CARDBUS
-SRCS    += 3c575_cb.c tulip_cb.c memory_cb.c serial_cb.c
-MODULES += 3c575_cb.o tulip_cb.o memory_cb.o serial_cb.o
+SRCS    += memory_cb.c serial_cb.c
+MODULES += memory_cb.o serial_cb.o
+ifdef CONFIG_INET
+SRCS    += 3c575_cb.c tulip_cb.c epic_cb.c eepro100_cb.c
+MODULES += 3c575_cb.o tulip_cb.o epic_cb.o eepro100_cb.o
+endif
 ifdef CONFIG_SCSI
 ifdef DO_APA1480
 SRCS    += apa1480_cb.c aic7xxx.c
 MODULES += apa1480_cb.o
 endif
-endif
-ifdef DO_EPIC_CB
-SRCS    += epic100.c
-MODULES += epic_cb.o
 endif
 endif
 
@@ -102,13 +102,9 @@ aha152x_cs.o: aha152x_stub.o aha152x.o
 fdomain_cs.o: fdomain_stub.o fdomain.o
 	$(LD) -r -o $@ $+ ; chmod -x $@
 
-3c575_cb.o tulip_cb.o: %.o: %.c
+3c575_cb.o tulip_cb.o epic_cb.o eepro100_cb.o: %.o: %.c
 	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS $<
 	@mkdir -p .depfiles ; mv $*.d .depfiles
-
-epic_cb.o: epic100.c
-	$(CC) -c -MD $(XFLAGS) -DMODULE -DCARDBUS $< -o $@
-	@mkdir -p .depfiles ; mv epic100.d .depfiles
 
 aic7xxx.o: aic7xxx.c
 ifdef FIX_AIC7XXX

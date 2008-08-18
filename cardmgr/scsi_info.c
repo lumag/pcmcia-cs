@@ -2,7 +2,7 @@
 
     Utility to look up information about SCSI devices
 
-    scsi_info.c 1.15 2000/04/03 19:44:50
+    scsi_info.c 1.16 2000/06/12 21:33:02
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -15,7 +15,7 @@
     rights and limitations under the License.
 
     The initial developer of the original code is David A. Hinds
-    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
+    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the

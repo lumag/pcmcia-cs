@@ -1,7 +1,7 @@
 /*
  * pnp_proc.c: /proc/bus/pnp interface for Plug and Play devices
  *
- * Written by David Hinds, dhinds@pcmcia.sourceforge.org
+ * Written by David Hinds, dahinds@users.sourceforge.net
  */
 
 #include <pcmcia/config.h>

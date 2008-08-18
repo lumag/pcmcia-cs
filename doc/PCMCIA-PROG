@@ -1,13 +1,13 @@
   Linux PCMCIA Programmer's Guide
-  David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.24, 16 March 2000
+  David Hinds, dahinds@users.sourceforge.net.
+  v2.26, 22 June 2000
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
   user-mode utilities for communicating with Card Services.  The latest
-  version of this document can always be found at <ftp://source-
-  forge.org/pcmcia>.  An HTML version is at  <http://pcmcia.source-
-  forge.org>.
+  version of this document can always be found at <ftp://pcmcia-
+  cs.sourceforge.net/pub/pcmcia-cs>.  An HTML version is at
+  <http://pcmcia-cs.sourceforge.net>.
   ______________________________________________________________________
 
   Table of Contents
@@ -91,6 +91,7 @@
         4.1.14 CISTPL_DEVICE_GEO
         4.1.15 CISTPL_VERS_2
         4.1.16 CISTPL_ORG
+        4.1.17 CISTPL_FORMAT
      4.2 CIS configuration register definitions
         4.2.1 Configuration Option Register
         4.2.2 Card Configuration and Status Register
@@ -188,7 +189,7 @@
   Driver Services modules, and the user interface to Driver Services.
   It is intended for use by client device driver developers.  The Linux
   PCMCIA-HOWTO describes how to install and use Linux PCMCIA support.
-  It is available from sourceforge.org in /pcmcia.
+  It is available from pcmcia-cs.sourceforge.net in /pub/pcmcia-cs.
 
   11..11..  CCooppyyrriigghhtt nnoottiiccee aanndd ddiissccllaaiimmeerr
 
@@ -205,7 +206,6 @@
   of such usage.  If you intend to incorporate this document in a
   published work, please contact me to make sure you have the latest
   available version.
-
   This document is provided ``AS IS'', with no express or implied
   warranties.  Use the information in this document at your own risk.
 
@@ -1176,6 +1176,7 @@
           cistpl_device_geo_t     device_geo;
           cistpl_vers_2_t         version_2;
           cistpl_org_t            org;
+          cistpl_format_t         format;
   } cisparse_t;
 
   ParseTuple interprets tuple data returned by a previous call to
@@ -2485,6 +2486,42 @@
 
   The desc field gives a text description of the data organization.
 
+  44..11..1177..  CCIISSTTPPLL__FFOORRMMAATT
+
+  The cistpl_format_t structure is given by:
+
+       typedef struct cistpl_org_t {
+               u_char          type;
+               u_char          edc;
+               u_int           offset;
+               u_int           length;
+
+  This tuple describes the data recording format for a memory region.
+  The following values are defined for type:
+
+     CISTPL_FORMAT_DISK
+        The partition uses a disk-like format.
+
+     CISTPL_FORMAT_MEM
+        The partition uses a memory-like format.
+
+  The following values are defined for edc:
+
+     CISTPL_EDC_NONE
+        No error detection code is used.
+
+     CISTPL_EDC_CKSUM
+        Each block has a one-byte arithmetic checksum.
+
+     CISTPL_EDC_CRC
+        Each block has a two-byte cyclic redundancy check.
+
+     CISTPL_EDC_PCC
+        The entire partition has a one-byte checksum.
+
+  The offset field specifies the address of the first data byte, and
+  length specifies the total number of data bytes in this partition.
+
   44..22..  CCIISS ccoonnffiigguurraattiioonn rreeggiisstteerr ddeeffiinniittiioonnss
 
   The PC Card standard defines a few standard configuration registers
@@ -2505,6 +2542,7 @@
      COR_CONFIG_MASK
         Specifies the configuration table index describing the card's
         current operating mode.
+
      COR_LEVEL_REQ
         Specifies that the card should generate level mode (edge-
         triggered) interrupts, the default.
@@ -2521,7 +2559,6 @@
      CCSR_INTR_ACK
         If this bit is set, then the CCSR_INTR_PENDING bit will remain
         set until it is explicitly cleared.
-
      CCSR_INTR_PENDING
         Signals that the card is currently asserting an interrupt
         request.  This signal may be helpful for supporting interrupt
@@ -2565,6 +2602,7 @@
 
      PRR_BVD2_STATUS
         The current state of the battery warn signal.
+
      PRR_BVD1_STATUS
         The current state of the battery dead signal.
 
@@ -2736,6 +2774,7 @@
         This event signals that Card Services has received either a user
         initiated or APM suspend request.  An event handler can veto the
         suspend by returning failure.
+
      CS_EVENT_PM_RESUME
         This signals that the system is back on line after a
         suspend/resume cycle.
@@ -2792,15 +2831,15 @@
 
   The mtd_request_t structure is given by:
 
-  typedef struct mtd_request_t {
-          u_int           SrcCardOffset;
-          u_int           DestCardOffset;
-          u_int           TransferLength;
-          u_int           Function;
-          u_long          MediaID;
-          u_int           Status;
-          u_int           Timeout;
-  } mtd_request_t;
+       typedef struct mtd_request_t {
+               u_int           SrcCardOffset;
+               u_int           DestCardOffset;
+               u_int           TransferLength;
+               u_int           Function;
+               u_long          MediaID;
+               u_int           Status;
+               u_int           Timeout;
+       } mtd_request_t;
 
   The Function field is bit mapped and describes the action to be
   performed by this request:
@@ -2808,7 +2847,6 @@
      MTD_REQ_ACTION
         Either MTD_REQ_ERASE, MTD_REQ_READ, MTD_REQ_WRITE, or
         MTD_REQ_COPY.
-
      MTD_REQ_NOERASE
         For a write command that is sized and aligned on erase block
         boundaries, this specifies that no erase should be performed.
@@ -2854,6 +2892,7 @@
         Specifies that the request should be continued when the card
         signals READY, or when the time specified in Timeout elapses,
         whichever happens first.
+
      MTD_WAITPOWER
         Specifies that the request should be retried after something
         happens that affects power availability to the socket.
@@ -2871,7 +2910,6 @@
   In the Linux implementation, most CS calls can be safely made from an
   MTD event handler, but the MTD helper interface is included for
   compatibility.
-
        #include "cs_types.h"
        #include "cs.h"
        #include "bulkmem.h"
@@ -2943,9 +2981,9 @@
 
        int MTDHelperEntry(MTDRDYMask, client_handle_t client, mtd_rdy_req_t *req);
 
-  typedef struct mtd_rdy_req_t {
-          u_int           Mask;
-  } mtd_rdy_req_t;
+       typedef struct mtd_rdy_req_t {
+               u_int           Mask;
+       } mtd_rdy_req_t;
 
   MTDRDYMask selects whether or not CS_EVENT_READY_CHANGE events will be
   enabled.  The client should already have indicated to Card Services
@@ -2982,27 +3020,27 @@
 
   The dev_node_t and dev_link_t data structures are given by:
 
-  #include "ds.h"
+       #include "ds.h"
 
-  typedef struct dev_node_t {
-          char                    dev_name[DEV_NAME_LEN];
-          u_char                  major, minor;
-          struct dev_node_t       *next;
-  }
+       typedef struct dev_node_t {
+               char                    dev_name[DEV_NAME_LEN];
+               u_char                  major, minor;
+               struct dev_node_t       *next;
+       }
 
-  typedef struct dev_link_t {
-          dev_node_t              *dev;
-          u_int                   state, open;
-          struct wait_queue       *pending
-          struct timer_list       release
-          client_handle_t         handle;
-          io_req_t                io;
-          irq_req_t               irq;
-          config_req_t            conf;
-          window_handle_t         win;
-          void                    *priv;
-          struct dev_link_t       *next;
-  } dev_link_t;
+       typedef struct dev_link_t {
+               dev_node_t              *dev;
+               u_int                   state, open;
+               struct wait_queue       *pending
+               struct timer_list       release
+               client_handle_t         handle;
+               io_req_t                io;
+               irq_req_t               irq;
+               config_req_t            conf;
+               window_handle_t         win;
+               void                    *priv;
+               struct dev_link_t       *next;
+       } dev_link_t;
 
   The dev field of the dev_link_t structure points to a linked list of
   dev_node_t structures.  In dev_node_t, the dev_name field should be
@@ -3288,14 +3326,14 @@
   The following ioctl commands invoke special Driver Services functions.
   They act on bind_info_t structures:
 
-       typedef struct bind_info_t {
-               dev_info_t              dev_info;
-               u_char                  function;
-               struct dev_info_t       *instance;
-               char                    name[DEV_NAME_LEN];
-               u_char                  major, minor;
-               void                    *next;
-       } bind_info_t;
+  typedef struct bind_info_t {
+          dev_info_t              dev_info;
+          u_char                  function;
+          struct dev_info_t       *instance;
+          char                    name[DEV_NAME_LEN];
+          u_char                  major, minor;
+          void                    *next;
+  } bind_info_t;
 
      DS_BIND_REQUEST
         This call connects a socket to a client driver.  The specified
@@ -3617,7 +3655,6 @@
      SS_XVCARD
         The card must be operated at no more than X.XV (not yet
         defined).
-
   99..22..44..  SSSS__GGeettSSoocckkeett,, SSSS__SSeettSSoocckkeett
 
        int (*ss_entry)(u_int sock, SS_GetSocket, socket_state_t *);
@@ -3646,6 +3683,7 @@
 
      SS_BATWARN
         Memory card battery-low changes.
+
      SS_STSCHG
         IO card status changes.
 
@@ -3722,8 +3760,8 @@
 
   99..22..66..  SSSS__GGeettMMeemmMMaapp,, SSSS__SSeettMMeemmMMaapp
 
-       int (*ss_entry)(u_int sock, SS_GetMemMap, pccard_mem_map *);
-       int (*ss_entry)(u_int sock, SS_SetMemMap, pccard_mem_map *);
+  int (*ss_entry)(u_int sock, SS_GetMemMap, pccard_mem_map *);
+  int (*ss_entry)(u_int sock, SS_SetMemMap, pccard_mem_map *);
 
   The pccard_mem_map data structure is given by:
 
@@ -3856,27 +3894,27 @@
 
   The bus operations table is defined as:
 
-  typedef struct bus_operations {
-          void    *priv;
-          u32     (*b_in)(void *bus, u32 port, s32 sz);
-          void    (*b_ins)(void *bus, u32 port, void *buf,
-                           u32 count, s32 sz);
-          void    (*b_out)(void *bus, u32 val, u32 port, s32 sz);
-          void    (*b_outs)(void *bus, u32 port, void *buf,
-                            u32 count, s32 sz);
-          void    *(*b_ioremap)(void *bus, u_long ofs, u_long sz);
-          void    (*b_iounmap)(void *bus, void *addr);
-          u32     (*b_read)(void *bus, void *addr, s32 sz);
-          void    (*b_write)(void *bus, u32 val, void *addr, s32 sz);
-          void    (*b_copy_from)(void *bus, void *d, void *s, u32 count);
-          void    (*b_copy_to)(void *bus, void *d, void *s, u32 count);
-          int     (*b_request_irq)(void *bus, u_int irq,
-                                   void (*handler)(int, void *,
-                                                   struct pt_regs *),
-                                   u_long flags, const char *device,
-                                   void *dev_id);
-          void    (*b_free_irq)(void *bus, u_int irq, void *dev_id);
-  } bus_operations;
+       typedef struct bus_operations {
+               void    *priv;
+               u32     (*b_in)(void *bus, u32 port, s32 sz);
+               void    (*b_ins)(void *bus, u32 port, void *buf,
+                                u32 count, s32 sz);
+               void    (*b_out)(void *bus, u32 val, u32 port, s32 sz);
+               void    (*b_outs)(void *bus, u32 port, void *buf,
+                                 u32 count, s32 sz);
+               void    *(*b_ioremap)(void *bus, u_long ofs, u_long sz);
+               void    (*b_iounmap)(void *bus, void *addr);
+               u32     (*b_read)(void *bus, void *addr, s32 sz);
+               void    (*b_write)(void *bus, u32 val, void *addr, s32 sz);
+               void    (*b_copy_from)(void *bus, void *d, void *s, u32 count);
+               void    (*b_copy_to)(void *bus, void *d, void *s, u32 count);
+               int     (*b_request_irq)(void *bus, u_int irq,
+                                        void (*handler)(int, void *,
+                                                        struct pt_regs *),
+                                        u_long flags, const char *device,
+                                        void *dev_id);
+               void    (*b_free_irq)(void *bus, u_int irq, void *dev_id);
+       } bus_operations;
 
   The priv field can be used for any purpose by the socket driver, for
   instance, to indicate which of several sockets is being addressed.
@@ -3905,10 +3943,10 @@
   0-9640342-1-2, available from Sycard Technology, at
   <http://www.sycard.com> or:
 
-  Sycard Technology
-  1180-F Miraloma Way
-  Sunnyvale, CA 94086 USA
-  (408) 749-0130, (408) 749-1323 FAX
+       Sycard Technology
+       1180-F Miraloma Way
+       Sunnyvale, CA 94086 USA
+       (408) 749-0130, (408) 749-1323 FAX
 
   The _P_C_M_C_I_A _S_o_f_t_w_a_r_e _D_e_v_e_l_o_p_e_r_'_s _H_a_n_d_b_o_o_k by Steven Kipisz, Dana
   Beatty, and Brian Moore includes an overview of the PC Card standard,
@@ -3923,6 +3961,6 @@
   Programming information for various PC Card host controllers is
   available from the corresponding chip vendors.  Generally, data sheets
   are either available on line or can be ordered from each company's web
-  site.  A collection of datasheets can be found at
-  <http:/pcmcia.sourceforge.org/specs>.
+  site.  A collection of datasheets can be found at <http:/pcmcia-
+  cs.sourceforge.net/specs>.
 

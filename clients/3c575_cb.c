@@ -49,6 +49,9 @@ static const int rx_copybreak = 200;
 /* Allow setting MTU to a larger size, bypassing the normal ethernet setup. */
 static const int mtu = 1500;
 
+/* Use hardware checksums? */
+static int use_hw_csums = 1;
+
 /* Operational parameters that are set at compile time. */
 
 /* Keep the ring sizes a power of two for compile efficiency.
@@ -140,6 +143,7 @@ MODULE_PARM(options, "1-" __MODULE_STRING(MAX_UNITS) "i");
 MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");
 MODULE_PARM(rx_copybreak, "i");
 MODULE_PARM(max_interrupt_work, "i");
+MODULE_PARM(use_hw_csums, "i");
 
 /* Operational parameter that usually are not changed. */
 
@@ -271,7 +275,7 @@ static struct pci_id_info pci_tbl[] = {
 	{"3CCFEM656B Cyclone CardBus",	0x10B7, 0x6562, 0xffff,
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS|
 	 EEPROM_8BIT|INVERT_LED_PWR|INVERT_MII_PWR, 128, vortex_probe1},
-	{"3CCFEM656C Cyclone CardBus",	0x10B7, 0x6564, 0xffff,
+	{"3CXFEM656C Cyclone CardBus",	0x10B7, 0x6564, 0xffff,
 	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS|
 	 EEPROM_8BIT|INVERT_MII_PWR, 128, vortex_probe1},
 	{"3c575 series CardBus (unknown version)", 0x10B7, 0x5057, 0xf0ff,
@@ -1743,7 +1747,7 @@ boomerang_rx(struct net_device *dev)
 				rx_nocopy++;
 			}
 			skb->protocol = eth_type_trans(skb, dev);
-			{					/* Use hardware checksum info. */
+			if (use_hw_csums) {
 				int csum_bits = rx_status & 0xee000000;
 				if (csum_bits &&
 					(csum_bits == (IPChksumValid | TCPChksumValid) ||

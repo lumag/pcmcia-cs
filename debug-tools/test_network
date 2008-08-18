@@ -136,7 +136,7 @@ if ($net =~ /ifup / || $opts =~ /ifup /) {
     print "/etc/pcmcia/network.opts.\n";
     if (!$opts) {
 	print "    /etc/pcmcia/network.opts is empty??\n";
-    } elsif (($opts !~ /\w+=[^\n]y/) && ($opts !~ /IPADDR[^\n]\d/)) {
+    } elsif (($opts !~ /\w+=[^\n]*y/) && ($opts !~ /IPADDR[^\n]*\d/)) {
 	print "    /etc/pcmcia/network.opts is not configured??\n";
     }
     print "  $rh also exists??\n" if (-e $rh);

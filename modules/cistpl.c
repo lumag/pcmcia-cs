@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.80 2000/03/31 03:53:35
+    cistpl.c 1.82 2000/06/19 23:18:20
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -15,7 +15,7 @@
     rights and limitations under the License.
 
     The initial developer of the original code is David A. Hinds
-    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
+    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
@@ -1297,6 +1297,25 @@ static int parse_org(tuple_t *tuple, cistpl_org_t *org)
 
 /*====================================================================*/
 
+static int parse_format(tuple_t *tuple, cistpl_format_t *fmt)
+{
+    u_char *p;
+
+    if (tuple->TupleDataLen < 10)
+	return CS_BAD_TUPLE;
+
+    p = tuple->TupleData;
+
+    fmt->type = p[0];
+    fmt->edc = p[1];
+    fmt->offset = le32_to_cpu(*(u_int *)(p+2));
+    fmt->length = le32_to_cpu(*(u_int *)(p+6));
+
+    return CS_SUCCESS;
+}
+
+/*====================================================================*/
+
 int parse_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
 {
     int ret = CS_SUCCESS;
@@ -1363,6 +1382,10 @@ int parse_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
 	break;
     case CISTPL_ORG:
 	ret = parse_org(tuple, &parse->org);
+	break;
+    case CISTPL_FORMAT:
+    case CISTPL_FORMAT_A:
+	ret = parse_format(tuple, &parse->format);
 	break;
     case CISTPL_NO_LINK:
     case CISTPL_LINKTARGET:

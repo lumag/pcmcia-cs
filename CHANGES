@@ -1,3 +1,21 @@
+[23-Jun-00] Version 3.1.17
+-- Fixed xirc2ps_cs driver to handle Toshiba IPC5008A cards.
+-- Fixed a weak pattern matching check in test_network.
+-- Added parsing of CISTPL_FORMAT tuples, and modified memory_cs to
+   use the data offset for block memory devices.
+-- Removed prompt for alternate install directory from Configure; use
+   the --prefix= command line option instead.
+-- Fixed obscure problem where the Configure script could get confused
+   by certain environment variables.
+-- Changed i82365 do_scan option to also control PCI irq checking.
+-- Added an eepro100_cb driver for the Intel Pro/100 CardBus II cards.
+-- Added an up-to-date epic_cb driver so we don't rely on the kernel
+   tree to provide something reasonable.
+-- Updated docs, files to replace *.sourceforge.org addresses with the
+   new *.sourceforge.net locations.
+-- Changed i82365 driver to not probe ISA interrupts on ToPIC bridges.
+-- Fixed 3.1.16 PowerPC build bug.
+
 [09-Jun-00] Version 3.1.16
 -- Added force_size option for SRAM cards to memory_cs driver.
 -- Better wording in COPYING file.

@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.120 2000/06/05 23:29:58 (David Hinds)
+# config 1.124 2000/06/23 20:10:40 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -92,6 +92,9 @@ device "memory_cb"
 
 device "epic_cb"
   class "network" module "cb_enabler", "epic_cb"
+
+device "eepro100_cb"
+  class "network" module "cb_enabler", "eepro100_cb"
 
 device "serial_cb"
   class "serial" module "cb_enabler", "serial_cb"
@@ -540,6 +543,10 @@ card "Panasonic CF-VEL211 Ethernet"
   version "Matsushita Electric Industrial Co.,LTD.", "CF-VEL211"
   bind "pcnet_cs"
 
+card "Portable Add-ons Ethernet+"
+  version "Portable Add-ons", "Ethernet+"
+  bind "nmclan_cs"
+
 card "PreMax PE-200 Ethernet"
   version "PMX   ", "PE-200"
   cis "cis/PE-200.dat"
@@ -768,6 +775,10 @@ card "Toshiba 10/100 Fast Ethernet"
 
 card "Xircom CE3-10/100 Fast Ethernet"
   version "Xircom", "*", "CE3-10/100"
+  bind "xirc2ps_cs"
+
+card "Xircom RealPort2 10/100 Fast Ethernet"
+  version "Xircom", "*", "R2E-100BTX"
   bind "xirc2ps_cs"
 
 #
@@ -1138,6 +1149,10 @@ card "Panasonic KXLC004"
   version "KME ", "KXLC004"
   bind "qlogic_cs"
 
+card "Panasonic KXLC101"
+  version "KME", "KXLC101"
+  bind "qlogic_cs"
+
 card "Qlogic FastSCSI"
   version "QLOGIC CORPORATION", "pc05"
   bind "qlogic_cs"
@@ -1459,6 +1474,10 @@ card "Simple Tech Compact Flash"
   version "STI Flash"
   bind "ide_cs"
 
+card "Toshiba CD-ROM"
+  version "LOOKMEET", "CBIDE2      "
+  bind "ide_cs"
+
 #
 # Non-ATA/IDE CD-ROM's
 #
@@ -1514,7 +1533,7 @@ card "3Com 3CCFEM656B w/Winmodem"
   manfid 0x0102, 0x6562
   bind "3c575_cb"
 
-card "3Com 3CCFEM656C w/Winmodem"
+card "3Com 3CXFEM656C w/Winmodem"
   manfid 0x0102, 0x6564
   bind "3c575_cb"
 
@@ -1555,9 +1574,17 @@ card "IBM 10/100 EtherJet CardBus"
   manfid 0x00a4, 0x0113
   bind "tulip_cb"
 
-card "Intel EtherExpress PRO/100 CardBus Mobile Adapter32"
+card "Intel EtherExpress PRO/100 CardBus"
   manfid 0x0089, 0x0102
   bind "tulip_cb"
+
+card "Intel EtherExpress PRO/100 CardBus"
+  manfid 0x0089, 0x0113
+  bind "tulip_cb"
+
+card "Intel EtherExpress PRO/100 CardBus II"
+  manfid 0x0089, 0x0103
+  bind "eepro100_cb"
 
 card "Kingston KNE-CB4TX Fast Ethernet"
   manfid 0x0186, 0x0101

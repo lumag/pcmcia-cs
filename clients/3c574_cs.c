@@ -2,7 +2,7 @@
 
 	Written 1993-1998 by
 	Donald Becker, becker@cesdis.gsfc.nasa.gov, (driver core) and
-	David Hinds, dhinds@pcmcia.sourceforge.org (from his PC card code).
+	David Hinds, dahinds@users.sourceforge.net (from his PC card code).
 
 	This software may be used and distributed according to the terms of
 	the GNU Public License, incorporated herein by reference.

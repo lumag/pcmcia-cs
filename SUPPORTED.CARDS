@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/06/07 18:17:22
+		Last updated: 2000/06/23 20:10:37
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -17,7 +17,7 @@ Next to each driver, I've tried to indicate which system architectures
 (x86,ppc,axp) are known to be supported.  This information is likely
 to be incomplete, and additions/corrections would be very welcome.
 
-	-- David Hinds <dhinds@pcmcia.sourceforge.org>
+	-- David Hinds <dahinds@users.sourceforge.net>
 
 Ethernet cards:
 
@@ -40,6 +40,7 @@ Ethernet cards:
 	[nmclan_cs driver] [x86,ppc]
 	New Media EthernetLAN
 	New Media LiveWire	[ NOT the LiveWire+ ]
+	Portable Add-ons Ethernet+
 
 	[pcnet_cs driver] [x86,axp]
 	4Lan EP100 Ethernet
@@ -142,6 +143,7 @@ Ethernet cards:
 	Thomas-Conrad Ethernet
 	TRENDnet Ethernet
 	Trust Ethernet Combo
+	Vegas Technology Ethernet
 	Volktek NPL-402CT Ethernet
 
 	[smc91c92_cs driver] [x86,ppc]
@@ -200,17 +202,21 @@ Fast Ethernet (10/100baseT) adapters:
 	Compaq Netelligent 10/100
 	Intel EtherExpress PRO/100 16-bit
 	Toshiba IPC5008A, Advanced Network 10/100
-	Xircom CreditCard CE3-100, CE3B, RE-100
+	Xircom CreditCard CE3-100, CE3B, RE-100, R2E-100BTX
 
 	[3c575_cb driver] [x86]
 	3Com 3c575TX, 3CCFE575BT, 3CXFE575BT, 3CCFE575CT, 3CXFE575CT
 
+	[eepro100_cb driver] [x86]
+	[experimental]
+	Intel EtherExpress PRO/100 CardBus II
+
 	[epic_cb driver] [x86]
-	[requires a 2.2 kernel, experimental!]
+	[somewhat experimental]
 	Ositech Seven of Spades CardBus
 
 	[tulip_cb driver] [x86]
-	[requires a 2.2 kernel, experimental!]
+	[somewhat experimental]
 	Accton EN2220 CardBus
 	Allied Telesyn AT-2800
 	AmbiCom AMB8100
@@ -234,7 +240,7 @@ Fast Ethernet (10/100baseT) adapters:
 	UMAX Technologies UMAX250
 	[ Not recommended: support is experimental and unreliable ]
 	IBM 10/100 EtherJet CardBus
-	Intel EtherExpress PRO/100 CardBus Mobile Adapter32
+	Intel EtherExpress PRO/100 CardBus
 	Xircom CBE2-100BTX, RBE-100BTX, R2BE-100BTX
 
 Token-ring adapters:
@@ -352,7 +358,7 @@ SCSI adapters:
 	NEC PC-9801N-J03R
 	Qlogic FastSCSI
 	Panasonic KXL-D740, KXL-DN740A, KXL-DN740A-NB 4X CD-ROM
-	Panasonic KXL-810AN, KXL-783A
+	Panasonic KXL-D745, KXL-810AN, KXL-783A
 	Pioneer PCP-PR2W
 	Raven CD-Note 4X
 	RATOC REX-9530 SCSI-2
@@ -420,7 +426,7 @@ Multifunction ethernet/modem cards:
 
 	[3c575_cb driver] [x86]
 	[ ethernet only: the modem is a WinModem! ]
-	3Com 3CCFEM656B, 3CCFEM656C, 3CXFEM656C
+	3Com 3CCFEM656B, 3CXFEM656C
 
 	[epic_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
@@ -478,12 +484,14 @@ ATA/IDE CD-ROM adapters:
 	NOVAC NV-CD410
 	Sony PCGA-CD5, PCGA-CD51, CRX50A CD-ROM
 	TEAC IDE Card/II
+	Toshiba PA2673UJ CD-ROM
 
 The following cards have contributed drivers which are distributed as
 separate packages.  The drivers are not included in the base PCMCIA
 package for maintenance reasons: they are for less common cards and I
 cannot test them.  Most are available on the Linux PCMCIA FTP site, at
-ftp://sourceforge.org/pcmcia/contrib; some have their own web sites.
+ftp://pcmcia-cs.sourceforge.net/pub/pcmcia-cs/contrib; some have their
+own web sites.
 
 	[asplus_cs driver]
 	Netwave AirSurfer Plus wireless network adapter
@@ -564,6 +572,10 @@ ftp://sourceforge.org/pcmcia/contrib; some have their own web sites.
 	  http://www.wavelan.com
 	  (Lucent Technologies <betasupport@wavelan.com>)
 
+	[xircce_cs driver]
+	Xircom CE-10BC Ethernet (maybe also CE-10BT)
+	  (Stanislav Meduna <stano@trillian.eunet.sk>)
+
 The following drivers have their own web sites:
 
 	GemPlus GPR400 Smart Card Reader
@@ -614,10 +626,10 @@ email just to ask if their status has changed.
 	New Media .WAVjammer and all other sound cards
 	New Media LiveWire+
 	Nikon CoolPix100
-	Panasonic KXL-D720, KXL-D745
+	Panasonic KXL-D720
 	SMC 8016 EliteCard
 	Xircom CEM II Ethernet/Modem
-	Xircom CE-10BT Ethernet
+	Xircom CE-10BT Ethernet [ but try xircce_cs contrib driver ]
 	Xircom CBE-10/100 CardBus
 
 The following vendors have assisted in the development of the Linux

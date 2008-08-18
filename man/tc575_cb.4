@@ -1,29 +1,32 @@
 .\" Copyright (c) 1998 Donald Becker and David Hinds.
-.\" tc575_cb.4 1.0 1998/02/5 03:35:00
+.\" tc575_cb.4 1.6 2000/06/16 22:27:08
 .\"
-.TH 3C575_CB 4 "1998/02/05 03:35:00" "CESDIS"
+.TH 3C575_CB 4 "2000/06/16 22:27:08" "pcmcia-cs"
 .SH NAME
 3c575_cb \- 3Com 3c575 Etherlink XL 10/100 CardBus device driver
+
 .SH SYNOPSIS
 .B insmod 3c575_cb.o
-.RB [ pc_debug=\c
-.IR n ]
+[\fBdebug=\fIn\fR]
+[\fBrx_copybreak=\fIn\fR]
+[\fBmax_interrupt_work=\fIn\fR]
+[\fBuse_hw_csums=\fIn\fR]
+
 .SH DESCRIPTION
-.B 3c575_cb
-is the low-level Card Services driver for the 3Com 3c575 EtherLink XL
-CardBus ethernet adapter.  When this driver is attached to a card, it
-allocates the next available ethernet device
-.RB ( eth0 .. eth# ).
-This information for this card will be reported in the kernel log file, and
-the device name passed on to
-.BR cardmgr (8).
+\fB3c575_cb\fR is the low-level Card Services driver for the 3Com
+3c575 EtherLink XL CardBus series ethernet adapters.  When this driver
+is attached to a card, it allocates the next available ethernet device
+(\fBeth0\fR..\fBeth#\fR).  This information for this card will be
+reported in the kernel log file, and the device name passed on to
+\fBcardmgr\fR(8).
 .PP
-The driver uses the N-Way autonegotiating transceiver to negotiate the speed
-and duplex of the network link.  If the link partner does not support
-negotiation only the link speed is detected.
+The driver uses the N-Way autonegotiating transceiver to negotiate the
+speed and duplex of the network link.  If the link partner does not
+support negotiation only the link speed is detected.
 .PP
-If the on-card EEPROM is programmed for a full-duplex (FD) link, only FD media
-types are advertised and the link is assumed to be full-duplex.
+If the on-card EEPROM is programmed for a full-duplex (FD) link, only
+FD media types are advertised and the link is assumed to be full-duplex.
+
 .SH PARAMETERS
 .TP
 .BI rx_copybreak= n
@@ -33,16 +36,23 @@ packet buffers.  The default value of 200 bytes is reasonable for most systems.
 .BI max_interrupt_work= n
 This option selects the maximum amount of work handled during each
 interrupt.  Each received packet counts as one unit of work, as does
-updating statistics counters and handling errors.  The default value of
-20 should only need to be increased on very slow machines.
-If "too much work at interrupt" messages are logged
-the system power management configuration should be set to full speed rather
-than increasing this value.
+updating statistics counters and handling errors.  The default value
+of 32 should only need to be increased on very slow machines.  An
+occasional "too much work in interrupt" message is not a problem.
+.TP
+.BI use_hw_csums= n
+Controls use of an adapter's on-board TCP/IP checksum verification for
+incoming packets.  This is on by default; setting to 0 disables
+hardware checksums.  It may be useful to disable hardware checksums if
+it is suspected that something is corrupting data on its way from the
+card to the CPU.
 
 .SH AUTHOR
-This driver: Donald Becker \- becker@cesdis.gsfc.nasa.gov.
+This driver: Donald Becker \- becker@scyld.com
 .PP
-Linux PC Card control software: David Hinds \- dhinds@pcmcia.sourceforge.org et al.
+Linux PC Card control software: David Hinds \-
+dahinds@users.sourceforge.net et al.
+
 .SH "SEE ALSO"
-cardmgr(8), pcmcia(5), ifport(8).
+cardmgr(8), pcmcia(5).
 

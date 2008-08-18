@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.48 2000/01/12 18:40:59
+    dump_cis.c 1.50 2000/06/19 23:19:01
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -15,7 +15,7 @@
     rights and limitations under the License.
 
     The initial developer of the original code is David A. Hinds
-    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
+    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
@@ -781,6 +781,31 @@ static void print_vers_2(cistpl_vers_2_t *v2)
 
 /*====================================================================*/
 
+static void print_format(cistpl_format_t *fmt)
+{
+    if (fmt->type == CISTPL_FORMAT_DISK)
+	printf("%s  [disk]", indent);
+    else if (fmt->type == CISTPL_FORMAT_MEM)
+	printf("%s  [memory]", indent);
+    else
+	printf("%s  [type 0x%02x]\n", indent, fmt->type);
+    if (fmt->edc == CISTPL_EDC_NONE)
+	printf(" [no edc]");
+    else if (fmt->edc == CISTPL_EDC_CKSUM)
+	printf(" [cksum]");
+    else if (fmt->edc == CISTPL_EDC_CRC)
+	printf(" [crc]");
+    else if (fmt->edc == CISTPL_EDC_PCC)
+	printf(" [pcc]");
+    else
+	printf(" [edc 0x%02x]", fmt->edc);
+    printf(" offset 0x%04x length ", fmt->offset);
+    print_size(fmt->length);
+    putchar('\n');
+}
+
+/*====================================================================*/
+
 static void print_config(int code, cistpl_config_t *cfg)
 {
     printf("%sconfig%s base 0x%4.4x", indent,
@@ -932,6 +957,13 @@ static void print_parse(tuple_parse_t *tup)
     case CISTPL_ORG:
 	print_org(&tup->parse.org);
 	break;
+    case CISTPL_FORMAT:
+    case CISTPL_FORMAT_A:
+	if (tup->tuple.TupleCode == CISTPL_FORMAT)
+	    printf("%scommon_format\n", indent);
+	else
+	    printf("%sattr_format\n", indent);
+	print_format(&tup->parse.format);
     }
 }
 
@@ -1062,6 +1094,8 @@ int main(int argc, char *argv[])
 		printf("%sparse error: %s\n", indent,
 		       strerror(errno));
 	    if (verbose) putchar('\n');
+	    if (arg.tuple.TupleCode == CISTPL_END)
+		break;
 	}
 	
 	if (!verbose && (nfn > 0))

@@ -6,13 +6,13 @@
     Megahertz, Motorola, Ositech, and Psion Dacom ethernet/modem
     multifunction cards.
 
-    Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
+    Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.98 2000/06/05 23:02:22
+    smc91c92_cs.c 1.99 2000/06/12 21:27:26
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
-    David Hinds (dhinds@pcmcia.sourceforge.org), and Erik Stahlman
+    David Hinds (dahinds@users.sourceforge.net), and Erik Stahlman
     (erik@vt.edu).  Donald wrote the SMC 91c92 code using parts of
     Erik's SMC 91c94 driver.  Rowan wrote a similar driver, and I've
     incorporated some parts of his driver here.  I (Dave) wrote most

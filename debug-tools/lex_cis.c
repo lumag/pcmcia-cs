@@ -633,7 +633,7 @@ char *yytext;
 
 #line 5 "lex_cis.l"
 /*
- * lex_cis.l 1.12 1999/10/25 19:57:59
+ * lex_cis.l 1.13 2000/06/12 21:34:19
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -646,7 +646,7 @@ char *yytext;
  * limitations under the License. 
  *
  * The initial developer of the original code is David A. Hinds
- * <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
+ * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * Alternatively, the contents of this file may be used under the

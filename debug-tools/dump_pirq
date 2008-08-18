@@ -1,10 +1,10 @@
 #!/usr/bin/perl
 #
-# dump_pirq 1.13 2000/06/01 19:32:01
+# dump_pirq 1.14 2000/06/12 21:34:34
 #
 # A utility to parse the BIOS PCI IRQ Routing Table
 #
-# Copyright (C) 2000 David A. Hinds -- dhinds@pcmcia.sourceforge.org
+# Copyright (C) 2000 David A. Hinds -- dahinds@users.sourceforge.net
 #
 
 #-----------------------------------------------------------------------

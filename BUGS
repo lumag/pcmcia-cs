@@ -1,10 +1,10 @@
-Known problems and limitations for the 3.1.16 PCMCIA release
+Known problems and limitations for the 3.1.17 PCMCIA release
 ============================================================
 
 Bug summaries:
 
-o CardBus devices with 2.0.* kernels not recommended
-o PCI interrupt routing issue for CardBus bridges on some systems
+o CardBus devices with 2.0.* kernels are not recommended
+o PCI interrupt routing issues for CardBus bridges on some systems
 o PCI configuration problems with 2.3.* kernels
 o O2Micro and ToPIC CardBus bridge configuration problems
 o On the Sony VAIO PCG-N505VE, interrupts break after a suspend
@@ -18,9 +18,9 @@ o Serial interrupt sharing bug in certain 2.2.*, 2.3.* kernels
 o aha152x interrupt bug in certain 2.2.* kernels
 o IDE driver shutdown bug in certain 2.2.*, 2.3.* kernels
 o Tedious IDE probes for nonexistent slave devices
+o SuSE 6.4 IDE driver problem
 o parport_cs doesn't work in 2.3.*
 o Xircom CardBus driver instability
-o epic_cb driver broken in 2.2.15pre
 o NE2000 compatible cards based on the Asix AX88190 are unsupported
 
 Bug details:
@@ -148,7 +148,14 @@ o For some ATA/IDE devices, the IDE driver will lock up the system for
   of getting the kernel driver updated.  There are two aspects to the
   fix; one is to improve automatic detection of flash memory cards,
   and the other is to change the probe to sleep instead of freezing
-  the system during the probe.
+  the system during the probe.  The 2.4 driver is fixed.
+
+o The SuSE 6.4 version of the 2.2.14 kernel has a broken IDE probe
+  that messes up at least some PCMCIA devices.  The result is that
+  the ide_cs driver reports "ide_register(...) failed".
+
+  Prognosis: substitute drivers/block/ide-probe.c from SuSE's 2.2.13
+  kernel or from a virgin 2.2.14 source tree.
 
 o The 2.3.6 kernel update broke the PCMCIA parport_cs driver.
 
@@ -170,8 +177,6 @@ o Xircom CBEM support in the tulip_cb driver seems to be extremely
 
   Setting the card to promiscuous mode ("ifconfig eth0 promisc") seems
   to help in some cases.
-
-o CardBus support got deleted from the epic100 driver in 2.2.15pre2.
 
 o A number of "NE2000 compatible" cards use the Asix AX88190 chipset,
   which has several serious bugs and incompatibilities that render the

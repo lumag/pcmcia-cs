@@ -9,9 +9,9 @@
     Conrad ethernet card, and the Kingston KNE-PCM/x in shared-memory
     mode.  It will also handle the Socket EA card in either mode.
 
-    Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
+    Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.122 2000/05/31 22:24:20
+    pcnet_cs.c 1.123 2000/06/12 21:27:26
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.122 2000/05/31 22:24:20 (David Hinds)";
+"pcnet_cs.c 1.123 2000/06/12 21:27:26 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

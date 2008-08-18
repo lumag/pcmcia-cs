@@ -89,15 +89,9 @@
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
 
-#ifndef MANFID_XIRCOM
-  #define MANFID_XIRCOM 	   0x0105
-#endif
 #ifndef MANFID_COMPAQ
   #define MANFID_COMPAQ 	   0x0138
   #define MANFID_COMPAQ2	   0x0183  /* is this correct? */
-#endif
-#ifndef MANFID_INTEL
-  #define MANFID_INTEL		   0x0089
 #endif
 
 #include <pcmcia/ds.h>
@@ -912,26 +906,26 @@ xirc2ps_config(dev_link_t * link)
     switch(parse.manfid.manf) {
       case MANFID_XIRCOM:
 	local->manf_str = "Xircom";
-	DEBUG(0, "found xircom card\n");
 	break;
       case MANFID_ACCTON:
 	local->manf_str = "Accton";
-	DEBUG(0, "found Accton card\n");
 	break;
       case MANFID_COMPAQ:
       case MANFID_COMPAQ2:
 	local->manf_str = "Compaq";
-	DEBUG(0, "found Compaq card\n");
 	break;
       case MANFID_INTEL:
 	local->manf_str = "Intel";
-	DEBUG(0, "found Intel card\n");
+	break;
+      case MANFID_TOSHIBA:
+	local->manf_str = "Toshiba";
 	break;
       default:
 	printk(KNOT_XIRC "Unknown Card Manufacturer ID: 0x%04x\n",
 	       (unsigned)parse.manfid.manf);
 	goto failure;
     }
+    DEBUG(0, "found %s card\n", local->manf_str);
 
     if (!set_card_type(link, buf)) {
 	printk(KNOT_XIRC "this card is not supported\n");

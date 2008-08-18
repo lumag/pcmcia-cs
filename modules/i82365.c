@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.317 2000/06/09 22:14:25
+    i82365.c 1.319 2000/06/14 18:32:42
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -16,7 +16,7 @@
     rights and limitations under the License.
 
     The initial developer of the original code is David A. Hinds
-    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
+    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.317 2000/06/09 22:14:25 (David Hinds)";
+"i82365.c 1.319 2000/06/14 18:32:42 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -106,7 +106,7 @@ typedef void irq_ret_t;
 #define _free_irq(i, h) free_irq(i, socket)
 #endif
 
-MODULE_AUTHOR("David Hinds <dhinds@pcmcia.sourceforge.org>");
+MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
 MODULE_DESCRIPTION("Intel ExCA/Yenta PCMCIA socket driver");
 
 /*====================================================================*/
@@ -118,6 +118,7 @@ MODULE_DESCRIPTION("Intel ExCA/Yenta PCMCIA socket driver");
 /* General options */
 INT_MODULE_PARM(poll_interval, 0);	/* in ticks, 0 means never */
 INT_MODULE_PARM(cycle_time, 120);	/* in ns, 120 ns = 8.33 MHz */
+INT_MODULE_PARM(do_scan, 1);		/* Probe free interrupts? */
 
 /* Cirrus options */
 INT_MODULE_PARM(has_dma, -1);
@@ -133,15 +134,13 @@ INT_MODULE_PARM(recov_time, -1);
 INT_MODULE_PARM(i365_base, 0x3e0);	/* IO address for probes */
 INT_MODULE_PARM(extra_sockets, 0);	/* Probe at i365_base+2? */
 INT_MODULE_PARM(ignore, -1);		/* Ignore this socket # */
-INT_MODULE_PARM(do_scan, 1);		/* Probe free interrupts? */
 INT_MODULE_PARM(cs_irq, 0);		/* card status irq */
 INT_MODULE_PARM(irq_mask, 0xffff);	/* bit map of irq's to use */
 static int irq_list[16] = { -1 };
 MODULE_PARM(irq_list, "1-16i");
-/* Vadem options */
-INT_MODULE_PARM(async_clock, -1);
+INT_MODULE_PARM(async_clock, -1);	/* Vadem specific */
 INT_MODULE_PARM(cable_mode, -1);
-INT_MODULE_PARM(wakeup, 0);
+INT_MODULE_PARM(wakeup, 0);		/* Cirrus specific */
 #endif
 
 #ifdef CONFIG_PCI
@@ -484,7 +483,10 @@ static u_int __init cirrus_set_opts(socket_info_t *s, char *buf)
 	}
 #endif
     }
-    if (s->type != IS_VT83C469) {
+#ifdef CONFIG_ISA
+    if (s->type != IS_VT83C469)
+#endif
+    {
 	if (setup_time >= 0)
 	    p->timer[0] = p->timer[3] = setup_time;
 	if (cmd_time > 0) {
@@ -891,18 +893,6 @@ static void topic_set_state(socket_info_t *s)
     pci_writel(s, TOPIC_REGISTER_CONTROL, p->rcr);
 }
 
-static int topic_set_irq_mode(socket_info_t *s, int pcsc, int pint)
-{
-    if (s->type >= IS_TOPIC97) {
-	topic_state_t *p = &s->state.topic;
-	flip(p->ccr, TOPIC97_ICR_IRQSEL, pcsc);
-	return 0;
-    } else {
-	/* no ISA card status change irq */
-	return !pcsc;
-    }
-}
-
 static u_int __init topic_set_opts(socket_info_t *s, char *buf)
 {
     topic_state_t *p = &s->state.topic;
@@ -968,8 +958,6 @@ static int cb_set_irq_mode(socket_info_t *s, int pcsc, int pint)
 	return cirrus_set_irq_mode(s, pcsc, pint);
     else if (s->flags & IS_TI)
 	return ti113x_set_irq_mode(s, pcsc, pint);
-    else if (s->flags & IS_TOPIC)
-	return topic_set_irq_mode(s, pcsc, pint);
     /* By default, assume that we can't do ISA status irqs */
     return (!pcsc);
 }
@@ -1175,21 +1163,6 @@ static irq_ret_t irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
     return (irq_ret_t)1;
 }
 
-#ifdef __LINUX__
-static int _check_irq(int irq, int flags)
-{
-#ifdef CONFIG_PNP_BIOS
-    extern int check_pnp_irq(int);
-    if ((flags != SA_SHIRQ) && check_pnp_irq(irq))
-	return -1;
-#endif
-    if (request_irq(irq, irq_count, flags, "x", irq_count) != 0)
-	return -1;
-    free_irq(irq, irq_count);
-    return 0;
-}
-#endif
-
 static u_int __init test_irq(socket_info_t *s, int irq, int pci)
 {
     u_char csc = (pci) ? 0 : irq;
@@ -1244,6 +1217,21 @@ static u_int __init test_irq(socket_info_t *s, int irq, int pci)
 }
 
 #ifdef CONFIG_ISA
+#ifdef __LINUX__
+static int _check_irq(int irq, int flags)
+{
+#ifdef CONFIG_PNP_BIOS
+    extern int check_pnp_irq(int);
+    if ((flags != SA_SHIRQ) && check_pnp_irq(irq))
+	return -1;
+#endif
+    if (request_irq(irq, irq_count, flags, "x", irq_count) != 0)
+	return -1;
+    free_irq(irq, irq_count);
+    return 0;
+}
+#endif
+
 static u_int __init isa_scan(socket_info_t *s, u_int mask0)
 {
     u_int mask1 = 0;
@@ -1291,7 +1279,7 @@ static u_int __init isa_scan(socket_info_t *s, u_int mask0)
 static int __init pci_scan(socket_info_t *s)
 {
     int ret;
-    if ((s->flags & IS_RICOH) || !(s->flags & IS_CARDBUS)) {
+    if ((s->flags & IS_RICOH) || !(s->flags & IS_CARDBUS) || !do_scan) {
 	/* for PCI-to-PCMCIA bridges, just check for wedged irq */
 	irq_sock = s; irq_hits = 0;
 	if (_request_irq(s->cap.pci_irq, irq_count, 0, "scan"))

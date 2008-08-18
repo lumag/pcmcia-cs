@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.71 2000/06/09 22:15:05
+    memory_cs.c 1.73 2000/06/23 20:11:06
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -20,7 +20,7 @@
     rights and limitations under the License.
 
     The initial developer of the original code is David A. Hinds
-    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
+    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
 
     Alternatively, the contents of this file may be used under the
@@ -91,7 +91,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.71 2000/06/09 22:15:05 (David Hinds)";
+"memory_cs.c 1.73 2000/06/23 20:11:06 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -143,6 +143,7 @@ typedef struct minor_dev_t {		/* For normal regions */
     region_info_t	region;
     memory_handle_t	handle;
     int			open;
+    u_int		offset;
 } minor_dev_t;
 
 typedef struct direct_dev_t {		/* For direct access */
@@ -151,6 +152,7 @@ typedef struct direct_dev_t {		/* For direct access */
     caddr_t		Base;
     u_int		Size;
     u_int		cardsize;
+    u_int		offset;
 } direct_dev_t;
 
 typedef struct memory_dev_t {
@@ -396,6 +398,9 @@ static void memory_config(dev_link_t *link)
     region_info_t region;
     cs_status_t status;
     win_req_t req;
+    tuple_t tuple;
+    cisparse_t parse;
+    u_char buf[64];
     int nd, i, last_ret, last_fn, attr, ret, nr[2];
 
     DEBUG(0, "memory_config(0x%p)\n", link);
@@ -440,7 +445,20 @@ static void memory_config(dev_link_t *link)
     dev->node.minor = MINOR_NR(nd, 0, 0, 0);
     link->dev = &dev->node;
     link->state &= ~DEV_CONFIG_PENDING;
-    
+
+    /* This is a hack, not a complete solution */
+    tuple.Attributes = 0;
+    tuple.TupleData = (cisdata_t *)buf;
+    tuple.TupleDataMax = sizeof(buf);
+    tuple.TupleOffset = 0;
+    tuple.DesiredTuple = CISTPL_FORMAT;
+    if (CardServices(GetFirstTuple, link->handle, &tuple) == CS_SUCCESS) {
+	CS_CHECK(GetTupleData, link->handle, &tuple);
+	CS_CHECK(ParseTuple, link->handle, &tuple, &parse);
+	dev->direct.offset = dev->minor[0].offset =
+	    parse.format.offset;
+    }
+
     printk(KERN_INFO "memory_cs: mem%d:", nd);
     if ((nr[0] == 0) && (nr[1] == 0)) {
 	cisinfo_t cisinfo;
@@ -942,11 +960,11 @@ static int memory_ioctl(struct inode *inode, struct file *file,
 
     switch (cmd) {
     case BLKGETSIZE:
-	if (!IS_DIRECT(minor))
-	    put_user(dev->direct.cardsize/SECTOR_SIZE, (long *)arg);
+	if (IS_DIRECT(minor))
+	    size = dev->direct.cardsize - dev->direct.offset;
 	else
-	    put_user(minor_dev->region.RegionSize/SECTOR_SIZE,
-		     (long *)arg);
+	    size = minor_dev->region.RegionSize - minor_dev->offset;
+	put_user(size/SECTOR_SIZE, (long *)arg);
 	break;
     case MEMGETINFO:
 	if (!IS_DIRECT(minor)) {
@@ -999,7 +1017,7 @@ static void do_direct_request(dev_link_t *link)
 
     direct = &dev->direct;
     
-    addr = CURRENT->sector * SECTOR_SIZE;
+    addr = CURRENT->sector * SECTOR_SIZE + direct->offset;
     len = CURRENT->current_nr_sectors * SECTOR_SIZE;
     if ((addr + len) > direct->cardsize) {
 	end_request(0);
@@ -1067,7 +1085,7 @@ static void do_memory_request(request_arg_t)
 	minor_dev = &dev->minor[REGION_NR(minor)];
 
 	req.Attributes = MEM_OP_BUFFER_KERNEL;
-	req.Offset = CURRENT->sector * SECTOR_SIZE;
+	req.Offset = CURRENT->sector * SECTOR_SIZE + minor_dev->offset;
 	req.Count = CURRENT->current_nr_sectors * SECTOR_SIZE;
 	buf = CURRENT->buffer;
 	ret = CS_SUCCESS;

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.158 2000/06/05 22:49:22
+# Configure 1.161 2000/06/19 19:17:29
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -283,8 +283,6 @@ if [ -f $LINUX/include/linux/compile.h ] ; then
 fi
 echo ""
 
-ask_str "Alternate target install directory" PREFIX
-
 for x in CC LD KFLAGS UFLAGS PCDEBUG ; do
     write_str $x
 done
@@ -300,8 +298,10 @@ else
     write_bool CONFIG_PNP_BIOS
 fi
 
-if [ $MATCH = 0 -o $MATCH = 2 ] ; then
-    CONF_SRC=2 # Use source tree when required or safe to do so
+if [ $MATCH = 0 ] ; then
+    CONF_SRC=2 # Use source tree when required to do so
+elif [ $MATCH = 2 ] ; then
+    CONF_SRC=3 # Use source tree when safe to do so
 elif [ $MATCH = 1 -a ! -r $LINUX/.config ] ; then
     CONF_SRC=1 # Use running kernel if tree is not configured
 else
@@ -323,7 +323,7 @@ else
 fi
 echo "CONF_SRC=$CONF_SRC" >> $CONFIG
 
-if [ $CONF_SRC -eq 1 ] ; then
+if [ $CONF_SRC = 1 ] ; then
     UTS_VERSION=$CUR_VERSION ; UTS_RELEASE=$CUR_RELEASE
 else
     UTS_VERSION=$SRC_VERSION ; UTS_RELEASE=$SRC_RELEASE
@@ -506,7 +506,7 @@ case $CONF_SRC in
 	    >> $MODVER
 	echo "#endif" >> $MODVER
 	;;
-    2)
+    2|3)
 	AUTOCONF=$LINUX/.config
 	if [ ! -r $AUTOCONF ] ; then
 	    echo "Config file $AUTOCONF not present!"
@@ -615,7 +615,7 @@ if [ $VERSION_CODE -ge `version 2 3 40` ] ; then
     write_bool CONFIG_UID16
 fi
 
-if [ $CONF_SRC != "1" -a "$CONFIG_MODVERSIONS" = "y" ] ; then
+if [ $CONF_SRC != 1 -a "$CONFIG_MODVERSIONS" = "y" ] ; then
     MODVER="$LINUX/$MODVER"
     if [ ! -r $MODVER ] ; then
 	echo "$MODVER does not exist!"
@@ -706,12 +706,6 @@ if [ "$CONFIG_SCSI" = "y" ] ; then
 	else
 	    echo "FIX_AIC7XXX=y" >> $CONFIG_MK
 	fi
-    fi
-fi
-
-if [ "$CONFIG_CARDBUS" = "y" ] ; then
-    if grep CARDBUS ${LINUX}/drivers/net/epic100.c >/dev/null ; then
-	echo DO_EPIC_CB=y >> $CONFIG_MK
     fi
 fi
 
