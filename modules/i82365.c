@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.237 1999/05/27 06:19:47
+    i82365.c 1.239 1999/06/04 17:10:58
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -72,7 +72,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static const char *version =
-"i82365.c 1.237 1999/05/27 06:19:47 (David Hinds)";
+"i82365.c 1.239 1999/06/04 17:10:58 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
@@ -359,11 +359,12 @@ typedef enum pcic_id {
 #define IS_VIA		0x0010
 #define IS_TOPIC	0x0020
 #define IS_RICOH	0x0040
-#define IS_UNKNOWN	0x0800
-#define IS_VG_PWR	0x1000
-#define IS_DF_PWR	0x2000
-#define IS_PCI		0x4000
-#define IS_CARDBUS	0x8000
+#define IS_UNKNOWN	0x0400
+#define IS_VG_PWR	0x0800
+#define IS_DF_PWR	0x1000
+#define IS_PCI		0x2000
+#define IS_CARDBUS	0x4000
+#define IS_ALIVE	0x8000
 
 typedef struct pcic_t {
     char		*name;
@@ -768,6 +769,10 @@ static u_int ti113x_set_opts(u_short s, char *buf)
     case 2:
 	p->devctl &= ~TI113X_DCR_IMODE_MASK;
 	p->devctl |= TI113X_DCR_IMODE_SERIAL;
+	break;
+    case 3:
+	p->devctl &= ~TI113X_DCR_IMODE_MASK;
+	p->devctl |= TI12XX_DCR_IMODE_ALL_SERIAL;
 	break;
     default:
 	if ((p->devctl & TI113X_DCR_IMODE_MASK) == 0)
@@ -1182,6 +1187,10 @@ static u_int set_host_opts(u_short s, u_short ns)
     char buf[128];
 
     for (i = s; i < s+ns; i++) {
+	if (socket[i].flags & IS_ALIVE) {
+	    printk(KERN_INFO "    host opts [%d]: already alive!\n", i);
+	    continue;
+	}
 	buf[0] = '\0';
 	get_host_state(i);
 	if (socket[i].flags & IS_CIRRUS)
@@ -1258,6 +1267,7 @@ static u_int test_irq(u_short sock, int irq, int pci)
     schedule_timeout(HZ/100);
     if (irq_hits) {
 	_free_irq(irq, irq_count);
+	DEBUG(2, ("    spurious hit!\n"));
 	return 1;
     }
 
@@ -1284,6 +1294,7 @@ static u_int test_irq(u_short sock, int irq, int pci)
 
     /* mask all interrupts */
     i365_set(sock, I365_CSCINT, 0);
+    DEBUG(2, ("    hits = %d\n", irq_hits));
     
     return (irq_hits != 1);
 }
@@ -1446,6 +1457,33 @@ static int identify(u_short port, u_short sock)
 
 #endif
 
+/*======================================================================
+
+    See if a card is present, powered up, in IO mode, and already
+    bound to a (non PC Card) Linux driver.  We leave these alone.
+
+    We make an exception for cards that seem to be serial devices.
+    
+======================================================================*/
+
+static int is_alive(u_short sock)
+{
+    u_char stat;
+    u_short start, stop;
+    
+    stat = i365_get(sock, I365_STATUS);
+    start = i365_get_pair(sock, I365_IO(0)+I365_W_START);
+    stop = i365_get_pair(sock, I365_IO(0)+I365_W_STOP);
+    if ((stat & I365_CS_DETECT) && (stat & I365_CS_POWERON) &&
+	(i365_get(sock, I365_INTCTL) & I365_PC_IOCARD) &&
+	(i365_get(sock, I365_ADDRWIN) & I365_ENA_IO(0)) &&
+	(check_region(start, stop-start+1) != 0) &&
+	((start & 0xfeef) != 0x02e8))
+	return 1;
+    else
+	return 0;
+}
+
 /*====================================================================*/
 
 static void add_socket(u_short port, int psock, int type)
@@ -1454,13 +1492,15 @@ static void add_socket(u_short port, int psock, int type)
     socket[sockets].psock = psock;
     socket[sockets].type = type;
     socket[sockets].flags = pcic[type].flags;
+    if (is_alive(sockets))
+	socket[sockets].flags |= IS_ALIVE;
     sockets++;
 }
 
 static void add_pcic(int ns, int type)
 {
     u_int mask = 0, i, base;
-    int pci_irq = 0, isa_irq = 0;
+    int use_pci = 0, isa_irq = 0;
     socket_info_t *t = &socket[sockets-ns];
 
     base = sockets-ns;
@@ -1504,20 +1544,22 @@ static void add_pcic(int ns, int type)
     if (pci_csc && t->cap.pci_irq) {
 	for (i = 0; i < ns; i++)
 	    if (_check_irq(t[i].cap.pci_irq, SA_SHIRQ)) break;
-	pci_irq = (i == ns);
-	printk(" PCI status changes\n");
+	if (i == ns) {
+	    use_pci = 1;
+	    printk(" PCI status changes\n");
+	}
     }
 #endif
     
 #ifdef CONFIG_ISA
     /* Poll if only two interrupts available */
-    if (!pci_irq && !poll_interval) {
+    if (!use_pci && !poll_interval) {
 	u_int tmp = (mask & (mask-1));
 	if ((tmp & (tmp-1)) == 0)
 	    poll_interval = HZ;
     }
     /* Only try an ISA cs_irq if this is the first controller */
-    if (!pci_irq && !grab_irq && (cs_irq || !poll_interval)) {
+    if (!use_pci && !grab_irq && (cs_irq || !poll_interval)) {
 	/* Avoid irq 12 unless it is explicitly requested */
 	u_int cs_mask = mask & ((cs_irq) ? (1<<cs_irq) : ~(1<<12));
 	for (cs_irq = 15; cs_irq > 0; cs_irq--)
@@ -1532,7 +1574,7 @@ static void add_pcic(int ns, int type)
     }
 #endif
     
-    if (!pci_irq && !isa_irq) {
+    if (!use_pci && !isa_irq) {
 	if (poll_interval == 0)
 	    poll_interval = HZ;
 	printk(" polling interval = %d ms\n",
@@ -1558,37 +1600,6 @@ static void add_pcic(int ns, int type)
     }
 
 } /* add_pcic */
-
-/*======================================================================
-
-    See if a card is present, powered up, in IO mode, and already
-    bound to a (non PC Card) Linux driver.  We leave these alone.
-
-    We make an exception for cards that seem to be serial devices.
-    
-======================================================================*/
-
-static int is_active(u_short port, u_short sock)
-{
-    u_char stat;
-    u_short start, stop;
-    
-    /* Use the next free entry in the socket table */
-    socket[sockets].ioaddr = port;
-    socket[sockets].psock = sock;
-    
-    stat = i365_get(sockets, I365_STATUS);
-    start = i365_get_pair(sockets, I365_IO(0)+I365_W_START);
-    stop = i365_get_pair(sockets, I365_IO(0)+I365_W_STOP);
-    if ((stat & I365_CS_DETECT) && (stat & I365_CS_POWERON) &&
-	(i365_get(sockets, I365_INTCTL) & I365_PC_IOCARD) &&
-	(i365_get(sockets, I365_ADDRWIN) & I365_ENA_IO(0)) &&
-	(check_region(start, stop-start+1) != 0) &&
-	((start & 0xfeef) != 0x02e8))
-	return 1;
-    else
-	return 0;
-}
 
 /*====================================================================*/
 
@@ -1639,7 +1650,6 @@ static void add_pci_bridge(int type, u_char bus, u_char devfn,
     addr &= ~0x1;
     pci_writew(bus, devfn, PCI_COMMAND, CMD_DFLT);
     for (i = ns = 0; i < ((type == IS_I82092AA) ? 4 : 2); i++) {
-	if (is_active(addr, i)) continue;
 	s->bus = bus; s->devfn = devfn;
 	s->vendor = v; s->device = d;
 	add_socket(addr, i, type);
@@ -1654,9 +1664,6 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
     socket_info_t *s = &socket[sockets];
     u_short d, ns;
     u_char a, b, max;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
-    struct pci_bus *parent, *child;
-#endif
     
     /* PCI bus enumeration is broken on some systems */
     for (ns = 0; ns < sockets; ns++)
@@ -1715,21 +1722,23 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
     }
     if (ns > 0) add_pcic(ns, type);
 
-    /* Set up PCI bridge structures if needed */
 #if (LINUX_VERSION_CODE >= VERSION(2,1,103))
-    for (parent = &pci_root; parent; parent = parent->next)
-	if (parent->number == bus) break;
+    /* Set up PCI bus bridge structures if needed */
     for (a = 0; a < ns; a++) {
+	struct pci_dev *self = pci_find_slot(bus, s[a].devfn);
+	struct pci_bus *child, *parent = self->bus;
 	for (child = parent->children; child; child = child->next)
 	    if (child->number == s[a].cap.cardbus) break;
-	if (child) continue;
-	child = kmalloc(sizeof(struct pci_bus), GFP_KERNEL);
-	memset(child, 0, sizeof(struct pci_bus));
-	child->primary = bus;
-	child->number = child->secondary = s[a].cap.cardbus;
-	child->subordinate = s[a].sub_bus;
-	child->parent = parent;
-	child->next = parent->children;
+	if (!child) {
+	    child = kmalloc(sizeof(struct pci_bus), GFP_KERNEL);
+	    memset(child, 0, sizeof(struct pci_bus));
+	    child->self = self;
+	    child->primary = bus;
+	    child->number = child->secondary = s[a].cap.cardbus;
+	    child->subordinate = s[a].sub_bus;
+	    child->parent = parent;
+	    child->next = parent->children;
+	}
 	s[a].cap.cb_bus = parent->children = child;
     }
 #endif
@@ -1779,8 +1788,7 @@ static void isa_probe(void)
 	    if (i == ignore) continue;
 	    port = i365_base + ((i & 1) << 2) + ((i & 2) << 1);
 	    sock = (i & 1) << 1;
-	    if ((identify(port, sock) == IS_I82365DF) &&
-		!is_active(port, sock)) {
+	    if (identify(port, sock) == IS_I82365DF) {
 		add_socket(port, sock, IS_VLSI);
 		add_pcic(1, IS_VLSI);
 	    }
@@ -1794,8 +1802,7 @@ static void isa_probe(void)
 
 	    for (j = ns = 0; j < 2; j++) {
 		/* Does the socket exist? */
-		if ((ignore == i+j) || (identify(port, sock+j) < 0) ||
-		    is_active(port, sock+j))
+		if ((ignore == i+j) || (identify(port, sock+j) < 0))
 		    continue;
 		/* Check for bad socket decode */
 		for (k = 0; k <= sockets; k++)
@@ -2763,6 +2770,12 @@ static int pcic_service(u_int sock, u_int cmd, void *arg)
     if (cmd >= NFUNC)
 	return -EINVAL;
 
+    if (socket[sock].flags & IS_ALIVE) {
+	if (cmd == SS_GetStatus)
+	    *(u_int *)arg = 0;
+	return -EINVAL;
+    }
+    
     fn = pcic_service_table[cmd];
 #ifdef CONFIG_CARDBUS
     if ((socket[sock].flags & IS_CARDBUS) &&

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure $Revision: 1.102 $ $Date: 1999/05/20 03:43:30 $
+# Configure 1.103 1999/06/04 16:42:51
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -228,6 +228,9 @@ if [ ! "$MODDIR" ] ; then
     else
 	MODDIR=/lib/modules/$SRC_RELEASE
     fi
+else
+    MODDIR=`echo $MODDIR | \
+        sed -e "s/[0-9]\.[0-9]\.[0-9]*\(-[A-Za-z0-9]*\)*/$SRC_RELEASE/"`
 fi
 ask_str "  Module install directory" MODDIR
 
@@ -665,7 +668,7 @@ if [ -r /usr/include/X11/Xlib.h -o \
     for f in /usr/{X11/,X11R6/,local/,}lib/libforms.{so,a} ; do
 	if [ -r $f ] ; then break ; fi
     done
-    for g in /usr/{X11/,X11R6/,local,}include/forms.h ; do
+    for g in /usr/{X11/,X11R6/,local/,}include/forms.h ; do
 	if [ -r $g ] ; then break ; fi
     done
     if [ -r $f -a -r $g ] ; then

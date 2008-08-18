@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.36 1999/05/27 06:19:36
+ * cs_internal.h 1.37 1999/06/01 17:27:06
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -53,7 +53,7 @@ typedef struct client_t {
     struct client_t 	*next;
     u_int		mtd_count;
 #ifdef __LINUX__
-    struct wait_queue	*mtd_req;
+    wait_queue_head_t	mtd_req;
 #endif
 #ifdef __BEOS__
     struct wchan	mtd_req;
@@ -252,7 +252,7 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 		  int force_low);
 int find_io_region(ioaddr_t *base, ioaddr_t num, char *name);
 int find_mem_region(u_long *base, u_long num, char *name,
-		    int force_low);
+		    u_long align, int force_low);
 int try_irq(u_int Attributes, int irq, int specific);
 void undo_irq(u_int Attributes, int irq);
 int adjust_resource_info(client_handle_t handle, adjust_t *adj);

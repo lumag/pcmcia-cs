@@ -119,7 +119,7 @@ static int irq_list[4] = { -1 };
 #define TX_TIMEOUT  ((800*HZ)/1000)
 
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
-static int max_interrupt_work = 20;
+static int max_interrupt_work = 32;
 
 /* Performance features: best left disabled. */
 /* Set to buffer all Tx/RxFIFO accesses. */
@@ -553,24 +553,26 @@ static void tc574_config(dev_link_t *link)
 	} else
 		cardname = "3Com 3c574";
 
-	printk(KERN_INFO "%s: %s at I/O %#3lx, IRQ %d, "
-		   "MAC Address ", dev->name, cardname, dev->base_addr, dev->irq);
+	printk(KERN_INFO "%s: %s at io %#3lx, irq %d, hw_addr ",
+		   dev->name, cardname, dev->base_addr, dev->irq);
 
 	for (i = 0; i < 6; i++)
 		printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : ".\n"));
 
 	if (dev->mem_start)
-		printk(KERN_INFO"%s:  Acceleration window at memory base %#lx.\n",
-			   dev->name, dev->mem_start);
-	else
-		printk(KERN_INFO"%s:  No acceleration memory window.\n", dev->name);
+		printk(KERN_INFO"  Acceleration window at memory base %#lx.\n",
+			   dev->mem_start);
 
 	{
-		char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
+		u_char mcr, *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
 		union wn3_config config;
+		outw(2<<11, ioaddr + RunnerRdCtrl);
+		mcr = inb(ioaddr + 2);
+		outw(0<<11, ioaddr + RunnerRdCtrl);
+		printk(KERN_INFO "  ASIC rev %d,", mcr>>3);
 		EL3WINDOW(3);
 		config.i = inl(ioaddr + Wn3_Config);
-		printk(KERN_INFO"  %dK FIFO split %s Rx:Tx, %sMII interface.\n",
+		printk(" %dK FIFO split %s Rx:Tx, %sMII interface.\n",
 			   8 << config.u.ram_size, ram_split[config.u.ram_split],
 			   config.u.autoselect ? "autoselect " : "");
 		lp->default_media = config.u.xcvr;
@@ -713,7 +715,7 @@ static int tc574_event(event_t event, int priority,
 	return 0;
 } /* tc574_event */
 
-void dump_status(struct device *dev)
+static void dump_status(struct device *dev)
 {
 	int ioaddr = dev->base_addr;
 	EL3WINDOW(1);
@@ -1141,9 +1143,9 @@ static void media_check(u_long arg)
     struct el3_private *lp = (struct el3_private *)dev->priv;
     int ioaddr = dev->base_addr;
     u_long flags;
-	u_short cable, media, partner;
+	u_short /* cable, */ media, partner;
 	
-    if (dev->start == 0) return;
+    if (dev->start == 0) goto reschedule;
 	
     /* Check for pending interrupt with expired latency timer: with
        this, we can limp along even if the interrupt is blocked */
@@ -1163,19 +1165,23 @@ static void media_check(u_long arg)
 
 	save_flags(flags);
 	cli();
+#if 0
 	outw(2<<11, ioaddr + RunnerRdCtrl);
-	cable = inw(ioaddr);
-	outw(0x20, ioaddr);
+	cable = inb(ioaddr);
+	outb(0x20, ioaddr);
 	outw(0, ioaddr + RunnerRdCtrl);
+#endif
 	EL3WINDOW(4);
 	media = mdio_read(ioaddr, lp->phys[0], 1);
 	partner = mdio_read(ioaddr, lp->phys[0], 5);
 	EL3WINDOW(1);
 	restore_flags(flags);
 
+#if 0
 	if (cable & 0x20)
 		printk(KERN_INFO "%s: cable %s\n", dev->name,
 			   ((cable & 0x08) ? "fixed" : "problem"));
+#endif
 	if (media != lp->media_status) {
 		if ((media ^ lp->media_status) & 0x0004)
 			printk(KERN_INFO "%s: %s link beat\n", dev->name,
@@ -1202,7 +1208,8 @@ static void media_check(u_long arg)
 			printk(KERN_INFO "%s: jabber detected\n", dev->name);
 		lp->media_status = media;
 	}
-	
+
+reschedule:
     lp->media.expires = RUN_AT(HZ);
     add_timer(&lp->media);
 }

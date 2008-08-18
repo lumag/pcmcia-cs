@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.217 1999/05/27 06:19:47
+    cs.c 1.220 1999/06/05 16:11:54
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -60,7 +60,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.217 1999/05/27 06:19:47 (David Hinds)";
+"cs.c 1.220 1999/06/05 16:11:54 (David Hinds)";
 #endif
 
 #ifdef __BEOS__
@@ -818,7 +818,7 @@ static int bind_device(bind_req_t *req)
     client->state = CLIENT_UNBOUND;
     client->erase_busy.next = &client->erase_busy;
     client->erase_busy.prev = &client->erase_busy;
-    init_waitqueue(&client->mtd_req);
+    init_waitqueue_head(&client->mtd_req);
     client->next = s->clients;
     s->clients = client;
     DEBUG(1, ("cs: bind_device(): client 0x%p, sock %d, dev %s\n",
@@ -1121,14 +1121,16 @@ static int get_status(client_handle_t handle, cs_status_t *status)
 
 static int map_mem_page(window_handle_t win, memreq_t *req)
 {
+    socket_info_t *s;
     if ((win == NULL) || (win->magic != WINDOW_MAGIC))
 	return CS_BAD_HANDLE;
     if (req->Page != 0)
 	return CS_BAD_PAGE;
 
+    s = win->sock;
     win->ctl.card_start = req->CardOffset;
-    win->sock->ss_entry(win->sock->sock, SS_SetMemMap, &win->ctl);
-    
+    if (s->ss_entry(s->sock, SS_SetMemMap, &win->ctl) != 0)
+	return CS_BAD_OFFSET;
     return CS_SUCCESS;
 } /* map_mem_page */
 
@@ -1536,7 +1538,7 @@ static int request_configuration(client_handle_t handle,
 	    if (!(c->irq.Attributes & IRQ_FORCED_PULSE))
 		c->Option |= COR_LEVEL_REQ;
 	write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &c->Option);
-	schedule_timeout(HZ*40/1000);
+	udelay(40*1000);
     }
     if (req->Present & PRESENT_STATUS) {
 	c->Status = req->Status;
@@ -1773,6 +1775,8 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->base = req->Base;
     win->size = req->Size;
     if (find_mem_region(&win->base, win->size, (*handle)->dev_info,
+			((s->cap.features & SS_CAP_MEM_ALIGN) ?
+			 req->Size : s->cap.map_size),
 			(req->Attributes & WIN_MAP_BELOW_1MB) ||
 			!(s->cap.features & SS_CAP_PAGE_REGS)))
 	return CS_IN_USE;

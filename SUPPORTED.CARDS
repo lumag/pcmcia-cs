@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/05/28 06:02:06
+		Last updated: 1999/06/07 05:59:09
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -165,7 +165,9 @@ Fast Ethernet (10/100baseT) adapters:
 
 	[smc91c92_cs driver]
 	Argosy EN220
+	Dynalink L100C
 	Melco/SMC LPC-TX
+	WiseCom WC-PC400
 	
 	[xirc2ps_cs driver]
 	Accton Fast EtherCard-16
@@ -302,6 +304,7 @@ Multifunction ethernet/modem cards:
 	Accton UE2218
 	ActionTec ComNet 33.6
 	AnyCom Fast Ethernet + 56K Combo
+	Asus combo card
 	Dayna Communicard
 	D-Link DME336T, DMF560TX
 	Grey Cell GCS3400
@@ -309,8 +312,8 @@ Multifunction ethernet/modem cards:
 	IBM Home and Away
 	IBM Home and Away 28.8
 	IO DATA PCEM-336T
-	Linksys LANmodem 28.8, 33.6
-	Linksys EtherFast LANmodem 56K
+	Linksys LANmodem 28.8 (PCMLM28), 33.6 (PCMLM336)
+	Linksys EtherFast LANmodem 56K (PCMLM56)
 	PREMAX LAN modem
 	Psion V.34 Gold Card
 	Psion Gold Card Netglobal 56K+10Mb 

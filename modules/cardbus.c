@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.48 1999/05/27 06:19:47
+    cardbus.c 1.50 1999/06/01 17:26:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -126,16 +126,16 @@ static int check_rom(u_char *b, u_long len)
 	    (readb(b+ROM_DATA_PTR+1) << 8);
 	sz = 512 * (readb(b+data+PCDATA_IMAGE_SZ) +
 		    (readb(b+data+PCDATA_IMAGE_SZ+1) << 8));
-	if (sz == 0) break;
 	DEBUG(0, ("  image %d: 0x%06x-0x%06x, signature %c%c%c%c\n",
 		  img, ofs, ofs+sz-1,
 		  readb(b+data+PCDATA_SIGNATURE),
 		  readb(b+data+PCDATA_SIGNATURE+1),
 		  readb(b+data+PCDATA_SIGNATURE+2),
 		  readb(b+data+PCDATA_SIGNATURE+3)));
-	b += sz; ofs += sz; img++;
+	ofs += sz; img++;
 	if ((readb(b+data+PCDATA_INDICATOR) & 0x80) ||
-	    (ofs >= len)) break;
+	    (sz == 0) || (ofs >= len)) break;
+	b += sz;
     }
     return img;
 }
@@ -150,9 +150,9 @@ static u_int xlate_rom_addr(u_char *b, u_int addr)
 	data = readb(b+ROM_DATA_PTR) + (readb(b+ROM_DATA_PTR+1) << 8);
 	sz = 512 * (readb(b+data+PCDATA_IMAGE_SZ) +
 		    (readb(b+data+PCDATA_IMAGE_SZ+1) << 8));
-	if (sz == 0) break;
+	if ((sz == 0) || (readb(b+data+PCDATA_INDICATOR) & 0x80))
+	    break;
 	b += sz; ofs += sz; img++;
-	if (readb(b+data+PCDATA_INDICATOR) & 0x80) break;
     }
     return 0;
 }
@@ -192,7 +192,7 @@ int cb_setup_cis_mem(socket_info_t *s, int space)
     sz &= PCI_BASE_ADDRESS_MEM_MASK;
     sz = FIND_FIRST_BIT(sz);
     if (sz < PAGE_SIZE) sz = PAGE_SIZE;
-    if (find_mem_region(&base, sz, "cb_enabler", 0) != 0) {
+    if (find_mem_region(&base, sz, "cb_enabler", sz, 0) != 0) {
 	printk(KERN_NOTICE "cs: could not allocate %dK memory for"
 	       " CardBus socket %d\n", sz/1024, s->sock);
 	return CS_OUT_OF_RESOURCE;
@@ -256,8 +256,13 @@ void read_cb_mem(socket_info_t *s, u_char fn, int space,
 	    memset(ptr, 0xff, len);
 	    return;
 	}
-	if (space == 7)
+	if (space == 7) {
 	    addr = xlate_rom_addr(s->cb_cis_virt, addr);
+	    if (addr == 0) {
+		memset(ptr, 0xff, len);
+		return;
+	    }
+	}
 	if (s->cb_cis_virt != NULL)
 	    for (; len; addr++, ptr++, len--)
 		*(u_char *)ptr = readb(s->cb_cis_virt+addr);
@@ -314,7 +319,7 @@ int cb_config(socket_info_t *s)
 	pci_readl(bus, i, PCI_CLASS_REVISION, &c[i].dev.class);
 	c[i].dev.class >>= 8;
 	pci_readb(bus, i, PCI_HEADER_TYPE, &j);
-	c[i].dev.hdr_type = j;	
+	c[i].dev.hdr_type = j;
     }
     s->cap.cb_bus->devices = &c[0].dev;
 #endif
@@ -364,7 +369,8 @@ int cb_config(socket_info_t *s)
     s->win[0].size = num[B_M1];
     s->win[0].base = 0;
     if (num[B_M1]) {
-	if (find_mem_region(&s->win[0].base, num[B_M1], name, 0) != 0) {
+	if (find_mem_region(&s->win[0].base, num[B_M1],
+			    name, num[B_M1], 0) != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %dK memory for"
 		   " CardBus socket %d\n", num[B_M1]/1024, s->sock);
 	    goto failed;
@@ -374,7 +380,8 @@ int cb_config(socket_info_t *s)
     s->win[1].size = num[B_M2];
     s->win[1].base = 0;
     if (num[B_M2]) {
-	if (find_mem_region(&s->win[1].base, num[B_M2], name, 0) != 0) {
+	if (find_mem_region(&s->win[1].base, num[B_M2],
+			    name, num[B_M2], 0) != 0) {
 	    printk(KERN_NOTICE "cs: could not allocate %dK memory for"
 		   " CardBus socket %d\n", num[B_M2]/1024, s->sock);
 	    goto failed;

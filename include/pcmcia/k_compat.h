@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.75 1999/04/26 05:52:07
+ * k_compat.h 1.76 1999/05/31 04:06:12
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in

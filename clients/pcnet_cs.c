@@ -11,7 +11,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.92 1999/05/21 15:11:33
+    pcnet_cs.c 1.93 1999/06/05 16:24:36
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -66,14 +66,14 @@
 
 #define PCNET_RDC_TIMEOUT 0x02	/* Max wait in jiffies for Tx RDC */
 
-static char *if_names[] = { "Auto", "10baseT", "10base2"};
+static char *if_names[] = { "auto", "10baseT", "10base2"};
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.92 1999/05/21 15:11:33 (David Hinds)";
+"pcnet_cs.c 1.93 1999/06/05 16:24:36 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -729,12 +729,12 @@ static void pcnet_config(dev_link_t *link)
     link->dev = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
 
-    printk(KERN_INFO "%s: NE2000 Compatible: port %#3lx, irq %d,",
+    printk(KERN_INFO "%s: NE2000 Compatible: io %#3lx, irq %d,",
 	   dev->name, dev->base_addr, dev->irq);
     if (info->flags & USE_SHMEM)
 	printk (" mem %#5lx,", dev->mem_start);
     if (info->flags & HAS_MISC_REG)
-	printk(" %s port,", if_names[dev->if_port]);
+	printk(" %s xcvr,", if_names[dev->if_port]);
     printk(" hw_addr ");
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));

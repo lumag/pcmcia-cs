@@ -8,7 +8,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    smc91c92_cs.c 1.63 1999/05/28 02:51:07
+    smc91c92_cs.c 1.65 1999/06/05 16:24:10
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -65,7 +65,7 @@ static const char *version =
 #define DEBUG(n, args...)
 #endif
 
-static char *if_names[] = { "Auto", "10baseT", "10base2"};
+static char *if_names[] = { "auto", "10baseT", "10base2"};
 
 /* Parameters that can be set with 'insmod' */
 
@@ -965,8 +965,9 @@ static void smc91c92_config(dev_link_t *link)
 	case 4: name = "94"; break;
 	case 5: name = "95"; break;
 	case 7: name = "100"; break;
+	case 8: name = "100fd"; break;
 	}
-    printk(KERN_INFO "%s: smc91c%s: port %#3lx, irq %d, %s port, "
+    printk(KERN_INFO "%s: smc91c%s: io %#3lx, irq %d, %s port, "
 	   "hw_addr ", dev->name, name, dev->base_addr, dev->irq,
 	   if_names[dev->if_port]); 
     for (i = 0; i < 6; i++)

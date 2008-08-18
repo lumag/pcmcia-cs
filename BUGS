@@ -1,4 +1,4 @@
-Known problems with the 3.0.11 PCMCIA release
+Known problems with the 3.0.12 PCMCIA release
 =============================================
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
@@ -69,3 +69,8 @@ o The 2.2.* serial driver has a bug that interferes with interrupt
 
   The bug can be fixed by editing linux/drivers/char/serial.c and
   changing each use of IRQ_T(info) to IRQ_T(state).
+
+o The kernel aha152x driver, used for Adaptec 16-bit SCSI adapters,
+  has a PCMCIA compatibility problem that was fixed in 2.2.9.  The
+  effect is that interrupts are ignored, unless the card happens to be
+  configured for irq 9..12.

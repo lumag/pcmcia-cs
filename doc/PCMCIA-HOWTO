@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.33, 28 May 1999
+  v2.35, 07 June 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -688,7 +688,11 @@
   +o  On the IBM ThinkPad 380, and maybe the 385 and 600 series, exclude
      port 0x230-0x233, and irq 5.
 
-  +o  On the IBM ThinkPad 600, exclude port 0x2f8-0x2ff.
+  +o  On IBM ThinkPad 600 and 770 models with internal modems, exclude
+     port 0x2f8-0x2ff.
+
+  +o  On the IBM ThinkPad 600E, change the high memory window to
+     0x60000000-0x60ffffff.
 
   +o  On the Micron Millenia Transport, exclude irq 5, irq 9.
 
@@ -723,6 +727,7 @@
   22..55..  NNootteess aabboouutt ssppeecciiffiicc LLiinnuuxx ddiissttrriibbuuttiioonnss
 
   This section is incomplete.  Corrections and additions are welcome.
+
 
   22..55..11..  DDeebbiiaann
 
@@ -784,11 +789,13 @@
   from /etc/rc.d/rc.S.
 
 
+
   22..55..44..  SSuuSSEE
 
   SuSE uses a System V init script arrangement, with init scripts stored
   under /sbin/init.d.  The PCMCIA startup script is installed as
   /sbin/init.d/pcmcia, and startup options are kept in /etc/rc.config.
+
 
   33..  RReessoollvviinngg iinnssttaallllaattiioonn aanndd ccoonnffiigguurraattiioonn pprroobblleemmss
 
@@ -856,6 +863,7 @@
      distribution, verify that you are using an unmodified kernel as
      supplied with that distribution.  If you intend to use precompiled
      modules, you generally must stick with the corresponding kernel.
+
   +o  If you have reconfigured or upgraded your kernel, you will probably
      need to compile and install the PCMCIA package from scratch.  This
      is easily done if you already have the kernel source tree
@@ -920,6 +928,7 @@
   The /etc/pcmcia/config file can specify that additional modules need
   to be loaded for a particular client.  For example, for the serial
   driver, one would use:
+
 
 
        device "serial_cs"
@@ -987,8 +996,7 @@
 
 
 
-
-  PCIC_OPTS="irq_list=5,9,10"
+       PCIC_OPTS="irq_list=5,9,10"
 
 
 
@@ -1052,7 +1060,6 @@
 
   +o  The system log reports that various memory ranges have been
      excluded.
-
 
   The core modules perform a memory scan at the time of first 16-bit
   card insertion.  This scan can potentially interfere with other memory
@@ -1118,7 +1125,6 @@
   interrupts that can be used by PCMCIA cards as well as for monitoring
   card status changes.  The cs_irq option can also be used to explicitly
   set the interrupt to be used for monitoring card status changes.
-
 
   If you can't find an interrupt number that works, there is also a
   polled status mode: both i82365 and tcic will accept a
@@ -1246,16 +1252,10 @@
 
   If the modules are all loaded correctly, the output of the lsmod
   command should look like the following, when no cards are inserted:
-
-
-
-
-
-
-  Module                  Size  Used by
-  ds                      5640   2
-  i82365                 15452   2
-  pcmcia_core            30012   3  [ds i82365]
+       Module                  Size  Used by
+       ds                      5640   2
+       i82365                 15452   2
+       pcmcia_core            30012   3  [ds i82365]
 
 
 
@@ -2193,11 +2193,14 @@
 
 
 
+  +o  Another potential source of SCSI device probe problems is probing
+     of multiple LUN's.  If you see successful detection of a device,
+     followed by SCSI bus timeouts when LUN 1 for that device is probed,
+     then disable the kernel's CONFIG_SCSI_MULTI_LUN option.
+
   +o  If you have compiled SCSI support as modules (CONFIG_SCSI is
-     ``m''), when configuring PCMCIA, you must explicitly specify that
-     you want the SCSI drivers to be built.  You must also modify
-     /etc/pcmcia/config to load the SCSI modules before the appropriate
-     *_cs driver is loaded.
+     ``m''), you must modify /etc/pcmcia/config to load the SCSI modules
+     before the appropriate *_cs driver is loaded.
 
   +o  If you get ``aborting command due to timeout'' messages when the
      SCSI bus is probed, you almost certainly have an interrupt
@@ -2238,9 +2241,6 @@
   make mistakes in some other cases as well.  If a card is misdetected,
   its size should then be explicitly specified when using commands such
   as dd or mkfs.
-
-
-
 
   44..77..11..  MMeemmoorryy ddeevviiccee ppaarraammeetteerrss
 

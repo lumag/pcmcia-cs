@@ -1,4 +1,24 @@
-Version 3.0.11
+[06-Jun-99] Version 3.0.12
+-- Fixed suspend/resume bug in transceiver monitoring code in 3c589_cs
+   and 3c574_cs drivers.
+-- Updated 3c575_cb driver to Donald Becker's 0.99L version.
+-- Tweaked smc91c92_cs driver to handle smc91c100fd cards.
+-- Changed the active-socket check in i82365 module to also work for
+   CardBus sockets, and to give more informative messages.
+-- Changed high memory probe to probe regions from the highest address
+   downwards, and updated default config.opts, so the defaults should
+   work for ThinkPad 600's.
+-- Added access to another interrupt routing mode for TI controllers
+   via the irq_mode parameter.
+-- Relaxed too-strict alignment rules for memory windows.
+-- Tweaked PCI bus management code in i82365 driver.
+-- Fixed Configure script to keep better track of where modules should
+   go, when the kernel source tree is updated.
+-- Fixed new bugs in CardBus CIS identification.
+-- Fixed suspend/resume breakage from 3.0.11.
+-- Fixed 2.3.* kernel breakage that snuck into 3.0.11.
+
+[28-May-1999] Version 3.0.11
 -- Added support for Quatech SPP-100 parallel port card.
 -- Tweaked pcnet_cs driver's algorithm for choosing shared memory
    versus polled IO, to be safer.
@@ -10,7 +30,7 @@ Version 3.0.11
 -- Fixed the 3c574_cs transceiver initialization bug.  Also did a lot
    of general code cleanup, and added nicer link status reporting.
 
-Version 3.0.10
+[17-May-1999] Version 3.0.10 
 -- Updated for 2.3.1 kernel wait queue changes.
 -- Updated wavelan_cs, ibmtr_cs drivers.
 -- Started to add support for foreign host bridge architectures.
@@ -42,7 +62,7 @@ Version 3.0.10
 -- Fixed power description coding in pack_cis.
 -- Fixed 'ifuser' to check routes in proper order.
 
-Version 3.0.9
+[16-Feb-1999] Version 3.0.9
 -- Moved cardinfo to /usr/X11R6/bin where it belongs.
 -- Added support for 4-socket configurations with I82092AA bridge.
 -- Added D-Link DMF560TX support.
@@ -63,7 +83,7 @@ Version 3.0.9
 -- Fixed network script to handle net-tools-1.46 ifconfig output.
 -- Fixed SMP compilation with 2.2-pre9 and later kernels.
 
-Version 3.0.8
+[22-Jan-1999] Version 3.0.8
 -- Minor changes in TI and O2Micro Cardbus bridge initialization.
 -- Changed semantics of i82365 cb_bus_base parameter (and put it in
    the man page).
@@ -80,7 +100,7 @@ Version 3.0.8
 -- Fixed several configuration problems with 2.2.0-pre kernels.
 -- Fixed another Cardbus hot-eject problem.
 
-Version 3.0.7
+[05-Jan-1999] Version 3.0.7
 -- Added DHCP support to network script.
 -- Fixed configure script for 2.2.0-pre kernels.
 -- Cleaned up memory probe algorithm.
@@ -93,7 +113,7 @@ Version 3.0.7
 -- Fixed dumb bug in 3c575_cb driver introduced in 3.0.6.
 -- Fixed compilation under 2.0.* SMP.
 
-Version 3.0.6
+[19-Nov-1998] Version 3.0.6
 -- Performance improvements in CardBus bridge setup code.
 -- Minor Xircom driver update.
 -- Updated 3c575_cb driver for 3c575B (3CCFE575) cards, and fixed
@@ -124,7 +144,7 @@ Version 3.0.6
 -- Fixed controller option flag mixup in i82365 driver.
 -- Fixed dump_cis bug in multifunction card handling.
 
-Version 3.0.5
+[20-Aug-1998] Version 3.0.5
 -- Various minor code cleanups.
 -- Reorganized i82365 header files.
 -- Major redo of dump_cis and pack_cis tools: now they are installed
@@ -139,7 +159,7 @@ Version 3.0.5
 -- Fixed 'cardctl ident' bug with some multifunction cards.
 -- Fixed Cardbus CIS handling and resource management bugs.
 
-Version 3.0.4
+[18-Jul-1998] Version 3.0.4
 -- Split "modules" subdirectory: moved client drivers to "clients".
 -- Added "cardctl ident" to display card identification information.
 -- Added /proc/bus/pccard tree for 2.1.105 and later kernels.
@@ -153,12 +173,12 @@ Version 3.0.4
 -- Fixed bugs in probe tool and added new controllers.
 -- Fix in i82365 module Vpp handling for older controllers.
 
-Version 3.0.3
+[27-May-1998] Version 3.0.3
 -- Minor updates to HOWTO, config file, xirc2ps_cs driver.
 -- Removed apparently broken 3V/5V detection for Cirrus controllers.
 -- Fixed procfs bug in Configure script.
 
-Version 3.0.2
+[24-May-1998] Version 3.0.2
 -- Updated CardBus support for 2.1.90 and later kernels.
 -- Renamed 'dump_tuples' as 'dump_cis'.
 -- Added SMP spinlock support.
@@ -169,7 +189,7 @@ Version 3.0.2
 -- Fixed cs_irq handling bug in i82365 module.
 -- Fixed bad bug in memory window allocation logic.
 
-Version 3.0.1
+[10-May-1998] Version 3.0.1
 -- Adopted Mozilla Public License for all core components, and cleaned
    up various copyrights and attributions.
 -- Updated skeleton driver to work as generic IO card enabler, renamed
@@ -207,7 +227,7 @@ Version 3.0.1
 -- Fixed network script to properly detect open connections and NFS
    mounts on an interface, using the new 'ifuser' utility.
 
-Version 3.0.0
+[19-Feb-1998] Version 3.0.0
 -- Added 3c574_cs module.
 -- Major update of HOWTO and programming guide.
 -- Various new sections of code to support Cardbus cards.
@@ -233,7 +253,7 @@ Version 3.0.0
    and fixed EEPROM checksum bug.
 -- Fixed some 32/64-bit issues that cause trouble on Alpha platform.
 
-Version 2.9.12
+[14-Nov-1997] Version 2.9.12
 -- Updated to handle 2.1.60 kernel changes.
 -- Updated the Xircom driver, fixing CEM56 support.
 -- Updated the Wavelan driver
@@ -247,14 +267,14 @@ Version 2.9.12
 -- Fixed bug in multiple-cardbus-controller setup code.
 -- Fixed config file install glitch.
 
-Version 2.9.11
+[09-Oct-1997] Version 2.9.11
 -- Fixed Configure script to automatically detect SCSI modules, and to
    do a better job of figuring out kernel symbol version information.
 -- Config file updates.
 -- Fixed Linksys EtherFast configuration code.
 -- Fixed several 1.2.X kernel incompatibilities.
 
-Version 2.9.10
+[25-Sep-1997] Version 2.9.10
 -- Added support for Linksys EtherFast 10/100 network adapter.
 -- Extended ftl_cs driver to support partition tables within an FTL
    partition.
@@ -266,13 +286,13 @@ Version 2.9.10
 -- Fixed several bad bugs in the memory_cs driver.
 -- Fixed cardmgr to create stab file even if no cards are present.
 
-Version 2.9.9
+[10-Sep-1997] Version 2.9.9
 -- Added support for Novell/Eagle NE200 ethernet adapter.
 -- Replaced "irq_mask" module options with more intuitive "irq_list"
    options.  For compatibility, "irq_mask" will still work.
 -- Fixed several typos, and an event handling bug added in 2.9.8.
 
-Version 2.9.8
+[05-Sep-1997] Version 2.9.8
 -- Better module tool version checking.
 -- Merged pcmem_cs driver into memory_cs.
 -- Updates of Xircom Netwave and ethernet drivers
@@ -291,7 +311,7 @@ Version 2.9.8
 -- Various changes to Card Services interface to accommodate future
    CardBus card support.
 
-Version 2.9.7
+[03-Jul-1997] Version 2.9.7
 -- Added Werner Koch's driver for Xircom ethernet and ethernet/modem
    adapters.  
 -- Simplified multifunction card handling in the serial driver.
@@ -310,7 +330,7 @@ Version 2.9.7
 -- Fixed bug in initialization code for the second socket of CardBus
    controllers.
 
-Version 2.9.6
+[04-Jun-1997] Version 2.9.6
 -- Added stuff to configuration scripts and cardctl so that when the
    scheme is changed, we only reconfigure devices that need it.
 -- Added an improved memory-scanner that should be able to figure out
@@ -330,7 +350,7 @@ Version 2.9.6
 -- Fixed missing "#include <pcmcia/config.h>" in cardctl.c.
 -- Fixed various minor bugs/typos
 
-Version 2.9.5
+[25-Apr-1997] Version 2.9.5
 -- Added support for Quatech quad serial card.
 -- Added "pcinitrd" helper script, info to the HOWTO.
 -- Updated IBM token-ring driver for 2.1.X kernels.
@@ -340,14 +360,14 @@ Version 2.9.5
 -- Fixed bug in SCSI and fixed-disk configuration scripts when the
    config file describes multiple partitions for one device.
 
-Version 2.9.4
+[15-Apr-1997] Version 2.9.4
 -- More kernel version tweaks for 2.1.31 and later kernels.
 -- Fixed network script to *always* shut down an interface at card
    eject time, whether or not this script turned it on.
 -- Fixed 3c589_cs autodetect code, again.
 -- Fixed i82365 breakage in 2.9.3.
 
-Version 2.9.3
+[14-Apr-1997] Version 2.9.3
 -- Reorganized the PCMCIA-HOWTO.
 -- Added a configuration option to allow cardctl, cardinfo to be
    compiled in "unsafe" mode so non-root users can modify cards.
@@ -358,7 +378,7 @@ Version 2.9.3
 -- Fixed Configure script to work with bash-2.0.
 -- Fixed /var/run/stab parsing bug in card configuration scripts.
 
-Version 2.9.2
+[21-Mar-1997] Version 2.9.2
 -- Minor updates to docs and config files.
 -- Added new card identification method to cardmgr, based on the
    MANFID tuple.
@@ -388,7 +408,7 @@ Version 2.9.2
    invalidate the buffer cache when a card is ejected.
 -- Fixed Ricoh RL5C466 CardBus controller setup bug.
 
-Version 2.9.1
+[23-Dec-1996] Version 2.9.1
 -- Added support for MACNICA and IO-DATA SCSI adapters.
 -- Increased write timeout in iflash2+_mtd driver, and made it a
    configurable parameter.
@@ -404,7 +424,7 @@ Version 2.9.1
 -- Fixed some sort of bug in the Wavelan driver.
 -- Fixed bug in probe for TI 1130 CardBus chips.
 
-Version 2.9.0
+[28-Nov-1996] Version 2.9.0
 -- Updated for 2.1.X kernels (retaining compatibility with older
    kernels, of course).
 -- Updated the Wavelan driver.
@@ -429,7 +449,7 @@ Version 2.9.0
 -- Fixed several bugs and race conditions in card power-up sequencing
    and resume handling.
 
-Version 2.8.23
+[03-Oct-1996] Version 2.8.23
 -- Added 'ide_info' utility so that IDE configuration scripts can
    look up a card's serial number.
 -- Updated network configuration script to support IPX setup.
@@ -444,7 +464,7 @@ Version 2.8.23
    controllers.  Also updated 'probe' command.
 -- Fixed wavelan_cs check for stopped card in interrupt handler.
 
-Version 2.8.22
+[29-Aug-1996] Version 2.8.22
 -- Added Wavelan man pages.
 -- Fixed configure problem for DEC Alpha UDB systems.
 -- Fixed missed interrupt problem with simultaneous ethernet/modem
@@ -460,7 +480,7 @@ Version 2.8.22
    card eject and driver unloading, increased the xmit timeout, and
    took out code that forces the card to use a fixed port address.
 
-Version 2.8.21
+[06-Aug-1996] Version 2.8.21
 -- Fixed network and serial configuration scripts to do appropriate
    things when a card is suspended or resumed.
 -- Fixed bug in fsck exit code checking in scsi and fixed-disk
@@ -474,7 +494,7 @@ Version 2.8.21
 -- Fixed bug in Megahertz EM3288 power-up sequence in smc91c92_cs.
 -- Fixed interrupt handling bug in wavelan_cs.
 
-Version 2.8.20
+[29-Jul-1996] Version 2.8.20
 -- Updated the Fujitsu ethernet driver to support the TDK LAC-CD02x.
 -- Added Logitec ethernet, Digital Mobile Media CD-ROM to config file
    and supported cards list.
@@ -483,7 +503,7 @@ Version 2.8.20
 -- Fixed wavelan_cs driver to build with 1.2.X kernels.
 -- Fixed two bugs in smc91c92 driver for Megahertz cards.
 
-Version 2.8.19
+[19-Jul-1996] Version 2.8.19
 -- Added support for IBM "KING" PCIC, added decoding of TCIC-2 chip
    revision codes to tcic module and probe command.
 -- Added DO_FSCK flag to all configuration scripts that can mount
@@ -498,7 +518,7 @@ Version 2.8.19
 -- Fixed bug in suspend/resume handling for Ositech multifunction
    cards (and maybe some others).
 
-Version 2.8.18
+[26-Jun-1996] Version 2.8.18
 -- Added support for new revision of Vadem VG469 host controller.
 -- Added Xircom Netwave driver.
 -- Added Micronet EtherFast, 3Com 3c689 token ring, and Trimble GPS
@@ -513,7 +533,7 @@ Version 2.8.18
 -- Fixed stupid bug in smc91c92_cs driver that broke Ositech
    multifunction cards.
 
-Version 2.8.17
+[11-Jun-1996] Version 2.8.17
 -- Added code to check for spurious APM suspend/resume events.
 -- Changed serial_cs driver to be more aggressive about finding IO
    ports for modems when the standard locations are all unavailable.
@@ -529,7 +549,7 @@ Version 2.8.17
 -- Fixed interrupt allocation bugs in smc91c92_cs.c and pcnet_cs.c
    that goofed up Ositech and Linksys ethernet/modem combo cards.
 
-Version 2.8.16
+[02-Jun-1996] Version 2.8.16
 -- Added 'ifport' command for selecting transceiver types for network
    adapters.  Also cleaned up all the transceiver selection code in
    the various network drivers, and updated the HOWTO.
@@ -544,7 +564,7 @@ Version 2.8.16
 -- Fixed several bugs in the card status interrupt allocation code in
    the i82365 module, for supporting multiple controllers.
 
-Version 2.8.15
+[15-May-1996] Version 2.8.15
 -- Updated Configure to handle 1.99.* (i.e., "pre-2.0") kernels.
 -- More changes to the socket-ignoring code.
 -- Added support for 3Com 3c562B, and Motorola Marquis cards.
@@ -561,7 +581,7 @@ Version 2.8.14
 -- Fixed bug in error reporting in cardmgr's config file parsing code,
    and fixed bug in config file.
 
-Version 2.8.13
+[25-Apr-1996] Version 2.8.13
 -- One more fix for 1.2.X kernels.
 -- Added Fujitsu FMV-J181, FMV-J182 ethernet driver.
 -- Added mention of CONFIG_TR to HOWTO, also fixed Configure script
@@ -577,13 +597,13 @@ Version 2.8.12
 -- Added more CIS tuple definitions.
 -- Fixed (hopefully) the last 1.2.X kernel compatibility bug.
 
-Version 2.8.11
+[05-Apr-1996] Version 2.8.11
 -- Minor updates to config file.
 -- Changed the pcnet_cs, ibmtr_cs, memory card drivers, and socket
    drivers to be architecture independent, for DEC Multia.
 -- Fixed to work with 1.2.X kernels again.
 
-Version 2.8.10
+[01-Apr-1996] Version 2.8.10
 -- Added New Media Toast & Jam SCSI-only support.
 -- Added Panasonic KXL-D740 to supported cards.
 -- Added a new header file, ciscode.h, to keep track of manufacturer
@@ -602,7 +622,7 @@ Version 2.8.10
 -- Fixed another rare CIS parsing bug.
 -- Fixed flags for Epson ethernet in pcnet_cs.
 
-Version 2.8.9
+[13-Mar-1996] Version 2.8.9
 -- Updated for kernels up to and including 1.3.73.
 -- Made some drivers a bit less verbose.
 -- Changed PCMCIA startup script to clean up old devices after an
@@ -625,7 +645,7 @@ Version 2.8.9
 -- Fixed race condition in 3c589_cs transceiver detection code, also
    fixed "missed interrupt" problem.
 
-Version 2.8.8
+[11-Feb-1996] Version 2.8.8
 -- Made the scheme stuff more secure.
 -- Fixed serial driver to work better with 3c562... see HOWTO.
 -- Faster and better transceiver autodetection for 3c589 cards.
@@ -637,7 +657,7 @@ Version 2.8.8
 -- Fixed modules/Makefile to include dependencies for objects built
    from source code in the Linux kernel tree.
 
-Version 2.8.7
+[28-Jan-1996] Version 2.8.7
 -- Added NDC Instant-Link support.
 -- Fixed 3c589 transceiver selection problem, probably.
 -- Fixed bug in modules/Makefile with fixed_cs.o module.
@@ -645,7 +665,7 @@ Version 2.8.7
 -- Fixed network script to shut down BOOTP setups properly, and to
    handle some more special cases.
 
-Version 2.8.6
+[25-Jan-1996] Version 2.8.6
 -- Cleaned up Makefiles.
 -- Changed the default debug level in nmclan_cs to 2, and got rid of
    the "checking if_port..." messages in 3c589_cs.c.
@@ -658,7 +678,7 @@ Version 2.8.6
 -- Fixed the device scripts to set scheme to "default" if it is unset,
    and changed cardctl to do the same.
 
-Version 2.8.5
+[16-Jan-1996] Version 2.8.5
 -- Tweaks for kernels up to 1.3.57.
 -- Modified device scripts to grab more info from /etc/stab.  Now, all
    the device scripts pass an "address" to the corresponding option
@@ -682,7 +702,7 @@ Version 2.8.5
 -- Fixed bug in i82365 socket counting code for systems with just one
    socket.
 
-Version 2.8.4
+[28-Dec-1995] Version 2.8.4
 -- Added support for DataTrek NetCard, config entry for Megahertz
    V.34 modem.
 -- Added '00 04 ac ...' signature for IBM cards to pcnet_cs driver.
@@ -711,14 +731,14 @@ Version 2.8.4
 -- Fixed bug in dump_tuples and dump_cisreg that left extra device
    files hanging around in /tmp.
 
-Version 2.8.3
+[20-Dec-1995] Version 2.8.3
 -- Fixed bug in Configure script, common symptom was deciding that
    CONFIG_MODVERSIONS was set when it wasn't.
 
-Version 2.8.2
+[19-Dec-1995] Version 2.8.2
 -- Added '00 20 af ...' address signature to 3c589_cs driver.
 
-Version 2.8.1
+[18-Dec-1995] Version 2.8.1
 -- A few dumb typo fixes.
 -- Extended config file format to support nesting files, split the
    config file, and the network and serial scripts into generic and
@@ -761,7 +781,7 @@ Version 2.8.0
 -- Fixed 3c589 driver to refuse to bind to non-3Com cards.
 -- Working on interrupt sharing for multifunction cards.
 
-Version 2.7.6
+[21-Nov-1995] Version 2.7.6
 -- Fixed resource allocation bug that affected IO port availability
    after restarting cardmgr.
 -- Fixed typo in qlogic_cs module initialization.
@@ -769,11 +789,11 @@ Version 2.7.6
    pending setup".
 -- Fixed a bug in SCSI driver unloading.
 
-Version 2.7.5
+[11-Nov-1995] Version 2.7.5
 -- Made the configuration procedure a little more bullet-proof.
 -- Fixed bug in module version support for 1.2.X kernels.
 
-Version 2.7.4
+[10-Nov-1995] Version 2.7.4
 -- Fixed 3Com 3c562 support in serial_cs and 3c589_cs.
 -- Fixed infrequent bug in alignment logic for IO and memory windows.
 -- Fixed various kernel incompatibilities, tested with 1.3.37 through
@@ -785,7 +805,7 @@ Version 2.7.4
 -- Revamped some of the module startup code, to facilitate optionally
    linking stuff into the kernel.
 
-Version 2.7.3
+[16-Oct-1995] Version 2.7.3
 -- Changed default bus timing in i82365.c to 8.33 MHz.
 -- Fixed i82365 driver to deal with VG-469 3V/5V decision.  Also
    changed probe logic to do a better job with docking stations.
@@ -822,7 +842,7 @@ Version 2.7.0
 -- Changed Makefile to build 8390.o on the fly.
 -- Fix to toaster_cs for CIS parsing problem.
 
-Version 2.6.3a
+[10-Aug-1995] Version 2.6.3a
 -- Fixed dumb bug in de650_cs driver.
 
 Version 2.6.3

@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.59 1999/02/08 07:04:30
+    rsrc_mgr.c 1.61 1999/06/03 06:52:06
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -456,6 +456,24 @@ static int do_mem_probe(u_long base, u_long num,
 
 #ifdef CONFIG_ISA
 
+static u_long inv_probe(int (*is_valid)(u_long),
+			int (*do_cksum)(u_long),
+			resource_map_t *m)
+{
+    u_long ok;
+    if (m == &mem_db)
+	return 0;
+    ok = inv_probe(is_valid, do_cksum, m->next);
+    if (ok) {
+	if (m->base >= 0x100000)
+	    sub_interval(&mem_db, m->base, m->num);
+	return ok;
+    }
+    if (m->base < 0x100000)
+	return 0;
+    return do_mem_probe(m->base, m->num, is_valid, do_cksum);
+}
+
 void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 		  int force_low)
 {
@@ -467,13 +485,8 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
     if (!probe_mem) return;
     /* We do up to four passes through the list */
     if (!force_low) {
-	if (hi++) return;
-	for (m = mem_db.next; m != &mem_db; m = m->next) {
-	    /* Only probe > 1 MB */
-	    if (m->base < 0x100000) continue;
-	    ok += do_mem_probe(m->base, m->num, is_valid, do_cksum);
-	    if (ok) return;
-	}
+	if (hi++ || (inv_probe(is_valid, do_cksum, mem_db.next) > 0))
+	    return;
 	printk(KERN_NOTICE "cs: warning: no high memory space "
 	       "available!\n");
     }
@@ -558,9 +571,8 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, char *name)
 } /* find_io_region */
 
 int find_mem_region(u_long *base, u_long num, char *name,
-		    int force_low)
+		    u_long align, int force_low)
 {
-    u_long align;
     resource_map_t *m;
 
     if (*base != 0) {
@@ -571,15 +583,13 @@ int find_mem_region(u_long *base, u_long num, char *name,
 	return -1;
     }
     
-    for (align = 4096; align < num; align *= 2) ;
-
     ACQUIRE_RESOURCE_LOCK;
     while (1) {
 	for (m = mem_db.next; m != &mem_db; m = m->next) {
 	    /* first pass >1MB, second pass <1MB */
 	    if ((force_low != 0) ^ (m->base < 0x100000)) continue;
 	    for (*base = (m->base + align - 1) & (~(align-1));
-		 *base+align <= m->base+m->num; *base += align)
+		 *base+num <= m->base+m->num; *base += align)
 		if (register_mem_region(*base, num, name) == 0) {
 		    RELEASE_RESOURCE_LOCK;
 		    return 0;

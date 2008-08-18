@@ -1,5 +1,5 @@
 /*
- * ds.h 1.49 1998/08/03 19:12:23
+ * ds.h 1.51 1999/05/31 04:19:17
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in

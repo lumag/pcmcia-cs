@@ -4,7 +4,7 @@
     
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    3c589_cs.c 1.123 1999/05/25 05:20:02
+    3c589_cs.c 1.125 1999/06/07 06:44:10
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -108,14 +108,14 @@ struct el3_private {
     u_long	last_irq;
 };
 
-static char *if_names[] = { "Auto", "10baseT", "10base2", "AUI" };
+static char *if_names[] = { "auto", "10baseT", "10base2", "AUI" };
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.123 1999/05/25 05:20:02 (David Hinds)";
+"3c589_cs.c 1.125 1999/06/07 06:44:10 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -446,7 +446,7 @@ static void tc589_config(dev_link_t *link)
     else
 	printk(KERN_NOTICE "3c589_cs: invalid if_port requested\n");
     
-    printk(KERN_INFO "%s: 3Com 3c%s, port %#3lx, irq %d, %s port, "
+    printk(KERN_INFO "%s: 3Com 3c%s, io %#3lx, irq %d, %s xcvr, "
 	   "hw_addr ", dev->name, (multi ? "562" : "589"),
 	   dev->base_addr, dev->irq, if_names[dev->if_port]);
     for (i = 0; i < 6; i++)
@@ -897,7 +897,7 @@ static void media_check(u_long arg)
     u_short media;
     u_long flags;
 
-    if (dev->start == 0) return;
+    if (dev->start == 0) goto reschedule;
     
     EL3WINDOW(1);
     /* Check for pending interrupt with expired latency timer: with
@@ -954,6 +954,8 @@ static void media_check(u_long arg)
     
     EL3WINDOW(1);
     restore_flags(flags);
+
+reschedule:
     lp->media.expires = RUN_AT(HZ);
     add_timer(&lp->media);
 }

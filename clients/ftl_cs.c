@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.43 1999/05/28 02:51:45
+    ftl_cs.c 1.46 1999/06/03 20:43:03
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -102,7 +102,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.43 1999/05/28 02:51:45 (David Hinds)";
+"ftl_cs.c 1.46 1999/06/03 20:43:03 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -178,7 +178,7 @@ typedef struct partition_t {
 typedef struct ftl_dev_t {
     eraseq_handle_t	eraseq_handle;
     eraseq_entry_t	eraseq[MAX_ERASE];
-    struct wait_queue	*erase_pending;
+    wait_queue_head_t	erase_pending;
     partition_t		minor[CISTPL_MAX_DEVICES];
 } ftl_dev_t;
 
@@ -189,7 +189,7 @@ static struct hd_struct ftl_hd[MINOR_NR(MAX_DEV, 0, 0)];
 static int ftl_sizes[MINOR_NR(MAX_DEV, 0, 0)];
 static int ftl_blocksizes[MINOR_NR(MAX_DEV, 0, 0)];
 
-static struct wait_queue *ftl_wait_open = NULL;
+static wait_queue_head_t ftl_wait_open = NULL;
 
 static struct gendisk ftl_gendisk = {
     0,			/* Major device number */
@@ -273,7 +273,7 @@ static dev_link_t *ftl_attach(void)
     
     dev = kmalloc(sizeof(struct ftl_dev_t), GFP_KERNEL);
     memset(dev, 0, sizeof(ftl_dev_t));
-    init_waitqueue(&dev->erase_pending);
+    init_waitqueue_head(&dev->erase_pending);
     link->priv = dev;
 
     /* Register with Card Services */
@@ -1532,7 +1532,7 @@ int init_module(void)
     blk_dev[major_dev].request_fn = DEVICE_REQUEST;
     ftl_gendisk.next = gendisk_head;
     gendisk_head = &ftl_gendisk;
-    init_waitqueue(&ftl_wait_open);
+    init_waitqueue_head(&ftl_wait_open);
     
     return 0;
 }
