@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# ftl 1.25 2000/12/15 19:04:10 (David Hinds)
+# ftl 1.26 2001/01/01 21:13:39 (David Hinds)
 #
 # Initialize or shutdown an FTL memory device
 #
@@ -27,7 +27,7 @@ ADDRESS="$SCHEME,$SOCKET,$INSTANCE"
 case "$ACTION" in
 
 'start')
-    [ "$VERBOSE" -a "$INFO" ] && echo "$INFO"
+    [ -n "$VERBOSE" -a -n "$INFO" ] && echo "$INFO"
     rm -f /dev/$DEVICE
     log mknod /dev/$DEVICE b $MAJOR $MINOR
     log mknod /dev/${DEVICE}p1 b $MAJOR `expr $MINOR + 1`

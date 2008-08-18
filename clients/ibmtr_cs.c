@@ -62,7 +62,6 @@
 #include <linux/malloc.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/delay.h>
 #include <linux/module.h>
 #include <asm/io.h>
 #include <asm/system.h>
@@ -141,8 +140,6 @@ static dev_link_t *dev_list = NULL;
 extern int ibmtr_probe(struct net_device *dev);
 extern int trdev_init(struct net_device *dev);
 extern void tok_interrupt(int irq, struct pt_regs *regs);
-extern int tok_init_card(struct net_device *dev);
-extern unsigned char get_sram_size(struct tok_info *ti);
 
 /*====================================================================*/
 

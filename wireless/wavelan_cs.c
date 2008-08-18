@@ -875,12 +875,27 @@ wv_82593_cmd(device *	dev,
   long		spin;
 
   /* Spin until the chip finishes executing its current command (if any) */
+  spin = 1000;
   do
     {
+      /* Time calibration of the loop */
+      udelay(10);
+
+      /* Read the interrupt register */
       outb(OP0_NOP | CR0_STATUS_3, LCCR(base));
       status = inb(LCSR(base));
     }
-  while((status & SR3_EXEC_STATE_MASK) != SR3_EXEC_IDLE);
+  while(((status & SR3_EXEC_STATE_MASK) != SR3_EXEC_IDLE) && (spin-- > 0));
+
+  /* If the interrupt hasn't be posted */
+  if(spin <= 0)
+    {
+#ifdef DEBUG_INTERRUPT_ERROR
+      printk(KERN_INFO "wv_82593_cmd: %s timeout (previous command), status 0x%02x\n",
+	     str, status);
+#endif
+      return(FALSE);
+    }
 
   /* Issue the command to the controler */
   outb(cmd, LCCR(base));
@@ -962,17 +977,11 @@ wv_82593_cmd(device *	dev,
 static inline int
 wv_diag(device *	dev)
 {
-  net_local *	lp = (net_local *)dev->priv;
-  unsigned long flags;
   int		ret = FALSE;
-
-  wv_splhi(lp, &flags);
 
   if(wv_82593_cmd(dev, "wv_diag(): diagnose",
 		  OP0_DIAGNOSE, SR0_DIAGNOSE_PASSED))
     ret = TRUE;
-
-  wv_splx(lp, &flags);
 
 #ifdef DEBUG_CONFIG_ERROR
   printk(KERN_INFO "wavelan_cs: i82593 Self Test failed!\n");
@@ -1030,8 +1039,9 @@ read_ringbuf(device *	dev,
 static inline void
 wv_82593_reconfig(device *	dev)
 {
-  net_local *	lp = (net_local *)dev->priv;
-  dev_link_t *	link = ((net_local *) dev->priv)->link;
+  net_local *		lp = (net_local *)dev->priv;
+  dev_link_t *		link = ((net_local *) dev->priv)->link;
+  unsigned long		flags;
 
   /* Arm the flag, will be cleard in wv_82593_config() */
   lp->reconfig_82593 = TRUE;
@@ -1039,7 +1049,9 @@ wv_82593_reconfig(device *	dev)
   /* Check if we can do it now ! */
   if((link->open) && (netif_running(dev)) && !(netif_queue_stopped(dev)))
     {
+      wv_splhi(lp, &flags);	/* Disable interrupts */
       wv_82593_config(dev);
+      wv_splx(lp, &flags);	/* Re-enable interrupts */
     }
   else
     {
@@ -1050,51 +1062,6 @@ wv_82593_reconfig(device *	dev)
 #endif
     }
 }
-
-#ifdef OLDIES
-/*------------------------------------------------------------------*/
-/*
- * Dumps the current i82593 receive buffer to the console.
- */
-static void wavelan_dump(device *dev)
-{
-  ioaddr_t base = dev->base_addr;
-  int i, c;
-
-  /* disable receiver so we can use channel 1 */
-  outb(OP0_RCV_DISABLE, LCCR(base));
-
-  /* reset receive DMA pointer */
-  hacr_write_slow(base, HACR_PWR_STAT | HACR_RX_DMA_RESET);
-  hacr_write(base, HACR_DEFAULT);
-
-  /* dump into receive buffer */
-  wv_82593_cmd(dev, "wavelan_dump(): dump", CR0_CHNL|OP0_DUMP, SR0_DUMP_DONE);
-
-  /* set read pointer to start of receive buffer */
-  outb(0, PIORL(base));
-  outb(0, PIORH(base));
-
-  printk(KERN_DEBUG "wavelan_cs: dump:\n");
-  printk(KERN_DEBUG "     00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
-  for(i = 0; i < 73; i++){
-    if((i % 16) == 0) {
-      printk("\n0x%02x:", i);
-      if (!i) {
-	printk("   ");
-	continue;
-      }
-    }
-    c = inb(PIOP(base));
-    printk("%02x ", c);
-  }
-  printk("\n");
-
-  /* enable the receiver again */
-  wv_ru_start(dev);
-}
-#endif
-
 
 /********************* DEBUG & INFO SUBROUTINES *********************/
 /*
@@ -2995,7 +2962,8 @@ static int
 wavelan_packet_xmit(struct sk_buff *	skb,
 		    device *		dev)
 {
-  net_local *	lp = (net_local *)dev->priv;
+  net_local *		lp = (net_local *)dev->priv;
+  unsigned long		flags;
 
 #ifdef DEBUG_TX_TRACE
   printk(KERN_DEBUG "%s: ->wavelan_packet_xmit(0x%X)\n", dev->name,
@@ -3022,7 +2990,9 @@ wavelan_packet_xmit(struct sk_buff *	skb,
    * we can do it now */
   if(lp->reconfig_82593)
     {
+      wv_splhi(lp, &flags);	/* Disable interrupts */
       wv_82593_config(dev);
+      wv_splx(lp, &flags);	/* Re-enable interrupts */
       /* Note : the configure procedure was totally synchronous,
        * so the Tx buffer is now free */
     }
@@ -3403,7 +3373,6 @@ wv_82593_config(device *	dev)
   ioaddr_t			base = dev->base_addr;
   net_local *			lp = (net_local *) dev->priv;
   struct i82593_conf_block	cfblk;
-  unsigned long			flags;
   int				ret = TRUE;
 
 #ifdef DEBUG_CONFIG_TRACE
@@ -3487,9 +3456,6 @@ wv_82593_config(device *	dev)
   }
 #endif
 
-  /* Disable interrupts */
-  wv_splhi(lp, &flags);
-
   /* Copy the config block to the i82593 */
   outb(TX_BASE & 0xff, PIORL(base));
   outb(((TX_BASE >> 8) & PIORH_MASK) | PIORH_SEL_TX, PIORH(base));
@@ -3559,9 +3525,6 @@ wv_82593_config(device *	dev)
 
   /* Job done, clear the flag */
   lp->reconfig_82593 = FALSE;
-
-  /* Re-enable interrupts */
-  wv_splx(lp, &flags);
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: <-wv_82593_config()\n", dev->name);
@@ -3645,6 +3608,8 @@ wv_hw_config(device *	dev)
 {
   net_local *		lp = (net_local *) dev->priv;
   ioaddr_t		base = dev->base_addr;
+  unsigned long		flags;
+  int			ret = FALSE;
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: ->wv_hw_config()\n", dev->name);
@@ -3663,50 +3628,78 @@ wv_hw_config(device *	dev)
   if(wv_pcmcia_reset(dev) == FALSE)
     return FALSE;
 
-  /* Power UP the module + reset the modem + reset host adapter
-   * (in fact, reset DMA channels) */
-  hacr_write_slow(base, HACR_RESET);
-  hacr_write(base, HACR_DEFAULT);
+  /* Disable interrupts */
+  wv_splhi(lp, &flags);
 
-  /* Check if the the module has been powered up... */
-  if(hasr_read(base) & HASR_NO_CLK)
+  /* Disguised goto ;-) */
+  do
     {
+      /* Power UP the module + reset the modem + reset host adapter
+       * (in fact, reset DMA channels) */
+      hacr_write_slow(base, HACR_RESET);
+      hacr_write(base, HACR_DEFAULT);
+
+      /* Check if the the module has been powered up... */
+      if(hasr_read(base) & HASR_NO_CLK)
+	{
 #ifdef DEBUG_CONFIG_ERRORS
-      printk(KERN_WARNING "%s: wv_hw_config(): modem not connected or not a wavelan card\n",
-	     dev->name);
+	  printk(KERN_WARNING "%s: wv_hw_config(): modem not connected or not a wavelan card\n",
+		 dev->name);
 #endif
-      return FALSE;
-    }
+	  break;
+	}
 
-  /* initialize the modem */
-  if(wv_mmc_init(dev) == FALSE)
-    return FALSE;
-
-  /* reset the LAN controller (i82593) */
-  outb(OP0_RESET, LCCR(base));
-  mdelay(1);	/* A bit crude ! */
-
-  /* Initialize the LAN controler */
-  if((wv_82593_config(dev) == FALSE) ||
-     (wv_diag(dev) == FALSE))
-    {
+      /* initialize the modem */
+      if(wv_mmc_init(dev) == FALSE)
+	{
 #ifdef DEBUG_CONFIG_ERRORS
-      printk(KERN_INFO "%s: wv_hw_config(): i82593 init failed\n", dev->name);
+	  printk(KERN_WARNING "%s: wv_hw_config(): Can't configure the modem\n",
+		 dev->name);
 #endif
-      return FALSE;
+	  break;
+	}
+
+      /* reset the LAN controller (i82593) */
+      outb(OP0_RESET, LCCR(base));
+      mdelay(1);	/* A bit crude ! */
+
+      /* Initialize the LAN controler */
+      if(wv_82593_config(dev) == FALSE)
+	{
+#ifdef DEBUG_CONFIG_ERRORS
+	  printk(KERN_INFO "%s: wv_hw_config(): i82593 init failed\n",
+		 dev->name);
+#endif
+	  break;
+	}
+
+      /* Diagnostic */
+      if(wv_diag(dev) == FALSE)
+	{
+#ifdef DEBUG_CONFIG_ERRORS
+	  printk(KERN_INFO "%s: wv_hw_config(): i82593 diagnostic failed\n",
+		 dev->name);
+#endif
+	  break;
+	}
+
+      /* 
+       * insert code for loopback test here
+       */
+
+      /* The device is now configured */
+      lp->configured = 1;
+      ret = TRUE;
     }
+  while(0);
 
-  /* 
-   * insert code for loopback test here
-   */
-
-  /* The device is now configured */
-  lp->configured = 1;
+  /* Re-enable interrupts */
+  wv_splx(lp, &flags);
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: <-wv_hw_config()\n", dev->name);
 #endif
-  return TRUE;
+  return(ret);
 }
 
 /*------------------------------------------------------------------*/

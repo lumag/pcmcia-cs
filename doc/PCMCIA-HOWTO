@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.81, 15 December 2000
+  v2.83, 18 January 2001
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -207,7 +207,7 @@
 
   +o  Texas Instruments PCI1031, PCI1130, PCI1131, PCI1210, PCI1211,
      PCI1220, PCI1221, PCI1225, PCI1250A, PCI1251A, PCI1251B, PCI1410,
-     PCI1420, PCI1450
+     PCI1420, PCI1450, PCI4450, PCI4451
 
   +o  Toshiba ToPIC95, ToPIC97, ToPIC100 (experimental, incomplete)
 
@@ -229,15 +229,12 @@
   between when a new model appears on the market, and when driver
   support becomes available.
 
-  Toshiba has made available some documentation for their ToPIC95 and
-  ToPIC97 chipsets, however the information they have provided has not
-  really been adequate.  Despite conflicting reports to the contrary,
-  Toshiba has not made any effective effort to remedy this situation.
-  There are serious bugs in Linux support for the ToPIC chipsets, that
-  cannot be resolved until better documentation or help from Toshiba
-  becomes available.  I do not recommend use of Toshiba laptops at this
-  time.  For use of 16-bit cards, I recommend setting the bridge mode to
-  ``PCIC'' in the BIOS setup; for CardBus cards, you are on your own.
+  Support for Toshiba's ToPIC bridges was hindered for a long time by a
+  lack of sufficiently detailed technical documentation.  While some
+  datasheets have been available, a few idiosyncracies of the ToPIC
+  chips were not adequately explained.  Toshiba has now started giving
+  direct technical help on some of these issues and I expect that the
+  major ones will soon be resolved.
 
   The Motorola 6AHC05GA controller used in some Hyundai laptops is not
   supported.  The custom host controller in the HP Omnibook 600 is also
@@ -395,7 +392,6 @@
   configuration options (like SLIP compression) for a loadable module,
   so it is probably better to just link SLIP into the kernel if you need
   it.
-
   In order to use a PCMCIA token ring adapter, your kernel should be
   configured with ``Token Ring driver support'' (CONFIG_TR) enabled,
   though you should leave CONFIG_IBMTR off.
@@ -637,6 +633,7 @@
   +o  For Elan P-series PCI card readers based on the Cirrus PD6729 PCI-
      to-PCMCIA bridge chip, the i82365 driver requires a ``irq_mode=1''
      parameter.
+
   +o  For the Sycard PCChost1200 host adapter, the i82365 driver requires
      a ``p2cclk=1'' parameter.
 
@@ -652,6 +649,12 @@
   +o  For the ActionTec PC 750 card reader, the i82365 driver requires a
      ``irq_list=0'' parameter, to indicate that ISA interrupts are
      unavailable.
+
+  +o  The PLX Technologies PCI9052 (also sold as the Linksys WDT11) is
+     not a general purpose PCMCIA card reader at all: it is a PCI
+     interface card for use with certain wireless adapters, that makes
+     them look like ordinary PCI devices.  These devices are not
+     supported.
 
   22..44..  SSyysstteemm rreessoouurrccee sseettttiinnggss
 
@@ -752,7 +755,6 @@
   cs'' package contains cardmgr and other tools, man pages, and
   configuration scripts; and the ``pcmcia-modules'' package contains the
   kernel driver modules.
-
   22..55..22..  RReedd HHaatt,, CCaallddeerraa,, MMaannddrraakkee
 
   These distributions use a System V boot script organization.  The
@@ -813,7 +815,6 @@
   script is installed as /etc/rc.d/rc.pcmcia, and boot options are
   specified in rc.pcmcia itself.  The PCMCIA startup script is invoked
   from /etc/rc.d/rc.S.
-
   22..55..44..  SSuuSSEE
 
   SuSE uses a System V init script arrangement, with init scripts stored

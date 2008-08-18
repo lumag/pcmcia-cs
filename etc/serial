@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.37 2000/12/15 19:03:45 (David Hinds)
+# serial 1.38 2001/01/01 21:14:04 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -35,11 +35,11 @@ fi
 case "$ACTION" in
 
 'start')
-    [ "$VERBOSE" -a "$INFO" ] && echo "$INFO"
+    [ -n "$VERBOSE" -a -n "$INFO" ] && echo "$INFO"
     if [ ! -c /dev/$DEVICE ] ; then
 	cd /dev ; log ./MAKEDEV $DEVICE
     fi
-    if [ "$LINK" ] ; then
+    if [ -n "$LINK" ] ; then
 	if [ -L $LINK ] ; then rm $LINK ; fi
 	if uname -r | grep -q '^2\.[2345]' ; then
 	    ln -s /dev/$DEVICE $LINK
@@ -50,10 +50,10 @@ case "$ACTION" in
     # Workaround for serial driver bug
     IRQ=`setserial /dev/$DEVICE | sed -e 's/.*IRQ: //'`
     setserial /dev/$DEVICE irq 0 ; setserial /dev/$DEVICE irq $IRQ
-    if [ "$SERIAL_OPTS" ] ; then
+    if [ -n "$SERIAL_OPTS" ] ; then
 	log setserial /dev/$DEVICE $SERIAL_OPTS
     fi
-    if [ "$INITTAB" ] ; then
+    if [ -n "$INITTAB" ] ; then
 	echo "S$NR:12345:respawn:$INITTAB $DEVICE" >> /etc/inittab
 	telinit q
     fi
@@ -61,7 +61,7 @@ case "$ACTION" in
 
 'check')
     is_true $NO_CHECK && exit 0
-    if [ "$INITTAB" ] ; then
+    if [ -n "$INITTAB" ] ; then
 	do_fuser -v /dev/$DEVICE /dev/$CALLOUT $LINK | grep -v getty \
 	    | grep -q /dev/$DEVICE && exit 1
     else
@@ -74,7 +74,7 @@ case "$ACTION" in
     ;;
     
 'stop')
-    if [ "$INITTAB" ] ; then
+    if [ -n "$INITTAB" ] ; then
 	fgrep -v $DEVICE /etc/inittab > /etc/inittab.new
 	mv /etc/inittab.new /etc/inittab
 	telinit q
@@ -88,7 +88,7 @@ case "$ACTION" in
     ;;
 
 'resume')
-    if [ "$SERIAL_OPTS" ] ; then
+    if [ -n "$SERIAL_OPTS" ] ; then
 	setserial /dev/$DEVICE $SERIAL_OPTS
     fi
     do_fuser -k -CONT /dev/$DEVICE /dev/$CALLOUT $LINK > /dev/null

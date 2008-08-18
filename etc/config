@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.153 2000/12/14 19:29:59 (David Hinds)
+# config 1.154 2001/01/05 00:03:17 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -1568,6 +1568,10 @@ card "MCD601p CD-ROM"
 
 card "Ninja ATA"
   version " ", "NinjaATA-"
+  bind "ide_cs"
+
+card "Novac DVD Powerstation"
+  version "PCMCIA", "PnPIDE"
   bind "ide_cs"
 
 card "Simple Tech Compact Flash"

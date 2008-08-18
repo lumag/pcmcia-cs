@@ -26,57 +26,57 @@ done
 case "$ACTION" in
 
 'start')
-    [ "$VERBOSE" -a "$INFO" ] && echo "$INFO"
+    [ -n "$VERBOSE" -a -n "$INFO" ] && echo "$INFO"
     # Set all desired settings via iwconfig
 
     # Mode need to be first : some settings apply only in a specific mode !
-    if [ "$MODE" ] ; then
+    if [ -n "$MODE" ] ; then
 	log $IWPATH/iwconfig $DEVICE mode $MODE
     fi
     # This is a bit hackish, but should do the job right...
-    if [ "$ESSID" ] || [ "$MODE" ] ; then
+    if [ -n "$ESSID" -o -n "$MODE" ] ; then
         NICKNAME=`/bin/hostname`
 	log $IWPATH/iwconfig $DEVICE nick $NICKNAME >/dev/null 2>&1
     fi
     # Regular stuff...
-    if [ "$NWID" ] ; then
+    if [ -n "$NWID" ] ; then
 	log $IWPATH/iwconfig $DEVICE nwid $NWID
     fi
-    if [ "$FREQ" ] ; then
+    if [ -n "$FREQ" ] ; then
 	log $IWPATH/iwconfig $DEVICE freq $FREQ
-    elif [ "$CHANNEL" ] ; then
+    elif [ -n "$CHANNEL" ] ; then
 	log $IWPATH/iwconfig $DEVICE channel $CHANNEL
     fi
-    if [ "$SENS" ] ; then
+    if [ -n "$SENS" ] ; then
 	log $IWPATH/iwconfig $DEVICE sens $SENS
     fi
-    if [ "$RATE" ] ; then
+    if [ -n "$RATE" ] ; then
 	log $IWPATH/iwconfig $DEVICE rate $RATE
     fi
-    if [ "$KEY" ] ; then
+    if [ -n "$KEY" ] ; then
 	log $IWPATH/iwconfig $DEVICE key $KEY
     fi
-    if [ "$RTS" ] ; then
+    if [ -n "$RTS" ] ; then
 	log $IWPATH/iwconfig $DEVICE rts $RTS
     fi
-    if [ "$FRAG" ] ; then
+    if [ -n "$FRAG" ] ; then
 	log $IWPATH/iwconfig $DEVICE frag $FRAG
     fi
     # More specific parameters
-    if [ "$IWCONFIG" ] ; then
+    if [ -n "$IWCONFIG" ] ; then
 	log $IWPATH/iwconfig $DEVICE $IWCONFIG
     fi
-    if [ "$IWSPY" ] ; then
+    if [ -n "$IWSPY" ] ; then
 	log $IWPATH/iwspy $DEVICE $IWSPY
     fi
-    if [ "$IWPRIV" ] ; then
+    if [ -n "$IWPRIV" ] ; then
 	log $IWPATH/iwpriv $DEVICE $IWPRIV
     fi
     # ESSID need to be last : most device re-perform the scanning/discovery
     # when this is set, and things like encryption keys are better be
     # defined if we want to discover the right set of APs/nodes.
-    if [ "$ESSID" ] ; then
-	log $IWPATH/iwconfig $DEVICE essid "$ESSID"
+    if [ -n "$ESSID" ] ; then
+	log $IWPATH/iwconfig $DEVICE essid \"$ESSID\"
     fi
     ;;
 

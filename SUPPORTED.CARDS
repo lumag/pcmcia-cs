@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/12/13 14:44:05
+		Last updated: 2001/01/17 01:10:37
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -189,7 +189,8 @@ Fast Ethernet (10/100baseT) adapters:
 	KTI KF-C16
 	Laneed LD-10/100CD
 	LevelOne FPC-0100TX
-	Linksys PCMPC100 EtherFast, PCM100H1 HomeLink 10/100, NP100
+	Linksys PCMPC100 EtherFast, PCM100H1 HomeLink 10/100
+	Linksys NP100 Network Everywhere
 	Logitec LPM-LN100TX
 	Melco LPC2-TX
 	Microcom TravelCard 10/100
@@ -293,6 +294,7 @@ Wireless network adapters:
 	DEC RoamAbout/DS
 
 	[wvlan_cs driver] [x86,axp,ppc,smp]
+	1stWave 1ST-PC-DSS11IS, DSS11IG, DSS11ES, DSS11EG
 	Addtron AWP-100
 	Cabletron/Enterasys RoamAbout 802.11 DS
 	ELSA AirLancer MC-11
@@ -343,9 +345,6 @@ Modem and serial cards:
 	Paradise CW56K HSP
 	Xircom CBM56G, R2BM56W
 
-	[serial_cb driver]
-	Xircom RBM56G
-	
 Parallel port cards:
 
 	[parport_cs driver] [x86]
@@ -517,7 +516,7 @@ ATA/IDE Interface Cards:
 	Shining Technology CitiDISK 250PE
 	Sicon Periperal Micro Mate
 
-ATA/IDE CD-ROM adapters:
+ATA/IDE CD-ROM and DVD adapters:
 
 	[ide_cs driver] [x86,ppc,smp]
 	Argosy EIDE CD-ROM
@@ -537,7 +536,7 @@ ATA/IDE CD-ROM adapters:
 	MCD601p CD-ROM
 	Microtech International MicroCD
 	Microtech Mii Zip 100
-	NOVAC NV-CD410
+	NOVAC NV-CD410, DVD Powerstation
 	Sony PCGA-CD5, PCGA-CD51, CRX50A CD-ROM
 	TEAC IDE Card/II
 	Toshiba PA2673UJ CD-ROM

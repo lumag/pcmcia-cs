@@ -2920,9 +2920,9 @@ void cleanup_module( void )
  *	Jean Tourrilhes <jt@hpl.hp.com> - HPL - 17 November 00
  */
 #ifndef IW_ENCODE_NOKEY
-#define IW_ENCODE_NOKEY         0x1000  /* Key is write only, so not here */
-#endif IW_ENCODE_NOKEY
+#define IW_ENCODE_NOKEY         0x0800  /* Key is write only, so not present */
 #define IW_ENCODE_MODE  (IW_ENCODE_DISABLED | IW_ENCODE_RESTRICTED | IW_ENCODE_OPEN)
+#endif IW_ENCODE_NOKEY
 
 /*
  * This defines the configuration part of the Wireless Extensions
@@ -3385,6 +3385,16 @@ static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		}
 		break;
 
+#if WIRELESS_EXT > 9
+	// Get the current Tx-Power
+	case SIOCGIWTXPOW:
+		wrq->u.txpower.value = le16_to_cpu(config.txPower);
+		wrq->u.txpower.fixed = 1;	/* No power control */
+		wrq->u.txpower.disabled = (local->flags & FLAG_RADIO_OFF);
+		wrq->u.txpower.flags = IW_TXPOW_MWATT;
+		break;
+#endif /* WIRELESS_EXT > 9 */
+
 	// Get range of parameters
 	case SIOCGIWRANGE:
 		if (wrq->u.data.pointer) {
@@ -3442,6 +3452,16 @@ static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 				range.num_encoding_sizes = 0;
 				range.max_encoding_tokens = 0;
 			}
+#if WIRELESS_EXT > 9
+			/* Transmit Power - values are in mW */
+			for(i = 0 ; i < 8 ; i++) {
+				range.txpower[i] = cap_rid.txPowerLevels[i];
+				if(range.txpower[i] == 0)
+					break;
+			}
+			range.num_txpower = i;
+			range.txpower_capa = IW_TXPOW_MWATT;
+#endif /* WIRELESS_EXT > 9 */
 
 			copy_to_user(wrq->u.data.pointer, &range, sizeof(struct iw_range));
 		}

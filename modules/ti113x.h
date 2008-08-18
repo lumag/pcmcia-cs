@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.26 2000/11/07 21:15:41
+ * ti113x.h 1.27 2001/01/18 00:56:52
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -75,6 +75,9 @@
 #endif
 #ifndef PCI_DEVICE_ID_TI_1420
 #define PCI_DEVICE_ID_TI_1420		0xac51
+#endif
+#ifndef PCI_DEVICE_ID_TI_4450
+#define PCI_DEVICE_ID_TI_4450		0xac40
 #endif
 #ifndef PCI_DEVICE_ID_TI_4451
 #define PCI_DEVICE_ID_TI_4451		0xac42
@@ -195,7 +198,7 @@ typedef struct ti113x_state_t {
 #define TI_PCIC_ID \
     IS_TI1130, IS_TI1131, IS_TI1250A, IS_TI1220, IS_TI1221,	\
     IS_TI1210, IS_TI1251A, IS_TI1251B, IS_TI1450, IS_TI1225,	\
-    IS_TI1211, IS_TI1420, IS_TI1031, IS_TI1410, IS_TI4451
+    IS_TI1211, IS_TI1420, IS_TI1031, IS_TI1410, IS_TI4450, IS_TI4451
 
 #define TI_PCIC_INFO \
     { "TI 1130",  IS_TI|IS_CARDBUS, ID(TI, 1130) }, \
@@ -212,6 +215,7 @@ typedef struct ti113x_state_t {
     { "TI 1420",  IS_TI|IS_CARDBUS, ID(TI, 1420) }, \
     { "TI 1031",  IS_TI|IS_CARDBUS, ID(TI, 1031) }, \
     { "TI 1410",  IS_TI|IS_CARDBUS, ID(TI, 1410) }, \
+    { "TI 4450",  IS_TI|IS_CARDBUS, ID(TI, 4450) }, \
     { "TI 4451",  IS_TI|IS_CARDBUS, ID(TI, 4451) }
 
 #endif /* _LINUX_TI113X_H */

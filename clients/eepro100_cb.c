@@ -1439,7 +1439,7 @@ static void speedo_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 #if LINUX_VERSION_CODE > 0x20127
 					sp->stats.tx_bytes += sp->tx_skbuff[entry]->len;
 #endif
-					dev_free_skb(sp->tx_skbuff[entry]);
+					dev_kfree_skb_irq(sp->tx_skbuff[entry]);
 					sp->tx_skbuff[entry] = 0;
 				} else if ((status & 0x70000) == CmdNOp)
 					sp->mc_setup_busy = 0;

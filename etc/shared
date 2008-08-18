@@ -1,5 +1,5 @@
 #
-# shared 1.24 2000/12/15 19:02:48 (David Hinds)
+# shared 1.25 2001/01/01 21:15:25 (David Hinds)
 #
 
 usage ()
@@ -22,13 +22,13 @@ do_fuser ()
 
 log ()
 {
-    if [ $VERBOSE ] ; then
-	echo "$*" ; $*
+    if [ -n "$VERBOSE" ] ; then
+	echo "$*" ; eval $*
     else
 	# if command fails, print the command followed by its output
 	RET=0
 	LOG=/var/run/cardmgr.out
-	if ! ($*) >$LOG 2>&1 ; then RET=$? ; echo "$*" ; fi
+	if ! (eval $*) >$LOG 2>&1 ; then RET=$? ; echo "$*" ; fi
 	cat $LOG 1>&2 ; rm -f $LOG
 	return $RET
     fi
@@ -37,7 +37,7 @@ log ()
 add_blkdev ()
 {
     # usage: add_blkdev [device]
-    if [ "$LINK" ] ; then
+    if [ -n "$LINK" ] ; then
 	if [ -L $LINK ] ; then rm $LINK ; fi
 	ln -s $1 $LINK || return 1
     fi
@@ -60,11 +60,11 @@ add_parts ()
     RET=0
     for PART in ${2:-""} ; do
 	# Get mount options for particular partitions
-	if [ "$PART" ] ; then
+	if [ -n "$PART" ] ; then
 	    ADDRESS="$1,$PART"
 	    unset INFO DO_FSTAB DO_FSCK DO_MOUNT LINK
 	    . $0.opts
-	    [ "$VERBOSE" -a "$INFO" ] && echo "$INFO"
+	    [ -n "$VERBOSE" -a -n "$INFO" ] && echo "$INFO"
 	fi
 	add_blkdev /dev/$DEVICE$PART || RET=1
     done
@@ -92,7 +92,7 @@ rm_parts ()
     BLK=/dev/$DEVICE
     test -b $BLK || return 1
     for PART in ${2:-""} ; do
-	if [ "$PART" ] ; then
+	if [ -n "$PART" ] ; then
 	    ADDRESS="$1,$PART"
 	    unset DO_FSTAB DO_FSCK DO_MOUNT
 	    . $0.opts
@@ -104,7 +104,7 @@ rm_parts ()
     done
     do_fuser -k -m /dev/${DEVICE}* > /dev/null
     LIST=`mount | sed -ne "s+^\($BLK[0-9]*\) .*+\1+p"`
-    if [ "$LIST" ] ; then
+    if [ -n "$LIST" ] ; then
 	for MT in $LIST ; do
 	    log umount -v $MT || return 1
 	done
@@ -128,7 +128,7 @@ chk_parts ()
     # usage: chk_parts [new-address]
     OLD_ADDR="$ADDRESS"
     chk_simple $1 || return 1
-    if [ ! "$PARTS" ] ; then return 0 ; fi
+    if [ -z "$PARTS" ] ; then return 0 ; fi
     for PART in $PARTS ; do
 	ADDRESS="$OLD_ADDR,$PART"
 	. $0.opts
@@ -158,7 +158,7 @@ get_info ()
     elif [ -f /var/run/pcmcia-scheme ] ; then
 	SCHEME=`cat /var/run/pcmcia-scheme`
     fi	
-    if [ ! "$SCHEME" ] ; then SCHEME="default" ; fi
+    if [ -z "$SCHEME" ] ; then SCHEME="default" ; fi
     grep_stab $1 < $STAB || usage
 }
 

@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.272 2000/11/07 19:09:01
+    cs.c 1.273 2001/01/15 23:29:50
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -71,7 +71,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.272 2000/11/07 19:09:01 (David Hinds)";
+"cs.c 1.273 2001/01/15 23:29:50 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -320,6 +320,10 @@ int register_ss_entry(int nsock, ss_entry_t ss_entry)
 
     for (ns = 0; ns < nsock; ns++) {
 	s = kmalloc(sizeof(struct socket_info_t), GFP_KERNEL);
+	if (!s) {
+	    printk(KERN_NOTICE "cs: memory allocation failure!\n");
+	    return (!ns);
+	}
 	memset(s, 0, sizeof(socket_info_t));
     
 	s->ss_entry = ss_entry;

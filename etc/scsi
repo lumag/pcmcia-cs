@@ -40,7 +40,7 @@ ADDRESS="$SCHEME,$TYPE,$SOCKET,$SCSI_ID"
 case "$ACTION" in
 
 'start')
-    [ "$VERBOSE" -a "$INFO" ] && echo "$INFO"
+    [ -n "$VERBOSE" -a -n "$INFO" ] && echo "$INFO"
     add_parts $ADDRESS "$PARTS" || exit 1
     ;;
 

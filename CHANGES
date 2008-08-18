@@ -1,3 +1,18 @@
+[19-Jan-01] Version 3.1.24
+-- Added TI PCI4450 bridge support.
+-- Fixed Makefiles to not use kgcc for user programs.
+-- Fixed buffer overrun in cardmgr.
+-- Fixed eepro100_cb driver to use dev_kfree_skb_irq where needed.
+-- Fixed fmvj18x_cs driver to read the MAC address of FMV-J182 cards
+   with buggy CIS data, from Jun Komuro.
+-- Fixed fdomain_cs configuration bug affecting new kernels.
+-- Fixed config scripts to use [ -n "$X" ] instead of [ "$X" ].
+-- Cosmetic fixes to wvlan_cs man page, updated eth= option info.
+-- Fixed a bug in 3.1.23's script logging capability, affecting
+   multi-word ESSID's, and DHCP when /bin/sh is bash2.
+-- Added TX power control to airo_cs driver, from Jean Tourrilhes.
+-- Fixed SMP bug in wavelan_cs driver, from Jean Tourrilhes.
+
 [19-Dec-00] Version 3.1.23
 -- Added PCI fixups for Cyrix 5530 PCI-to-ISA bridge.
 -- Cleaned up, standardized handling of $LINK options in config files.

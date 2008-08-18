@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.34 2000/10/30 16:58:12 (David Hinds)
+# rc.pcmcia 1.35 2001/01/06 03:16:00 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -65,7 +65,7 @@ EXITCODE=1
 for x in "1" ; do
 
     if [ "$PCIC" = "" ] ; then
-	echo "PCIC not defined in rc.pcmcia!"
+	echo "PCIC module not defined in startup options!"
 	break
     fi
 

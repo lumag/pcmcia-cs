@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.150 2000/12/14 17:12:59
+    cardmgr.c 1.151 2001/01/16 00:04:28
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -692,7 +692,7 @@ static module_list_t *module_list = NULL;
 static int try_insmod(char *mod, char *opts)
 {
     char *cmd = malloc(strlen(mod) + strlen(modpath) +
-		       (opts ? strlen(opts) : 0) + 20);
+		       (opts ? strlen(opts) : 0) + 30);
     int ret;
 
     strcpy(cmd, "insmod ");

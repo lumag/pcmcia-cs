@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.78 2000/12/15 19:39:59 (David Hinds)
+# network 1.79 2001/01/01 21:14:21 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -56,7 +56,7 @@ bootp_setup ()
 case "$ACTION" in
 
 'start')
-    [ "$VERBOSE" -a "$INFO" ] && echo "$INFO"
+    [ -n "$VERBOSE" -a -n "$INFO" ] && echo "$INFO"
 
     test "$IF_PORT" && /sbin/ifport $DEVICE $IF_PORT
 
@@ -68,7 +68,7 @@ case "$ACTION" in
 	    eval `/sbin/bootpc --bootfile '' --returniffail \
 		--timeoutwait 10 --dev $DEVICE`
 	    log /sbin/ifconfig $DEVICE down
-	    if [ "$GATEWAYS" ] ; then
+	    if [ -n "$GATEWAYS" ] ; then
 		set - $GATEWAYS ; GATEWAY=$1
 	    fi
 	elif [ -x /sbin/pump ] ; then
@@ -109,16 +109,16 @@ case "$ACTION" in
 	fi
     fi
 
-    if [ "$IPADDR" ] ; then
+    if [ -n "$IPADDR" ] ; then
 	# Basic network setup
 	NM=${NETMASK:+netmask $NETMASK}
 	BC=${BROADCAST:+broadcast $BROADCAST}
 	MTU=${MTU:+mtu $MTU}
 	log /sbin/ifconfig $DEVICE up $IPADDR $NM $BC $MTU
-	if [ "$NETWORK" ] ; then
+	if [ -n "$NETWORK" ] ; then
 	    /sbin/ifuser $DEVICE $NETWORK || \
 		log /sbin/route add -net $NETWORK $NM dev $DEVICE
-	elif [ "$GATEWAY" ] ; then
+	elif [ -n "$GATEWAY" ] ; then
 	    /sbin/ifuser $DEVICE $GATEWAY || \
 		log /sbin/route add $GATEWAY $DEVICE
 	fi
@@ -126,7 +126,7 @@ case "$ACTION" in
     fi
     
     # Update DNS stuff
-    if [ "$DOMAIN$SEARCH$DNSSRVS$DNS_1$DNS_2$DNS_3" ] ; then
+    if [ -n "$DOMAIN$SEARCH$DNSSRVS$DNS_1$DNS_2$DNS_3" ] ; then
 	echo "# $DEVICE begin" > $RESOLV.N
 	chmod og+r $RESOLV.N
 	test "$DOMAIN" && echo "domain $DOMAIN" >> $RESOLV.N
@@ -140,11 +140,11 @@ case "$ACTION" in
     fi
 
     # Handle NFS mounts
-    if [ "$MOUNTS" ] ; then
+    if [ -n "$MOUNTS" ] ; then
 	for MT in $MOUNTS ; do log mount -v $MT ; done
     fi
 
-    if [ "$IPX_NETNUM" ] ; then
+    if [ -n "$IPX_NETNUM" ] ; then
 	log ipx_interface add $DEVICE $IPX_FRAME $IPX_NETNUM
     fi
 
@@ -155,7 +155,8 @@ case "$ACTION" in
 
     stop_fn $DEVICE
 
-    if is_true $PUMP || is_true $BOOTP || is_true $DHCP || [ "$IPADDR" ] ; then
+    if is_true $PUMP || is_true $BOOTP || is_true $DHCP || \
+    	[ -n "$IPADDR" ] ; then
 
 	# Shut down all NFS mounts on this interface
 	nfsstop ()

@@ -388,6 +388,12 @@
  * ----------------------------------
  *	- Check that SMP works, remove annoying log message
  *
+ * Changes made for release in 3.1.24 :
+ * ----------------------------------
+ *	- Fix unfrequent card lockup when watchdog was reseting the hardware :
+ *		o control first busy loop in wv_82593_cmd()
+ *		o Extend spinlock protection in wv_hw_config()
+ *
  * Wishes & dreams:
  * ----------------
  *	- Cleanup and integrate the roaming code
@@ -508,7 +514,7 @@
 /************************ CONSTANTS & MACROS ************************/
 
 #ifdef DEBUG_VERSION_SHOW
-static const char *version = "wavelan_cs.c : v23 (wireless extensions) 10/10/00\n";
+static const char *version = "wavelan_cs.c : v23 (SMP + wireless extensions) 20/12/00\n";
 #endif
 
 /* Watchdog temporisation */
@@ -778,9 +784,9 @@ static void
 	wv_flush_stale_links(void);	/* "detach" all possible devices */
 /* ---------------------- INTERRUPT HANDLING ---------------------- */
 static void
-wavelan_interrupt(int,	/* Interrupt handler */
-		  void *,
-		  struct pt_regs *);
+	wavelan_interrupt(int,	/* Interrupt handler */
+			  void *,
+			  struct pt_regs *);
 static void
 #ifdef HAVE_NETIF_QUEUE
 	wavelan_watchdog(device *);	/* Transmission watchdog */

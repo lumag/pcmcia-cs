@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.24 2000/12/19 16:09:32
+    pci_fixup.c 1.25 2001/01/18 03:03:34
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -628,6 +628,13 @@ void pci_fixup_init(void)
 
 #if (LINUX_VERSION_CODE < VERSION(2,3,24)) && defined(__i386__)
     scan_pirq_table();
+    pci_for_each_dev(p)
+	if (((p->class >> 8) == PCI_CLASS_BRIDGE_CARDBUS) &&
+	    (p->irq == 0)) break;
+    if (p && !pirq)
+	printk(KERN_INFO "No PCI interrupt routing table!\n");
+    if (!pirq && cb_pci_irq)
+	printk(KERN_INFO "cb_pci_irq will be ignored.\n");
 #endif
 
     pci_for_each_dev(p)

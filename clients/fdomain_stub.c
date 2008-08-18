@@ -2,7 +2,7 @@
 
     A driver for Future Domain-compatible PCMCIA SCSI cards
 
-    fdomain_cs.c 1.43 2000/06/12 21:27:25
+    fdomain_cs.c 1.44 2001/01/18 03:02:57
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -62,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"fdomain_cs.c 1.43 2000/06/12 21:27:25 (David Hinds)";
+"fdomain_cs.c 1.44 2001/01/18 03:02:57 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -215,6 +215,7 @@ static void fdomain_config(dev_link_t *link)
     u_char tuple_data[64];
     Scsi_Device *dev;
     dev_node_t *node, **tail;
+    char str[16];
 #if (LINUX_VERSION_CODE >= VERSION(2,1,75))
     struct Scsi_Host *host;
 #endif
@@ -261,7 +262,8 @@ static void fdomain_config(dev_link_t *link)
     ints[0] = 2;
     ints[1] = link->io.BasePort1;
     ints[2] = link->irq.AssignedIRQ;
-    fdomain_setup("PCMCIA setup", ints);
+    sprintf(str, "%d,%d", link->io.BasePort1, link->irq.AssignedIRQ);
+    fdomain_setup(str, ints);
     
     scsi_register_module(MODULE_SCSI_HA, &driver_template);
 

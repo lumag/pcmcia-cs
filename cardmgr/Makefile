@@ -1,5 +1,5 @@
 #
-# cardmgr/Makefile 1.82 2000/11/07 19:00:35 (David Hinds)
+# cardmgr/Makefile 1.84 2001/01/18 03:15:46 (David Hinds)
 #
 
 # Include site dependent options
@@ -7,8 +7,7 @@ include ../config.mk
 
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 CPPFLAGS += -I../modules
-
-CC += $(UFLAGS)
+CC := $(CC:kgcc=gcc) $(UFLAGS)
 
 SRCS  = cardmgr.c cardctl.c yacc_config.c lex_config.c probe.c
 TOOLS = cardmgr cardctl
@@ -65,7 +64,7 @@ install-cardinfo: cardinfo
 	cp -f cardinfo $(PREFIX)/usr/X11R6/bin
 	chmod u+s $(PREFIX)/usr/X11R6/bin/cardinfo
 
-install-probe:
+install-probe: probe
 	@mkdir -p $(PREFIX)/sbin
 	cp -f probe $(PREFIX)/sbin
 

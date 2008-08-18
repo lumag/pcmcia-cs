@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.108 2000/08/07 19:06:15
+    ds.c 1.109 2001/01/11 01:31:50
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.108 2000/08/07 19:06:15 (David Hinds)";
+"ds.c 1.109 2001/01/11 01:31:50 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -401,6 +401,9 @@ static int bind_request(int i, bind_info_t *bind_info)
 	bind_info->instance = b->instance;
 	return -EBUSY;
     }
+    b = kmalloc(sizeof(socket_bind_t), GFP_KERNEL);
+    if (!b)
+	return -ENOMEM;
 
     bind_req.Socket = i;
     bind_req.Function = bind_info->function;
@@ -410,12 +413,12 @@ static int bind_request(int i, bind_info_t *bind_info)
 	cs_error(NULL, BindDevice, ret);
 	printk(KERN_NOTICE "ds: unable to bind '%s' to socket %d\n",
 	       (char *)dev_info, i);
+	kfree(b);
 	return -ENODEV;
     }
 
     /* Add binding to list for this socket */
     driver->use_count++;
-    b = kmalloc(sizeof(socket_bind_t), GFP_KERNEL);
     b->driver = driver;
     b->function = bind_info->function;
     b->instance = NULL;

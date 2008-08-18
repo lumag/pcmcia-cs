@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.129 2000/11/22 23:05:45
+    pcnet_cs.c 1.130 2001/01/18 03:05:29
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.129 2000/11/22 23:05:45 (David Hinds)";
+"pcnet_cs.c 1.130 2001/01/18 03:05:29 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -511,10 +511,10 @@ static hw_info_t *get_ax88190(dev_link_t *link)
     if (link->conf.ConfigBase != 0x03c0)
 	return NULL;
 
-    outb_p(0x01, EN0_DCFG);	/* Set word-wide access. */
-    outb_p(0x00, EN0_RSARLO);	/* DMA starting at 0x0400. */
-    outb_p(0x04, EN0_RSARHI);
-    outb_p(E8390_RREAD+E8390_START, E8390_CMD);
+    outb_p(0x01, ioaddr + EN0_DCFG);	/* Set word-wide access. */
+    outb_p(0x00, ioaddr + EN0_RSARLO);	/* DMA starting at 0x0400. */
+    outb_p(0x04, ioaddr + EN0_RSARHI);
+    outb_p(E8390_RREAD+E8390_START, ioaddr + E8390_CMD);
 
     for (i = 0; i < 6; i += 2) {
 	j = inw(ioaddr + PCNET_DATAPORT);

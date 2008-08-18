@@ -1,4 +1,4 @@
-/* version.h 1.95 2000/11/07 22:55:28 (David Hinds) */
+/* version.h 1.96 2000/12/20 18:31:40 (David Hinds) */
 
-#define CS_RELEASE "3.1.23"
-#define CS_RELEASE_CODE 0x3117
+#define CS_RELEASE "3.1.24"
+#define CS_RELEASE_CODE 0x3118

@@ -1,5 +1,5 @@
 #
-# debug-tools/Makefile 1.41 2000/05/23 02:52:35 (David Hinds)
+# debug-tools/Makefile 1.42 2001/01/18 03:15:50 (David Hinds)
 #
 
 # Include site dependent options
@@ -8,7 +8,7 @@ include ../config.mk
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 XFLAGS = -O -pipe
 CPPFLAGS += -I../modules
-CC += $(UFLAGS)
+CC := $(CC:kgcc=gcc) $(UFLAGS)
 
 SRCS  = dump_cis.c dump_cisreg.c pack_cis.c dump_exca.c
 HDRS  = pack_cis.h

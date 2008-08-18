@@ -1,5 +1,5 @@
 /*======================================================================
-    fmvj18x_cs.c 2.1 2000/11/24
+    fmvj18x_cs.c 2.2 2001/01/07
 
     A fmvj18x (and its compatibles) PCMCIA client driver
 
@@ -90,7 +90,7 @@ MODULE_PARM(sram_config, "i");
    driver version infomation 
  */
 #ifdef PCMCIA_DEBUG
-static char *version = "fmvj18x_cs.c 2.1 2000/11/24";
+static char *version = "fmvj18x_cs.c 2.2 2001/01/07";
 #endif
 
 /*====================================================================*/
@@ -98,6 +98,7 @@ static char *version = "fmvj18x_cs.c 2.1 2000/11/24";
     PCMCIA event handlers
  */
 static void fmvj18x_config(dev_link_t *link);
+static int fmvj18x_get_hwinfo(dev_link_t *link, u_char *node_id);
 static void fmvj18x_release(u_long arg);
 static int fmvj18x_event(event_t event, int priority,
 			  event_callback_args_t *args);
@@ -124,7 +125,9 @@ static dev_link_t *dev_list = NULL;
 /*
     card type
  */
-typedef enum { MBH10302, MBH10304, TDK, CONTEC, LA501, UNGERMANN } cardtype_t;
+typedef enum { MBH10302, MBH10304, TDK, CONTEC, LA501, UNGERMANN, 
+	       XXX10304
+} cardtype_t;
 
 #define MANFID_UNGERMANN 0x02c0
 
@@ -472,6 +475,15 @@ static void fmvj18x_config(dev_link_t *link)
 	else
 	    buf[0] = 0xffff;
 	switch (le16_to_cpu(buf[0])) {
+	case MANFID_FUJITSU:
+	    if (le16_to_cpu(buf[1]) == PRODID_FUJITSU_MBH10304) {
+		cardtype = XXX10304;    /* MBH10304 with buggy CIS */
+	        link->conf.ConfigIndex = 0x20;
+	    } else {
+		cardtype = MBH10302;
+		link->conf.ConfigIndex = 1;
+	    }
+	    break;
 	case MANFID_UNGERMANN:
 	    cardtype = UNGERMANN;
 	    /*
@@ -561,6 +573,19 @@ req_irq:
 	    dev->dev_addr[i] = inb(ioaddr + UNGERMANN_MAC_ID + i);
 	card_name = "Access/CARD";
 	break;
+    case XXX10304:
+	/* Read MACID from Buggy CIS */
+	if (fmvj18x_get_hwinfo(link, tuple.TupleData) == -1) {
+	    printk(KERN_NOTICE "fmvj18x_cs: unable to read hardware net 
+		address.");
+	    unregister_netdev(dev);
+	    goto failed;
+	}
+	for (i = 0 ; i < 6; i++) {
+	    dev->dev_addr[i] = tuple.TupleData[i];
+	}
+	card_name = "FMV-J182";
+	break;
     case MBH10302:
     default:
 	/* Read MACID from register */
@@ -591,7 +616,60 @@ failed:
     fmvj18x_release((u_long)link);
 
 } /* fmvj18x_config */
- 
+/*====================================================================*/
+
+static int fmvj18x_get_hwinfo(dev_link_t *link, u_char *node_id)
+{
+    win_req_t req;
+    memreq_t mem;
+    u_char *base;
+    int i, j;
+
+    /* Allocate a small memory window */
+    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    req.Base = 0; req.Size = 0;
+    req.AccessSpeed = 0;
+    link->win = (window_handle_t)link->handle;
+    i = CardServices(RequestWindow, &link->win, &req);
+    if (i != CS_SUCCESS) {
+	cs_error(link->handle, RequestWindow, i);
+	return -1;
+    }
+
+    base = ioremap(req.Base, req.Size);
+    mem.Page = 0;
+    mem.CardOffset = 0;
+    CardServices(MapMemPage, link->win, &mem);
+
+    /*
+     *  MBH10304 CISTPL_FUNCE_LAN_NODE_ID format
+     *  22 0d xx xx xx 04 06 yy yy yy yy yy yy ff
+     *  'xx' is garbage.
+     *  'yy' is MAC address.
+    */ 
+    for (i = 0; i < 0x200; i++) {
+	if (readb(base+i*2) == 0x22) {	
+	    if (readb(base+(i-1)*2) == 0xff
+	     && readb(base+(i+5)*2) == 0x04
+	     && readb(base+(i+6)*2) == 0x06
+	     && readb(base+(i+13)*2) == 0xff) 
+		break;
+	}
+    }
+
+    if (i != 0x200) {
+	for (j = 0 ; j < 6; j++,i++) {
+	    node_id[j] = readb(base+(i+7)*2);
+	}
+    }
+
+    iounmap(base);
+    j = CardServices(ReleaseWindow, link->win);
+    if (j != CS_SUCCESS)
+	cs_error(link->handle, ReleaseWindow, j);
+    return (i != 0x200) ? 0 : -1;
+
+} /* fmvj18x_get_hwinfo */
 /*====================================================================*/
 
 static void fmvj18x_release(u_long arg)

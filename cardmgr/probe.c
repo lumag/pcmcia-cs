@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.52 2000/06/12 21:33:02
+    probe.c 1.53 2001/01/18 00:56:52
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -72,6 +72,8 @@ pci_id_t pci_id[] = {
     { 0x104c, 0xac1b, "Texas Instruments PCI1450", "TI 1450" },
     { 0x104c, 0xac1c, "Texas Instruments PCI1225", "TI 1225" },
     { 0x104c, 0xac1e, "Texas Instruments PCI1211", "TI 1211" },
+    { 0x104c, 0xac40, "Texas Instruments PCI4450", "TI 4450" },
+    { 0x104c, 0xac42, "Texas Instruments PCI4451", "TI 4451" },
     { 0x104c, 0xac50, "Texas Instruments PCI1410", "TI 1410" },
     { 0x104c, 0xac51, "Texas Instruments PCI1420", "TI 1420" },
     { 0x1217, 0x6729, "O2 Micro 6729", "O2Micro OZ6729" },
