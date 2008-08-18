@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.186 2001/11/21 02:03:56 (David Hinds)
+# config 1.189 2001/12/20 13:50:57 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -177,6 +177,10 @@ card "Argosy EN210 Ethernet"
   version "PCMCIA LAN", "Ethernet"
   bind "pcnet_cs"
 
+card "Arowana Ethernet"
+  version "AROWANA", "PCMCIA Ethernet LAN Card"
+  bind "pcnet_cs"
+
 card "Asante FriendlyNet Ethernet"
   version "ASANTE", "FriendlyNet PC Card"
   bind "pcnet_cs"
@@ -299,6 +303,10 @@ card "DynaLink L10C Ethernet"
 
 card "DynaLink L10BC Ethernet"
   version "DYNALINK", "L10BC"
+  bind "pcnet_cs"
+
+card "DynaLink L10BC Ethernet"
+  version "Dynalink", "L10BC"
   bind "pcnet_cs"
 
 card "E2000 NE2000-Compatible Ethernet"
@@ -544,6 +552,10 @@ card "New Media LanSurfer"
 
 card "NextCom NC5310 Ethernet"
   version "NextComK.K.", "NC5310 Ver1.0        "
+  bind "fmvj18x_cs"
+
+card "NextCom NC5310B Ethernet"
+  version "NextComK.K.", "NC5310B Ver1.0       "
   bind "fmvj18x_cs"
 
 card "NE2000 Compatible Ethernet"
@@ -1021,12 +1033,20 @@ card "MELCO WLI-PCM-L11"
   version "MELCO", "WLI-PCM-L11"
   bind "wvlan_cs"
 
+card "MELCO WLI-PCM-L11G"
+  version "MELCO", "WLI-PCM-L11G"
+  bind "wvlan_cs"
+
 card "NCR WaveLAN Adapter"
   version "NCR", "WaveLAN/PCMCIA"
   bind "wavelan_cs"
 
 card "NCR WaveLAN/IEEE Adapter"
   version "NCR", "WaveLAN/IEEE"
+  bind "wvlan_cs"
+
+card "PLANEX GeoWave/GW-CF110"
+  version "PLANEX", "GeoWave/GW-CF110"
   bind "wvlan_cs"
 
 card "RayLink PC Card WLAN Adapter"
@@ -1036,6 +1056,11 @@ card "RayLink PC Card WLAN Adapter"
 card "Xircom CreditCard Netwave"
   version "Xircom", "CreditCard Netwave"
   bind "netwave_cs"
+
+card "ZCOMAX AirRunner/XI-300"
+  #version "ZCOMAX", "AirRunner/XI-300"
+  manfid 0xd601, 0x0002
+  bind "wvlan_cs"
 
 #
 # Modems and other serial devices

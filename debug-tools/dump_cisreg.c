@@ -2,7 +2,7 @@
 
     PCMCIA card configuration register dump
 
-    dump_cisreg.c 1.30 2001/11/14 01:17:42
+    dump_cisreg.c 1.31 2001/11/30 23:10:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -91,6 +91,7 @@ static int open_sock(int sock)
 	    unlink(fn);
 	    if (fd >= 0)
 		return fd;
+	    if (errno == ENODEV) break;
 	}
     }
     return -1;

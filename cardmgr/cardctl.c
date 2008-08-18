@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.65 2001/11/14 01:24:36
+    cardctl.c 1.67 2001/12/01 01:19:22
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -105,6 +105,8 @@ static int open_sock(int sock)
 	    unlink(fn);
 	    if (fd >= 0)
 		return fd;
+	    if (errno == ENODEV)
+		break;
 	}
     }
     return -1;
@@ -616,7 +618,7 @@ int main(int argc, char *argv[])
     while ((optch = getopt(argc, argv, opts)) != -1) {
 	switch (optch) {
 	case 'V':
-	    fprintf(stderr, "cardctl version " CS_RELEASE "\n");
+	    fprintf(stderr, "cardctl version " CS_PKG_RELEASE "\n");
 	    return 0;
 	    break;
 	case 'c':

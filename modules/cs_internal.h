@@ -1,5 +1,5 @@
 /*
- * cs_internal.h 1.55 2001/10/04 03:33:08
+ * cs_internal.h 1.56 2001/11/30 02:50:39
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -20,6 +20,7 @@
 #define _LINUX_CS_INTERNAL_H
 
 #include <linux/config.h>
+#include <linux/spinlock.h>
 
 typedef struct erase_busy_t {
     eraseq_entry_t	*erase;

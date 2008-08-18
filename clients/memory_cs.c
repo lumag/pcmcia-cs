@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.82 2001/10/13 14:04:05
+    memory_cs.c 1.83 2001/12/07 02:24:31
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -100,7 +100,7 @@ INT_MODULE_PARM(force_size, 0);		/* force SRAM card size? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.82 2001/10/13 14:04:05 (David Hinds)";
+"memory_cs.c 1.83 2001/12/07 02:24:31 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -793,6 +793,7 @@ static int memory_erase(int minor, u_long f_pos, size_t count)
     }
 
     /* Queue a new request */
+    init_waitqueue_head((wait_queue_head_t *)&dev->eraseq[i].Optional);
     dev->eraseq[i].State = ERASE_QUEUED;
     dev->eraseq[i].Handle = minor_dev->handle;
     dev->eraseq[i].Offset = f_pos;
@@ -804,7 +805,6 @@ static int memory_erase(int minor, u_long f_pos, size_t count)
     }
 
     /* Wait for request to complete */
-    init_waitqueue_head((wait_queue_head_t *)&dev->eraseq[i].Optional);
     if (ERASE_IN_PROGRESS(dev->eraseq[i].State))
 	sleep_on((wait_queue_head_t *)&dev->eraseq[i].Optional);
     if (dev->eraseq[i].State != ERASE_PASSED)

@@ -1,5 +1,5 @@
 #
-# Makefile 1.39 2000/02/14 22:16:30 (David Hinds)
+# Makefile 1.40 2001/12/01 01:17:24 (David Hinds)
 #
 
 ifeq (config.mk, $(wildcard config.mk))
@@ -19,6 +19,7 @@ help:
 	@echo -e "\tmake all\t\t- build modules and programs"
 	@echo -e "\tmake install\t\t- install modules and programs"
 	@echo -e "\tmake clean\t\t- remove old binaries and dependency files"
+	@echo -e "\tmake realclean\t\t- start from scratch"
 
 config .prereq.ok:
 	@touch config.mk
@@ -42,6 +43,10 @@ clean:
 	@set -e ; for d in $(ALL) ; do $(MAKE) -C $$d clean ; done
 	rm -f .prereq.ok config.mk include/pcmcia/config.h
 	rm -f include/linux/modversions.h
+
+realclean:
+	rm -f config.out
+	@$(MAKE) clean
 
 install: .prereq.ok kcheck
 	@set -e ; for d in $(DIRS) ; do $(MAKE) -C $$d install ; done

@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.83 2001/11/22 17:02:47 (David Hinds)
+# network 1.84 2001/12/01 01:17:50 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -21,7 +21,7 @@ if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 
 # Get device attributes
 get_info $DEVICE
-HWADDR=`/sbin/ifconfig $DEVICE | sed -n -e 's/.*addr \([^ ]*\) */\1/p'`
+HWADDR=`/sbin/ifconfig $DEVICE | sed -ne 's/.*\(..:..:..:..:..:..\).*/\1/p'`
 
 # Load site-specific settings
 ADDRESS="$SCHEME,$SOCKET,$INSTANCE,$HWADDR"

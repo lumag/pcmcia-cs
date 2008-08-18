@@ -36,6 +36,7 @@
 #include <linux/linkage.h>
 #include <linux/kernel.h>
 #include <linux/pnp_bios.h>
+#include <linux/spinlock.h>
 #include <asm/page.h>
 #include <asm/system.h>
 #include <asm/desc.h>

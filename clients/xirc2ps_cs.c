@@ -798,6 +798,7 @@ set_card_type(dev_link_t *link, const void *s)
 	switch(prodid & 15) {
 	  case 1: local->card_type = has_ce2_string(link)? XIR_CE2 : XIR_CE ;
 		  break;
+	  case 15:
 	  case 2: local->card_type = XIR_CE2; break;
 	  case 3: local->card_type = XIR_CE3;
 		  local->mohawk = 1;

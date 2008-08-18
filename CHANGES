@@ -1,4 +1,21 @@
-Version 3.1.30
+[01-Jan-02] Version 3.1.31
+-- Changed cardmgr, cardctl to report their version info, not the
+   version of the kernel PCMCIA drivers, on 2.4.* kernels.
+-- Changed i82365 module to always trust irq probe on TI bridges.
+-- Added tests to Configure script for 2.4 kernel debug options.
+-- Added 'realclean' target to top level Makefile.
+-- Added Nextcom NC5310B support to fmvj18x_cs, from Komuro.
+-- Added tests for 'gcc' and 'make', and sanity checks for module
+   install directory, to the Configure script.
+-- Fixed CardBus CIS memory window management bug, from Rick Sulack.
+-- Fixed memory_cs driver to not oops when a block erase is attempted
+   on a non-block-oriented memory card.
+-- Fixed HWADDR parsing in network script to be language independent.
+-- Fixed 'probe' to check alternate location for ISA card readers.
+-- Fixed bad SMP breakage introduced in 3.1.29 release.
+-- Fixed PnP BIOS support to work on SMP kernels.
+
+[22-Nov-01] Version 3.1.30
 -- Tweaked MII detection algorithm in pcnet_cs to be more robust.
 -- Added full_duplex flag to pcnet_cs, to allow duplex control for
    DL10022 rev 5 cards.

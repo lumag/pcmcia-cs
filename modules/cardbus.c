@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.82 2001/10/04 03:33:59
+    cardbus.c 1.83 2001/12/20 13:48:59
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -204,7 +204,7 @@ static int cb_setup_cis_mem(socket_info_t *s, int space)
 
     if (space == s->cb_cis_space)
 	return CS_SUCCESS;
-    else if (s->cb_cis_space != 0)
+    else if (s->cb_cis_virt)
 	cb_release_cis_mem(s);
     DEBUG(1, "cs: cb_setup_cis_mem(space %d)\n", space);
     /* If socket is configured, then use existing memory mapping */
@@ -621,7 +621,7 @@ void cb_enable(socket_info_t *s)
     DEBUG(0, "cs: cb_enable(bus %d)\n", bus);
     
     /* Configure bridge */
-    if (s->cb_cis_map.start)
+    if (s->cb_cis_virt)
 	cb_release_cis_mem(s);
     for (i = 0; i < 3; i++) {
 	cb_bridge_map m;
@@ -695,7 +695,7 @@ void cb_disable(socket_info_t *s)
     DEBUG(0, "cs: cb_disable(bus %d)\n", s->cap.cardbus);
     
     /* Turn off bridge windows */
-    if (s->cb_cis_map.start)
+    if (s->cb_cis_virt)
 	cb_release_cis_mem(s);
     for (i = 0; i < 3; i++) {
 	switch (i) {

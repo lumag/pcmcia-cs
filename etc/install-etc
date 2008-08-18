@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# etc/install-etc 1.17 2001/03/16 14:10:24 (David Hinds)
+# etc/install-etc 1.18 2001/12/03 03:02:10 (David Hinds)
 #
 # This handles updating the PCMCIA startup and device configuration
 # scripts.  I used to do this in the Makefile, but it is really much
@@ -122,10 +122,10 @@ install_depmod ()
     if [ ! -r $CONF -a -r $PREFIX/etc/conf.modules ] ; then
 	CONF=$PREFIX/etc/conf.modules
     fi
-    /sbin/modprobe -c | grep -q 'path\[pcmcia\]'
+    /sbin/modprobe -c | grep 'path\[pcmcia\]' >/dev/null
     if [ $? -ne 0 ] ; then
 	echo "-> Updating $CONF"
-	grep -qs ^path $CONF || grep -qs ^keep $CONF ||
+	grep ^path $CONF >/dev/null 2>&1 || grep ^keep $CONF >/dev/null 2>&1 ||
 	    echo keep >> $CONF
 	/sbin/modprobe -c | sed -ne '/path[net]/s/\bnet\b/pcmcia/gp' >> $CONF
     fi

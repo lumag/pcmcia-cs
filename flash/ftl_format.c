@@ -2,7 +2,7 @@
 
     Utility to create an FTL partition in a memory region
 
-    ftl_format.c 1.16 2001/08/24 12:19:07
+    ftl_format.c 1.17 2001/12/07 02:24:20
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -124,7 +124,11 @@ static int format_partition(int fd, int quiet, int interrogate,
     
     /* Get partition size, block size */
     if (ioctl(fd, MEMGETINFO, &region) != 0) {
-	perror("get info failed");
+	perror("get device info failed");
+	return -1;
+    }
+    if (region.BlockSize <= 512) {
+	fprintf(stderr, "this device cannot be used for FTL!\n");
 	return -1;
     }
 

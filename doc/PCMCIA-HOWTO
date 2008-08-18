@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.96, 19 November 2001
+  v2.97, 29 December 2001
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -1863,6 +1863,12 @@
      strings for initiating SLIP and PPP mode.  For SLIP, use ``ATDT2'';
      for PPP, "ATDT0".
 
+  +o  Socket IO revision H serial port cards have a faster-than-normal
+     clock rate for the UART.  The card's actual baud rate is four times
+     faster than the serial driver thinks it is.  To work around the
+     problem, specify SERIAL_OPTS="baud_base 460800" in
+     /etc/pcmcia/serial.opts.
+
   44..44..33..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh sseerriiaall ddeevviicceess
 
   +o  In 3.1.15 and later PCMCIA releases, the test_modem script in the
@@ -1917,6 +1923,7 @@
   devices are accessed via the /dev/lp* special device files.  The
   configuration of a printer device can be examined and modified with
   the tunelp command.
+
   The parport_cs module depends on the parport and parport_pc drivers,
   which may be either compiled into the kernel or compiled as modules.
   The layered driver structure means that any top-level parallel drivers
@@ -2030,6 +2037,7 @@
   device, with a five-field address.  The script should set the PARTS
   variable to a list of partitions.  Then, scsi.opts will be called for
   each partition, with the longer seven-field addresses.
+
   If your kernel does not have a top-level driver (disk, tape, etc) for
   a particular SCSI device, then the device will not be configured by
   the PCMCIA drivers.  As a side effect, the device's name in stab will
@@ -2090,6 +2098,7 @@
      DO_FSCK
         A boolean (y/n) setting: specifies if the filesystem should be
         checked before being mounted, with ``fsck -Ta''.
+
      DO_MOUNT
         A boolean (y/n) setting: specifies if this device should be
         automatically mounted at card insertion time.
@@ -2192,7 +2201,6 @@
      drivers for your devices (i.e., disk, tape, CD-ROM, and/or
      generic).  If a top-level driver is missing, devices of that type
      will be ignored.
-
   44..77..  PPCCMMCCIIAA mmeemmoorryy ccaarrddss
 
   The memory_cs driver handles all types of memory cards, as well as
@@ -2203,6 +2211,7 @@
   used for disk-like access (creating and mounting filesystems, etc).
   The character devices are for "raw" unbuffered reads and writes at
   arbitrary locations.
+
   The device address passed to memory.opts consists of two fields: the
   scheme, and the socket number.  The options are applied to the first
   common memory partition on the corresponding memory card.
@@ -2255,24 +2264,23 @@
         true, then ``cardctl eject'' will shut down a device even if it
         is busy.  If NO_FUSER is true, then the script will not try to
         kill processes using an ejected device.
-
   Here is an example of a script that will automatically mount memory
   cards based on which socket they are inserted into:
 
-  case "$ADDRESS" in
-  *,0,0)
-      # Mount filesystem, but don't update /etc/fstab
-      DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="ext2" ; OPTS=""
-      MOUNTPT="/mem0"
-      ;;
-  *,1,0)
-      # Mount filesystem, but don't update /etc/fstab
-      DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="ext2" ; OPTS=""
-      MOUNTPT="/mem1"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,0,0)
+           # Mount filesystem, but don't update /etc/fstab
+           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2" ; OPTS=""
+           MOUNTPT="/mem0"
+           ;;
+       *,1,0)
+           # Mount filesystem, but don't update /etc/fstab
+           DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2" ; OPTS=""
+           MOUNTPT="/mem1"
+           ;;
+       esac
 
   44..77..22..  UUssiinngg lliinneeaarr ffllaasshh mmeemmoorryy ccaarrddss
 
@@ -2648,7 +2656,6 @@
   interrupt assignment.  If it does not, then resolve that problem
   first, then return here if the symptoms persist.  Next, experiment
   with different values for the irq_mode parameter.
-
   55..22..44..  NNoo PPCCII iinntteerrrruupptt aassssiiggnnmmeenntt;; vvaalliidd rroouuttiinngg ttaabbllee
 
   Symptoms:
@@ -2762,14 +2769,14 @@
   To save even more keystrokes, schemes can be specified in lilo's
   configuration file.  For instance, you could have:
 
-  root = /dev/hda1
-  read-only
-  image = /boot/vmlinuz
-    label  = home
-    append = "SCHEME=home"
-  image = /boot/vmlinuz
-    label  = work
-    append = "SCHEME=work"
+       root = /dev/hda1
+       read-only
+       image = /boot/vmlinuz
+         label  = home
+         append = "SCHEME=home"
+       image = /boot/vmlinuz
+         label  = work
+         append = "SCHEME=work"
 
   Typing ``home'' or ``work'' at the boot prompt would then boot into
   the appropriate scheme.
@@ -2860,13 +2867,13 @@
   files for lilo to a clean floppy.  In the following example, we assume
   that the desired PCMCIA root device is /dev/sda1:
 
-       mke2fs /dev/fd0
-       mount /dev/fd0 /mnt
-       mkdir /mnt/etc /mnt/boot /mnt/dev
-       cp -a /dev/fd0 /dev/sda1 /mnt/dev
-       cp [kernel-image] /mnt/vmlinuz
-       cp /boot/boot.b /mnt/boot/boot.b
-       gzip < [initrd-image] > /mnt/initrd
+  mke2fs /dev/fd0
+  mount /dev/fd0 /mnt
+  mkdir /mnt/etc /mnt/boot /mnt/dev
+  cp -a /dev/fd0 /dev/sda1 /mnt/dev
+  cp [kernel-image] /mnt/vmlinuz
+  cp /boot/boot.b /mnt/boot/boot.b
+  gzip < [initrd-image] > /mnt/initrd
 
   Create /mnt/etc/lilo.conf with the contents:
 
@@ -2956,7 +2963,6 @@
   card, cardmgr will normally record some identification information in
   the system log that can be used to construct the config entry.  This
   information can also be displayed with the ``cardctl ident'' command.
-
   Here is an example of how cardmgr will report an unsupported card in
   /usr/adm/messages.
 
@@ -3130,13 +3136,13 @@
   on the module's load address.  Let's say that you have the following
   kernel fault:
 
-  Unable to handle kernel NULL pointer dereference
-  current->tss.cr3 = 014c9000, %cr3 = 014c9000
-  *pde = 00000000
-  Oops: 0002
-  CPU:    0
-  EIP:    0010:[<c2026081>]
-  EFLAGS: 00010282
+       Unable to handle kernel NULL pointer dereference
+       current->tss.cr3 = 014c9000, %cr3 = 014c9000
+       *pde = 00000000
+       Oops: 0002
+       CPU:    0
+       EIP:    0010:[<c2026081>]
+       EFLAGS: 00010282
 
   The fault address is 0xc2026081.  Looking at System.map, we see that
   this is past the end of the kernel, i.e., is in a kernel module.  To
@@ -3242,6 +3248,7 @@
   contents of a card's CIS (Card Information Structure), and decodes
   most of the important bits.  And the dump_cisreg utility displays a
   card's local configuration registers.
+
   The memory_cs memory card driver is also sometimes useful for
   debugging problems with 16-bit PC Cards.  It can be bound to any card,
   and does not interfere with other drivers.  It can be used to directly
@@ -3355,14 +3362,14 @@
   (for example, sample_cs-1.5.tar.gz).  A complete distribution could
   look like:
 
-  sample_cs.mk
-  README.sample_cs
-  modules/sample_cs.c
-  modules/sample_cs.h
-  etc/sample.conf
-  etc/sample
-  etc/sample.opts
-  man/sample_cs.4
+       sample_cs.mk
+       README.sample_cs
+       modules/sample_cs.c
+       modules/sample_cs.h
+       etc/sample.conf
+       etc/sample
+       etc/sample.opts
+       man/sample_cs.4
 
   With this arrangement, when the contributed driver is unpacked, it
   becomes essentially part of the PCMCIA source tree.  It can make use

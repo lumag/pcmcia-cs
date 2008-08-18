@@ -45,7 +45,7 @@ if ($conf) {
 
 print "\nChecking current syslog files in /var/log:\n";
 foreach $f (split(/\s+/, `/bin/ls -lt \`find /var/log -type f\``)) {
-    next if ($f =~ /\.\d+$/);
+    next if (($f !~ /var/) || ($f =~ /\.\d+$/));
     next if (system("head $f | grep -q syslogd") != 0);
     $kernel = $f if (system("grep -q 'Card Services' $f") == 0);
     $daemon = $f if (system("grep -q cardmgr $f") == 0);
@@ -68,6 +68,24 @@ if ($kernel || $daemon) {
     }
 } else {
     print "  No PCMCIA messages were found!\n";
+}
+
+open(IN, "dmesg |");
+while (<IN>) {
+    @k = () if (/Card Services/);
+    if (/PCMCIA|^PCI routing| PCIC |^cs:| TCIC-2|Yenta/) {
+	push(@k, "  $_");
+	while (<IN>) {
+	    last if (!/^  /);
+	    push(@k, "  $_");
+	}
+	redo;
+    }
+}
+close(IN);
+if (@k) {
+    print "\nKernel startup messages:\n";
+    print @k;
 }
 
 print "\nModule status:\n";

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.194 2001/10/02 01:26:57
+# Configure 1.201 2002/01/02 01:09:31
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -43,6 +43,17 @@ if [ ! -L include/linux/config.h ] ; then
     fail
 fi
 
+if ! make -v >/dev/null ; then
+    echo "Ack!  This system does not have a 'make' command!"
+    echo "    Install a normal set of Linux development tools and try again."
+    fail
+fi
+if ! gcc -v >/dev/null 2>&1 ; then
+    echo "Ack!  Your system does not have 'gcc' installed!"
+    echo "    Install a normal set of Linux development tools and try again."
+    fail
+fi
+
 if [ -r config.out ] ; then
     . ./config.out 2>/dev/null
 else
@@ -64,9 +75,11 @@ arg () {
 
 usage () {
     echo "usage: $0 [-n|--noprompt] [--kernel=src-dir] [--target=dir]"
-    echo "    [--moddir=dir] [--ucc=path] [--kcc=path] [--ld=path]"
-    echo "    [--uflags=flags] [--kflags=flags] [--debug=flags] [--{no}trust]"
-    echo "    [--{no}cardbus] [--{no}pnp] [--{no}apm] [--current] [--srctree]"
+    echo "    [--moddir=dir] [--arch={i386|alpha|arm|ppc] [--ucc=path]"
+    echo "    [--kcc=path] [--ld=path] [--uflags=flags] [--kflags=flags]"
+    echo "    [--debug=flags] [--{no}trust] [--{no}cardbus] [--{no}pnp]"
+    echo "    [--{no}apm] [--force] [--current] [--srctree] [--sysv]"
+    echo "    [--bsd] [--rcdir=dir]"
     echo ""
     echo "  -n, --noprompt     non-interactive mode: no prompting"
     echo "  --kernel=DIR       use kernel source tree at DIR"
@@ -220,7 +233,7 @@ echo ""
 ask_str "Linux source directory" LINUX
 
 if [ ! -f $LINUX/kernel/Makefile ] ; then
-    echo "Linux source tree $LINUX is incomplete or missing!"
+    echo "Linux source tree '$LINUX' is incomplete or missing!"
     if [ -d $LINUX/include/linux ] ; then
 	echo "    The kernel header files are present, but not " \
 	     "the full source code."
@@ -347,7 +360,20 @@ else
     MODDIR=`echo $MODDIR | \
         sed -e "s/[0-9]\.[0-9]\.[0-9]*.*/$UTS_RELEASE/"`
 fi
+
 ask_str "Module install directory" MODDIR
+case "$MODDIR" in
+/lib/modules/*)
+    ;;
+[yY])
+    echo "Selected directory '$MODDIR' is bogus!"
+    fail
+    ;;
+*)
+    echo "WARNING: '$MODDIR' is an unusual target.  Be careful!"
+    ;;
+esac
+
 echo ""
 
 #=======================================================================
@@ -415,9 +441,10 @@ printconfig () {
     printflag " Fast switching" CONFIG_NET_FASTROUTE
     printflag " Frame Diverter" CONFIG_NET_DIVERT
     printflag "Module version checking" CONFIG_MODVERSIONS
-    printflag "Kernel debugging support" CONFIG_KERNEL_DEBUGGING
-    if [ "$CONFIG_KERNEL_DEBUGGING" = "y" ] ; then
+    printflag "Kernel debugging support" CONFIG_DEBUG_KERNEL
+    if [ "$CONFIG_DEBUG_KERNEL" = "y" ] ; then
 	printflag " Memory leak detection support" CONFIG_MEMLEAK
+	printflag " Spinlock debugging" CONFIG_DEBUG_SPINLOCK
     fi
     printflag "Preemptive kernel patch" CONFIG_PREEMPT
     if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
@@ -542,7 +569,7 @@ case $CONF_SRC in
 	symcheck MEMLEAK kmalloc_wrap
 	if [ $CONFIG_KDB = "y" -o $CONFIG_DEBUG_MCOUNT = "y" -o \
 	     $CONFIG_MEMLEAK = "y" ] ; then
-	    CONFIG_KERNEL_DEBUGGING=y
+	    CONFIG_DEBUG_KERNEL=y
 	fi
 	if [ $ARCH = "ppc" ] ; then
 	    symcheck _prep_type ALL_PPC
@@ -598,11 +625,15 @@ case $CONF_SRC in
 	fi
 	for C in PCI SCSI SERIAL INET NET_FASTROUTE NET_RADIO NET_DIVERT \
 	    TR MODVERSIONS PROC_FS PARPORT PARPORT_PC PARPORT_PC_PCMCIA \
-	    IEEE1394 NET_PCMCIA_RADIO KERNEL_DEBUGGING MEMLEAK PREEMPT ; do
+	    IEEE1394 NET_PCMCIA_RADIO KERNEL_DEBUGGING MEMLEAK PREEMPT \
+	    DEBUG_KERNEL DEBUG_SPINLOCK ; do
 	    configcheck $C
 	done
 	if grep "^CONFIG_PARPORT_PC=y" $AUTOCONF >/dev/null ; then
 	    CONFIG_PARPORT_PC=n
+	fi
+	if [ $CONFIG_KERNEL_DEBUGGING = "y" ] ; then
+	    CONFIG_DEBUG_KERNEL=y
 	fi
 	if [ $CONFIG_NET_RADIO = "y" ] ; then
 	    CONFIG_NET_PCMCIA_RADIO=y

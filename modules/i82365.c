@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.343 2001/10/13 00:08:33
+    i82365.c 1.344 2001/11/30 16:00:57
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -141,7 +141,7 @@ INT_MODULE_PARM(pci_int, 1);		/* PCI IO card irqs? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.343 2001/10/13 00:08:33 (David Hinds)";
+"i82365.c 1.344 2001/11/30 16:00:57 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -1236,7 +1236,8 @@ static u_int __init isa_scan(socket_info_t *s, u_int mask0)
     }
     
     printk(KERN_INFO "    ISA irqs (");
-    if (mask1) {
+    /* we trust TI bridges to do this right */
+    if (mask1 || (s->flags & IS_TI)) {
 	printk("scanned");
     } else {
 	/* Fallback: just find interrupts that aren't in use */

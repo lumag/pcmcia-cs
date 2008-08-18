@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.55 2001/08/24 12:19:20
+    probe.c 1.56 2001/11/30 04:44:26
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -201,39 +201,42 @@ static void i365_bclr(u_short sock, u_short reg, u_char mask)
 
 int i365_probe(int verbose, int module)
 {
-    int val, sock, done;
+    int val, slot, sock, done;
     char *name = "i82365sl";
 
     if (!module)
 	printf("Intel PCIC probe: ");
     if (verbose) printf("\n");
     
-    sock = done = 0;
     ioperm(i365_base, 4, 1);
     ioperm(0x80, 1, 1);
-    for (; sock < 2; sock++) {
-	val = i365_get(sock, I365_IDENT);
-	if (verbose)
-	    printf("  ident(%d)=%#2.2x", sock, val); 
-	switch (val) {
-	case 0x82:
-	    name = "i82365sl A step";
+    for (slot = 0; slot < 2; slot++) {
+	for (sock = done = 0; sock < 2; sock++) {
+	    val = i365_get(sock, I365_IDENT);
+	    if (verbose)
+		printf("  ident(%d)=%#2.2x", sock+2*slot, val); 
+	    switch (val) {
+	    case 0x82:
+		name = "i82365sl A step";
+		break;
+	    case 0x83:
+		name = "i82365sl B step";
 	    break;
-	case 0x83:
-	    name = "i82365sl B step";
+	    case 0x84:
+		name = "VLSI 82C146";
+		break;
+	    case 0x88: case 0x89: case 0x8a:
+		name = "IBM Clone";
 	    break;
-	case 0x84:
-	    name = "VLSI 82C146";
-	    break;
-	case 0x88: case 0x89: case 0x8a:
-	    name = "IBM Clone";
-	    break;
-	case 0x8b: case 0x8c:
-	    break;
-	default:
-	    done = 1;
+	    case 0x8b: case 0x8c:
+		break;
+	    default:
+		done = 1;
+	    }
+	    if (done) break;
 	}
-	if (done) break;
+	if (done && sock) break;
+	i365_base += 2;
     }
 
     if (verbose) printf("\n  ");

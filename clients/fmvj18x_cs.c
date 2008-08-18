@@ -1,5 +1,5 @@
 /*======================================================================
-    fmvj18x_cs.c 2.6 2001/09/17
+    fmvj18x_cs.c 2.7 2001/11/24
 
     A fmvj18x (and its compatibles) PCMCIA client driver
 
@@ -76,7 +76,7 @@ INT_MODULE_PARM(sram_config, 0);
 #ifdef PCMCIA_DEBUG
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version = "fmvj18x_cs.c 2.6 2001/09/17";
+static char *version = "fmvj18x_cs.c 2.7 2001/11/24";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -996,7 +996,7 @@ static void fjn_reset(struct net_device *dev)
     outb(0xff, ioaddr + TX_STATUS);
     outb(0xff, ioaddr + RX_STATUS);
 
-    if( lp->cardtype != TDK ) 
+    if( lp->cardtype == MBH10302 ) 
     		outb(INTR_OFF, ioaddr + LAN_CTRL);
 
     /* Turn on Rx interrupts */
@@ -1004,7 +1004,7 @@ static void fjn_reset(struct net_device *dev)
     outb(D_RX_INTR, ioaddr + RX_INTR);
 
     /* Turn on interrupts from LAN card controller */
-    if( lp->cardtype != TDK ) 
+    if( lp->cardtype == MBH10302 ) 
 		outb(INTR_ON, ioaddr + LAN_CTRL);
 } /* fjn_reset */
 
@@ -1163,7 +1163,7 @@ static int fjn_close(struct net_device *dev)
     outb(CHIP_OFF ,ioaddr + CONFIG_1);
 
     /* Set the ethernet adaptor disable IRQ */
-    if( lp->cardtype != TDK ) 
+    if( lp->cardtype == MBH10302 ) 
 	outb(INTR_OFF, ioaddr + LAN_CTRL);
 
     link->open--;

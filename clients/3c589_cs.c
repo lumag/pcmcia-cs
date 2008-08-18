@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    3c589_cs.c 1.162 2001/10/13 00:08:50
+    3c589_cs.c 1.163 2001/12/07 02:26:21
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -137,7 +137,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.162 2001/10/13 00:08:50 (David Hinds)";
+"3c589_cs.c 1.163 2001/12/07 02:26:21 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -738,7 +738,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
     outw(skb->len, ioaddr + TX_FIFO);
     outw(0x00, ioaddr + TX_FIFO);
     /* ... and the packet rounded to a doubleword. */
-    outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
+    outsw_ns(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 1);
 
     dev->trans_start = jiffies;
     if (inw(ioaddr + TX_FREE) > 1536) {
@@ -997,8 +997,8 @@ static int el3_rx(struct net_device *dev)
 	    if (skb != NULL) {
 		skb->dev = dev;
 		skb_reserve(skb, 2);
-		insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
-			(pkt_len+3)>>2);
+		insw_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
+			(pkt_len+3)>>1);
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
 		dev->last_rx = jiffies;

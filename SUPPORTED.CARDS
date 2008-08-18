@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2001/11/21 02:03:56
+		Last updated: 2001/12/20 13:50:56
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -35,7 +35,7 @@ Ethernet cards:
 	Fujitsu FMV-J181, FMV-J182, FMV-J182A
 	Fujitsu Towa LA501, FMV-1080, FM50N-183
 	Hitachi HT-4840-11 EtherCard
-	NextCom NC5310
+	NextCom NC5310, NC5310B
 	RATOC REX-9822, REX-5588A/W, REX-4886, REX-R280
 	TDK LAC-CD02x, LAK-CD021, LAK-CD022A, LAK-CD021AX, LAK-CD021BX
 	TDK LAC-CF010 Compact Flash
@@ -333,10 +333,12 @@ Wireless network adapters:
 	ARtem Onair ComCard STD & EMB versions, 128- & 64-bit
 	Cabletron/Enterasys RoamAbout 802.11 DS
 	ELSA AirLancer MC-11
+	HP F2136B
 	IBM High Rate Wireless LAN
 	Lucent Orinoco WaveLAN/IEEE 802.11(b)
-	Melco WLI-PCM-L11
+	Melco WLI-PCM-L11, WLI-PCM-L11G
 	NCR WaveLAN/IEEE 802.11
+	PLANEX GeoWave/GW-CF110
 	[ PrismII based cards: limited functionality ]
 	Addtron AWP-100
 	Ambicom WL1100 PC
@@ -345,6 +347,7 @@ Wireless network adapters:
 	D-Link DWL-650
 	Linksys WPC11 Instant Wireless
 	SMC2632W
+	ZCOMAX AirRunner/XI=300
 
 	[orinoco_cs driver]
 	[ experimental backport of 2.4 driver for 2.2 kernels,
@@ -713,8 +716,8 @@ http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/.
 	Nokia C020
 	Samsung MagicWave SWL-1000N
 	Zoom Telephonics ZoomAir 4000
-	  http://www.absoval.com/linux-wlan
-	  (Mark Mathews <mark@absoval.com>)
+	  http://www.linux-wlan.com
+	  (Mark Mathews <mark@linux-wlan.com>)
 
 	[ Intersil PrismII wireless cards ]
 	Addtron AWP-100
@@ -725,7 +728,7 @@ http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/.
 	Samsung MagicLAN
 	SMC2632W
 	  http://www.magiclan.com
-	  http://www.absoval.com/linux-wlan
+	  http://www.linux-wlan.com
 
 	Proxim RangeLAN2 and Symphony wireless LAN cards
 	  http://www.komacke.com/distribution.html
