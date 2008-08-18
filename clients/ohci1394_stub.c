@@ -1,9 +1,9 @@
 /*======================================================================
 
-    A driver for the Newer Technology FireWire 2 Go CardBus IEEE1934/
+    A stub driver for OHCI based CardBus cards IEEE1934/
     FireWire Host Adapter
 
-    pcilynx_stub.c 1.00 2000/09/07 15:46:42
+    ohci1394_stub.c 1.00 2000/10/29 15:46:42
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -14,6 +14,9 @@
     IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
     implied. See the License for the specific language governing
     rights and limitations under the License.
+
+    I (a.tobler@schweiz.ch> adapted the code below from the pcilynx_stub.c
+    to fit the ohci based firewire cards.
 
     The initial developer of the original code is Albrecht Dreﬂ
     <ad@mpifr-bonn.mpg.de>.  However, most parts were actually copied
@@ -48,14 +51,12 @@
 #include <linux/major.h>
 #include <linux/blk.h>
 #include <linux/pci.h>
-#include <asm/io.h>
 
 #include <../drivers/ieee1394/ieee1394.h>
 #include <../drivers/ieee1394/ieee1394_types.h>
 #include <../drivers/ieee1394/hosts.h>
 #include <../drivers/ieee1394/ieee1394_core.h>
-#define lynx_csr_rom bogus_stuff
-#include <../drivers/ieee1394/pcilynx.h>
+/* #include <../drivers/ieee1394/ohci1394.h>*/
 
 #include <pcmcia/driver_ops.h>
 
@@ -64,25 +65,27 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcilynx_cb.c 1.00 2000/09/07 15:46:42 (Albrecht Dreﬂ)";
+"ohci1394_cb.c 1.00 2000/10/29 16:22:42 (Andreas Tobler)";
 #else
 #define DEBUG(n, args...)
 #endif
 
 /*====================================================================*/
 
-extern struct hpsb_host_template *get_lynx_template(void);
+extern struct hpsb_host_template *get_ohci_template(void);
 
-static dev_node_t *pcilynx_attach(dev_locator_t *loc);
-static void pcilynx_detach(dev_node_t *node);
+static dev_node_t *ohci_attach(dev_locator_t *loc);
+static void ohci_suspend(dev_node_t *node);
+static void ohci_resume(dev_node_t *node);
+static void ohci_detach(dev_node_t *node);
 
-struct driver_operations pcilynx_ops = {
-    "pcilynx_cb", pcilynx_attach, NULL, NULL, pcilynx_detach
+struct driver_operations ohci_ops = {
+    "ohci1394_cb", ohci_attach, ohci_suspend, ohci_resume, ohci_detach
 };
 
 /*====================================================================*/
 
-static dev_node_t *pcilynx_attach(dev_locator_t *loc)
+static dev_node_t *ohci_attach(dev_locator_t *loc)
 {
     u_char bus, devfn;
     dev_node_t *node;
@@ -92,14 +95,14 @@ static dev_node_t *pcilynx_attach(dev_locator_t *loc)
       return NULL;
     bus = loc->b.pci.bus; 
     devfn = loc->b.pci.devfn;
-    printk(KERN_INFO "pcilynx_attach(device %02x:%02x.%d)\n",
+    printk(KERN_INFO "ohci_attach(device %02x:%02x.%d)\n",
 	   bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
     /* A hack to work around resource allocation confusion */
     pcibios_read_config_dword(bus, devfn, PCI_BASE_ADDRESS_0, &io);
     release_region(io & PCI_BASE_ADDRESS_IO_MASK, 0x100);
 
-    if (hpsb_register_lowlevel(get_lynx_template())) 
+    if (hpsb_register_lowlevel(get_ohci_template())) 
       {
 	printk(KERN_ERR "registering failed");
 	return NULL;
@@ -107,8 +110,8 @@ static dev_node_t *pcilynx_attach(dev_locator_t *loc)
     else 
       {
 	node = kmalloc(sizeof(dev_node_t), GFP_KERNEL);
-	strcpy (node->dev_name, "pcilynx");
-	node->major = PCILYNX_MAJOR;
+	strcpy (node->dev_name, "ohci1394");
+	node->major = 171;
 	node->minor = 0;
 	node->next = NULL;
 	MOD_INC_USE_COUNT;
@@ -116,26 +119,37 @@ static dev_node_t *pcilynx_attach(dev_locator_t *loc)
       }
 }
 
-static void pcilynx_detach(dev_node_t *node)
+static void ohci_suspend(dev_node_t *node)
 {
-    hpsb_unregister_lowlevel(get_lynx_template());
-    printk(KERN_INFO "removed pcilynx_cb module\n");
+       printk(KERN_INFO "ohci_suspend(%s)\n", node->dev_name);
+}
+ 
+static void ohci_resume(dev_node_t *node)
+{
+       printk(KERN_INFO "ohci_resume(%s)\n", node->dev_name);
+}
+
+static void ohci_detach(dev_node_t *node)
+{
+    hpsb_unregister_lowlevel(get_ohci_template());
+    printk(KERN_INFO "removed ohci1394_cb module\n");
     kfree(node);
     MOD_DEC_USE_COUNT;
 }
 
 /*====================================================================*/
 
-static int __init init_pcilynx_cb(void) {
+static int __init init_ohci_cb(void) {
     DEBUG(0, "%s: loading\n", version);
-    register_driver(&pcilynx_ops);
+    register_driver(&ohci_ops);
     return 0;
 }
 
-static void __exit exit_pcilynx_cb(void) {
+static void __exit exit_ohci_cb(void) {
     DEBUG(0, "%s: unloading\n", version);
-    unregister_driver(&pcilynx_ops);
+    unregister_driver(&ohci_ops);
+    remove_proc_entry("ohci1394", NULL);
 }
 
-module_init(init_pcilynx_cb);
-module_exit(exit_pcilynx_cb);
+module_init(init_ohci_cb);
+module_exit(exit_ohci_cb);

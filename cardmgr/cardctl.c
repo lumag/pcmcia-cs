@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.57 2000/11/07 21:19:39
+    cardctl.c 1.58 2000/11/19 00:18:13
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -195,7 +195,7 @@ static void print_config(config_info_t *config)
 	if (config->Attributes & CONF_ENABLE_DMA)
 	    printf("  DMA mode is enabled\n");
 	if (config->Attributes & CONF_ENABLE_SPKR)
-	    printf("  Speaker output is enabled\n");
+	    printf("  speaker output is enabled\n");
     
     }
 

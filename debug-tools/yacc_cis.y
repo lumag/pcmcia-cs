@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_cis.y 1.11 2000/06/12 21:34:19
+ * yacc_cis.y 1.12 2000/11/15 01:11:16
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -53,7 +53,7 @@ static tuple_info_t *new_tuple(u_char type, cisparse_t *parse);
 
 %token STRING NUMBER FLOAT VOLTAGE CURRENT SIZE
 %token VERS_1 MANFID FUNCID CONFIG CFTABLE MFC CHECKSUM
-%token POST ROM BASE LAST_INDEX
+%token POST ROM BASE LAST_INDEX CJEDEC AJEDEC
 %token DEV_INFO ATTR_DEV_INFO NO_INFO
 %token TIME TIMING WAIT READY RESERVED
 %token VNOM VMIN VMAX ISTATIC IAVG IPEAK IDOWN
@@ -76,7 +76,7 @@ static tuple_info_t *new_tuple(u_char type, cisparse_t *parse);
 %type <flt> FLOAT
 %type <pwr> pwr pwrlist
 %type <parse> vers_1 manfid funcid config cftab io mem irq timing
-%type <parse> dev_info attr_dev_info checksum
+%type <parse> dev_info attr_dev_info checksum cjedec ajedec
 %type <tuple> tuple chain cis;
 %%
 
@@ -127,6 +127,10 @@ tuple:	  dev_info
 		{ $$ = NULL; }
 	| error
 		{ $$ = NULL; }
+	| cjedec
+		{ $$ = new_tuple(CISTPL_JEDEC_C, $1); }
+	| ajedec
+		{ $$ = new_tuple(CISTPL_JEDEC_A, $1); }
 	;
 
 dev_info: DEV_INFO
@@ -194,6 +198,34 @@ funcid:	  FUNCID NUMBER
 		{ $$->funcid.sysinit |= CISTPL_SYSINIT_POST; }
 	| funcid ROM
 		{ $$->funcid.sysinit |= CISTPL_SYSINIT_ROM; }
+	;
+
+cjedec:	  CJEDEC NUMBER NUMBER
+		{
+		    $$ = calloc(1, sizeof(cisparse_t));
+		    $$->jedec.id[0].mfr = $2;
+		    $$->jedec.id[0].info = $3;
+		    $$->jedec.nid = 1;
+		}
+	| cjedec ',' NUMBER NUMBER
+		{
+		    $$->jedec.id[$$->jedec.nid].mfr = $3;
+		    $$->jedec.id[$$->jedec.nid++].info = $4;
+		}
+	;
+
+ajedec:	  AJEDEC NUMBER NUMBER
+		{
+		    $$ = calloc(1, sizeof(cisparse_t));
+		    $$->jedec.id[0].mfr = $2;
+		    $$->jedec.id[0].info = $3;
+		    $$->jedec.nid = 1;
+		}
+	| ajedec ',' NUMBER NUMBER
+		{
+		    $$->jedec.id[$$->jedec.nid].mfr = $3;
+		    $$->jedec.id[$$->jedec.nid++].info = $4;
+		}
 	;
 
 config:	  CONFIG BASE NUMBER MASK NUMBER  LAST_INDEX NUMBER

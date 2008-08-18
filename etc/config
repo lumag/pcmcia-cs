@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.145 2000/11/07 21:20:05 (David Hinds)
+# config 1.153 2000/12/14 19:29:59 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -107,6 +107,9 @@ device "airo_cs"
 
 device "pcilynx_cb"
   class "ieee1394" module "cb_enabler", "pcilynx_cb"
+  
+device "ohci1394_cb"
+  class "ieee1394" module "cb_enabler", "ohci1394_cb"
   
 #
 # Ethernet adapter definitions
@@ -663,6 +666,14 @@ card "TDK LAC-CD02x Ethernet"
   version "TDK", "LAC-CD02x"
   bind "fmvj18x_cs"
 
+card "TDK LAC-CF010 Ethernet"
+  version "TDK", "LAC-CF010"
+  bind "fmvj18x_cs"
+
+card "TDK LAK-CD031 Ethernet"
+  version "TDK", "LAK-CD031 for PCMCIA"
+  bind "pcnet_cs"
+
 card "Xircom IIps Ethernet"
   version "Xircom", "*", "PS-CE2-10"
   bind "xirc2ps_cs"
@@ -708,6 +719,10 @@ card "COMPU-SHACK FASTline 10/100 Fast Ethernet"
 
 card "Corega PCC-TX Fast Ethernet"
   version "corega K.K.", "corega FastEther PCC-TX"
+  bind "pcnet_cs"
+
+card "Corega FEther PCC-TXF"
+  version "corega", "FEther PCC-TXF"
   bind "pcnet_cs"
 
 card "D-Link Fast Ethernet"
@@ -806,6 +821,10 @@ card "Toshiba 10/100 Fast Ethernet"
 #  manfid 0x8a01, 0xc1ab
 #  bind "smc91c92_cs"
 
+card "Xircom CompactCard Ethernet"
+  version "Xircom", "*", "CFE-10"
+  bind "pcnet_cs"
+
 card "Xircom CE3-10/100 Fast Ethernet"
   version "Xircom", "*", "CE3-10/100"
   bind "xirc2ps_cs"
@@ -815,7 +834,7 @@ card "Xircom RealPort2 10/100 Fast Ethernet"
   bind "xirc2ps_cs"
 
 card "Xircom XE2000 10/100 Fast Ethernet"
-  manfid 0x0105, 0x010a
+  version "Xircom", "*", "XE2000"
   bind "xirc2ps_cs"
 
 #
@@ -849,7 +868,7 @@ card "Lucent Technologies WaveLAN Adapter"
   version "Lucent Technologies", "WaveLAN/PCMCIA"
   bind "wavelan_cs"
 
-card "D-Link DWL-650 11 Mbps Wireless Adapter"
+card "Intersil PRISM2 11 Mbps Wireless Adapter"
   manfid 0x0156, 0x0002
   bind "wvlan_cs"
 
@@ -1251,6 +1270,10 @@ card "Newer Technology FireWire 2 Go"
   pci 0x104c, 0x8000
   bind "pcilynx_cb"
 
+card "Cherri IEEE-1394"
+  pci 0x104c, 0x8019
+  bind "ohci1394_cb"
+
 #
 # Multifunction cards
 #
@@ -1479,6 +1502,10 @@ card "Argosy EIDE CD-ROM"
   version "ARGOSY", "CD-ROM"
   bind "ide_cs"
 
+card "Argosy HD530 HardDisk"
+  version "ARGOSY", "PnPIDE"
+  bind "ide_cs"
+
 card "Caravelle CD-36N/CD-36E CD-ROM"
   version "Caravelle", "PSC-IDE ", "PSC000"
   bind "ide_cs"
@@ -1614,6 +1641,10 @@ card "Accton EN2220 Fast Ethernet"
   version "Accton", "EN2220 CardBus Fast Ethernet Card"
   bind "tulip_cb"
 
+card "Accton EN2227 Fast Ethernet"
+  manfid 0x01bf, 0x2227
+  bind "tulip_cb"
+
 card "Adaptec APA-1480 SCSI Host Adapter"
   manfid 0x012f, 0xcb01
   bind "apa1480_cb"
@@ -1691,8 +1722,20 @@ card "Linksys EtherFast 10/100"
   manfid 0x0149, 0xc2ab
   bind "tulip_cb"
 
+card "Linksys EtherFast PCMPC200 v2"
+  manfid 0x13d1, 0xab02
+  bind "tulip_cb"
+
+card "Linksys EtherFast PCMPC200 v2"
+  manfid 0x13d1, 0xab03
+  bind "tulip_cb"
+
 card "NDC Communications Sohoware NCB100 Fast Ethernet"
   version "NDC Communications, Inc.", "NCB100"
+  bind "tulip_cb"
+
+card "NDC NCB100 Fast Ethernet"
+  manfid 0xe815, 0x0081
   bind "tulip_cb"
 
 card "NetGear FA510C Fast Ethernet"

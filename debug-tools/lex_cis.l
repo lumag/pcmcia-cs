@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_cis.l 1.13 2000/06/12 21:34:19
+ * lex_cis.l 1.14 2000/11/15 01:10:33
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -70,6 +70,9 @@ mfc		return MFC;
 manfid		return MANFID;
 vers_1		return VERS_1;
 checksum	return CHECKSUM;
+
+common_jedec	return CJEDEC;
+attr_jedec	return AJEDEC;
 
 dev_info	return DEV_INFO;
 attr_dev_info	return ATTR_DEV_INFO;

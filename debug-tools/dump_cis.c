@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.53 2000/07/15 03:15:54
+    dump_cis.c 1.54 2000/11/27 16:24:03
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -1015,7 +1015,7 @@ static int get_tuple(int fd, ds_ioctl_arg_t *arg, int first)
 
 int main(int argc, char *argv[])
 {
-    int i, fd, pfd;
+    int i, fd, pfd = -1;
     ds_ioctl_arg_t arg;
     int optch, errflg, first;
     int force = 0;
@@ -1060,12 +1060,9 @@ int main(int argc, char *argv[])
 	} else {
 	    strcpy(indent, "  ");
 	    fd = pfd = open_sock(i);
-	    if (fd < 0) break;
 	}
-	if (pfd < 0) {
-	    perror("open()");
-	    return -1;
-	}
+	if (pfd < 0)
+	    break;
 	if (!verbose && (i > 0)) putchar('\n');
 	if (!infile) printf("Socket %d:\n", i);
 	
@@ -1104,6 +1101,10 @@ int main(int argc, char *argv[])
 	
 	if (!verbose && (nfn > 0))
 	    printf("%s}\n", indent+2);
+    }
+    if ((i == 0) && (pfd < 0)) {
+	perror("open()");
+	return -1;
     }
     
     return 0;

@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.77 2000/10/26 16:26:50 (David Hinds)
+# network 1.78 2000/12/15 19:39:59 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -34,42 +34,45 @@ RESOLV=/etc/resolv.conf
 # Now, run the specific script for Wireless LAN interfaces
 # Note : we need the wireless parameters to be set up before IP parameters,
 # so that we can perform DHCP over the Wireless link if needed. Jean II
+O_INFO=$INFO ; INFO=
 if [ -x ./wireless ] ; then
     . ./wireless
 else
     . /etc/pcmcia/wireless
 fi
+INFO=$O_INFO
 
 match () { case $1 in $2) return 0; ;; *) return 1; ;; esac ; }
 bootp_setup ()
 {
     if match `uname -r` "2.[2-9].*" ; then
-	/sbin/ifconfig $DEVICE up
+	log /sbin/ifconfig $DEVICE up
     else
-	/sbin/ifconfig $DEVICE up 0.0.0.0
-	/sbin/route add default dev $DEVICE netmask 0.0.0.0
+	log /sbin/ifconfig $DEVICE up 0.0.0.0
+	log /sbin/route add default dev $DEVICE netmask 0.0.0.0
     fi
 }
 
 case "$ACTION" in
 
 'start')
+    [ "$VERBOSE" -a "$INFO" ] && echo "$INFO"
 
     test "$IF_PORT" && /sbin/ifport $DEVICE $IF_PORT
 
     if is_true $PUMP ; then
-	/sbin/pump -i $DEVICE > /dev/null
+	log "/sbin/pump -i $DEVICE > /dev/null" || exit 1
     elif is_true $BOOTP ; then
 	bootp_setup
 	if [ -x /sbin/bootpc ] ; then
 	    eval `/sbin/bootpc --bootfile '' --returniffail \
 		--timeoutwait 10 --dev $DEVICE`
-	    /sbin/ifconfig $DEVICE down
+	    log /sbin/ifconfig $DEVICE down
 	    if [ "$GATEWAYS" ] ; then
 		set - $GATEWAYS ; GATEWAY=$1
 	    fi
 	elif [ -x /sbin/pump ] ; then
-	    /sbin/pump -i $DEVICE > /dev/null
+	    log "/sbin/pump -i $DEVICE > /dev/null" || exit 1
 	else
 	    exit 1
 	fi
@@ -79,27 +82,28 @@ case "$ACTION" in
 	if [ -x /sbin/dhcpcd ] ; then
 	    # This is a version check: I know it looks weird
 	    if /sbin/dhcpcd -XYZZY 2>&1 | grep -q DHCP ; then
-		/sbin/dhcpcd $HN $DEVICE >/dev/null 2>&1 || exit 1
+		log "/sbin/dhcpcd $HN $DEVICE >/dev/null 2>&1" || exit 1
 	    else
 		# Jump through hoops for lame 0.70-era dhcpcd
 		L=/var/run/dhcp-lock-$DEVICE
 		/bin/echo "#!/bin/sh\nrm $L" > $L ; chmod +x $L
-		/sbin/dhcpcd $HN -c $L $DEVICE >/dev/null 2>&1
+		log "/sbin/dhcpcd $HN -c $L $DEVICE >/dev/null 2>&1"
 		for t in 0 1 2 3 4 5 6 7 8 9 ; do
 		    sleep 2 ; if [ ! -e $L ] ; then break ; fi
 		done
 		rm -f $L
 		if [ -e /etc/dhcpc/resolv.conf ] ; then
 		    echo "# $DEVICE begin" > $RESOLV.N
+		    chmod og+r $RESOLV.N
 		    cat /etc/dhcpc/resolv.conf >> $RESOLV.N
 		    echo "# $DEVICE end" >> $RESOLV.N
 		    cat $RESOLV >> $RESOLV.N ; mv $RESOLV.N $RESOLV
 		fi
 	    fi
 	elif [ -x /sbin/dhclient ] ; then
-	    /sbin/dhclient $DEVICE >/dev/null 2>&1 || exit 1
+	    log "/sbin/dhclient $DEVICE >/dev/null 2>&1" || exit 1
 	elif [ -x /sbin/pump ] ; then
-	    /sbin/pump $HN -i $DEVICE > /dev/null
+	    log "/sbin/pump $HN -i $DEVICE > /dev/null" || exit 1
 	else
 	    exit 1
 	fi
@@ -110,13 +114,13 @@ case "$ACTION" in
 	NM=${NETMASK:+netmask $NETMASK}
 	BC=${BROADCAST:+broadcast $BROADCAST}
 	MTU=${MTU:+mtu $MTU}
-	/sbin/ifconfig $DEVICE up $IPADDR $NM $BC $MTU
+	log /sbin/ifconfig $DEVICE up $IPADDR $NM $BC $MTU
 	if [ "$NETWORK" ] ; then
 	    /sbin/ifuser $DEVICE $NETWORK || \
-		/sbin/route add -net $NETWORK $NM dev $DEVICE
+		log /sbin/route add -net $NETWORK $NM dev $DEVICE
 	elif [ "$GATEWAY" ] ; then
 	    /sbin/ifuser $DEVICE $GATEWAY || \
-		/sbin/route add $GATEWAY $DEVICE
+		log /sbin/route add $GATEWAY $DEVICE
 	fi
 	test "$GATEWAY" && /sbin/route add default gw $GATEWAY metric 1
     fi
@@ -124,6 +128,7 @@ case "$ACTION" in
     # Update DNS stuff
     if [ "$DOMAIN$SEARCH$DNSSRVS$DNS_1$DNS_2$DNS_3" ] ; then
 	echo "# $DEVICE begin" > $RESOLV.N
+	chmod og+r $RESOLV.N
 	test "$DOMAIN" && echo "domain $DOMAIN" >> $RESOLV.N
 	test "$SEARCH" && echo "search $SEARCH" >> $RESOLV.N
 	for DNS in $DNSSRVS $DNS_1 $DNS_2 $DNS_3 ; do
@@ -136,11 +141,11 @@ case "$ACTION" in
 
     # Handle NFS mounts
     if [ "$MOUNTS" ] ; then
-	for MT in $MOUNTS ; do mount -v $MT ; done
+	for MT in $MOUNTS ; do log mount -v $MT ; done
     fi
 
     if [ "$IPX_NETNUM" ] ; then
-	ipx_interface add $DEVICE $IPX_FRAME $IPX_NETNUM
+	log ipx_interface add $DEVICE $IPX_FRAME $IPX_NETNUM
     fi
 
     start_fn $DEVICE
@@ -160,7 +165,7 @@ case "$ACTION" in
 		nfsstop
 		if /sbin/ifuser $DEVICE $HOST ; then
 		    do_fuser -k -m $MT > /dev/null
-		    umount -v $MT
+		    log umount -v $MT
 		fi
 	    fi
 	}
@@ -175,7 +180,7 @@ case "$ACTION" in
 	fi
 
 	if is_true $PUMP ; then
-	    pump -r -i $DEVICE
+	    log pump -r -i $DEVICE
 	elif is_true $DHCP ; then
 	    if [ -x /sbin/dhcpcd ] ; then
 		kill -TERM `cat /var/run/dhcpcd-$DEVICE.pid`
@@ -185,11 +190,11 @@ case "$ACTION" in
 	    elif [ -x /sbin/dhclient ] ; then
 		kill -TERM `cat /var/run/dhclient.pid`
 	    elif [ -x /sbin/pump ] ; then
-		/sbin/pump -r -i $DEVICE
+		log /sbin/pump -r -i $DEVICE
 	    fi
 	fi
     fi
-    /sbin/ifconfig $DEVICE down
+    log /sbin/ifconfig $DEVICE down
     ;;
 
 'check')

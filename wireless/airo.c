@@ -70,6 +70,14 @@ static struct {
 };
 #endif
 
+/* Include Wireless Extension definition and check version - Jean II */
+#include <linux/wireless.h>
+#if WIRELESS_EXT < 9
+#warning "Wireless extension v9 or newer required - please upgrade your kernel"
+#undef WIRELESS_EXT
+#endif
+#undef WIRELESS_SPY		// enable iwspy support
+
 /* As you can see this list is HUGH!
    I really don't know what a lot of these counts are about, but they
    are all here for completeness.  If the IGNLABEL macro is put in
@@ -241,10 +249,7 @@ MODULE_PARM_DESC(adhoc, "If non-zero, the card will start in adhoc mode.");
 #define spinlock_t int
 #define spin_lock_irqsave(x, y) save_flags(y); cli()
 #define spin_unlock_irqrestore(x, y) restore_flags(y)
-#define le32_to_cpu(x) (x)
-#define cpu_to_le32(x) (x)
-#define le16_to_cpu(x) (x)
-#define cpu_to_le16(x) (x)
+#define timer_pending(a) (((a)->prev) != NULL)
 #define KFREE_SKB(a,b)  dev_kfree_skb(a,b)
 #define PROC_REGISTER(a,b) proc_register_dynamic(a,b)
 #endif
@@ -563,8 +568,23 @@ typedef struct {
 
 #define BUSY_FID 0x10000
 
+#ifdef WIRELESS_EXT
+// Frequency list (map channels to frequencies)
+const long frequency_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
+				2447, 2452, 2457, 2462, 2467, 2472, 2484 };
+
+// A few details needed for WEP (Wireless Equivalent Privacy)
+#define MAX_KEY_SIZE 13			// 128 (?) bits
+#define MIN_KEY_SIZE  5			// 40 bits RC4 - WEP
+#define MAX_KEYS      4			// 4 different keys
+typedef struct wep_key_t {
+	u16	len;
+	u8	key[16];	/* 40-bit and 104-bit keys */
+} wep_key_t;
+#endif /* WIRELESS_EXT */
+
 static char *version =
-"airo.c 1.2 2000/10/19 14:12:32 (Benjamin Reed)";
+"airo.c 1.3 2000/12/11 (Benjamin Reed)";
 
 struct airo_info;
 
@@ -594,6 +614,11 @@ static int transmit_802_3_packet(struct airo_info*, u16 TxFid, char
 
 static void airo_interrupt( int irq, void* dev_id, struct pt_regs
 			    *regs);
+#ifdef WIRELESS_EXT
+static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+struct iw_statistics *airo_get_wireless_stats (struct net_device *dev);
+#endif /* WIRELESS_EXT */
+
 struct airo_info {
 	struct net_device_stats	stats;
 	int open;
@@ -632,6 +657,10 @@ struct airo_info {
 #define FLAG_RADIO_OFF 0x02
 	int (*bap_read)(struct airo_info*, u16 *pu16Dst, int bytelen, 
 		int whichbap);
+#ifdef WIRELESS_EXT
+	int			need_commit;	// Need to set config
+	struct iw_statistics	wstats;		// wireless stats
+#endif /* WIRELESS_EXT */
 };
 
 static inline int bap_read(struct airo_info *ai, u16 *pu16Dst, int bytelen, 
@@ -791,6 +820,10 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 	dev->get_stats = &airo_get_stats;
 	dev->set_multicast_list = &airo_set_multicast_list;
 	dev->do_ioctl = &private_ioctl;
+#ifdef WIRELESS_EXT
+	dev->do_ioctl = &airo_ioctl;
+	dev->get_wireless_stats = airo_get_wireless_stats;
+#endif /* WIRELESS_EXT */
 	dev->change_mtu = &airo_change_mtu;
 	dev->open = &airo_open;
 	dev->stop = &airo_close;
@@ -2466,6 +2499,29 @@ static int do_writerid( struct airo_info *ai, u16 rid, const void *rid_data,
 	return rc;
 }
 
+/* Returns the length of the key at the index.  If index == 0xffff
+ * the index of the transmit key is returned.  If the key doesn't exist,
+ * -1 will be returned.
+ */
+static int get_wep_key(struct airo_info *ai, u16 index) {
+	WepKeyRid wkr;
+	int rc;
+	u16 lastindex;
+
+	rc = PC4500_readrid(ai, RID_WEP_TEMP, &wkr, sizeof(wkr));
+	if (rc == SUCCESS) do {
+		lastindex = wkr.kindex;
+		if (wkr.kindex == index) {
+			if (index == 0xffff) {
+				return wkr.mac[0];
+			}
+			return wkr.klen;
+		}
+		PC4500_readrid(ai, RID_WEP_PERM, &wkr, sizeof(wkr));
+	} while(lastindex != wkr.kindex);
+	return -1;
+}
+
 static int set_wep_key(struct airo_info *ai, u16 index,
 		       const char *key, u16 keylen, int perm ) {
 	static const unsigned char macaddr[6] = { 0x01, 0, 0, 0, 0, 0 };
@@ -2858,4 +2914,621 @@ void cleanup_module( void )
 #endif
 }
 
+#ifdef WIRELESS_EXT
+/*
+ * Initial Wireless Extension code for Aironet driver by :
+ *	Jean Tourrilhes <jt@hpl.hp.com> - HPL - 17 November 00
+ */
+#ifndef IW_ENCODE_NOKEY
+#define IW_ENCODE_NOKEY         0x1000  /* Key is write only, so not here */
+#endif IW_ENCODE_NOKEY
+#define IW_ENCODE_MODE  (IW_ENCODE_DISABLED | IW_ENCODE_RESTRICTED | IW_ENCODE_OPEN)
+
+/*
+ * This defines the configuration part of the Wireless Extensions
+ * Note : irq and spinlock protection will occur in the subroutines
+ *
+ * TODO :
+ *	o Check input value more carefully and fill correct values in range
+ *	o Implement : POWER, SPY, APLIST
+ *	o Optimise when adapter is closed (aggregate changes, commit later)
+ *	o Test and shakeout the bugs (if any)
+ *
+ * Jean II
+ */
+static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	struct airo_info *local = (struct airo_info*) dev->priv;
+	struct iwreq *wrq = (struct iwreq *) rq;
+	ConfigRid config;		/* Configuration info */
+	CapabilityRid cap_rid;		/* Card capability info */
+	StatusRid status_rid;		/* Card status info */
+	int rc = 0;
+
+	/* If the command read some stuff, we better get it out of the card
+	 * first... */
+	if(IW_IS_GET(cmd) || (cmd == SIOCSIWRATE)) {
+		PC4500_readrid(local, 0xFF50, &status_rid,
+			       sizeof(status_rid));
+		PC4500_readrid(local, 0xFF00, &cap_rid,
+			       sizeof(cap_rid));
+	}
+	/* Get config in all cases, because SET will just modify it */
+	PC4500_readrid(local, RID_ACTUALCONFIG, &config,
+		       sizeof(config));
+
+	switch (cmd) {
+	// Get name
+	case SIOCGIWNAME:
+		strcpy(wrq->u.name, "IEEE 802.11-DS");
+		break;
+
+	// Set frequency/channel
+	case SIOCSIWFREQ:
+		/* If setting by frequency, convert to a channel */
+		if((wrq->u.freq.e == 1) &&
+		   (wrq->u.freq.m >= (int) 2.412e8) &&
+		   (wrq->u.freq.m <= (int) 2.487e8)) {
+			int f = wrq->u.freq.m / 100000;
+			int c = 0;
+			while((c < 14) && (f != frequency_list[c]))
+				c++;
+			/* Hack to fall through... */
+			wrq->u.freq.e = 0;
+			wrq->u.freq.m = c + 1;
+		}
+		/* Setting by channel number */
+		if((wrq->u.freq.m > 1000) || (wrq->u.freq.e > 0))
+			rc = -EOPNOTSUPP;
+		else {
+			int channel = wrq->u.freq.m;
+			/* We should do a better check than that,
+			 * based on the card capability !!! */
+			if((channel < 1) || (channel > 16)) {
+				printk(KERN_DEBUG "%s: New channel value of %d is invalid!\n", dev->name, wrq->u.freq.m);
+				rc = -EINVAL;
+			} else {
+				/* Yes ! We can set it !!! */
+				config.channelSet = (u16)cpu_to_le16(channel - 1);
+				local->need_commit = 1;
+			}
+		}
+		break;
+
+	// Get frequency/channel
+	case SIOCGIWFREQ:
+#ifdef WEXT_USECHANNELS
+		wrq->u.freq.m = ((int) le16_to_cpu(status_rid.channel) + 1);
+		wrq->u.freq.e = 0;
+#else
+		{
+			int f = (int) le16_to_cpu(status_rid.channel);
+			wrq->u.freq.m = frequency_list[f] * 100000;
+			wrq->u.freq.e = 1;
+		}
+#endif
+		break;
+
+	// Set desired network name (ESSID)
+	case SIOCSIWESSID:
+		if (wrq->u.data.pointer) {
+			char	essid[IW_ESSID_MAX_SIZE + 1];
+			SsidRid SSID_rid;		/* SSIDs */
+
+			/* Reload the list of current SSID */
+			PC4500_readrid(local, RID_SSID, 
+				       &SSID_rid, sizeof(SSID_rid));
+
+			/* Check if we asked for `any' */
+			if(wrq->u.data.flags == 0) {
+				/* Just send an empty SSID list */
+				memset(&SSID_rid, 0, sizeof(SSID_rid));
+			} else {
+				int	index = (wrq->u.data.flags &
+						 IW_ENCODE_INDEX) - 1;
+
+				/* Check the size of the string */
+				if(wrq->u.data.length > IW_ESSID_MAX_SIZE+1) {
+					rc = -E2BIG;
+					break;
+				}
+				/* Check if index is valid */
+				if((index < 0) || (index >= 4)) {
+					rc = -EINVAL;
+					break;
+				}
+
+				/* Set the SSID */
+				memset(essid, 0, sizeof(essid));
+				copy_from_user(essid,
+					       wrq->u.data.pointer,
+					       wrq->u.data.length);
+				memcpy(SSID_rid.ssids[index].ssid, essid,
+				       sizeof(essid) - 1);
+				SSID_rid.ssids[index].len = cpu_to_le16(wrq->u.data.length - 1);
+			}
+			/* Write it to the card */
+			do_writerid(local, RID_SSID,
+				    &SSID_rid, sizeof(SSID_rid));
+		}
+		break;
+
+	// Get current network name (ESSID)
+	case SIOCGIWESSID:
+		if (wrq->u.data.pointer) {
+			char essid[IW_ESSID_MAX_SIZE + 1];
+
+			/* Note : if wrq->u.data.flags != 0, we should
+			 * get the relevant SSID from the SSID list... */
+
+			/* Get the current SSID */
+			memcpy(essid, status_rid.SSID, status_rid.SSIDlen);
+			essid[status_rid.SSIDlen] = '\0';
+			/* If none, we may want to get the one that was set */
+
+			/* Push it out ! */
+			wrq->u.data.length = strlen(essid) + 1;
+			wrq->u.data.flags = 1; /* active */
+			copy_to_user(wrq->u.data.pointer,
+				     essid, sizeof(essid));
+		}
+		break;
+
+	// Get current Access Point (BSSID)
+	case SIOCGIWAP:
+		/* Tentative. This seems to work, wow, I'm lucky !!! */
+		memcpy(wrq->u.ap_addr.sa_data, status_rid.bssid[0], 6);
+		wrq->u.ap_addr.sa_family = ARPHRD_ETHER;
+		break;
+
+	// Set desired station name
+	case SIOCSIWNICKN:
+		if (wrq->u.data.pointer) {
+			char	name[16 + 1];
+
+			/* Check the size of the string */
+			if(wrq->u.data.length > 16 + 1) {
+				rc = -E2BIG;
+				break;
+			}
+			memset(name, 0, sizeof(name));
+			copy_from_user(name, wrq->u.data.pointer, wrq->u.data.length);
+			memcpy(config.nodeName, name, 16);
+			local->need_commit = 1;
+		}
+		break;
+
+	// Get current station name
+	case SIOCGIWNICKN:
+		if (wrq->u.data.pointer) {
+			char name[IW_ESSID_MAX_SIZE + 1];
+
+			strncpy(name, config.nodeName, 16);
+			name[16] = '\0';
+			wrq->u.data.length = strlen(name) + 1;
+			copy_to_user(wrq->u.data.pointer, name, sizeof(name));
+		}
+		break;
+
+	// Set the desired bit-rate
+	case SIOCSIWRATE:
+	{
+		/* First : get a valid bit rate value */
+		u8	brate = 0;
+		int	i;
+
+		/* Which type of value ? */
+		if((wrq->u.bitrate.value < 8) &&
+		   (wrq->u.bitrate.value >= 0)) {
+			/* Setting by rate index */
+			/* Find value in the magic rate table */
+			brate = cap_rid.supportedRates[wrq->u.bitrate.value];
+		} else {
+			/* Setting by frequency value */
+			u8	normvalue = (u8) (wrq->u.bitrate.value/500000);
+
+			/* Check if rate is valid */
+			for(i = 0 ; i < 8 ; i++) {
+				if(normvalue == cap_rid.supportedRates[i]) {
+					brate = normvalue;
+					break;
+				}
+			}
+		}
+		/* -1 designed the max rate (mostly auto mode) */
+		if(wrq->u.bitrate.value == -1) {
+			/* Get the highest available rate */
+			for(i = 0 ; i < 8 ; i++) {
+				if(cap_rid.supportedRates[i] == 0)
+					break;
+			}
+			if(i != 0)
+				brate = cap_rid.supportedRates[i - 1];
+		}
+		/* Check that it is valid */
+		if(brate == 0) {
+			rc = -EINVAL;
+			break;
+		}
+
+		/* Now, check if we want a fixed or auto value */
+		if(wrq->u.bitrate.fixed == 0) {
+			/* Fill all the rates up to this max rate */
+			memset(config.rates, 0, 8);
+			for(i = 0 ; i < 8 ; i++) {
+				config.rates[i] = cap_rid.supportedRates[i];
+				if(config.rates[i] == brate)
+					break;
+			}
+			local->need_commit = 1;
+		} else {
+			/* Fixed mode */
+			/* One rate, fixed */
+			memset(config.rates, 0, 8);
+			config.rates[0] = brate;
+			local->need_commit = 1;
+		}
+		break;
+	}
+
+	// Get the current bit-rate
+	case SIOCGIWRATE:
+		{
+			int brate = le16_to_cpu(status_rid.currentXmitRate);
+			wrq->u.bitrate.value = brate * 500000;
+			/* If more than one rate, set auto */
+			wrq->u.rts.fixed = (config.rates[1] == 0);
+		}
+		break;
+
+	// Set the desired RTS threshold
+	case SIOCSIWRTS:
+		{
+			int rthr = wrq->u.rts.value;
+			if(wrq->u.rts.disabled)
+				rthr = 2312;
+			if((rthr < 0) || (rthr > 2312)) {
+				rc = -EINVAL;
+			} else {
+				config.rtsThres = (u16)cpu_to_le16(rthr);
+				local->need_commit = 1;
+			}
+		}
+		break;
+
+	// Get the current RTS threshold
+	case SIOCGIWRTS:
+		wrq->u.rts.value = le16_to_cpu(config.rtsThres);
+		wrq->u.rts.disabled = (wrq->u.rts.value >= 2312);
+		wrq->u.rts.fixed = 1;
+		break;
+
+	// Set the desired fragmentation threshold
+	case SIOCSIWFRAG:
+		{
+			int fthr = wrq->u.frag.value;
+			if(wrq->u.frag.disabled)
+				fthr = 2312;
+			if((fthr < 256) || (fthr > 2312)) {
+				rc = -EINVAL;
+			} else {
+				fthr &= ~0x1;	/* Get an even value */
+				config.fragThresh = (u16)cpu_to_le16(fthr);
+				local->need_commit = 1;
+			}
+		}
+		break;
+
+	// Get the current fragmentation threshold
+	case SIOCGIWFRAG:
+		wrq->u.frag.value = le16_to_cpu(config.fragThresh);
+		wrq->u.frag.disabled = (wrq->u.frag.value >= 2312);
+		wrq->u.frag.fixed = 1;
+		break;
+
+	// Set mode of operation
+	case SIOCSIWMODE:
+		/* Note : we deal only with Ad-Hoc and managed mode.
+		 * We could map other modes, but they are undocumented
+		 * Jean II */
+		{
+			char mode = 0;		/* Default : ad-hoc */
+
+			switch(wrq->u.mode) {
+			case IW_MODE_INFRA:
+				mode = 1;
+				/* Fall through */
+			case IW_MODE_ADHOC:
+				config.opmode = cpu_to_le16(mode);
+				local->need_commit = 1;
+				break;
+			default:
+				rc = -EINVAL;
+			}
+		}
+		break;
+
+	// Get mode of operation
+	case SIOCGIWMODE:
+		/* If not managed, assume it's ad-hoc */
+		if(config.opmode == 1)
+			wrq->u.mode = IW_MODE_INFRA;
+		else
+			wrq->u.mode = IW_MODE_ADHOC;
+		break;
+
+	// Set WEP keys and mode
+	case SIOCSIWENCODE:
+		/* Is WEP supported ? */
+		if(!1) {
+			rc = -EOPNOTSUPP;
+			break;
+		}
+		/* Basic checking: do we have a key to set ? */
+		if (wrq->u.encoding.pointer != (caddr_t) 0) {
+			wep_key_t key;
+			int index = (wrq->u.encoding.flags & IW_ENCODE_INDEX) - 1;
+			int current_index = get_wep_key(local, 0xffff);
+			/* Check the size of the key */
+			if (wrq->u.encoding.length > MAX_KEY_SIZE) {
+				rc = -EINVAL;
+				break;
+			}
+			/* Check the index (none -> use current) */
+			if ((index < 0) || (index >= MAX_KEYS))
+				index = current_index;
+			/* Set the length */
+			if (wrq->u.encoding.length > MIN_KEY_SIZE)
+				key.len = MAX_KEY_SIZE;
+			else
+				if (wrq->u.encoding.length > 0)
+					key.len = MIN_KEY_SIZE;
+				else
+					/* Disable the key */
+					key.len = 0;
+			/* Check if the key is not marked as invalid */
+			if(!(wrq->u.encoding.flags & IW_ENCODE_NOKEY)) {
+				/* Cleanup */
+				memset(key.key, 0, MAX_KEY_SIZE);
+				/* Copy the key in the driver */
+				if(copy_from_user(key.key,
+						  wrq->u.encoding.pointer,
+						  wrq->u.encoding.length)) {
+					key.len = 0;
+					rc = -EFAULT;
+					break;
+				}
+				/* Send the key to the card */
+				set_wep_key(local, index, key.key,
+					    key.len, 1);
+			}
+			/* WE specify that if a valid key is set, encryption
+			 * should be enabled (user may turn it off later)
+			 * This is also how "iwconfig ethX key on" works */
+			if((index == current_index) && (key.len > 0) &&
+			   (config.authType == AUTH_OPEN)) {
+				config.authType = AUTH_ENCRYPT;
+				local->need_commit = 1;
+			}
+		} else {
+			/* Do we want to just set the transmit key index ? */
+			int index = (wrq->u.encoding.flags & IW_ENCODE_INDEX) - 1;
+			if ((index >= 0) && (index < MAX_KEYS)) {
+				set_wep_key(local, index, 0, 0, 1);
+			} else
+				/* Don't complain if only change the mode */
+				if(!wrq->u.encoding.flags & IW_ENCODE_MODE) {
+					rc = -EINVAL;
+					break;
+				}
+		}
+		/* Read the flags */
+		if(wrq->u.encoding.flags & IW_ENCODE_DISABLED)
+			config.authType = AUTH_OPEN;	// disable encryption
+		if(wrq->u.encoding.flags & IW_ENCODE_RESTRICTED)
+			config.authType = AUTH_SHAREDKEY;	// Only Both
+		if(wrq->u.encoding.flags & IW_ENCODE_OPEN)
+			config.authType = AUTH_ENCRYPT;	// Only Wep
+		/* Commit the changes if needed */
+		if(wrq->u.encoding.flags & IW_ENCODE_MODE)
+			local->need_commit = 1;
+		break;
+
+	// Get the WEP keys and mode
+	case SIOCGIWENCODE:
+		/* Is it supported ? How do we test encryption support ? */
+		if(!1) {
+			rc = -EOPNOTSUPP;
+			break;
+		}
+		// Only super-user can see WEP key
+		if (!capable(CAP_NET_ADMIN)) {
+			rc = -EPERM;
+			break;
+		}
+
+		// Basic checking...
+		if (wrq->u.encoding.pointer != (caddr_t) 0) {
+			char zeros[16];
+			int index = (wrq->u.encoding.flags & IW_ENCODE_INDEX) - 1;
+
+			memset(zeros,0, sizeof(zeros));
+			/* Check encryption mode */
+			wrq->u.encoding.flags = IW_ENCODE_NOKEY;
+			/* Is WEP enabled ??? */
+			switch(config.authType)	{
+			case AUTH_ENCRYPT:
+				wrq->u.encoding.flags |= IW_ENCODE_OPEN;
+				break;
+			case AUTH_SHAREDKEY:
+				wrq->u.encoding.flags |= IW_ENCODE_RESTRICTED;
+				break;
+			default:
+			case AUTH_OPEN:
+				wrq->u.encoding.flags |= IW_ENCODE_DISABLED;
+				break;
+			}
+
+			/* Which key do we want ? -1 -> tx index */
+			if((index < 0) || (index >= MAX_KEYS))
+				index = get_wep_key(local, 0xffff);
+			wrq->u.encoding.flags |= index + 1;
+			/* Copy the key to the user buffer */
+			wrq->u.encoding.length = get_wep_key(local, index);
+			if (wrq->u.encoding.length > 16) {
+				wrq->u.encoding.length=0;
+			}
+			if(copy_to_user(wrq->u.encoding.pointer,
+					zeros,
+					wrq->u.encoding.length))
+				rc = -EFAULT;
+		}
+		break;
+
+	// Get range of parameters
+	case SIOCGIWRANGE:
+		if (wrq->u.data.pointer) {
+			struct iw_range range;
+			int		i;
+			int		k;
+
+			rc = verify_area(VERIFY_WRITE, wrq->u.data.pointer, sizeof(struct iw_range));
+			if (rc)
+				break;
+			wrq->u.data.length = sizeof(range);
+			/* Should adapt depending on max rate */
+			range.throughput = 1.6 * 1024 * 1024;
+			range.min_nwid = 0x0000;
+			range.max_nwid = 0x0000;
+			range.num_channels = 14;
+			/* Should be based on cap_rid.country to give only
+			 * what the current card support */
+			k = 0;
+			for(i = 0; i < 14; i++) {
+				range.freq[k].i = i + 1; /* List index */
+				range.freq[k].m = frequency_list[i] * 100000;
+				range.freq[k++].e = 1;	/* Values in table in MHz -> * 10^5 * 10 */
+			}
+			range.num_frequency = k;
+
+			/* Hum... Should put the right values there */
+			range.max_qual.qual = 0xFF;
+			range.max_qual.level = 0xFF;
+			range.max_qual.noise = 0;
+
+			for(i = 0 ; i < 8 ; i++) {
+				range.bitrate[i] = cap_rid.supportedRates[i] * 500000;
+				if(range.bitrate[i] == 0)
+					break;
+			}
+			range.num_bitrates = i;
+
+			range.min_rts = 0;
+			range.max_rts = 2312;
+			range.min_frag = 256;
+			range.max_frag = 2312;
+
+			/* Is WEP it supported? */
+			/* Currently, I don't know how to tell if WEP is
+			 * supported and which version is supported :-( */
+			if(1) {
+				// WEP: RC4 40 bits
+				range.encoding_size[0] = 5;
+				// RC4 ~128 bits
+				range.encoding_size[1] = 13;
+				range.num_encoding_sizes = 2;
+				range.max_encoding_tokens = 4;	// 4 keys
+			} else {
+				range.num_encoding_sizes = 0;
+				range.max_encoding_tokens = 0;
+			}
+
+			copy_to_user(wrq->u.data.pointer, &range, sizeof(struct iw_range));
+		}
+		break;
+
+		/* Missing :
+		 * SENS : Doesn't seem to be available
+		 * POWER : I'm too lazy to do it
+		 * SPY : Useful for Ad-Hoc mode people. I feel a bit lazy...
+		 * APLIST : Low priority...
+		 */
+
+		// All other calls are currently unsupported
+		default:
+			rc = -EOPNOTSUPP;
+	}
+
+	/* Some of the "SET" function may have modified some of the
+	 * parameters. It's now time to commit them in the card */
+	if(local->need_commit) {
+		/* A classical optimisation here is to not commit any change
+		 * if the card is not "opened". This is what we do in
+		 * wvlan_cs (see for details).
+		 * For that, we would need to have the config RID saved in
+		 * the airo_info struct and make sure to not re-read it if
+		 * local->need_commit != 0. Then, you need to patch "open"
+		 * to do the final commit of all parameters...
+		 * Jean II */
+		Cmd command;
+		Resp rsp;
+
+		command.cmd = MAC_DISABLE; // disable in case already enabled
+		issuecommand(local, &command, &rsp);
+
+		local->config = config;	/* ???? config is local !!! */
+		checkThrottle(&config);
+		PC4500_writerid(local, RID_CONFIG, &config,
+				sizeof(config));
+		enable_MAC(local, &rsp);
+
+		local->need_commit = 0;
+	}
+
+	return(rc);
+}
+
+/*
+ * Get the Wireless stats out of the driver
+ * Note : irq and spinlock protection will occur in the subroutines
+ *
+ * TODO :
+ *	o Check if work in Ad-Hoc mode (otherwise, use SPY, as in wvlan_cs)
+ *	o Find the noise level
+ *	o Convert values to dBm
+ *	o Fill out discard.misc with something interesting
+ *
+ * Jean
+ */
+struct iw_statistics *airo_get_wireless_stats(struct net_device *dev)
+{
+	struct airo_info *local = (struct airo_info*) dev->priv;
+	StatusRid status_rid;
+	char buffer[1024];
+	int *vals = (int*)&buffer[4];
+
+	/* Get stats out of the card */
+	PC4500_readrid(local, 0xFF50, &status_rid,
+		       sizeof(status_rid));
+	PC4500_readrid(local, RID_STATS, buffer,
+		       sizeof(buffer));
+
+	/* The status */
+	local->wstats.status = le16_to_cpu(status_rid.mode);
+
+	/* Signal quality and co. But where is the noise level ??? */
+	local->wstats.qual.qual = le16_to_cpu(status_rid.signalQuality);
+	local->wstats.qual.level = le16_to_cpu(status_rid.normalizedSignalStrength);
+	local->wstats.qual.noise = 0;
+	local->wstats.qual.updated = 3;
+
+	/* Packets discarded in the wireless adapter due to wireless
+	 * specific problems */
+	local->wstats.discard.nwid = le32_to_cpu(vals[56]);/* SSID Mismatch */
+	local->wstats.discard.code = le32_to_cpu(vals[6]);/* RxWepErr */
+	local->wstats.discard.misc = 0;		/* Your choice ;-) */
+
+	return (&local->wstats);
+}
+#endif /* WIRELESS_EXT */
   

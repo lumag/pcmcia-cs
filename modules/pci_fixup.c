@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.23 2000/11/07 21:15:14
+    pci_fixup.c 1.24 2000/12/19 16:09:32
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -246,6 +246,23 @@ static void ali_init(struct pci_dev *router, u8 link, u8 irq)
     pci_write_config_byte(router, 0x48 + ((link-1)>>1), pirq);
 }
 
+static u8 cyrix_link(struct pci_dev *router, u8 link)
+{
+    u8 pirq;
+    /* link should be 1, 2, 3, 4 */
+    pci_read_config_byte(router, 0x5c + ((link-1)>>1), &pirq);
+    return ((link & 1) ? pirq >> 4 : pirq & 15);
+}
+
+static void cyrix_init(struct pci_dev *router, u8 link, u8 irq)
+{
+    u8 pirq;
+    pci_read_config_byte(router, 0x5c + (link>>1), &pirq);
+    pirq &= (link & 1) ? 0x0f : 0xf0;
+    pirq |= (link & 1) ? (irq << 4) : (irq & 15);
+    pci_write_config_byte(router, 0x5c + (link>>1), pirq);
+}
+
 /*
   A table of all the PCI interrupt routers for which we know how to
   interpret the link bytes.
@@ -318,7 +335,8 @@ struct router {
     { ID(OPTI, 82C700),		&opti_link,	&opti_init },
     { ID(AL, M1533),		&ali_link,	&ali_init },
     { ID(SI, 503),		&pIIx_link,	&pIIx_init },
-    { ID(SI, 496),		&pIIx_link,	&pIIx_init }
+    { ID(SI, 496),		&pIIx_link,	&pIIx_init },
+    { ID(CYRIX, 5530_LEGACY),	&cyrix_link,	&cyrix_init }
 };
 #define ROUTER_COUNT (sizeof(router_table)/sizeof(router_table[0]))
 

@@ -20,6 +20,25 @@
  *		Have a closer look to the endianess (PPC problems).
  *
  * HISTORY
+ *	v1.0.6	7/12/2000 - David Hinds, Anton Blanchard, Jean II and others
+ *		Endianess fix for PPC users, first try (David)
+ *		Fix some ranges (power management, key size, ...) (me)
+ *		Auto rate up to a maximum (for ex. up to 5.5) (me)
+ *		Remove error on IW_ENCODE_RESTRICTED (me)
+ *		Better error messages to catch stupid users (me)
+ *		---
+ *		Oups ! Firmware 6.06 *do* support port3 (me)
+ *		Oups ! ibss mode is not fully functional in firmware 6.04 (me)
+ *		Match Windows driver for selecting Ad-Hoc mode (me)
+ *		Get MAC address earlier, so that if module parameters are
+ *			invalid, we can still use wireless.opts... (me)
+ *		Use ethX and not wvlanX by default (me)
+ *		Minimal support for some PrismII cards (me)
+ *		Check out of bound in getratelist (Paul Mackerras)
+ *		Finish up the endianess fix for PPC and test it 
+ *			(Paul Mackerras and Hugh Blemings)
+ *		Check Cabletron Firmware 4.32 support (Anton)
+ *
  *	v1.0.5	19/10/2000 - David Hinds, Jean II and others
  *		Support for 6.00 firmware (remove fragmentation - ? + me)
  *		Add Microwave Oven Robustness support (me)
@@ -285,32 +304,29 @@ MODULE_PARM(pc_debug, "i");
 /********************************************************************
  * MISC
  */
-static char *version = "1.0.5";
+static char *version = "1.0.6";
 static dev_info_t dev_info = "wvlan_cs";
 static dev_link_t *dev_list = NULL;
 
 // Module parameters
-// Note: all these module parameters should really be "per-device", as
-// opposed to global. It mean converting everything to array and
-// referencing by the dev_list index (to add).
 static u_int irq_mask = 0xdeb8;				// Interrupt mask
 static int irq_list[4] = { -1 };			// Interrupt list (alternative)
-// Note : those parameters can be also modified through Wireless Extension,
-// and other parameters are also available this way...
+static int eth = 1;					// use ethX devname
+static int mtu = 1500;
+// Note : the following parameters can be also modified through Wireless
+// Extension, and additional parameters are also available this way...
 static int port_type = 1;				// Port-type [1]
 static int allow_ibss = 0;				// Allow a IBSS [0]
 static char network_name[IW_ESSID_MAX_SIZE+1] = "\0";	// Name of network []
 static int channel = 3;					// Channel [3]
-static int eth = 0;
-static int mtu = 1500;
 MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
+MODULE_PARM(eth, "i");
+MODULE_PARM(mtu, "i");
 MODULE_PARM(port_type, "i");
 MODULE_PARM(allow_ibss, "i");
 MODULE_PARM(network_name, "c" __MODULE_STRING(IW_ESSID_MAX_SIZE));
 MODULE_PARM(channel, "i");
-MODULE_PARM(eth, "i");
-MODULE_PARM(mtu, "i");
 // Backward compatibility - This one is obsolete and will be removed soon
 static char station_name[IW_ESSID_MAX_SIZE+1] = "\0";	// Name of station []
 MODULE_PARM(station_name, "c" __MODULE_STRING(IW_ESSID_MAX_SIZE));
@@ -342,10 +358,10 @@ const long frequency_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
 				2447, 2452, 2457, 2462, 2467, 2472, 2484 };
 
 // Bit-rate list in 1/2 Mb/s (first is dummy - not for original turbo)
-const int rate_list[] = { 0, 2, 4, -255, 11, 22, -4, -11, 0, 0, 0, 0 };
+const int rate_list[] = { 0, 2, 4, -22, 11, 22, -4, -11, 0, 0, 0, 0 };
 
 // A few details needed for WEP (Wireless Equivalent Privacy)
-#define MAX_KEY_SIZE 14			// 128 (?) bits
+#define MAX_KEY_SIZE 13			// 128/104 (?) bits
 #define MIN_KEY_SIZE  5			// 40 bits RC4 - WEP
 #define MAX_KEYS      4			// 4 different keys
 
@@ -370,7 +386,8 @@ struct net_local {
 	int			has_port3;	// Ad-Hoc demo mode
 	int			has_ibssid;	// IBSS Ad-Hoc mode
 	int			has_mwo;	// MWO robust support
-	int			has_wep;	// WEP support
+	int			has_wep;	// Lucent WEP support
+	int			has_pwep;	// Prism WEP support
 	int			has_pm;		// Power Management support
 	/* Configuration : what is the current state of the hardware */
 	int			port_type;	// Port-type [1]
@@ -441,7 +458,7 @@ static int wvlan_hw_setthreshold (IFBP ifbp, int thrh, int cmd);
 static int wvlan_hw_getthreshold (IFBP ifbp, int cmd);
 static int wvlan_hw_setbitrate (IFBP ifbp, int brate);
 static int wvlan_hw_getbitrate (IFBP ifbp, int cur);
-static int wvlan_hw_getratelist (IFBP ifbp, char *brlist);
+static int wvlan_hw_getratelist (IFBP ifbp, char *brlist, int len);
 #ifdef WIRELESS_EXT
 static int wvlan_hw_getfrequencylist (IFBP ifbp, iw_freq *list, int max);
 static int wvlan_getbitratelist (IFBP ifbp, __s32 *list, int max);
@@ -543,7 +560,7 @@ static inline int wvlan_hw_setmaxdatalen (IFBP ifbp, int maxlen)
 
 	ltv.len = 2;
 	ltv.typ = CFG_CNF_MAX_DATA_LEN;
-	ltv.id[0] = maxlen;
+	ltv.id[0] = cpu_to_le16(maxlen);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CNF_MAX_DATA_LEN:0x%x) returned 0x%x\n", dev_info, maxlen, rc);
 	return rc;
@@ -573,7 +590,7 @@ static int wvlan_hw_getchannellist (IFBP ifbp)
 	ltv.len = 2;
 	ltv.typ = CFG_CHANNEL_LIST;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	chlist = ltv.id[0];
+	chlist = le16_to_cpup(&ltv.id[0]);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CHANNEL_LIST):0x%x returned 0x%x\n", dev_info, chlist, rc);
 	return rc ? 0 : chlist;
 }
@@ -585,7 +602,7 @@ static inline int wvlan_hw_setporttype (IFBP ifbp, int ptype)
 
 	ltv.len = 2;
 	ltv.typ = CFG_CNF_PORT_TYPE;
-	ltv.id[0] = ptype;
+	ltv.id[0] = cpu_to_le16(ptype);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CNF_PORT_TYPE:0x%x) returned 0x%x\n", dev_info, ptype, rc);
 	return rc;
@@ -599,7 +616,7 @@ static inline int wvlan_hw_getporttype (IFBP ifbp)
 	ltv.len = 2;
 	ltv.typ = CFG_CNF_PORT_TYPE;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	ptype = ltv.id[0];
+	ptype = le16_to_cpup(&ltv.id[0]);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CNF_PORT_TYPE):0x%x returned 0x%x\n", dev_info, ptype, rc);
 	return rc ? 0 : ptype;
 }
@@ -611,7 +628,7 @@ static inline int wvlan_hw_setallowibssflag (IFBP ifbp, int flag)
 
 	ltv.len = 2;
 	ltv.typ = CFG_CREATE_IBSS;
-	ltv.id[0] = flag;
+	ltv.id[0] = cpu_to_le16(flag);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CREATE_IBSS:0x%x) returned 0x%x\n", dev_info, flag, rc);
 	return rc;
@@ -625,7 +642,7 @@ static inline int wvlan_hw_getallowibssflag (IFBP ifbp)
 	ltv.len = 2;
 	ltv.typ = CFG_CREATE_IBSS;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	flag = ltv.id[0];
+	flag = le16_to_cpup(&ltv.id[0]);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CREATE_IBSS):0x%x returned 0x%x\n", dev_info, flag, rc);
 	return rc ? 0 : flag;
 }
@@ -638,7 +655,7 @@ static inline int wvlan_hw_setstationname (IFBP ifbp, char *name)
 	ltv.len = 18;
 	ltv.typ = CFG_CNF_OWN_NAME;
 	l = min(strlen(name), ltv.len*2);
-	ltv.id[0] = l;
+	ltv.id[0] = cpu_to_le16(l);
 	memcpy((char *) &ltv.id[1], name, l);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CNF_OWN_NAME:'%s') returned 0x%x\n", dev_info, name, rc);
@@ -656,8 +673,9 @@ static inline int wvlan_hw_getstationname (IFBP ifbp, char *name, int len)
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CNF_OWN_NAME) returned 0x%x\n", dev_info, rc);
 	if (rc)
 		return rc;
-	if (ltv.id[0])
-		l = min(len, ltv.id[0]);
+	l = le16_to_cpup(&ltv.id[0]);
+	if (l)
+		l = min(len, l);
 	else
 		l = min(len, ltv.len*2);	/* It's a feature */
 	memcpy(name, (char *) &ltv.id[1], l);
@@ -677,7 +695,7 @@ static inline int wvlan_hw_setssid (IFBP ifbp, char *name, int ptype)
 	else
 		ltv.typ = CFG_CNF_DESIRED_SSID;
 	l = min(strlen(name), ltv.len*2);
-	ltv.id[0] = l;
+	ltv.id[0] = cpu_to_le16(l);
 	memcpy((char *) &ltv.id[1], name, l);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CNF_OWN/DESIRED_SSID:'%s') returned 0x%x\n", dev_info, name, rc);
@@ -701,13 +719,12 @@ static int wvlan_hw_getssid (IFBP ifbp, char *name, int len, int cur, int ptype)
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CNF_OWN/DESIRED/CURRENT_SSID) returned 0x%x\n", dev_info, rc);
 	if (rc)
 		return rc;
-	if (ltv.id[0])
+	l = le16_to_cpup(&ltv.id[0]);
+	if (l)
 	{
-		l = min(len, ltv.id[0]);
+		l = min(len, l);
 		memcpy(name, (char *) &ltv.id[1], l);
 	}
-	else
-		l = 0;
 	name[l] = '\0';
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CNF_OWN/DESIRED/CURRENT_SSID):'%s'\n", dev_info, name);
 	return 0;
@@ -736,7 +753,7 @@ static inline int wvlan_hw_setchannel (IFBP ifbp, int channel)
 
 	ltv.len = 2;
 	ltv.typ = CFG_CNF_OWN_CHANNEL;
-	ltv.id[0] = channel;
+	ltv.id[0] = cpu_to_le16(channel);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CNF_OWN_CHANNEL:0x%x) returned 0x%x\n", dev_info, channel, rc);
 	return rc;
@@ -751,7 +768,7 @@ static int wvlan_hw_getchannel (IFBP ifbp)
 	ltv.len = 2;
 	ltv.typ = CFG_CNF_OWN_CHANNEL;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	channel = ltv.id[0];
+	channel = le16_to_cpup(&ltv.id[0]);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CNF_OWN_CHANNEL):0x%x returned 0x%x\n", dev_info, channel, rc);
 	return rc ? 0 : channel;
 }
@@ -764,7 +781,7 @@ static int wvlan_hw_getcurrentchannel (IFBP ifbp)
 	ltv.len = 2;
 	ltv.typ = CFG_CURRENT_CHANNEL;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	channel = ltv.id[0];
+	channel = le16_to_cpup(&ltv.id[0]);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CURRENT_CHANNEL):0x%x returned 0x%x\n", dev_info, channel, rc);
 	return rc ? 0 : channel;
 }
@@ -776,7 +793,7 @@ static int wvlan_hw_setthreshold (IFBP ifbp, int thrh, int cmd)
 
 	ltv.len = 2;
 	ltv.typ = cmd;
-	ltv.id[0] = thrh;
+	ltv.id[0] = cpu_to_le16(thrh);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(0x%x:0x%x) returned 0x%x\n", dev_info, cmd, thrh, rc);
 	return rc;
@@ -790,7 +807,7 @@ static int wvlan_hw_getthreshold (IFBP ifbp, int cmd)
 	ltv.len = 2;
 	ltv.typ = cmd;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	thrh = ltv.id[0];
+	thrh = le16_to_cpup(&ltv.id[0]);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(0x%x):0x%x returned 0x%x\n", dev_info, cmd, thrh, rc);
 	return rc ? 0 : thrh;
 }
@@ -803,7 +820,7 @@ static int wvlan_hw_setbitrate (IFBP ifbp, int brate)
 
 	ltv.len = 2;
 	ltv.typ = CFG_TX_RATE_CONTROL;
-	ltv.id[0] = brate;
+	ltv.id[0] = cpu_to_le16(brate);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_TX_RATE_CONTROL:0x%x) returned 0x%x\n", dev_info, brate, rc);
 	return rc;
@@ -817,12 +834,12 @@ static int wvlan_hw_getbitrate (IFBP ifbp, int cur)
 	ltv.len = 2;
 	ltv.typ = cur ? CFG_CURRENT_TX_RATE : CFG_TX_RATE_CONTROL;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	brate = ltv.id[0];
+	brate = le16_to_cpup(&ltv.id[0]);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_TX_RATE_CONTROL):0x%x returned 0x%x\n", dev_info, brate, rc);
 	return rc ? 0 : brate;
 }
 
-static int wvlan_hw_getratelist(IFBP ifbp, char *brlist)
+static int wvlan_hw_getratelist(IFBP ifbp, char *brlist, int brmaxlen)
 {
 	CFG_ID_STRCT ltv;
 	int rc, brnum;
@@ -830,7 +847,9 @@ static int wvlan_hw_getratelist(IFBP ifbp, char *brlist)
 	ltv.len = 10;
 	ltv.typ = CFG_SUPPORTED_DATA_RATES;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	brnum = ltv.id[0];
+	brnum = le16_to_cpup(&ltv.id[0]);
+	if (brnum > brmaxlen)
+		brnum = brmaxlen;
 	memcpy(brlist, (char *) &ltv.id[1], brnum);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_CHANNEL_LIST):0x%x returned 0x%x\n", dev_info, brnum, rc);
 	return rc ? 0 : brnum;
@@ -852,7 +871,7 @@ static inline int wvlan_hw_getfrequencylist(IFBP ifbp, iw_freq *list, int max)
 		{
 #if WIRELESS_EXT > 7
 			list[k].i = i + 1;	/* Set the list index */
-#endif WIRELESS_EXT
+#endif /* WIRELESS_EXT */
 			list[k].m = frequency_list[i] * 100000;
 			list[k++].e = 1;	/* Values in table in MHz -> * 10^5 * 10 */
 		}
@@ -863,7 +882,7 @@ static inline int wvlan_hw_getfrequencylist(IFBP ifbp, iw_freq *list, int max)
 static inline int wvlan_getbitratelist(IFBP ifbp, __s32 *list, int max)
 {
 	char brlist[9];
-	int brnum = wvlan_hw_getratelist(ifbp, brlist);
+	int brnum = wvlan_hw_getratelist(ifbp, brlist, sizeof(brlist));
 	int i;
 
 	/* Compute maximum number of freq to scan */
@@ -884,7 +903,7 @@ static int wvlan_hw_setpower (IFBP ifbp, int enabled, int cmd)
 
 	ltv.len = 2;
 	ltv.typ = cmd;
-	ltv.id[0] = enabled;
+	ltv.id[0] = cpu_to_le16(enabled);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(0x%x:0x%x) returned 0x%x\n", dev_info, cmd, enabled, rc);
 	return rc;
@@ -898,7 +917,7 @@ static int wvlan_hw_getpower (IFBP ifbp, int cmd)
 	ltv.len = 2;
 	ltv.typ = cmd;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	enabled = ltv.id[0];
+	enabled = le16_to_cpup(&ltv.id[0]);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(0x%x):0x%x returned 0x%x\n", dev_info, cmd, enabled, rc);
 	return rc ? 0 : enabled;
 }
@@ -910,7 +929,7 @@ static inline int wvlan_hw_setpmsleep (IFBP ifbp, int duration)
 
 	ltv.len = 2;
 	ltv.typ = CFG_CNF_MAX_SLEEP_DURATION;
-	ltv.id[0] = duration;
+	ltv.id[0] = cpu_to_le16(duration);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CNF_MAX_SLEEP_DURATION:0x%x) returned 0x%x\n", dev_info, duration, rc);
 	return rc;
@@ -924,7 +943,7 @@ static inline int wvlan_hw_getpmsleep (IFBP ifbp)
 	ltv.len = 2;
 	ltv.typ = CFG_CNF_MAX_SLEEP_DURATION;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	duration = ltv.id[0];
+	duration = le16_to_cpup(&ltv.id[0]);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CNF_MAX_SLEEP_DURATION):0x%x returned 0x%x\n", dev_info, duration, rc);
 	return rc ? 0 : duration;
 }
@@ -942,7 +961,7 @@ static int wvlan_hw_getprivacy (IFBP ifbp)
 	ltv.len = 2;
 	ltv.typ = CFG_PRIVACY_OPTION_IMPLEMENTED;
 	rc = hcf_get_info(ifbp, (LTVP) &ltv);
-	privacy = ltv.id[0];
+	privacy = le16_to_cpup(&ltv.id[0]);
 	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_PRIVACY_OPTION_IMPLEMENTED):0x%x returned 0x%x\n", dev_info, privacy, rc);
 	return rc ? 0 : privacy;
 }
@@ -952,13 +971,14 @@ static int wvlan_hw_setprivacy (IFBP ifbp, int mode, int transmit, KEY_STRCT *ke
 	CFG_ID_STRCT ltv;
 	CFG_CNF_DEFAULT_KEYS_STRCT ltv_key;
 	int rc;
+	int i;
 
 	if (mode)
 	{
 		// Set the index of the key used for transmission
 		ltv.len = 2;
 		ltv.typ = CFG_CNF_TX_KEY_ID;
-		ltv.id[0] = transmit;
+		ltv.id[0] = cpu_to_le16(transmit);
 		rc = hcf_put_info(ifbp, (LTVP) &ltv);
 		DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CNF_TX_KEY_ID:0x%x) returned 0x%x\n", dev_info, mode, rc);
 		if (rc)
@@ -968,6 +988,8 @@ static int wvlan_hw_setprivacy (IFBP ifbp, int mode, int transmit, KEY_STRCT *ke
 		ltv_key.len = sizeof(KEY_STRCT)*MAX_KEYS/2 + 1;
 		ltv_key.typ = CFG_CNF_DEFAULT_KEYS;
 		memcpy((char *) &ltv_key.key, (char *) keys, sizeof(KEY_STRCT)*MAX_KEYS);
+		for (i = 0; i < MAX_KEYS; ++i)
+			cpu_to_le16s(&ltv_key.key[i].len);
 		rc = hcf_put_info(ifbp, (LTVP) &ltv_key);
 		DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CNF_TX_KEY_ID:0x%x) returned 0x%x\n", dev_info, mode, rc);
 		if (rc)
@@ -976,7 +998,7 @@ static int wvlan_hw_setprivacy (IFBP ifbp, int mode, int transmit, KEY_STRCT *ke
 	// enable/disable encryption
 	ltv.len = 2;
 	ltv.typ = CFG_CNF_ENCRYPTION;
-	ltv.id[0] = mode;
+	ltv.id[0] = cpu_to_le16(mode);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_CNF_ENCRYPTION:0x%x) returned 0x%x\n", dev_info, mode, rc);
 	return rc;
@@ -990,13 +1012,13 @@ static int wvlan_hw_setpromisc (IFBP ifbp, int promisc)
 
 	ltv.len = 2;
 	ltv.typ = CFG_PROMISCUOUS_MODE;
-	ltv.id[0] = promisc;
+	ltv.id[0] = cpu_to_le16(promisc);
 	rc = hcf_put_info(ifbp, (LTVP) &ltv);
 	DEBUG(DEBUG_NOISY, "%s: hcf_put_info(CFG_PROMISCUOUS_MODE:0x%x) returned 0x%x\n", dev_info, promisc, rc);
 	return rc;
 }
 
-static inline int wvlan_hw_getfirmware (IFBP ifbp, int *first, int *major, int *minor)
+static inline int wvlan_hw_getfirmware (IFBP ifbp, int *vendor, int *major, int *minor)
 {
 	CFG_ID_STRCT ltv;
 	int	rc;
@@ -1009,12 +1031,12 @@ static inline int wvlan_hw_getfirmware (IFBP ifbp, int *first, int *major, int *
 		return rc;
 
 	/* Get the data we need (note : 16 bits operations) */
-	*first = ltv.id[1];
-	*major = ltv.id[2];
-	*minor = ltv.id[3];
+	*vendor = le16_to_cpup(&ltv.id[1]);
+	*major = le16_to_cpup(&ltv.id[2]);
+	*minor = le16_to_cpup(&ltv.id[3]);
 	/* There is more data after that, but I can't guess its use */
 
-	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_STA_IDENTITY):%d-%d.%d\n", dev_info, *first, *major, *minor);
+	DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_STA_IDENTITY):%d-%d.%d\n", dev_info, *vendor, *major, *minor);
 
 	return 0;
 }
@@ -1033,7 +1055,7 @@ static int wvlan_hw_config (struct net_device *dev)
 {
 	struct net_local *local = (struct net_local *) dev->priv;
 	int rc, i, chlist;
-	int	first, major, minor;	/* Firmware revision */
+	int	vendor, major, minor;	/* Firmware revision */
 	int	firmware;
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_hw_config(%s)\n", dev->name);
@@ -1050,43 +1072,86 @@ static int wvlan_hw_config (struct net_device *dev)
 	rc = hcf_action(&local->ifb, HCF_ACT_INT_ON);
 	DEBUG(DEBUG_NOISY, "%s: hcf_action(HCF_ACT_INT_ON) returned 0x%x\n", dev_info, rc);
 
+ 	/* Get MAC address (before we get a chance to fail) */
+ 	if (!rc) {
+ 		rc = wvlan_hw_getmacaddr(&local->ifb, dev->dev_addr, ETH_ALEN);
+ 		printk(KERN_INFO "%s: MAC address on %s is ", dev_info, dev->name);
+ 		for (i=0; i<ETH_ALEN; i++)
+ 			printk("%02x ", dev->dev_addr[i]);
+ 		printk("\n");
+ 	}
+ 
 	/* Get firmware revision of the card */
 	if (!rc)
-		rc = wvlan_hw_getfirmware(&local->ifb, &first, &major, &minor);
-
-	/* Paranoia */
-	if(first != 0x1)
-		printk(KERN_NOTICE "%s: Firmware return ``first'' = 0x%04X, please report...\n", dev_info, first);
+ 		rc = wvlan_hw_getfirmware(&local->ifb, &vendor, &major, &minor);
 
 	/* Process firmware info to know what it supports */
 	firmware = (major << 16) + minor;
-	if((!rc) && (first = 0x1)) {
-		/* Note : this will work at least for Lucent firmware */
-		local->has_port3  = (firmware <= 0x60004);
-		local->has_ibssid = (firmware >= 0x60000);
-		local->has_mwo    = (firmware >= 0x60000);
-		local->has_wep    = (firmware >= 0x40034);
-		local->has_pm     = (firmware >= 0x40034);
-		/* Note : I've tested the following firmwares :
-		 * 1.16 ; 4.08 ; 4.52 ; 6.04 and 6.06
-		 * Jean II */
-	}
+ 	if(!rc) {
+ 		switch(vendor) {
+ 		case 0x1:
+ 			/* This is a Lucent card : Wavelan IEEE, Orinoco,
+ 			 * Cabletron/Enterasys Roamabout or ELSA cards.
+ 			 * This is what we mainly support...
+ 			 * Note : this will work at least for Lucent
+ 			 * firmwares */
+ 			local->has_port3  = (firmware <= 0x60006);
+ 			local->has_ibssid = (firmware >= 0x60006);
+ 			local->has_mwo    = (firmware >= 0x60000);
+ 			local->has_wep    = (firmware >= 0x40020);
+ 			local->has_pwep   = 0;
+ 			local->has_pm     = (firmware >= 0x40020);
+ 			/* Note : I've tested the following firmwares :
+ 			 * 1.16 ; 4.08 ; 4.52 ; 6.04 and 6.06
+ 			 * Jean II */
+			/* Tested CableTron 4.32 - Anton */
+ 			break;
+ 		case 0x6:
+ 			/* This is a LinkSys/D-Link card. This is not a Lucent
+ 			 * card, but a PrismII card. It is is *very* similar
+ 			 * to the Lucent, and the the driver work 95%,
+ 			 * therefore, we attempt to support it... */
+ 			printk(KERN_NOTICE "%s: This is LinkSys/D-Link card, not a Wavelan IEEE card :-(
+You may want report firmare revision (0x%X) and what the card support.
+I will try to make it work, but you should look for a better driver.\n", dev_info, firmware);
+ 			local->has_port3  = 1;
+ 			local->has_ibssid = 0;
+ 			local->has_mwo    = 0;
+ 			local->has_wep    = 0;
+ 			local->has_pwep   = 1;
+ 			local->has_pm     = 1;
+ 			/* Would need to reverse engineer encryption support,
+ 			 * somebody with a card should do that... */
+ 			/* Transmit rate also seem to be different. */
+ 			/* Note : currently untested... Jean II */
+ 			break;
+ 		default:
+ 			printk(KERN_NOTICE "%s: Unrecognised card, card return vendor = 0x%04X, please report...\n", dev_info, vendor);
+ 			break;
+ 		}
+  	}
+ 
 	DEBUG(DEBUG_INFO, "%s: Found firmware 0x%X (%d) - Firmware capabilities : %d-%d-%d-%d-%d\n",
 	      dev_info, firmware, first, local->has_port3, local->has_ibssid,
 	      local->has_mwo, local->has_wep, local->has_pm);
 
-	/* Check for a few user mistakes... Cut down on support ;-) */
-	if((!local->has_port3) && (local->port_type == 3)) {
-		printk(KERN_NOTICE "%s: This firmware doesn't support ``port_type=3''.\n", dev_info);
-		rc = 255;
-	}
-	if((!local->has_ibssid) && (local->allow_ibss)) {
-		printk(KERN_NOTICE "%s: This firmware doesn't support ``allow_ibss=1''.\n", dev_info);
-		rc = 255;
-	}
-	if((local->allow_ibss) && (local->network_name[0] == '\0')) {
-		printk(KERN_NOTICE "%s: This firmware require an ESSID in Ad-Hoc mode.\n", dev_info);
-		rc = 255;
+ 	if(!rc) {
+ 		/* Check for a few user mistakes... Cut down on support ;-) */
+ 		if((!local->has_port3) && (local->port_type == 3)) {
+ 			printk(KERN_NOTICE "%s: This firmware doesn't support ``port_type=3'', please use iwconfig.\n", dev_info);
+ 			rc = 255;
+ 		}
+ 		if((!local->has_ibssid) && (local->allow_ibss)) {
+ 			printk(KERN_NOTICE "%s: This firmware doesn't support ``allow_ibss=1'', please update it.\n", dev_info);
+ 			rc = 255;
+ 		}
+ 		if((local->allow_ibss) && (local->network_name[0] == '\0')) {
+ 			printk(KERN_NOTICE "%s: This firmware require an ESSID in Ad-Hoc mode, please use iwconfig.\n", dev_info);
+ 			rc = 255;
+ 		}
+ 		if((local->has_ibssid) && (local->port_type == 3)) {
+ 			printk(KERN_NOTICE "%s: Warning, you are using the old proprietary Ad-Hoc mode (not the IBSS Ad-Hoc mode).\n", dev_info);
+ 		}
 	}
 
 	// Set hardware parameters
@@ -1129,8 +1194,7 @@ static int wvlan_hw_config (struct net_device *dev)
 #endif /* WIRELESS_EXT */
 
 	// Check valid channel settings
-	if (!rc && ((local->port_type == 3) || (local->allow_ibss)))
-	{
+	if (!rc && ((local->port_type == 3) || (local->allow_ibss))) {
 		chlist = wvlan_hw_getchannellist(&local->ifb);
 		printk(KERN_INFO "%s: Valid channels: ", dev_info);
 		for (i=1; i<17; i++)
@@ -1149,16 +1213,6 @@ static int wvlan_hw_config (struct net_device *dev)
 	{
 		rc = hcf_enable(&local->ifb, 0);
 		DEBUG(DEBUG_NOISY, "%s: hcf_enable(0) returned 0x%x\n", dev_info, rc);
-	}
-
-	// Get MAC address
-	if (!rc)
-	{
-		rc = wvlan_hw_getmacaddr(&local->ifb, dev->dev_addr, ETH_ALEN);
-		printk(KERN_INFO "%s: MAC address on %s is ", dev_info, dev->name);
-		for (i=0; i<ETH_ALEN; i++)
-			printk("%02x ", dev->dev_addr[i]);
-		printk("\n");
 	}
 
 	// Report error if any
@@ -1422,45 +1476,49 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 
 		// Set the desired bit-rate
 		case SIOCSIWRATE:
-			{
-				// Start the magic...
-				char	brlist[9];
-				int	brnum = wvlan_hw_getratelist(&local->ifb, brlist);
-				int	brate = wrq->u.bitrate.value/500000;
-				int	wvrate = 0;
+		{
+			// Start the magic...
+			char	brlist[9];
+			int	brnum = wvlan_hw_getratelist(&local->ifb, brlist, sizeof(brlist));
+			int	brate = wrq->u.bitrate.value/500000;
+			int	wvrate = 0;
 
-				// Auto or fixed ?
-				if(wrq->u.bitrate.fixed == 0)
-					// Let be simple for now...
+			// Auto or fixed ?
+			if(wrq->u.bitrate.fixed == 0) {
+				// Is there a valid value ?
+				if(wrq->u.bitrate.value == -1)
 					wvrate = 3;
-					// We could read the last desired
-					// channel and set corresp. auto mode
-				else if((wrq->u.bitrate.value <= (brnum * 2 - 1)) &&
-					(wrq->u.bitrate.value > 0))
-				{
-					// Setting by channel index
-					wvrate = wrq->u.bitrate.value;
+				else {
+					// Setting by rate value
+					// Find index in magic table
+					while((rate_list[wvrate] != -brate) &&
+					      (wvrate < (brnum * 2)))
+						wvrate++;
 				}
-				else
+			} else
+				if((wrq->u.bitrate.value <= (brnum * 2 - 1)) &&
+				   (wrq->u.bitrate.value > 0))
 				{
-					// Setting by frequency value
+					// Setting by rate index
+					wvrate = wrq->u.bitrate.value;
+				} else {
+					// Setting by rate value
 					// Find index in magic table
 					while((rate_list[wvrate] != brate) &&
 					      (wvrate < (brnum * 2)))
 						wvrate++;
-
-					// Check if in range
-					if((wvrate < 1) ||
-					   (wvrate >= (brnum * 2)))
-					{
-						rc = -EINVAL;
-						break;
-					}
 				}
-				local->transmit_rate = wvrate;
-				local->need_commit = 1;
+
+			// Check if in range
+			if((wvrate < 1) || (wvrate >= (brnum * 2)))
+			{
+				rc = -EINVAL;
+				break;
 			}
+			local->transmit_rate = wvrate;
+			local->need_commit = 1;
 			break;
+		}
 
 		// Get the current bit-rate
 		case SIOCGIWRATE:
@@ -1847,9 +1905,9 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				if (wvlan_hw_getprivacy(&local->ifb))
 				{
 					// WEP: RC4 40 bits
-					range.encoding_size[0] = 5;
+					range.encoding_size[0] = MIN_KEY_SIZE;
 					// RC4 ~128 bits
-					range.encoding_size[1] = 14;
+					range.encoding_size[1] = MAX_KEY_SIZE;
 					range.num_encoding_sizes = 2;
 					range.max_encoding_tokens = 4;	// 4 keys
 				}
@@ -1859,6 +1917,14 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					range.max_encoding_tokens = 0;
 				}
 #endif /* WIRELESS_EXT > 8 */
+#if WIRELESS_EXT > 9
+				range.min_pmp = 0;		/* ??? */
+				range.max_pmp = 65535000;	/* ??? */
+				range.pmp_flags = IW_POWER_PERIOD;
+				range.pmt_flags = 0;
+				range.pm_capa = IW_POWER_PERIOD |
+				  IW_POWER_UNICAST_R;
+#endif /* WIRELESS_EXT > 9 */
 				wv_driver_unlock(local, &flags);
 				copy_to_user(wrq->u.data.pointer, &range, sizeof(struct iw_range));
 				wv_driver_lock(local, &flags);
@@ -2030,7 +2096,7 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					printk(KERN_DEBUG "%s: hcf_get_info(0x%x) returned %d words:\n", dev_info, ltv.typ, ltv.len);
 					printk(KERN_DEBUG "%s: hex-dump: ", dev_info);
 					for (rc=0; rc<(ltv.len); rc++)
-						printk("%04x ", ltv.id[rc]);
+						printk("%04x ", le16_to_cpup(&ltv.id[rc]));
 					printk("\n");
 					printk(KERN_DEBUG "%s: ascii-dump: '", dev_info);
 					for (rc=0; rc<(ltv.len*2); rc++)
@@ -2089,9 +2155,9 @@ struct iw_statistics *wvlan_get_wireless_stats (struct net_device *dev)
 		ltv.typ = CFG_COMMS_QUALITY;
 		rc = hcf_get_info(&local->ifb, (LTVP) &ltv);
 		DEBUG(DEBUG_NOISY, "%s: hcf_get_info(CFG_COMMS_QUALITY) returned 0x%x\n", dev_info, rc);
-		local->wstats.qual.qual = max(min(ltv.coms_qual, 0x8b-0x2f), 0);
-		local->wstats.qual.level = max(min(ltv.signal_lvl, 0x8a), 0x2f) - 0x95;
-		local->wstats.qual.noise = max(min(ltv.noise_lvl, 0x8a), 0x2f) - 0x95;
+		local->wstats.qual.qual = max(min(le16_to_cpup(&ltv.coms_qual), 0x8b-0x2f), 0);
+		local->wstats.qual.level = max(min(le16_to_cpup(&ltv.signal_lvl), 0x8a), 0x2f) - 0x95;
+		local->wstats.qual.noise = max(min(le16_to_cpup(&ltv.noise_lvl), 0x8a), 0x2f) - 0x95;
 		local->wstats.qual.updated = 7;
 	}
 	else
@@ -2312,7 +2378,7 @@ int wvlan_tx (struct sk_buff *skb, struct net_device *dev)
 	struct net_local *local = (struct net_local *)dev->priv;
 	unsigned long flags;
 	int rc, len;
-	u_char *p;
+	char *p;
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_tx(%s)\n", dev->name);
 
@@ -2870,7 +2936,8 @@ next_entry:
 	// Make netdevice's name (if not ethX) and remember the device
 	// Not very efficient here, this should go somewhere into dev_list,
 	// but it works for now (taken from register_netdevice in kernel)
-	if (!eth)
+	/* Note : may fail if other drivers are also using this name */
+	if(!eth)
 	{
 		for (i=0; i<MAX_WVLAN_CARDS; ++i)
 			if (!wvlandev_index[i])
@@ -3006,10 +3073,12 @@ static dev_link_t *wvlan_attach (void)
 	local->transmit_rate = 3;
 	local->wep_on = 0;
 	local->pm_on = 0;
+	local->pm_multi = 1;
+	local->pm_period = 100000;
 	// Check obsolete module parameters
 	if(*(station_name)) {
 		strcpy(local->station_name, station_name);
-		printk(KERN_INFO "%s: ``station_name'' is an obsolete module parameter.", dev_info);
+		printk(KERN_INFO "%s: ``station_name'' is an obsolete module parameter, please use iwconfig.", dev_info);
 	}
 #endif /* WIRELESS_EXT */
 

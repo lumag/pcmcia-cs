@@ -1,12 +1,13 @@
 #
-# man/Makefile 1.47 2000/05/15 23:26:53 (David Hinds)
+# man/Makefile 1.49 2000/12/11 01:51:52 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
 COFLAGS = -kv
-MANDIR = $(PREFIX)/usr/man
+MANDIR := $(PREFIX)$(MANDIR)
+XMANDIR := $(PREFIX)$(XMANDIR)
 
 MAN1_X11 = cardinfo.1
 MAN4 = pcmcia_core.4 tcic.4 i82365.4 tc589_cs.4 pcnet_cs.4 dummy_cs.4 \
@@ -26,8 +27,8 @@ dep:
 clean:
 
 install-man1-x11: $(MAN1_X11)
-	@mkdir -p $(PREFIX)/usr/X11R6/man/man1
-	cp $(MAN1_X11) $(PREFIX)/usr/X11R6/man/man1
+	@mkdir -p $(XMANDIR)/man1
+	cp $(MAN1_X11) $(XMANDIR)/man1
 
 install-man4: $(MAN4)
 	@mkdir -p $(MANDIR)/man4

@@ -306,8 +306,10 @@ static void ibmtr_detach(dev_link_t *link)
 
     /* Unlink device structure, free bits */
     *linkp = link->next;
-    if (link->dev)
+    if (info->dev) {
 	unregister_trdev(info->dev);
+	kfree(info->dev);
+    }
     kfree(info);
 
 } /* ibmtr_detach */
@@ -541,6 +543,9 @@ static int ibmtr_event(event_t event, int priority,
 
 static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase)
 {
+#if (LINUX_VERSION_CODE < VERSION(2,2,0)) 
+    struct tok_info *ti = dev->priv;
+#endif
     int i;
 
     /* Bizarre IBM behavior, there are 16 bits of information we

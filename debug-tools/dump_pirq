@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# dump_pirq 1.19 2000/11/07 21:15:24
+# dump_pirq 1.20 2000/12/19 19:19:52
 #
 # A utility to parse the BIOS PCI IRQ Routing Table
 #
@@ -107,7 +107,9 @@ sub parse_pirq
 %sis = (0x04961039, "85C496/497",
 	0x00081039, "85C503");
 
-%all_routers = (%pIIx, %via, %opti, %pico, %ali, %sis);
+%cyrix = (0x01001078, "5530");
+
+%all_routers = (%pIIx, %via, %opti, %pico, %ali, %sis, %cyrix);
 
 sub outb
 {
@@ -226,6 +228,18 @@ sub dump_router
 	for ($i = 0; $i < 4; $i++) {
 	    $irq = ($p[$i] & 0x80) ? 0 : ($p[$i] & 0x0f);
 	    printf "  INT$tag[$i] (link 0x%02x): ", $i+$base;
+	    print ($irq ? "irq $irq\n" : "unrouted\n");
+	}
+
+    } elsif ((defined $cyrix{$vd}) || (defined $cyrix{$cvd})) {
+
+	$name = (defined $cyrix{$vd}) ? $cyrix{$vd} : $cyrix{$cvd};
+	printf "CYRIX $name PCI-to-ISA bridge\n";
+	$p = unpack "S", substr($buf, 0x5c, 2);
+	%tag = ("A", "B", "C", "D");
+	for ($i = 0; $i < 4; $i++) {
+	    $irq = ($p >> ($i * 4)) & 15;
+	    printf "  PIRQ$tag{$i} (link 0x%02x): ", $i+1;
 	    print ($irq ? "irq $irq\n" : "unrouted\n");
 	}
 

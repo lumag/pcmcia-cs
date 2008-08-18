@@ -1,4 +1,4 @@
-Known problems and limitations for the 3.1.22 PCMCIA release
+Known problems and limitations for the 3.1.23 PCMCIA release
 ============================================================
 
 Bug summaries:
@@ -185,12 +185,12 @@ o Xircom CBEM support in the tulip_cb driver seems to be extremely
   some people have reported kernel faults when a Xircom card is shut
   down with "ifconfig down".
 
-  Prognosis: I used to think that the Xircom inconsistencies had to do
-  with multiple chipset revisions.  After more study, it seems that
-  the receive filter setup on the Xircom chipset is quirky; different
-  network setups kick the filter differently, so many reported
-  differences in card behavior actually reflect different network
-  setups.
+  Prognosis: The receive filter in the Xircom chipset is screwed up
+  and I have not been able to deduce all the rules for how to set it
+  up successfully.  The current code seems to work fine for some but
+  not all network setups.  I have not had any luck asking Xircom for
+  help on this issue, so I have no idea when or if it will ever be
+  fixed properly.
 
   Temporarily setting the card to promiscuous mode ("ifconfig eth0
   promisc") or all-multicast mode ("ifconfig eth0 allmulti") seems

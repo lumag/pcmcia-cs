@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.172 2000/11/07 19:00:37
+# Configure 1.176 2000/12/19 22:16:47
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -283,6 +283,9 @@ if [ -f $LINUX/include/linux/compile.h ] ; then
 fi
 echo ""
 
+if [ ! "$CC" ] ; then
+    if which kgcc >/dev/null 2>&1 ; then CC=kgcc ; else CC=cc ; fi
+fi
 for x in PREFIX CC LD KFLAGS UFLAGS PCDEBUG ; do
     write_str $x
 done
@@ -865,6 +868,25 @@ if [ ! -d /var/run ] ; then
     echo "WARNING: /var/run not found."
     echo "    To fix, do 'mkdir /var/run'."
 fi
+
+# Where do man pages go?
+
+md ()
+{
+    L=`man -cw $1 2>/dev/null`
+    if [ $L ] ; then
+	M=`dirname $L 2>/dev/null`
+	MD=`dirname $M 2>/dev/null`
+	if [ -d "$MD" ] ; then echo $MD ; else echo $2 ; fi
+    else
+	echo $2
+    fi
+}
+
+MANDIR=`md ls /usr/man`
+write_str MANDIR
+XMANDIR=`md xterm /usr/X11R6/man`
+write_str XMANDIR
 
 #=======================================================================
 

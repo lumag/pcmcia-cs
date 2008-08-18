@@ -1356,7 +1356,6 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	     * packets */
 	    lp->stats.rx_dropped++;
 	    DEBUG(2, "%s: RX drop, too much done\n", dev->name);
-	    PutWord(XIRCREG0_DO, 0x8000); /* issue cmd: skip_rx_packet */
 	} else if (rsr & PktRxOk) {
 	    struct sk_buff *skb;
 
@@ -1431,8 +1430,7 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (!(rsr & PhyPkt))
 		    lp->stats.multicast++;
 	    }
-	    PutWord(XIRCREG0_DO, 0x8000); /* issue cmd: skip_rx_packet */
-	} else {
+	} else { /* bad packet */
 	    DEBUG(5, "rsr=%#02x\n", rsr);
 	}
 	if (rsr & PktTooLong) {
@@ -1447,6 +1445,9 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	    lp->stats.rx_fifo_errors++; /* okay ? */
 	    DEBUG(3, "%s: Alignment error\n", dev->name);
 	}
+
+	/* clear the received/dropped/error packet */
+	PutWord(XIRCREG0_DO, 0x8000); /* issue cmd: skip_rx_packet */
 
 	/* get the new ethernet status */
 	eth_status = GetByte(XIRCREG_ESR);

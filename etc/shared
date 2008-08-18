@@ -1,5 +1,5 @@
 #
-# shared 1.22 2000/08/22 04:20:48 (David Hinds)
+# shared 1.24 2000/12/15 19:02:48 (David Hinds)
 #
 
 usage ()
@@ -20,19 +20,36 @@ do_fuser ()
     fuser $*
 }
 
+log ()
+{
+    if [ $VERBOSE ] ; then
+	echo "$*" ; $*
+    else
+	# if command fails, print the command followed by its output
+	RET=0
+	LOG=/var/run/cardmgr.out
+	if ! ($*) >$LOG 2>&1 ; then RET=$? ; echo "$*" ; fi
+	cat $LOG 1>&2 ; rm -f $LOG
+	return $RET
+    fi
+}
+
 add_blkdev ()
 {
     # usage: add_blkdev [device]
-    if [ "$LINK" ] ; then ln -s $1 $LINK || return 1 ; fi
+    if [ "$LINK" ] ; then
+	if [ -L $LINK ] ; then rm $LINK ; fi
+	ln -s $1 $LINK || return 1
+    fi
     if is_true $DO_FSTAB ; then
 	echo "$1 $MOUNTPT ${FSTYPE:-auto} ${OPTS:-defaults} 0 0" >> /etc/fstab
     fi
     if is_true $DO_FSCK ; then
-	/sbin/fsck -Ta $1 || return 1
+	log /sbin/fsck -Ta $1 || return 1
     fi
     if is_true $DO_MOUNT ; then
 	O=${OPTS:+-o $OPTS} ; FS=${FSTYPE:+-t $FSTYPE}
-	mount -v $O $FS $1 $MOUNTPT || return 1
+	log mount -v $O $FS $1 $MOUNTPT || return 1
     fi
     return 0
 }
@@ -45,8 +62,9 @@ add_parts ()
 	# Get mount options for particular partitions
 	if [ "$PART" ] ; then
 	    ADDRESS="$1,$PART"
-	    unset DO_FSTAB DO_FSCK DO_MOUNT LINK
+	    unset INFO DO_FSTAB DO_FSCK DO_MOUNT LINK
 	    . $0.opts
+	    [ "$VERBOSE" -a "$INFO" ] && echo "$INFO"
 	fi
 	add_blkdev /dev/$DEVICE$PART || RET=1
     done
@@ -59,12 +77,13 @@ rm_blkdev ()
     test -b $1 || return 1
     do_fuser -k -m $1 > /dev/null
     if mount | fgrep -q "$1 on" ; then
-	umount -v $1 || return 1
+	log umount -v $1 || return 1
     fi
     if is_true $DO_FSTAB ; then
 	fgrep -v $1 /etc/fstab > /etc/fstab.N
 	mv /etc/fstab.N /etc/fstab
     fi
+    if [ -L "$LINK" ] ; then rm $LINK ; fi
 }
 
 rm_parts ()
@@ -87,7 +106,7 @@ rm_parts ()
     LIST=`mount | sed -ne "s+^\($BLK[0-9]*\) .*+\1+p"`
     if [ "$LIST" ] ; then
 	for MT in $LIST ; do
-	    umount -v $MT || return 1
+	    log umount -v $MT || return 1
 	done
     fi
 }

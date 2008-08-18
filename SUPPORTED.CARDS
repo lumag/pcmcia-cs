@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/11/07 21:20:05
+		Last updated: 2000/12/13 14:44:05
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -8,7 +8,7 @@ on this list, please let me know.  This list is complete to the best
 of my knowledge.
 
 CardBus cards are listed at the end of each section.  At this time,
-all CardBus drivers should be treated as experimental.  Beware that
+some CardBus drivers should be treated as experimental.  Beware that
 some cards have 16-bit and CardBus versions with very similar names.
 If the CardBus version is not specifically listed as supported here,
 then you should not expect it to work.
@@ -37,6 +37,7 @@ Ethernet cards:
 	NextCom NC5310
 	RATOC REX-9822, REX-5588A/W, REX-R280
 	TDK LAC-CD02x, LAK-CD021, LAK-CD022A, LAK-CD021AX, LAK-CD021BX
+	TDK LAC-CF010 Compact Flash
 
 	[nmclan_cs driver] [x86,ppc]
 	New Media EthernetLAN
@@ -121,7 +122,6 @@ Ethernet cards:
 	Network General "Sniffer"
 	Network Everywhere NP10T
 	New Media LanSurfer
-	UNEX NexNIC MA010
 	Novell/National NE4100 InfoMover
 	OvisLink Ethernet
 	Panasonic CF-VEL211P-B
@@ -145,11 +145,15 @@ Ethernet cards:
 	Surecom Ethernet
 	SVEC PN605C
 	Target 24007 Ethernet
+	TDK LAK-CD031
 	Thomas-Conrad Ethernet
 	TRENDnet Ethernet
 	Trust Ethernet Combo
+	UNEX NexNIC MA010
 	Vegas Technology Ethernet
 	Volktek NPL-402CT Ethernet
+	W-LINX LinxPRO Ethernet
+	Xircom CompactCard CFE-10
 
 	[smc91c92_cs driver] [x86,ppc]
 	Farallon Enet
@@ -174,12 +178,13 @@ Fast Ethernet (10/100baseT) adapters:
 	Apollo Fast Ethernet
 	Buffalo LPC3-CLX
 	COMPU-SHACK FASTline 10/100
-	Corega FastEther PCC-TX
+	Corega FastEther PCC-TX, FEther PCC-TXF
 	Digicom Palladio
-	D-Link DFE-650
+	D-Link DFE-650, DRP-16TX
 	EXP ThinLan 100
 	Fiberline Fast Ethernet
 	Hamlet FE1000 10/100
+	Hawking PN652TX
 	IO DATA PCET/TX
 	KTI KF-C16
 	Laneed LD-10/100CD
@@ -218,7 +223,6 @@ Fast Ethernet (10/100baseT) adapters:
 	3Com Megahertz 3C3FE575CT
 
 	[eepro100_cb driver] [x86]
-	[experimental]
 	Fujitsu FMV-J185
 	Intel EtherExpress PRO/100 CardBus II
 
@@ -227,7 +231,6 @@ Fast Ethernet (10/100baseT) adapters:
 	Ositech Seven of Spades CardBus
 
 	[tulip_cb driver] [x86]
-	[somewhat experimental]
 	Accton EN2220 CardBus
 	Allied Telesyn AT-2800
 	AmbiCom AMB8100
@@ -238,7 +241,8 @@ Fast Ethernet (10/100baseT) adapters:
 	D-Link DFE-660TX
 	Farallon EtherTX
 	Fujitsu FMV-J184
-	Genius MF3000			[ some do not work?? ]
+	Genius MF3000
+	Gericom Fast Ethernet
 	Kingston KNE-CB4TX
 	Laneed LD-10/100CB
 	LevelOne FPC-0101TX 10/100Mbps CardBus
@@ -248,9 +252,10 @@ Fast Ethernet (10/100baseT) adapters:
 	OvisLink LFS PCM 32
 	PLANET ENW-3502-FC
 	PrimeXpress Fast Ethernet
-	SMC EZ CardBus 10/100 Ethernet	[ some do not work?? ]
-	SVEC FD606 10/100 Ethernet	[ new cards do not work ]
+	SMC EZ CardBus 10/100 Ethernet
+	SVEC FD606 10/100 Ethernet
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
+	TRENDnet TE100-PCBUSR
 	UMAX Technologies UMAX250
 	[ Not recommended: support is experimental and unreliable ]
 	IBM 10/100 EtherJet CardBus
@@ -287,13 +292,18 @@ Wireless network adapters:
 	AT&T / NCR / Lucent WaveLAN version 2.0
 	DEC RoamAbout/DS
 
-	[wvlan_cs driver] [x86,axp,smp]
+	[wvlan_cs driver] [x86,axp,ppc,smp]
+	Addtron AWP-100
 	Cabletron/Enterasys RoamAbout 802.11 DS
-	D-Link DWL-650
 	ELSA AirLancer MC-11
+	IBM High Rate Wireless LAN
 	Lucent Orinoco WaveLAN/IEEE 802.11(b)
 	Melco WLI-PCM-L11
 	NCR WaveLAN/IEEE 802.11
+	[ functional but some features missing ]
+	D-Link DWL-650
+	Linksys WPC11 Instant Wireless
+	SMC2632W
 
 Modem and serial cards:
 
@@ -403,7 +413,7 @@ SCSI adapters:
 	Taxan ICD-400PN
 
 	[apa1480_cb driver] [x86,ppc,smp]
-	[recommend 2.2 or later kernel, experimental!]
+	[recommend 2.2 or later kernel]
 	Adaptec SlimSCSI 1480 CardBus
 
 IEEE 1394 (FireWire) cards:
@@ -411,6 +421,10 @@ IEEE 1394 (FireWire) cards:
 	[pcilynx_cb driver] [ppc]
 	[requires kernel ieee1394 patches, experimental!]
 	Newer Technology FireWire 2 Go
+
+	[ohci1394_cb driver] [ppc]
+	[requires kernel ieee1394 patches, experimental!]
+	Cherri IEEE-1394
 
 Multifunction ethernet/modem cards:
 
@@ -493,6 +507,7 @@ ATA/IDE Interface Cards:
 	[ide_cs driver] [x86,ppc,smp]
 	Apricorn ATA card, EZ-GIG transfer kit
 	Archos Zip100 MiniDrive
+	Argosy HD530 HardDisk
 	Microtech International XpressDock
 	DataStor Technology PCMCIA ATA/ATAPI Card
 	Creo DNBoy
@@ -574,8 +589,9 @@ own web sites.
 	MPS ISLINEnote ISDN adapter
 	  (Detlef Glaschick <glaschick@mps-software.de>)
 
-	[nin_cs driver]
+	[nsp_cs driver]
 	IO Data PCSC-F SCSI adapter
+	IO Data CBSC-II in 16-bit mode
 	  http://www.workbit.co.jp/workbit/products/nscsi-3.html
 	  (Yokota Hiroshi <yokota@netlab.is.tsukuba.ac.jp>)
 

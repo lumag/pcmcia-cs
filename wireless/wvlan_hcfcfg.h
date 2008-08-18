@@ -29,7 +29,7 @@
    Documentation is expected to be available in the week of 8 Februari 1999
 
 */
-
+#include <asm/byteorder.h>
 
 #ifndef HCFCFG_H                                                     
 #define HCFCFG_H 1
@@ -38,7 +38,7 @@
 *
 * FILE	 : hcfcfg.tpl // hcfcfg.h **************************** 2.0 ********************************************
 *
-* DATE   : 2000/01/06 23:30:52   1.2
+* DATE   : 2000/12/13 22:58:23   1.3
 *
 * AUTHOR : Nico Valster
 *
@@ -74,6 +74,9 @@
 
 /****************************************************************************
 wvlan_hcfcfg.h,v
+Revision 1.3  2000/12/13 22:58:23  root
+*** empty log message ***
+
 Revision 1.2  2000/01/06 23:30:52  root
 *** empty log message ***
 
@@ -152,9 +155,12 @@ Initial revision
  * Hint: introduce CNV_HOST_TO_NETWORK names if appropriate
  *
  */
- 
+
+#ifdef __BIG_ENDIAN
+#define HCF_BIG_ENDIAN				// selects Big Endian (a.k.a. Motorola), most significant byte first
+#else
 #define HCF_LITTLE_ENDIAN			// selects Little Endian (a.k.a. Intel), least significant byte first
-//#define HCF_BIG_ENDIAN				// selects Big Endian (a.k.a. Motorola), most significant byte first
+#endif
 
 /*	I/O Address size
  *	Platforms which use port mapped I/O will (in general) have a 64k I/O space, conveniently expressed in
@@ -570,8 +576,6 @@ typedef unsigned long				hcf_32;
 
 #include <asm/io.h>
 
-//#define CNV_LITTLE_TO_INT(x)			// No endianess conversion needed										
-
 #define FAR							// flat 32-bits code
 #define BASED 
 
@@ -579,16 +583,13 @@ typedef unsigned char				hcf_8;
 typedef unsigned short				hcf_16;
 typedef unsigned long				hcf_32;
 
-#define IN_PORT_BYTE(port)			((hcf_8)inb( (hcf_io)(port) ))
-#define IN_PORT_WORD(port)			((hcf_16)inw( (hcf_io)(port) ))
-#define OUT_PORT_BYTE(port, value)	(outb( (hcf_8) (value), (hcf_io)(port) ))
-#define OUT_PORT_WORD(port, value)	(outw( (hcf_16) (value), (hcf_io)(port) ))
+#define IN_PORT_BYTE(port)		((hcf_8)inb((hcf_io)(port)))
+#define IN_PORT_WORD(port)		((hcf_16)inw((hcf_io)(port)))
+#define OUT_PORT_BYTE(port, value)	outb((hcf_8)(value), (hcf_io)(port))
+#define OUT_PORT_WORD(port, value)	outw((hcf_16)(value), (hcf_io)(port))
 
-#ifdef	toch_maar_asm
-#else
-#define IN_PORT_STRING( prt, dst, n)	while ( n-- ) { *(hcf_16 FAR*)dst = IN_PORT_WORD( prt ); dst += 2; }
-#define OUT_PORT_STRING( prt, src, n)	while ( n-- ) { OUT_PORT_WORD( prt, *(hcf_16 FAR*)src ) ; src  += 2; }
-#endif	//toch_maar_asm
+#define IN_PORT_STRING			insw
+#define OUT_PORT_STRING			outsw
 
 #endif	/* LINUX */
 

@@ -119,8 +119,6 @@ static int down_poll_rate = 20;
 #endif
 #if LINUX_VERSION_CODE < 0x20138
 #define test_and_set_bit(val, addr) set_bit(val, addr)
-#define le32_to_cpu(val) (val)
-#define cpu_to_le32(val) (val)
 #endif
 #if LINUX_VERSION_CODE < 0x20155
 #define PCI_SUPPORT_VER1

@@ -142,9 +142,6 @@ MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");
 
 #if LINUX_VERSION_CODE < 0x20123
 #define test_and_set_bit(val, addr) set_bit(val, addr)
-#define le16_to_cpu(val) (val)
-#define le32_to_cpu(val) (val)
-#define cpu_to_le32(val) (val)
 #endif
 #if LINUX_VERSION_CODE < 0x20155
 /* Grrrr, the PCI code changed, but did not consider CardBus... */
@@ -284,58 +281,6 @@ static struct net_device *
 tulip_probe1(int pci_bus, int pci_devfn, struct net_device *dev, long ioaddr,
 			 int irq, int chip_idx, int board_idx);
 
-/* This table drives the PCI probe routines.  It's mostly boilerplate in all
-   of the drivers, and will likely be provided by some future kernel.
-   Note the matching code -- the first table entry matchs all 56** cards but
-   second only the 1234 card.
-*/
-enum pci_flags_bit {
-	PCI_USES_IO=1, PCI_USES_MEM=2, PCI_USES_MASTER=4,
-	PCI_ADDR0=0x10<<0, PCI_ADDR1=0x10<<1, PCI_ADDR2=0x10<<2, PCI_ADDR3=0x10<<3,
-};
-#define PCI_ADDR0_IO (PCI_USES_IO|PCI_ADDR0)
-
-struct pci_id_info {
-	const char *name;
-	u16	vendor_id, device_id, device_id_mask, flags;
-	int io_size, min_latency;
-	struct net_device *(*probe1)(int pci_bus, int pci_devfn, struct net_device *dev,
-							 long ioaddr, int irq, int chip_idx, int fnd_cnt);
-};
-#ifndef CARDBUS
-static struct pci_id_info pci_tbl[] = {
-  { "Digital DC21040 Tulip",
-	0x1011, 0x0002, 0xffff, PCI_ADDR0_IO, 128, 32, tulip_probe1 },
-  { "Digital DC21041 Tulip",
-	0x1011, 0x0014, 0xffff, PCI_ADDR0_IO, 128, 32, tulip_probe1 },
-  { "Digital DS21140 Tulip",
-	0x1011, 0x0009, 0xffff, PCI_ADDR0_IO, 128, 32, tulip_probe1 },
-  { "Digital DS21143 Tulip",
-	0x1011, 0x0019, 0xffff, PCI_ADDR0_IO, 128, 32, tulip_probe1 },
-  { "Lite-On 82c168 PNIC",
-	0x11AD, 0x0002, 0xffff, PCI_ADDR0_IO, 256, 32, tulip_probe1 },
-  { "Macronix 98713 PMAC",
-	0x10d9, 0x0512, 0xffff, PCI_ADDR0_IO, 256, 32, tulip_probe1 },
-  { "Macronix 98715 PMAC",
-	0x10d9, 0x0531, 0xffff, PCI_ADDR0_IO, 256, 32, tulip_probe1 },
-  { "Macronix 98725 PMAC",
-	0x10d9, 0x0531, 0xffff, PCI_ADDR0_IO, 256, 32, tulip_probe1 },
-  { "ASIX AX88140",
-	0x125B, 0x1400, 0xffff, PCI_ADDR0_IO, 128, 32, tulip_probe1 },
-  { "Lite-On LC82C115 PNIC-II",
-	0x11AD, 0xc115, 0xffff, PCI_ADDR0_IO, 256, 32, tulip_probe1 },
-  { "ADMtek AN981 Comet",
-	0x1317, 0x0981, 0xffff, PCI_ADDR0_IO, 256, 32, tulip_probe1 },
-  { "Compex RL100-TX",
-	0x11F6, 0x9881, 0xffff, PCI_ADDR0_IO, 128, 32, tulip_probe1 },
-  { "Intel 21145 Tulip",
-	0x8086, 0x0039, 0xffff, PCI_ADDR0_IO, 128, 32, tulip_probe1 },
-  { "Xircom Tulip clone",
-	0x115d, 0x0003, 0xffff, PCI_ADDR0_IO, 128, 32, tulip_probe1 },
-  {0},
-};
-#endif /* !CARD_BUS */
-
 /* This table use during operation for capabilities and media timer. */
 
 static void tulip_timer(unsigned long data);
@@ -387,14 +332,16 @@ static struct tulip_chip_table {
 	HAS_MII | HAS_MEDIA_TABLE | ALWAYS_CHECK_MII | HAS_PWRDWN | HAS_NWAY143,
 	t21142_timer },
   { "Xircom Cardbus Adapter (DEC 21143 compatible mode)", 128, 0x0801fbff,
-	HAS_MII | HAS_PWRDWN, tulip_timer }, 
+	HAS_MII | HAS_PWRDWN, tulip_timer },
+  { "ADMtek Centaur-C", 256, 0x0001ebef,
+	MC_HASH_ONLY|HAS_MII, comet_timer },
   {0},
 };
 /* This matches the table above.  Note 21142 == 21143. */
 enum chips {
 	DC21040=0, DC21041=1, DC21140=2, DC21142=3, DC21143=3,
 	LC82C168, MX98713, MX98715, MX98725, AX88140, PNIC2, COMET, COMPEX9881,
-	I21145, X21142, X3201_3,
+	I21145, X21142, X3201_3, CENTAUR,
 };
 
 /* A full-duplex map for media types. */
@@ -418,7 +365,9 @@ static u16 t21142_csr15[] = { 0x0008, 0x0006, 0x000E, 0x0008, 0x0008, };
 enum tulip_offsets {
 	CSR0=0,    CSR1=0x08, CSR2=0x10, CSR3=0x18, CSR4=0x20, CSR5=0x28,
 	CSR6=0x30, CSR7=0x38, CSR8=0x40, CSR9=0x48, CSR10=0x50, CSR11=0x58,
-	CSR12=0x60, CSR13=0x68, CSR14=0x70, CSR15=0x78 };
+	CSR12=0x60, CSR13=0x68, CSR14=0x70, CSR15=0x78, CSR16=0x80,
+	CSR17=0x84, CSR18=0x88, CSR19=0x8c, CSR20=0x90, CSR21=0x94,
+	CSR22=0x98, CSR23=0x9c, CSR24=0xa0 };
 
 /* The bits in the CSR5 status registers, mostly interrupt sources. */
 enum status_bits {
@@ -605,7 +554,7 @@ static void outl_CSR6 (u32 newcsr6, long ioaddr, int chip_idx)
 			return;
 		}
 		outl(currcsr6, ioaddr + CSR6);
-		udelay(1);
+		udelay(50);
     }
     /* now it is safe to change csr6 */
     outl(newcsr6, ioaddr + CSR6);
@@ -615,107 +564,6 @@ static void outl_CSR6 (u32 newcsr6, long ioaddr, int chip_idx)
 
 /* A list of all installed Tulip devices. */
 static struct net_device *root_tulip_dev = NULL;
-
-#ifndef CARDBUS
-int tulip_probe(struct net_device *dev)
-{
-	int cards_found = 0;
-	int pci_index = 0;
-	unsigned char pci_bus, pci_device_fn;
-
-	if ( ! pcibios_present())
-		return -ENODEV;
-
-	for (;pci_index < 0xff; pci_index++) {
-		u16 vendor, device, pci_command, new_command;
-		int chip_idx;
-		int irq;
-		long ioaddr;
-
-		if (pcibios_find_class
-			(PCI_CLASS_NETWORK_ETHERNET << 8,
-			 reverse_probe ? 0xfe - pci_index : pci_index,
-			 &pci_bus, &pci_device_fn) != PCIBIOS_SUCCESSFUL) {
-			if (reverse_probe)
-				continue;
-			else
-				break;
-		}
-		pcibios_read_config_word(pci_bus, pci_device_fn,
-								 PCI_VENDOR_ID, &vendor);
-		pcibios_read_config_word(pci_bus, pci_device_fn,
-								 PCI_DEVICE_ID, &device);
-
-		for (chip_idx = 0; pci_tbl[chip_idx].vendor_id; chip_idx++)
-			if (vendor == pci_tbl[chip_idx].vendor_id
-				&& (device & pci_tbl[chip_idx].device_id_mask) ==
-				pci_tbl[chip_idx].device_id)
-				break;
-		if (pci_tbl[chip_idx].vendor_id == 0)
-			continue;
-
-		{
-#if defined(PCI_SUPPORT_VER2)
-			struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
-			ioaddr = pdev->base_address[0] & ~3;
-			irq = pdev->irq;
-#elif defined(PCI_SUPPORT_VER3)
-			struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
-			ioaddr = pdev->resource[0].start;
-			irq = pdev->irq;
-#else
-			u32 pci_ioaddr;
-			u8 pci_irq_line;
-			pcibios_read_config_dword(pci_bus, pci_device_fn,
-									  PCI_BASE_ADDRESS_0, &pci_ioaddr);
-			pcibios_read_config_byte(pci_bus, pci_device_fn,
-									 PCI_INTERRUPT_LINE, &pci_irq_line);
-			ioaddr = pci_ioaddr & ~3;
-			irq = pci_irq_line;
-#endif
-		}
-
-		if (debug > 2)
-			printk(KERN_INFO "Found %s at PCI I/O address %#lx.\n",
-				   pci_tbl[chip_idx].name, ioaddr);
-
-		if (check_region(ioaddr, pci_tbl[chip_idx].io_size))
-			continue;
-
-		pcibios_read_config_word(pci_bus, pci_device_fn,
-								 PCI_COMMAND, &pci_command);
-		new_command = pci_command | PCI_COMMAND_MASTER|PCI_COMMAND_IO;
-		if (pci_command != new_command) {
-			printk(KERN_INFO "  The PCI BIOS has not enabled the"
-				   " device at %d/%d!  Updating PCI command %4.4x->%4.4x.\n",
-				   pci_bus, pci_device_fn, pci_command, new_command);
-			pcibios_write_config_word(pci_bus, pci_device_fn,
-									  PCI_COMMAND, new_command);
-		}
-
-		dev = pci_tbl[chip_idx].probe1(pci_bus, pci_device_fn, dev, ioaddr,
-									   irq, chip_idx, cards_found);
-
-		/* Get and check the bus-master and latency values. */
-		if (dev) {
-			u8 pci_latency;
-			pcibios_read_config_byte(pci_bus, pci_device_fn,
-									 PCI_LATENCY_TIMER, &pci_latency);
-			if (pci_latency < 10) {
-				printk(KERN_INFO "  PCI latency timer (CFLT) is "
-					   "unreasonably low at %d.  Setting to 64 clocks.\n",
-					   pci_latency);
-				pcibios_write_config_byte(pci_bus, pci_device_fn,
-										  PCI_LATENCY_TIMER, 64);
-			}
-		}
-		dev = 0;
-		cards_found++;
-	}
-
-	return cards_found ? 0 : -ENODEV;
-}
-#endif  /* not CARDBUS */
 
 static struct net_device *tulip_probe1(int pci_bus, int pci_devfn,
 								   struct net_device *dev, long ioaddr, int irq,
@@ -794,7 +642,7 @@ static struct net_device *tulip_probe1(int pci_bus, int pci_devfn,
 			put_unaligned(le16_to_cpu(value), ((u16*)dev->dev_addr) + i);
 			sum += value & 0xffff;
 		}
-	} else if (chip_idx == COMET) {
+	} else if (chip_idx == COMET || chip_idx == CENTAUR) {
 		/* No need to read the EEPROM. */
 		put_unaligned(inl(ioaddr + 0xA4), (u32 *)dev->dev_addr);
 		put_unaligned(inl(ioaddr + 0xA8), (u16 *)(dev->dev_addr + 4));
@@ -1087,7 +935,11 @@ static struct net_device *tulip_probe1(int pci_bus, int pci_devfn,
 		outl(0x00001000, ioaddr + CSR12);
 		break;
 	case COMET:
-		/* No initialization necessary. */
+	case CENTAUR:
+		if (inl(ioaddr + CSR18) & 0x00800000)
+			outl(inl(ioaddr + CSR24) & 0x7fffffff, ioaddr + CSR24);
+		/* enable auto rx-underrun */
+		outl((inl(ioaddr + CSR18)|8|1)&(~4), ioaddr + CSR18);
 		break;
 	}
 
@@ -1404,7 +1256,7 @@ static int mdio_read(struct net_device *dev, int phy_id, int location)
 		return 0xffff;
 	}
 
-	if (tp->chip_id == COMET) {
+	if (tp->chip_id == COMET || tp->chip_id == CENTAUR) {
 		if (phy_id == 1) {
 			if (location < 7)
 				return inl(ioaddr + 0xB4 + (location<<2));
@@ -1461,7 +1313,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 		return;
 	}
 
-	if (tp->chip_id == COMET) {
+	if (tp->chip_id == COMET || tp->chip_id == CENTAUR) {
 		if (phy_id != 1)
 			return;
 		if (location < 7)
@@ -1556,7 +1408,7 @@ tulip_up(struct net_device *dev)
 			outl(addr_low,  ioaddr + CSR14);
 			outl(1, ioaddr + CSR13);
 			outl(addr_high, ioaddr + CSR14);
-		} else if (tp->chip_id == COMET) {
+		} else if (tp->chip_id == COMET || tp->chip_id == CENTAUR) {
 			outl(addr_low,  ioaddr + 0xA4);
 			outl(addr_high, ioaddr + 0xA8);
 			outl(0, ioaddr + 0xAC);
@@ -1679,7 +1531,7 @@ media_picked:
 		outl(0xa00f0000, ioaddr + CSR15); 
 		udelay(5);
 		tp->csr6  = 0x32400000;
-	} else if (tp->chip_id == COMET) {
+	} else if (tp->chip_id == COMET || tp->chip_id == CENTAUR) {
 		dev->if_port = 0;
 		tp->csr6 = 0x00040000;
 	} else if (tp->chip_id == AX88140) {
@@ -3151,7 +3003,7 @@ static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			data[0] = phy;
 		else if (tp->chip_id & HAS_NWAY143)
 			data[0] = 32;
-		else if (tp->chip_id == COMET)
+		else if (tp->chip_id == COMET || tp->chip_id == CENTAUR)
 			data[0] = 1;
 		else
 			return -ENODEV;
@@ -3278,7 +3130,8 @@ static void set_rx_mode(struct net_device *dev)
 				outl(mc_filter[0], ioaddr + CSR14);
 				outl(3, ioaddr + CSR13);
 				outl(mc_filter[1], ioaddr + CSR14);
-			} else if (tp->chip_id == COMET) { /* Has a simple hash filter. */
+			} else if (tp->chip_id == COMET || tp->chip_id == CENTAUR) {
+				/* Has a simple hash filter. */
 				outl(mc_filter[0], ioaddr + 0xAC);
 				outl(mc_filter[1], ioaddr + 0xB0);
 			}
@@ -3421,10 +3274,10 @@ static void tulip_reap(void)
 static dev_node_t *tulip_attach(dev_locator_t *loc)
 {
 	struct net_device *dev;
-	u16 dev_id;
-	u16 vendor_id;
+	u16 dev_id, vendor_id;
 	u32 io;
 	u8 bus, devfn, irq;
+	int chip_idx;
 
 	tulip_reap();
 	if (loc->bus != LOC_PCI) return NULL;
@@ -3435,10 +3288,23 @@ static dev_node_t *tulip_attach(dev_locator_t *loc)
 	pcibios_read_config_word(bus, devfn, PCI_DEVICE_ID, &dev_id);
 	pcibios_read_config_byte(bus, devfn, PCI_INTERRUPT_LINE, &irq);
 	pcibios_read_config_word(bus, devfn, PCI_VENDOR_ID, &vendor_id);
-	if (dev_id == 0x0003 && vendor_id == 0x115d) 
-		dev = tulip_probe1(bus, devfn, NULL, io & ~3, irq, X3201_3, 0);
-	else
-		dev = tulip_probe1(bus, devfn, NULL, io & ~3, irq, DC21142, 0);
+
+	switch ((dev_id<<16)|vendor_id) {
+	case 0x0003115d:
+		chip_idx = X3201_3;
+		break;
+	case 0x09851317:
+	case 0x19851317:
+	case 0xab0213d1:
+	case 0xab0313d1:
+		chip_idx = CENTAUR;
+		break;
+	default:
+		chip_idx = DC21142;
+		break;
+	}
+
+	dev = tulip_probe1(bus, devfn, NULL, io & ~3, irq, chip_idx, 0);
 	if (dev) {
 		dev_node_t *node = kmalloc(sizeof(dev_node_t), GFP_KERNEL);
 		strcpy(node->dev_name, dev->name);
@@ -3509,7 +3375,6 @@ struct driver_operations tulip_ops = {
 int init_module(void)
 {
 #ifdef CARDBUS
-	reverse_probe = 0;			/* Not used. */
 	register_driver(&tulip_ops);
 	return 0;
 #else

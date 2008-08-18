@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.91 2000/09/16 03:48:28
+    cistpl.c 1.92 2000/11/22 18:08:00
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -648,8 +648,6 @@ static int parse_device(tuple_t *tuple, cistpl_device_t *device)
 	case 4: device->dev[i].speed = 100; break;
 	case 7:
 	    if (++p == q) return CS_BAD_TUPLE;
-	    if (p == q)
-		return CS_BAD_TUPLE;
 	    device->dev[i].speed = SPEED_CVT(*p);
 	    while (*p & 0x80)
 		if (++p == q) return CS_BAD_TUPLE;

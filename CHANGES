@@ -1,3 +1,34 @@
+[19-Dec-00] Version 3.1.23
+-- Added PCI fixups for Cyrix 5530 PCI-to-ISA bridge.
+-- Cleaned up, standardized handling of $LINK options in config files.
+-- Improved error reporting in all config scripts; also, invoking
+   cardmgr with "-v" causes the scripts to report important actions.
+-- Changed apa1480_cb driver to accept "aic7xxx=..." option string for
+   setting all aic7xxx driver options.
+-- Added ADMtek Centaur chipset support to tulip_cb driver.
+-- Changed Configure script to decide where to put man pages.
+-- Moved some stuff in k_compat.h into asm/io.h and asm/byteorder.h.
+-- Added TDK LAC-CF010 support to fmvj18x_cs.
+-- Added handling of JEDEC tuples to pack_cis.
+-- Added ohci1394_cb driver for Cherri FireWire adapter.
+-- Added wireless extension support to airo_cs driver, from Jean
+   Tourrilhes and Ben Reed.
+-- Rewrote i82365 power control code for ISA and ToPIC bridge types.
+-- Power management patch for wvlan_cs from Jean Tourrilhes.
+-- Fixed i82365 module to not treat ToPIC95-A as a CardBus bridge.
+-- Fixed network script to make sure resolv.conf is world readable.
+-- Fixed i82365 module on TI bridges to route INTB if needed.
+-- Fixed PowerPC support in wvlan_cs, from Anton Blanchard.
+-- Fixed ibmtr_cs device cleanup bug, from Burt Silverman.
+-- Fixed serial_cb driver to try harder to find an IO window.
+-- Fixed dump_cis to not silently exit when executed by a normal user.
+-- Fixed rx error handling in xirc2ps_cs, from Niku Toivola.
+-- Fixed pcnet_cs to do more MII checking.
+-- Fixed wvlan_cs driver to use linux byte swap macros.
+-- Fixed ibmtr_cs compilation on pre-2.2.0 kernels.
+-- Fixed several pcilynx_cs build problems.
+-- Fixed Configure script to prefer kgcc if it is found.
+
 [07-Nov-00] Version 3.1.22
 -- Added TI 4451 CardBus bridge support.
 -- Added PCI fixups for Intel 82801BA and 82801BAM bridges.

@@ -9,9 +9,9 @@ if ! is_true $PUMP && ! is_true $BOOTP && ! is_true $DHCP && \
     [ ! "$IPADDR" -a -f /etc/sysconfig/network-scripts/ifcfg-$2 ] ; then
     start_fn () {
 	. /etc/sysconfig/network-scripts/ifcfg-$1
-	if [ "$ONBOOT" = "yes" ] ; then /sbin/ifup $1 ; fi
+	if [ "$ONBOOT" = "yes" ] ; then log /sbin/ifup $1 ; fi
     }
     stop_fn () {
-	/sbin/ifdown $1
+	log /sbin/ifdown $1
     }
 fi

@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" cardmgr.8 1.37 2000/06/12 21:24:48
+.\" cardmgr.8 1.38 2000/11/19 00:06:18
 .\"
-.TH CARDMGR 8 "2000/06/12 21:24:48" "pcmcia-cs"
+.TH CARDMGR 8 "2000/11/19 00:06:18" "pcmcia-cs"
 .SH NAME
 cardmgr \- PCMCIA device manager
 .SH SYNOPSIS
@@ -103,7 +103,7 @@ Write the PID of the cardmgr process to the specified file, instead of
 .TP
 .BI "\-s " stabfile
 Write current socket information to the specified file, instead of
-\fI/var/{state,lib}/pcmcia/stab\fR.
+\fI/var/lib/pcmcia/stab\fR.
 
 .SH FILES
 .PD 0
@@ -117,7 +117,7 @@ Local resource settings for PCMCIA devices
 /var/run/cardmgr.pid
 PID of active cardmgr process
 .TP
-/var/{state,lib}/pcmcia/stab
+/var/lib/pcmcia/stab
 Current card and device information for each socket.
 
 .SH AUTHOR

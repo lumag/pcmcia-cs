@@ -2,7 +2,7 @@
 
     A driver for the Adaptec APA1480 CardBus SCSI Host Adapter
 
-    apa1480_cb.c 1.22 2000/06/12 21:27:25
+    apa1480_cb.c 1.23 2000/11/22 16:32:34
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -59,7 +59,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"apa1480_cb.c 1.22 2000/06/12 21:27:25 (David Hinds)";
+"apa1480_cb.c 1.23 2000/11/22 16:32:34 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -68,11 +68,8 @@ static char *version =
 
 /* Parameters that can be set with 'insmod' */
 
-static int reset = 1;
-static int ultra = 0;
-
-MODULE_PARM(reset, "i");
-MODULE_PARM(ultra, "i");
+static char *aic7xxx = NULL;	/* see kernel's README.aic7xxx */
+MODULE_PARM(aic7xxx, "s");
 
 /*====================================================================*/
 
@@ -94,7 +91,6 @@ static dev_node_t *apa1480_attach(dev_locator_t *loc)
     u_char bus, devfn;
     Scsi_Device *dev;
     dev_node_t *node;
-    char s[60];
     u_int io;
     int n = 0;
 #if (LINUX_VERSION_CODE >= VERSION(2,1,75))
@@ -116,9 +112,15 @@ static dev_node_t *apa1480_attach(dev_locator_t *loc)
     pcibios_read_config_dword(bus, devfn, PCI_BASE_ADDRESS_0, &io);
     release_region(io & PCI_BASE_ADDRESS_IO_MASK, 0x100);
 
-    sprintf(s, "no_probe:1,no_reset:%d,ultra:%d",
-	    (reset==0), (ultra!=0));
-    aic7xxx_setup(s, NULL);
+    if (aic7xxx) {
+	char *s = kmalloc(strlen(aic7xxx)+12, GFP_KERNEL);
+	sprintf(s, "%s,no_probe:1", aic7xxx);
+	printk(KERN_INFO "opts: %s\n", s);
+	aic7xxx_setup(s, NULL);
+	kfree(s);
+    } else {
+	aic7xxx_setup("no_probe:1", NULL);
+    }
     scsi_register_module(MODULE_SCSI_HA, &driver_template);
 
     node = kmalloc(7 * sizeof(dev_node_t), GFP_KERNEL);

@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.46 2000/10/27 19:33:26
+ * ciscode.h 1.47 2000/11/27 17:08:58
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -117,6 +117,7 @@
 #define MANFID_SUNDISK			0x0045
 
 #define MANFID_TDK			0x0105
+#define PRODID_TDK_CF010		0x0900
 
 #define MANFID_TOSHIBA			0x0098
 

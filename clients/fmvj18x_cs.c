@@ -1,5 +1,5 @@
 /*======================================================================
-    fmvj18x_cs.c,v 2.0 2000/10/01  03:13:53 root Exp
+    fmvj18x_cs.c 2.1 2000/11/24
 
     A fmvj18x (and its compatibles) PCMCIA client driver
 
@@ -90,8 +90,7 @@ MODULE_PARM(sram_config, "i");
    driver version infomation 
  */
 #ifdef PCMCIA_DEBUG
-static char *version =
- "fmvj18x_cs.c,v 2.0 2000/10/01 03:13:53 root Exp";
+static char *version = "fmvj18x_cs.c 2.1 2000/11/24";
 #endif
 
 /*====================================================================*/
@@ -444,6 +443,12 @@ static void fmvj18x_config(dev_link_t *link)
 	switch (le16_to_cpu(buf[0])) {
 	case MANFID_TDK:
 	    cardtype = TDK;
+	    if (le16_to_cpu(buf[1]) == PRODID_TDK_CF010) {
+		cs_status_t status;
+		CardServices(GetStatus, handle, &status);
+		if (status.CardState & CS_EVENT_3VCARD)
+		    link->conf.Vcc = 33; /* inserted in 3.3V slot */
+	    }
 	    break;
 	case MANFID_CONTEC:
 	    cardtype = CONTEC;

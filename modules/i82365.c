@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.326 2000/10/02 20:27:49
+    i82365.c 1.330 2000/12/19 22:12:38
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.326 2000/10/02 20:27:49 (David Hinds)";
+"i82365.c 1.330 2000/12/19 22:12:38 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -627,7 +627,9 @@ static u_int __init ti113x_set_opts(socket_info_t *s, char *buf)
     switch (irq_mode) {
     case 0:
 	p->devctl &= ~TI113X_DCR_IMODE_MASK;
-	p->irqmux |= 0x02; /* minimal routing for INTA */
+	p->irqmux = (p->irqmux & ~0x0f) | 0x02; /* route INTA */
+	if (!(p->sysctl & TI122X_SCR_INTRTIE))
+	    p->irqmux = (p->irqmux & ~0xf0) | 0x20; /* route INTB */
 	break;
     case 1:
 	p->devctl &= ~TI113X_DCR_IMODE_MASK;
@@ -1079,7 +1081,7 @@ static void set_bridge_state(socket_info_t *s)
 	i365_set(s, I365_GBLCTL, 0x00);
 	i365_set(s, I365_GENCTL, 0x00);
 	/* Trouble: changes timing of memory operations */
-	/* i365_set(s, I365_ADDRWIN, I365_ADDR_MEMCS16); */
+	/* i365_bset(s, I365_ADDRWIN, I365_ADDR_MEMCS16); */
     }
     i365_bflip(s, I365_INTCTL, I365_INTR_ENA, s->intr);
 #ifdef CONFIG_ISA
@@ -1660,6 +1662,9 @@ static void __init pci_probe(u_int class)
 	pci_readw(s, PCI_DEVICE_ID, &d);
 	for (i = 0; i < PCIC_COUNT; i++)
 	    if ((pcic[i].vendor == v) && (pcic[i].device == d)) break;
+	/* The "ToPIC95-A" is unusable as a CardBus bridge */
+	if (i == IS_TOPIC95_A)
+	    continue;
 	if (((i < PCIC_COUNT) && (pcic[i].flags & IS_CARDBUS)) ||
 	    (class == PCI_CLASS_BRIDGE_CARDBUS))
 	    add_cb_bridge(i, v, d);
@@ -1896,39 +1901,26 @@ static int i365_get_socket(socket_info_t *s, socket_state_t *state)
     vcc = reg & I365_VCC_MASK; vpp = reg & I365_VPP1_MASK;
     state->Vcc = state->Vpp = 0;
 #ifdef CONFIG_PCI
-    if (s->flags & IS_CARDBUS) {
+    if ((s->flags & IS_CARDBUS) && !(s->flags & IS_TOPIC)) {
 	cb_get_power(s, state);
     } else
 #endif
-    if (s->flags & IS_CIRRUS) {
-	if (i365_get(s, PD67_MISC_CTL_1) & PD67_MC1_VCC_3V) {
-	    if (reg & I365_VCC_5V) state->Vcc = 33;
-	    if (vpp == I365_VPP1_5V) state->Vpp = 33;
+    {
+	if ((s->flags & IS_CIRRUS) && (reg & I365_VCC_5V)) {
+	    state->Vcc = (i365_get(s, PD67_MISC_CTL_1) &
+			  PD67_MC1_VCC_3V) ? 33 : 50;
+	} else if ((s->flags & IS_VG_PWR) && (reg & I365_VCC_5V)) {
+	    state->Vcc = (i365_get(s, VG469_VSELECT) &
+			  VG469_VSEL_VCC) ? 33 : 50;
+	} else if ((s->flags & IS_DF_PWR) || (s->flags & IS_TOPIC)) {
+	    if (vcc == I365_VCC_3V) state->Vcc = 33;
+	    if (vcc == I365_VCC_5V) state->Vcc = 50;
 	} else {
 	    if (reg & I365_VCC_5V) state->Vcc = 50;
-	    if (vpp == I365_VPP1_5V) state->Vpp = 50;
 	}
+	if (vpp == I365_VPP1_5V)
+	    state->Vpp = (s->flags & IS_DF_PWR) ? 50 : state->Vcc;
 	if (vpp == I365_VPP1_12V) state->Vpp = 120;
-    } else if (s->flags & IS_VG_PWR) {
-	if (i365_get(s, VG469_VSELECT) & VG469_VSEL_VCC) {
-	    if (reg & I365_VCC_5V) state->Vcc = 33;
-	    if (vpp == I365_VPP1_5V) state->Vpp = 33;
-	} else {
-	    if (reg & I365_VCC_5V) state->Vcc = 50;
-	    if (vpp == I365_VPP1_5V) state->Vpp = 50;
-	}
-	if (vpp == I365_VPP1_12V) state->Vpp = 120;
-    } else if (s->flags & IS_DF_PWR) {
-	if (vcc == I365_VCC_3V) state->Vcc = 33;
-	if (vcc == I365_VCC_5V) state->Vcc = 50;
-	if (vpp == I365_VPP1_5V) state->Vpp = 50;
-	if (vpp == I365_VPP1_12V) state->Vpp = 120;
-    } else {
-	if (reg & I365_VCC_5V) {
-	    state->Vcc = 50;
-	    if (vpp == I365_VPP1_5V) state->Vpp = 50;
-	    if (vpp == I365_VPP1_12V) state->Vpp = 120;
-	}
     }
 
     /* IO card, RESET flags, IO interrupt */
@@ -1989,68 +1981,33 @@ static int i365_set_socket(socket_info_t *s, socket_state_t *state)
     if (state->flags & SS_OUTPUT_ENA) reg |= I365_PWR_OUT;
 
 #ifdef CONFIG_PCI
-    if (s->flags & IS_CARDBUS) {
+    if ((s->flags & IS_CARDBUS) && !(s->flags & IS_TOPIC)) {
 	cb_set_power(s, state);
 	reg |= i365_get(s, I365_POWER) & (I365_VCC_MASK|I365_VPP1_MASK);
     } else
 #endif
-    if (s->flags & IS_CIRRUS) {
-	if (state->Vpp != 0) {
-	    if (state->Vpp == 120)
-		reg |= I365_VPP1_12V;
-	    else if (state->Vpp == state->Vcc)
-		reg |= I365_VPP1_5V;
-	    else return -EINVAL;
-	}
-	if (state->Vcc != 0) {
+    {
+	int new = s->flags & (IS_TOPIC|IS_CIRRUS|IS_VG_PWR|IS_DF_PWR);
+	int vcc3 = (state->Vcc == 33), df = (s->flags & IS_DF_PWR);
+
+	if (state->Vcc == 50) {
 	    reg |= I365_VCC_5V;
-	    if (state->Vcc == 33)
-		i365_bset(s, PD67_MISC_CTL_1, PD67_MC1_VCC_3V);
-	    else if (state->Vcc == 50)
-		i365_bclr(s, PD67_MISC_CTL_1, PD67_MC1_VCC_3V);
-	    else return -EINVAL;
-	}
-    } else if (s->flags & IS_VG_PWR) {
-	if (state->Vpp != 0) {
-	    if (state->Vpp == 120)
-		reg |= I365_VPP1_12V;
-	    else if (state->Vpp == state->Vcc)
-		reg |= I365_VPP1_5V;
-	    else return -EINVAL;
-	}
-	if (state->Vcc != 0) {
-	    reg |= I365_VCC_5V;
-	    if (state->Vcc == 33)
-		i365_bset(s, VG469_VSELECT, VG469_VSEL_VCC);
-	    else if (state->Vcc == 50)
-		i365_bclr(s, VG469_VSELECT, VG469_VSEL_VCC);
-	    else return -EINVAL;
-	}
-    } else if (s->flags & IS_DF_PWR) {
-	switch (state->Vcc) {
-	case 0:		break;
-	case 33:   	reg |= I365_VCC_3V; break;
-	case 50:	reg |= I365_VCC_5V; break;
-	default:	return -EINVAL;
-	}
-	switch (state->Vpp) {
-	case 0:		break;
-	case 50:   	reg |= I365_VPP1_5V; break;
-	case 120:	reg |= I365_VPP1_12V; break;
-	default:	return -EINVAL;
-	}
-    } else {
-	switch (state->Vcc) {
-	case 0:		break;
-	case 50:	reg |= I365_VCC_5V; break;
-	default:	return -EINVAL;
-	}
-	switch (state->Vpp) {
-	case 0:		break;
-	case 50:	reg |= I365_VPP1_5V | I365_VPP2_5V; break;
-	case 120:	reg |= I365_VPP1_12V | I365_VPP2_12V; break;
-	default:	return -EINVAL;
-	}
+	} else if (new && vcc3) {
+	    reg |= ((s->flags & (IS_TOPIC|IS_DF_PWR)) ?
+		    I365_VCC_3V : I365_VCC_5V);
+	} else if (state->Vcc)
+	    return -EINVAL;
+	if (s->flags & IS_CIRRUS)
+	    i365_bflip(s, PD67_MISC_CTL_1, PD67_MC1_VCC_3V, vcc3);
+	if (s->flags & IS_VG_PWR)
+	    i365_bflip(s, VG469_VSELECT, VG469_VSEL_VCC, vcc3);
+
+	if (state->Vpp == 120) {
+	    reg |= I365_VPP1_12V | (new ? 0 : I365_VPP2_12V);
+	} else if (state->Vpp == (df) ? 50 : state->Vcc) {
+	    reg |= I365_VPP1_5V | (new ? 0 : I365_VPP2_5V);
+	} else if (state->Vpp)
+	    return -EINVAL;
     }
     
     if (reg != i365_get(s, I365_POWER))

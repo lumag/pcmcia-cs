@@ -3,7 +3,7 @@
     A utility to convert a plain text description of a Card
     Information Structure into its packed binary representation.
 
-    pack_cis.c 1.16 2000/06/12 21:34:19
+    pack_cis.c 1.17 2000/11/15 01:10:41
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -282,6 +282,14 @@ static int pack_tuple(tuple_info_t *t, u_char *b)
 	b[1] = 2;
 	b[2] = p->funcid.func;
 	b[3] = p->funcid.sysinit;
+	break;
+    case CISTPL_JEDEC_C:
+    case CISTPL_JEDEC_A:
+	b[1] = 2*p->jedec.nid;
+	for (i = 0; i < p->jedec.nid; i++) {
+	    b[2*i+1] = p->jedec.id[i].mfr;
+	    b[2*i+2] = p->jedec.id[i].info;
+	}
 	break;
     case CISTPL_CONFIG:
 	b[3] = p->config.last_idx;

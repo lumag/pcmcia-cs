@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# ftl 1.24 2000/06/06 21:02:09 (David Hinds)
+# ftl 1.25 2000/12/15 19:04:10 (David Hinds)
 #
 # Initialize or shutdown an FTL memory device
 #
@@ -27,12 +27,13 @@ ADDRESS="$SCHEME,$SOCKET,$INSTANCE"
 case "$ACTION" in
 
 'start')
+    [ "$VERBOSE" -a "$INFO" ] && echo "$INFO"
     rm -f /dev/$DEVICE
-    mknod /dev/$DEVICE b $MAJOR $MINOR
-    mknod /dev/${DEVICE}p1 b $MAJOR `expr $MINOR + 1`
-    mknod /dev/${DEVICE}p2 b $MAJOR `expr $MINOR + 2`
-    mknod /dev/${DEVICE}p3 b $MAJOR `expr $MINOR + 3`
-    mknod /dev/${DEVICE}p4 b $MAJOR `expr $MINOR + 4`
+    log mknod /dev/$DEVICE b $MAJOR $MINOR
+    log mknod /dev/${DEVICE}p1 b $MAJOR `expr $MINOR + 1`
+    log mknod /dev/${DEVICE}p2 b $MAJOR `expr $MINOR + 2`
+    log mknod /dev/${DEVICE}p3 b $MAJOR `expr $MINOR + 3`
+    log mknod /dev/${DEVICE}p4 b $MAJOR `expr $MINOR + 4`
     add_parts /dev/$DEVICE "$PARTS" || exit 1
     ;;
 

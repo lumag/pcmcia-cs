@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.130 2000/10/04 01:09:26
+ * k_compat.h 1.133 2000/11/27 05:39:45
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -56,12 +56,15 @@
 #define IRQ_MAP(irq, dev)	do { } while (0)
 
 #if (LINUX_VERSION_CODE < VERSION(2,2,18))
+#include <linux/wait.h>
+#ifndef init_waitqueue_head
 #if (LINUX_VERSION_CODE < VERSION(2,0,16))
 #define init_waitqueue_head(p)	(*(p) = NULL)
 #else
 #define init_waitqueue_head(p)	init_waitqueue(p)
 #endif
 typedef struct wait_queue *wait_queue_head_t;
+#endif
 #endif
 
 #define FS_SIZE_T		ssize_t
@@ -120,14 +123,6 @@ typedef struct wait_queue *wait_queue_head_t;
 #define POLL_WAIT(f, q, w)	poll_wait(f, q, w)
 #endif
 
-#include <asm/byteorder.h>
-#ifndef le16_to_cpu
-#define le16_to_cpu(x)		(x)
-#define le32_to_cpu(x)		(x)
-#define cpu_to_le16(x)		(x)
-#define cpu_to_le32(x)		(x)
-#endif
-
 #if (LINUX_VERSION_CODE < VERSION(2,1,90))
 #define spin_lock(l)		do { } while (0)
 #define spin_unlock(l)		do { } while (0)
@@ -166,7 +161,10 @@ typedef int spinlock_t;
 #define __set_current_state(n) \
     do { current->state = TASK_INTERRUPTIBLE; } while (0)
 #elif (LINUX_VERSION_CODE < VERSION(2,2,18))
+#include <linux/sched.h>
+#ifndef __set_current_state
 #define __set_current_state(n)	do { current->state = (n); } while (0)
+#endif
 #endif
 
 #define wacquire(w)		do { } while (0)
@@ -179,42 +177,6 @@ typedef int spinlock_t;
     ({(current->timeout=jiffies+(t));wsleep(w);current->timeout;})
 #define schedule_timeout(t) \
     do { current->timeout = jiffies+(t); schedule(); } while (0)
-#endif
-
-#include <asm/io.h>
-#ifndef readw_ns
-#ifdef __powerpc__
-#if (LINUX_VERSION_CODE < VERSION(2,2,0))
-#define readw_ns(p)		ld_be16((volatile unsigned short *)(p))
-#define readl_ns(p)		ld_be32((volatile unsigned *)(p))
-#define writew_ns(v,p)		st_be16((volatile unsigned short *)(p),(v))
-#define writel_ns(v,p)		st_be32((volatile unsigned *)(p),(v))
-#else
-#define readw_ns(p)		in_be16((volatile unsigned short *)(p))
-#define readl_ns(p)		in_be32((volatile unsigned *)(p))
-#define writew_ns(v,p)		out_be16((volatile unsigned short *)(p),(v))
-#define writel_ns(v,p)		out_be32((volatile unsigned *)(p),(v))
-#endif
-#define inw_ns(p)		in_be16((unsigned short *)((p)+_IO_BASE))
-#define inl_ns(p)		in_be32((unsigned *)((p)+_IO_BASE))
-#define outw_ns(v,p)		out_be16((unsigned short *)((p)+_IO_BASE),(v))
-#define outl_ns(v,p)		out_be32((unsigned *)((p)+_IO_BASE),(v))
-#else
-#define readw_ns(p)		readw(p)
-#define readl_ns(p)		readl(p)
-#define writew_ns(v,p)		writew(v,p)
-#define writel_ns(v,p)		writel(v,p)
-#define inw_ns(p)		inw(p)
-#define inl_ns(p)		inl(p)
-#define outw_ns(v,p)		outw(v,p)
-#define outl_ns(v,p)		outl(v,p)
-#endif
-#endif
-#ifndef insw_ns
-#define insw_ns(p,b,l)		insw(p,b,l)
-#define insl_ns(p,b,l)		insl(p,b,l)
-#define outsw_ns(p,b,l)		outsw(p,b,l)
-#define outsl_ns(p,b,l)		outsl(p,b,l)
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,126))

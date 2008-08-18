@@ -100,8 +100,6 @@ MODULE_PARM(rx_copybreak, "i");
 MODULE_PARM(max_interrupt_work, "i");
 #if LINUX_VERSION_CODE < 0x20123
 #define test_and_set_bit(val, addr) set_bit(val, addr)
-#define le32_to_cpu(val) (val)
-#define cpu_to_le32(val) (val)
 typedef long spinlock_t;
 #define SPIN_LOCK_UNLOCKED 0
 #define spin_lock(lock)

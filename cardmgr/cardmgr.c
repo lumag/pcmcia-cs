@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.148 2000/11/07 19:15:53
+    cardmgr.c 1.150 2000/12/14 17:12:59
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -517,8 +517,8 @@ static card_info_t *lookup_card(int ns)
     }
 
     status.Function = 0;
-    if ((status.CardState & CS_EVENT_CB_DETECT) ||
-	manfid.manf || manfid.card || vers || !blank_card) {
+    if (!blank_card || (status.CardState & CS_EVENT_CB_DETECT) ||
+	manfid.manf || manfid.card || pci_id.vendor || vers) {
 	syslog(LOG_INFO, "unsupported card in socket %d", ns);
 	if (one_pass) return NULL;
 	beep(BEEP_TIME, BEEP_ERR);
@@ -634,7 +634,7 @@ static int execute(char *msg, char *cmd)
     int ret;
     FILE *f;
     char line[256];
-    
+
     syslog(LOG_INFO, "executing: '%s'", cmd);
     strcat(cmd, " 2>&1");
     f = popen(cmd, "r");
@@ -1397,6 +1397,8 @@ int main(int argc, char *argv[])
     syslog(LOG_INFO, "starting, version is " CS_RELEASE);
     atexit(&done);
     putenv("PATH=/bin:/sbin:/usr/bin:/usr/sbin");
+    if (verbose)
+	putenv("VERBOSE=1");
 
 #ifdef __linux__
     if (modpath == NULL) {

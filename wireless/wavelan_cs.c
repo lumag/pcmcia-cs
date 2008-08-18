@@ -22,7 +22,7 @@
 #ifdef WAVELAN_ROAMING	
  * Roaming support added 07/22/98 by Justin Seger (jseger@media.mit.edu)
  * based on patch by Joe Finney from Lancaster University.
-#endif :-)
+#endif
  *
  * Lucent (formerly AT&T GIS, formerly NCR) WaveLAN PCMCIA card: An
  * Ethernet-like radio transceiver controlled by an Intel 82593 coprocessor.
@@ -1826,7 +1826,7 @@ wv_frequency_list(u_long	base,	/* i/o port of the card */
 #if WIRELESS_EXT > 7
   const int	BAND_NUM = 10;	/* Number of bands */
   int		c = 0;		/* Channel number */
-#endif WIRELESS_EXT
+#endif /* WIRELESS_EXT */
 
   /* Read the frequency table */
   fee_read(base, 0x71 /* frequency table */,
@@ -1844,7 +1844,7 @@ wv_frequency_list(u_long	base,	/* i/o port of the card */
 	      (c < BAND_NUM))
 	  c++;
 	list[i].i = c;	/* Set the list index */
-#endif WIRELESS_EXT
+#endif /* WIRELESS_EXT */
 
 	/* put in the list */
 	list[i].m = (((freq + 24) * 5) + 24000L) * 10000;

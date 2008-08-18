@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.4 2000/06/06 21:02:09 (David Hinds)
+# serial 1.6 2000/12/15 19:39:01 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA parallel device
 #
@@ -28,15 +28,16 @@ LP="lp$MINOR"
 case "$ACTION" in
 
 'start')
+    [ "$VERBOSE" -a "$INFO" ] && echo "$INFO"
     if [ ! -c /dev/$LP ] ; then
-	mknod /dev/$LP c $MAJOR $MINOR
+	log mknod /dev/$LP c $MAJOR $MINOR
     fi
     if [ "$LINK" ] ; then
-	mv -f $LINK $LINK.O 2>/dev/null
-	ln -s /dev/$DIALOUT $LINK
+	if [ -L $LINK ] ; then rm $LINK ; fi
+	log ln -s /dev/$LP $LINK
     fi
     if [ "$LP_OPTS" ] ; then
-	tunelp /dev/$LP $LP_OPTS
+	log tunelp /dev/$LP $LP_OPTS
     fi
     ;;
 
@@ -51,7 +52,7 @@ case "$ACTION" in
     
 'stop')
     do_fuser -k /dev/$LP $LINK > /dev/null
-    rm -f $LINK ; mv -f $LINK.O $LINK 2>/dev/null
+    if [ -L "$LINK" ] ; then rm $LINK ; fi
     ;;
 
 'suspend')

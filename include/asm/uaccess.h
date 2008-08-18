@@ -2,11 +2,8 @@
 #define _PCMCIA_UACCESS_H
 
 #include <linux/version.h>
-#ifndef VERSION
-#define VERSION(a,b,c) (((a)<<16) + ((b)<<8) + (c))
-#endif
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,1,0))
 #include <linux/mm.h>
 static inline u_long copy_from_user(void *to, const void *from, u_long n)
 {
@@ -25,7 +22,7 @@ static inline u_long copy_to_user(void *to, const void *from, u_long n)
     return 0;
 }
 
-#if (!defined(__alpha__) || (LINUX_VERSION_CODE < VERSION(2,0,34)))
+#if (!defined(__alpha__) || (LINUX_VERSION_CODE < KERNEL_VERSION(2,0,34)))
 #define ioremap(a,b) \
     (((a) < 0x100000) ? (void *)((u_long)(a)) : vremap(a,b))
 #define iounmap(v) \

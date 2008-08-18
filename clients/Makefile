@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.130 2000/10/27 20:24:01
+# Makefile 1.131 2000/11/13 18:36:35
 #
 
 # Include site dependent options and kernel configuration
@@ -37,8 +37,8 @@ MODULES += apa1480_cb.o
 endif
 endif
 ifdef CONFIG_IEEE1394
-SRCS    += pcilynx_stub.c pcilynx.c
-MODULES += pcilynx_cb.o
+SRCS    += pcilynx_stub.c pcilynx.c ohci1394_stub.c ohci1394.c
+MODULES += pcilynx_cb.o ohci1394_cb.o
 endif
 endif
 
@@ -133,6 +133,13 @@ pcilynx.o: pcilynx.c
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
 pcilynx_cb.o: pcilynx_stub.o pcilynx.o
+	$(LD) -r -o $@ $+ ; chmod -x $@
+
+ohci1394.o: ohci1394.c
+	$(CC) -MD -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
+	@mkdir -p .depfiles ; mv $*.d .depfiles
+
+ohci1394_cb.o: ohci1394_stub.o ohci1394.o
 	$(LD) -r -o $@ $+ ; chmod -x $@
 
 clean:
