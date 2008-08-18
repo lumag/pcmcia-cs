@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.28 2000/10/04 00:31:08
+    dummy_cs.c 1.29 2001/03/08 14:29:33
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -70,7 +70,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"dummy_cs.c 1.28 2000/10/04 00:31:08 (David Hinds)";
+"dummy_cs.c 1.29 2001/03/08 14:29:33 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -334,6 +334,7 @@ static void dummy_config(dev_link_t *link)
     config_info_t conf;
     win_req_t req;
     memreq_t map;
+    cistpl_cftable_entry_t dflt = { 0 };
     
     DEBUG(0, "dummy_config(0x%p)\n", link);
 
@@ -374,7 +375,6 @@ static void dummy_config(dev_link_t *link)
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     CS_CHECK(GetFirstTuple, handle, &tuple);
     while (1) {
-	cistpl_cftable_entry_t dflt = { 0 };
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 	CFG_CHECK(GetTupleData, handle, &tuple);
 	CFG_CHECK(ParseTuple, handle, &tuple, &parse);

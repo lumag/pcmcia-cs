@@ -56,6 +56,7 @@
 #include <../drivers/ieee1394/ieee1394_types.h>
 #include <../drivers/ieee1394/hosts.h>
 #include <../drivers/ieee1394/ieee1394_core.h>
+#define ohci_csr_rom _ohci_csr_rom
 #include <../drivers/ieee1394/ohci1394.h>
 
 #include <pcmcia/driver_ops.h>

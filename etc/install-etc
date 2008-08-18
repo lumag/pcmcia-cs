@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# etc/install-etc 1.13 2000/10/23 19:52:22 (David Hinds)
+# etc/install-etc 1.16 2001/02/28 03:39:42 (David Hinds)
 #
 # This handles updating the PCMCIA startup and device configuration
 # scripts.  I used to do this in the Makefile, but it is really much
@@ -39,6 +39,12 @@ install_clients ()
 	echo "->   Configuring /etc/pcmcia/network.opts for Red Hat"
 	cat network.rh >> $ETC/network.opts
     fi
+    # Tweak network.opts for Debian
+    if [ -f /etc/debian-release ] && \
+	cmp -s network.opts $ETC/network.opts ; then
+	echo "->   Configuring /etc/pcmcia/network.opts for Debian"
+	cat network.deb >> $ETC/network.opts
+    fi
 }
 
 install_sysv ()
@@ -61,7 +67,8 @@ install_sysv ()
 	fi
     fi
 
-    if ! cmp -s rc.pcmcia $SYSV ; then
+    cmp -s rc.pcmcia $SYSV
+    if [ $? -ne 0 ] ; then
 	# Just clobber old startup script on RedHat-ish systems
 	if [ $RC_DIR = "/etc/rc.d" ] ; then
 	    rm -f $SYSV.N
@@ -115,7 +122,8 @@ install_depmod ()
     if [ ! -r $CONF -a -r $PREFIX/etc/conf.modules ] ; then
 	CONF=$PREFIX/etc/conf.modules
     fi
-    if ! /sbin/modprobe -c | grep -q 'path\[pcmcia\]' ; then
+    /sbin/modprobe -c | grep -q 'path\[pcmcia\]'
+    if [ $? -ne 0 ] ; then
 	echo "-> Updating $CONF"
 	grep -qs ^path $CONF || grep -qs ^keep $CONF ||
 	    echo keep >> $CONF

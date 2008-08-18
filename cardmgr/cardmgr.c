@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.151 2001/01/16 00:04:28
+    cardmgr.c 1.156 2001/03/04 21:36:40
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -73,7 +73,7 @@ typedef struct socket_info_t {
 
 #define SOCKET_PRESENT	0x01
 #define SOCKET_READY	0x02
-#define SOCKET_BOUND	0x04
+#define SOCKET_HOTPLUG	0x04
 
 /* Linked list of resource adjustments */
 struct adjust_list_t *root_adjust = NULL;
@@ -158,11 +158,16 @@ static int lookup_dev(char *name)
 
 int open_dev(dev_t dev, int mode)
 {
-    char *fn;
+    static char *paths[] = {
+	"/var/lib/pcmcia", "/var/run", "/dev", "/tmp", NULL
+    };
+    char **p, *fn;
     int fd;
-    if ((fn = tmpnam(NULL)) == NULL)
-	return -1;
-    if (mknod(fn, mode, dev) != 0)
+
+    for (p = paths; *p; p++)
+	if ((fn = tempnam(*p, "cm")) && (mknod(fn, mode, dev) == 0))
+	    break;
+    if (!*p)
 	return -1;
     fd = open(fn, (mode&S_IWRITE)?O_RDWR:O_RDONLY);
     if (fd < 0)
@@ -365,11 +370,74 @@ static int get_tuple(int ns, cisdata_t code, ds_ioctl_arg_t *arg)
     return 0;
 }
 
-/*====================================================================*/
+/*======================================================================
 
-typedef struct {
+    Code to fetch a 2.4 kernel's hot plug PCI driver list
+
+    This is distasteful but is the best I could come up with.
+
+======================================================================*/
+
+#ifdef __linux__
+
+typedef struct pci_id {
     u_short vendor, device;
+    struct pci_id *next;
 } pci_id_t;
+
+pci_id_t *hotplug_list = NULL;
+
+static void load_pcimap(void)
+{
+    char s[133], *fn = malloc(strlen(modpath) + 20);
+    int v, d;
+    FILE *f;
+
+    strcpy(fn, modpath);
+    strcat(fn, "/modules.pcimap");
+    f = fopen(fn, "r");
+    if (!f) return;
+
+    while (fgets(s, 132, f) != NULL) {
+	if (sscanf(s, "%*s %x %x", &v, &d) == 2) {
+	    pci_id_t *e = malloc(sizeof *e);
+	    e->vendor = v; e->device = d;
+	    e->next = hotplug_list;
+	    hotplug_list = e;
+	}
+    }
+    fclose(f);
+}
+
+static int get_pci_id(int ns, pci_id_t *id)
+{
+    socket_info_t *s = &socket[ns];
+    config_info_t config;
+    char fn[50];
+    int fd;
+
+    config.Function = config.ConfigBase = 0;
+    if ((ioctl(s->fd, DS_GET_CONFIGURATION_INFO, &config) != 0) ||
+	(config.IntType != INT_CARDBUS))
+	return 0;
+    if (config.ConfigBase) {
+	/* this indicates non-hotplug PCMCIA support */
+	hotplug_list = NULL;
+    } else {
+	sprintf(fn, "/proc/bus/pci/%02d/00.0", config.Option);
+	if ((fd = open(fn, O_RDONLY)) < 0)
+	    return 0;
+	read(fd, &config.ConfigBase, 4);
+	close(fd);
+    }
+    id->vendor = config.ConfigBase & 0xffff;
+    id->device = config.ConfigBase >> 16;
+    return 1;
+}
+
+#endif /* __linux__ */
+
+/*====================================================================*/
 
 static void log_card_info(cistpl_vers_1_t *vers,
 			  cistpl_manfid_t *manfid,
@@ -414,7 +482,6 @@ static card_info_t *lookup_card(int ns)
     pci_id_t pci_id = { 0, 0 };
     cistpl_funcid_t funcid = { 0xff, 0xff };
     cs_status_t status;
-    config_info_t config;
     int i, ret, match;
     int has_cis = 0;
 
@@ -488,11 +555,8 @@ static card_info_t *lookup_card(int ns)
     }
 
     /* Check PCI vendor/device info */
-    status.Function = config.Function = config.ConfigBase = 0;
-    if ((ioctl(s->fd, DS_GET_CONFIGURATION_INFO, &config) == 0) &&
-	(config.IntType == INT_CARDBUS)) {
-	pci_id.vendor = config.ConfigBase & 0xffff;
-	pci_id.device = config.ConfigBase >> 16;
+    if (get_pci_id(ns, &pci_id)) {
+	pci_id_t *p;
 	if (!card) {
 	    for (card = root_card; card; card = card->next)
 		if ((card->ident_type == PCI_IDENT) &&
@@ -500,6 +564,11 @@ static card_info_t *lookup_card(int ns)
 		    (pci_id.device == card->id.manfid.card))
 		    break;
 	}
+	for (p = hotplug_list; p; p = p->next)
+	    if ((pci_id.vendor == p->vendor) &&
+		(pci_id.device == p->device)) break;
+	if (p)
+	    s->state |= SOCKET_HOTPLUG;
     }
     
     /* Try for a FUNCID match */
@@ -932,6 +1001,10 @@ static void do_insert(int sn)
 	return;
     s->card = card;
     card->refs++;
+    if (s->state & SOCKET_HOTPLUG) {
+	write_stab();
+	return;
+    }
     if (card->cis_file) update_cis(s);
 
     dev = card->device;
@@ -1058,6 +1131,8 @@ static void do_remove(int sn)
 	goto done;
     
     syslog(LOG_INFO, "shutting down socket %d", sn);
+    if (s->state & SOCKET_HOTPLUG)
+	goto done;
     
     /* Run "stop" commands */
     dev = card->device;
@@ -1418,6 +1493,7 @@ int main(int argc, char *argv[])
 	syslog(LOG_INFO, "cannot access %s: %m", modpath);
     /* We default to using modprobe if it is available */
     do_modprobe |= (access("/sbin/modprobe", X_OK) == 0);
+    load_pcimap();
 #endif /* __linux__ */
     
     load_config();
@@ -1477,13 +1553,13 @@ int main(int argc, char *argv[])
 	    
 	    switch (event) {
 	    case CS_EVENT_CARD_REMOVAL:
-		socket[i].state &= ~(SOCKET_PRESENT | SOCKET_READY);
+		socket[i].state = 0;
 		do_remove(i);
 		break;
 	    case CS_EVENT_EJECTION_REQUEST:
 		ret = do_check(i);
 		if (ret == 0) {
-		    socket[i].state &= ~(SOCKET_PRESENT | SOCKET_READY);
+		    socket[i].state = 0;
 		    do_remove(i);
 		}
 		write(socket[i].fd, &ret, 4);

@@ -8,6 +8,7 @@
 #define MODULE_PARM(a,b)	extern int __bogus_decl
 #define MODULE_AUTHOR(a)	extern int __bogus_decl
 #define MODULE_DESCRIPTION(a)	extern int __bogus_decl
+#define MODULE_SUPPORTED_DEVICE(a) extern int __bogus_decl
 #undef  GET_USE_COUNT
 #define GET_USE_COUNT(m)	mod_use_count_
 #endif

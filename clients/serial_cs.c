@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.123 2000/08/24 18:46:38
+    serial_cs.c 1.124 2001/03/06 05:25:33
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -47,6 +47,7 @@
 #include <linux/major.h>
 #include <asm/io.h>
 #include <asm/system.h>
+#include <asm/byteorder.h>
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -61,7 +62,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.123 2000/08/24 18:46:38 (David Hinds)";
+"serial_cs.c 1.124 2001/03/06 05:25:33 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

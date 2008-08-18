@@ -1,5 +1,5 @@
 #
-# shared 1.25 2001/01/01 21:15:25 (David Hinds)
+# shared 1.26 2001/02/16 14:39:09 (David Hinds)
 #
 
 usage ()
@@ -20,6 +20,8 @@ do_fuser ()
     fuser $*
 }
 
+do_eval () { eval $* ; }
+
 log ()
 {
     if [ -n "$VERBOSE" ] ; then
@@ -28,7 +30,8 @@ log ()
 	# if command fails, print the command followed by its output
 	RET=0
 	LOG=/var/run/cardmgr.out
-	if ! (eval $*) >$LOG 2>&1 ; then RET=$? ; echo "$*" ; fi
+	do_eval $* >$LOG 2>&1
+	if [ $? -ne 0 ] ; then RET=$? ; echo "$*" ; fi
 	cat $LOG 1>&2 ; rm -f $LOG
 	return $RET
     fi

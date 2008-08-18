@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.330 2000/12/19 22:12:38
+    i82365.c 1.333 2001/02/27 14:55:32
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -75,13 +75,14 @@
 #include "ti113x.h"
 #include "smc34c90.h"
 #include "topic.h"
+#include "ene.h"
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.330 2000/12/19 22:12:38 (David Hinds)";
+"i82365.c 1.333 2001/02/27 14:55:32 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -260,8 +261,8 @@ typedef enum pcic_id {
 #endif
 #ifdef CONFIG_PCI
     IS_I82092AA, IS_OM82C092G, CIRRUS_PCIC_ID, O2MICRO_PCIC_ID,
-    RICOH_PCIC_ID, SMC_PCIC_ID, TI_PCIC_ID, TOPIC_PCIC_ID,
-    IS_UNK_PCI, IS_UNK_CARDBUS
+    RICOH_PCIC_ID, SMC_PCIC_ID, TI_PCIC_ID, ENE_PCIC_ID,
+    TOPIC_PCIC_ID, IS_UNK_PCI, IS_UNK_CARDBUS
 #endif
 } pcic_id;
 
@@ -307,7 +308,7 @@ static pcic_t pcic[] = {
     { "Intel 82092AA", IS_PCI, ID(INTEL, 82092AA_0) },
     { "Omega Micro 82C092G", IS_PCI, ID(OMEGA, 82C092G) },
     CIRRUS_PCIC_INFO, O2MICRO_PCIC_INFO, RICOH_PCIC_INFO,
-    SMC_PCIC_INFO, TI_PCIC_INFO, TOPIC_PCIC_INFO,
+    SMC_PCIC_INFO, TI_PCIC_INFO, ENE_PCIC_INFO, TOPIC_PCIC_INFO,
     { "Unknown", IS_PCI|IS_UNKNOWN, 0, 0 },
     { "Unknown", IS_CARDBUS|IS_UNKNOWN, 0, 0 }
 #endif
@@ -892,10 +893,16 @@ static void __init topic_get_state(socket_info_t *s)
 static void topic_set_state(socket_info_t *s)
 {
     topic_state_t *p = &s->state.topic;
+    u_int state;
     pci_writeb(s, TOPIC_SLOT_CONTROL, p->slot);
     pci_writeb(s, TOPIC_CARD_CONTROL, p->ccr);
     pci_writeb(s, TOPIC_CARD_DETECT, p->cdr);
     pci_writel(s, TOPIC_REGISTER_CONTROL, p->rcr);
+    state = cb_readl(s, CB_SOCKET_STATE);
+    if (!(state & CB_SS_32BIT))
+	cb_writel(s, CB_SOCKET_CONTROL, 0);
+    if (!(state & CB_SS_VSENSE))
+	cb_writel(s, CB_SOCKET_FORCE, CB_SF_CVSTEST);
 }
 
 static u_int __init topic_set_opts(socket_info_t *s, char *buf)
@@ -905,6 +912,7 @@ static u_int __init topic_set_opts(socket_info_t *s, char *buf)
     p->slot |= TOPIC_SLOT_SLOTON|TOPIC_SLOT_SLOTEN|TOPIC_SLOT_ID_LOCK;
     p->cdr |= TOPIC_CDR_MODE_PC32;
     p->cdr &= ~(TOPIC_CDR_SW_DETECT);
+    p->ccr |= TOPIC97_ICR_IRQSEL;
     sprintf(buf, " [slot 0x%02x] [ccr 0x%02x] [cdr 0x%02x] [rcr 0x%02x]",
 	    p->slot, p->ccr, p->cdr, p->rcr);
     return 0xffff;
@@ -2004,7 +2012,7 @@ static int i365_set_socket(socket_info_t *s, socket_state_t *state)
 
 	if (state->Vpp == 120) {
 	    reg |= I365_VPP1_12V | (new ? 0 : I365_VPP2_12V);
-	} else if (state->Vpp == (df) ? 50 : state->Vcc) {
+	} else if (state->Vpp == (df ? 50 : state->Vcc)) {
 	    reg |= I365_VPP1_5V | (new ? 0 : I365_VPP2_5V);
 	} else if (state->Vpp)
 	    return -EINVAL;

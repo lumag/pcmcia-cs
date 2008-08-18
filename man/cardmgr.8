@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" cardmgr.8 1.38 2000/11/19 00:06:18
+.\" cardmgr.8 1.39 2001/03/05 04:10:49
 .\"
-.TH CARDMGR 8 "2000/11/19 00:06:18" "pcmcia-cs"
+.TH CARDMGR 8 "2001/03/05 04:10:49" "pcmcia-cs"
 .SH NAME
 cardmgr \- PCMCIA device manager
 .SH SYNOPSIS
@@ -12,56 +12,42 @@ cardmgr \- PCMCIA device manager
 .RB [ -o ]
 .RB [ -f ]
 .RB [ -v ]
-.RB [ "\-c\ "\c
-.I configpath\c
-]
-.RB [ "\-m\ "\c
-.I modpath\c
-]
-.RB [ "\-p\ "\c
-.I pidfile\c
-]
-.RB [ "\-s\ "\c
-.I stabfile\c
-]
+[\fB\-c \fIconfigpath\fR]
+[\fB\-m \fImodpath\fR]
+[\fB\-p \fIpidfile\fR]
+[\fB\-s\ \fIstabfile\fR]
 
 .SH DESCRIPTION
-.B Cardmgr
-monitors PCMCIA sockets for card insertion and removal events.  When a
-card is inserted, \fBcardmgr\fR
-looks up the card in a database of known cards.  If the card can be
-identified, appropriate device drivers will be loaded and bound to the
-card.  When a card is ejected, that card's drivers will be shut down
-and unloaded if possible.  Based on the contents of the PCMCIA card
-configuration database, \fBcardmgr\fR
-may also execute arbitrary commands when appropriate cards are either
-inserted or removed.
+\fBCardmgr\fR monitors PCMCIA sockets for card insertion and removal
+events.  When a card is inserted, \fBcardmgr\fR looks up the card in a
+database of known cards.  If the card can be identified, appropriate
+device drivers will be loaded and bound to the card.  When a card is
+ejected, that card's drivers will be shut down and unloaded if
+possible.  Based on the contents of the PCMCIA card configuration
+database, \fBcardmgr\fR may also execute arbitrary commands when
+appropriate cards are either inserted or removed.
 .PP
 All insertion and removal events, device driver loads and unloads, and
 startup and shutdown commands are reported in the system log file.
 Warnings and errors will also be logged.  Current card and device
-information for each socket is recorded in
-.IR /var/lib/pcmcia/stab .
+information for each socket is recorded in \fI/var/lib/pcmcia/stab\fR.
 .PP
-Normally, when a card is identified, \fBcardmgr\fR
-will send a beep to the console.  A beep is also generated when a card
-is successfully configured.  A beep of lower pitch is generated if
-either of these steps fails.  Ejecting a card produces a single beep.
+Normally, when a card is identified, \fBcardmgr\fR will send a beep to
+the console.  A beep is also generated when a card is successfully
+configured.  A beep of lower pitch is generated if either of these
+steps fails.  Ejecting a card produces a single beep.
 .PP
-When \fBcardmgr\fR
-receives a \fBSIGHUP\fR
-signal, it will reload its configuration file.  When \fBcardmgr\fR
-receives a \fBSIGTERM\fR
-signal, it will shut down all sockets that are not busy and then
-exit, but drivers for busy sockets will stay loaded.
+When \fBcardmgr\fR receives a \fBSIGHUP\fR signal, it will reload its
+configuration file.  When \fBcardmgr\fR receives a \fBSIGTERM\fR
+signal, it will shut down all sockets that are not busy and then exit,
+but drivers for busy sockets will stay loaded.
 .PP
-If the \fBPCMCIA_OPTS\fR
-environment variable is set, its contents will be parsed after the
-main card configuration file is read.
+If the \fBPCMCIA_OPTS\fR environment variable is set, its contents
+will be parsed after the main card configuration file is read.
 .PP
-At startup, \fBcardmgr\fR requires that \fI/tmp\fR
-reside on a filesystem that permits special device files (i.e., a real
-linux filesystem, that is not mounted "nodev").
+At startup, \fBcardmgr\fR requires that \fI/tmp\fR reside on a
+filesystem that permits special device files (i.e., a real linux
+filesystem, that is not mounted "nodev").
 
 .SH OPTIONS
 .TP
@@ -73,13 +59,13 @@ Quiet mode: don't beep when cards are inserted.
 .TP
 .B \-v
 Verbose mode: generates more informational messages during normal
-operation.
+operation.  Configuration scripts are executed with VERBOSE=y.
 .TP
 .B \-d
 Follow module dependencies when loading driver modules, by defaulting
-to use \fBmodprobe\fR instead of \fBinsmod\fR.
-Normally, \fBcardmgr \fR will try using \fBmodprobe\fR only after an
-unsuccessful attempt with \fBinsmod\fR.
+to use \fBmodprobe\fR instead of \fBinsmod\fR.  Normally, \fBcardmgr
+\fR will try using \fBmodprobe\fR only after an unsuccessful attempt
+with \fBinsmod\fR.
 .TP
 .B \-f
 Foreground: do not fork and run as a daemon until after configuring
@@ -89,19 +75,19 @@ any cards that are already present.
 One pass: configure cards that are present, then exit.  This flag
 also forces \fBcardmgr\fR to run in the foreground.
 .TP
-.BI "\-c " configpath
+\fB\-c \fIconfigpath\fR
 Look for the card configuration database and card configuration
 scripts in the specified directory, instead of \fI/etc/pcmcia\fR.
 .TP
-.BI "\-m " modpath
+\fB\-m \fImodpath\fR
 Look for loadable kernel modules in the specified directory, instead
 of \fI/lib/modules/`uname -r`\fR.
 .TP
-.BI "\-p " pidfile
+\fB\-p \fIpidfile\fR
 Write the PID of the cardmgr process to the specified file, instead of
 \fI/var/run/cardmgr.pid\fR.
 .TP
-.BI "\-s " stabfile
+\fB\-s \fIstabfile\fR
 Write current socket information to the specified file, instead of
 \fI/var/lib/pcmcia/stab\fR.
 

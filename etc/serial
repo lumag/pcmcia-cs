@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.38 2001/01/01 21:14:04 (David Hinds)
+# serial 1.39 2001/02/28 00:30:49 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -21,6 +21,8 @@ get_info $DEVICE
 
 # Load site-specific settings
 ADDRESS="$SCHEME,$SOCKET,$INSTANCE"
+start_fn () { return; }
+stop_fn () { return; }
 . $0.opts
 
 # Newer kernels deprecate use of "cua" devices, but we need to
@@ -57,6 +59,7 @@ case "$ACTION" in
 	echo "S$NR:12345:respawn:$INITTAB $DEVICE" >> /etc/inittab
 	telinit q
     fi
+    start_fn $DEVICE
     ;;
 
 'check')
@@ -81,6 +84,7 @@ case "$ACTION" in
     fi
     do_fuser -k /dev/$DEVICE /dev/$CALLOUT $LINK > /dev/null
     if [ -L "$LINK" ] ; then rm $LINK ; fi
+    stop_fn $DEVICE
     ;;
 
 'suspend')

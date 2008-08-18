@@ -38,7 +38,7 @@
 *
 * FILE	 : hcfcfg.tpl // hcfcfg.h **************************** 2.0 ********************************************
 *
-* DATE   : 2000/12/13 22:58:23   1.3
+* DATE   : 2001/03/01 00:59:03   1.4
 *
 * AUTHOR : Nico Valster
 *
@@ -74,6 +74,9 @@
 
 /****************************************************************************
 wvlan_hcfcfg.h,v
+Revision 1.4  2001/03/01 00:59:03  root
+*** empty log message ***
+
 Revision 1.3  2000/12/13 22:58:23  root
 *** empty log message ***
 
@@ -258,7 +261,7 @@ Initial revision
 *
 *  NOTE!!	in the Intel environment it is O.K to have a word (as a 16 bits quantity) at a byte boundary, 
 *			hence IN_/OUT_PORT_STRING can move words between PC-memory and NIC-memory with as only
-*			constraint that the the words are on a word boundary in NIC-memory. This does not hold true
+*			constraint that the words are on a word boundary in NIC-memory. This does not hold true
 *			for all conceivalble environments, e.g. an Motorola 68xxx does not allow this, in other
 *			words whenever there is a move from address in 2*n in one memory type to address 2*m+1 in the
 *			other type, the current templates for IN_/OUT_PORT_STRING are unsuitable. Probably the
@@ -1053,7 +1056,7 @@ EXTERN_C void msf_assert ( wci_bufp file_namep, unsigned int line_number, hcf_16
  *	
  *	The routines ips and ops (short for InPutString and OutPutString) are created to use the 
  *	compiler to do the type checking. It turned out that it is too easy to accidentally pass
- *	a word pointer to the the macros IN_PORT_STRING and OUT_PORT_STRING rather than a byte pointer.
+ *	a word pointer to the macros IN_PORT_STRING and OUT_PORT_STRING rather than a byte pointer.
  *	The "+2" as some macro implementations use, does not have the intended effect in those cases.
  *	The HCF_STRICT business can be ignored by MSF programmers.
  *	

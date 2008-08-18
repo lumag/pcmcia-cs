@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.83, 18 January 2001
+  v2.87, 04 March 2001
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -195,6 +195,8 @@
   +o  Cirrus Logic (now Basis Communications) PD6710, PD6720, PD6722,
      PD6729, PD6730, PD6832
 
+  +o  ENE Technology CB1211, CB1225, CB1410, CB1420
+
   +o  Intel i82365sl B, C, and DF steps, 82092AA
 
   +o  O2Micro OZ6729, OZ6730, OZ6812, OZ6832, OZ6833, OZ6836, OZ6860
@@ -326,7 +328,6 @@
   cardmgr daemon will generally be swapped out except when cards are
   inserted or removed.  The total package size is comparable to
   DOS/Windows Card Services implementations.
-
   Compared to DOS ``point enablers'', this may still seem like a lot of
   overhead, especially for people that don't plan on using many of the
   features of PCMCIA, such as power management or hot swapping.  Point
@@ -597,9 +598,12 @@
 
   +o  The pcmcia_core module has the cis_speed parameter for changing the
      memory speed used for accessing a card's Card Information Structure
-     (CIS).  On some systems with fast bus clocks, increasing this
-     parameter (i.e., slowing down card accesses) may be beneficial for
-     card recognition problems.
+     (CIS).  On some systems, increasing this parameter (i.e., slowing
+     down card accesses) may fix card recognition problems.
+
+  +o  Another pcmcia_core parameter, io_speed, can be used to slow down
+     accesses to IO cards.  It may help in certain cases with systems
+     that have out-of-spec PCMCIA bus timing.
 
   +o  This is not a timing issue, but if you have more than one ISA-to-
      PCMCIA controller in your system or extra sockets in a laptop
@@ -642,9 +646,10 @@
      as PCMCIA driver release 3.1.23 or later.
 
   +o  With SCM Microsystems SBP series PCI card readers (which are also
-     being distributed with Lucent WaveLAN IEEE cards), it is necessary
-     to specify ``irq_mode=0'' for the i82365 module, to force use of
-     PCI interrupts.
+     being distributed with Lucent WaveLAN IEEE cards), and for the
+     Synchrotech PCM-CR-PC2IF and PCM-CR-PC2IR, it is necessary to
+     specify ``irq_mode=0'' for the i82365 module, to force use of PCI
+     interrupts.
 
   +o  For the ActionTec PC 750 card reader, the i82365 driver requires a
      ``irq_list=0'' parameter, to indicate that ISA interrupts are
@@ -685,6 +690,8 @@
   +o  On the Fujitsu C series, exclude port 0x200-0x27f.
 
   +o  On the HP Omnibook 4000C, exclude port 0x300-0x30f.
+
+  +o  On the HP Omnibook 4100, exclude port 0x220-0x22f.
 
   +o  On the IBM ThinkPad 380, and maybe the 385 and 600 series, exclude
      port 0x230-0x233, and irq 5.
@@ -750,11 +757,17 @@
   specified in /etc/pcmcia.conf.  Debian's syslog configuration will
   place kernel messages in /var/log/messages and cardmgr messages in
   /var/log/daemon.log.
-
   Debian distributes the PCMCIA system in two packages: the ``pcmcia-
   cs'' package contains cardmgr and other tools, man pages, and
   configuration scripts; and the ``pcmcia-modules'' package contains the
   kernel driver modules.
+
+  Starting with 3.1.25, a clean PCMCIA install will identify Debian
+  systems and create a special network.opts file that, in the absence of
+  other network configuration settings, uses Debian's ifup and ifdown
+  commands to configure a network card based on settings in
+  /etc/network/interfaces.
+
   22..55..22..  RReedd HHaatt,, CCaallddeerraa,, MMaannddrraakkee
 
   These distributions use a System V boot script organization.  The
@@ -815,6 +828,7 @@
   script is installed as /etc/rc.d/rc.pcmcia, and boot options are
   specified in rc.pcmcia itself.  The PCMCIA startup script is invoked
   from /etc/rc.d/rc.S.
+
   22..55..44..  SSuuSSEE
 
   SuSE uses a System V init script arrangement, with init scripts stored
@@ -987,7 +1001,6 @@
 
   +o  The system log shows a successful host controller probe just before
      the lock-up, but does not show interrupt probe results.
-
   After identifying the host controller type, the socket driver probes
   for free interrupts.  The probe involves programming the controller
   for each apparently free interrupt, then generating a ``soft''
@@ -1038,8 +1051,9 @@
 
   Symptoms:
 
-  +o  The system locks up when cardmgr is first started, even with no
-     cards present.
+  +o  The system locks up when cardmgr is first started.  For 3.1.24, the
+     lockup happens even with no cards present; for 3.1.25, a card must
+     be inserted.
 
   +o  The system log shows a successful host controller probe, including
      interrupt probe results, but does not show IO probe results.
@@ -1117,6 +1131,7 @@
   0xa0000000-0xa0ffffff.  If you have a CardBus bridge and have upgraded
   from an older PCMCIA driver release, add this memory window if it is
   not already defined.
+
   In some cases, the default high memory window is not usable.  On some
   IBM Thinkpad models, a window of 0x60000000-0x60ffffff will work in
   place of the default window.
@@ -1224,7 +1239,6 @@
   be mapped anywhere in the host's PCI address space (rather than just
   in the 640K-1MB ``hole'' in PC systems), it is helpful to specify
   large memory windows in high memory, such as 0xa0000000-0xa0ffffff.
-
   33..99..  RReessoouurrccee ccoonnfflliicctt oonnllyy wwiitthh ttwwoo ccaarrddss iinnsseerrtteedd
 
   Symptoms:
@@ -1277,10 +1291,10 @@
   If the modules are all loaded correctly, the output of the lsmod
   command should look like the following, when no cards are inserted:
 
-       Module                  Size  Used by
-       ds                      5640   2
-       i82365                 15452   2
-       pcmcia_core            30012   3  [ds i82365]
+  Module                  Size  Used by
+  ds                      5640   2
+  i82365                 15452   2
+  pcmcia_core            30012   3  [ds i82365]
 
   The system log should also include output from the socket driver
   describing the host controller(s) found and the number of sockets
@@ -1330,18 +1344,18 @@
   configuration status of a card.  Here is an example of the output of
   the ``cardctl config'' command:
 
-  Socket 0:
-    not configured
-  Socket 1:
-    Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
-    Card type is memory and I/O
-    IRQ 3 is dynamic shared, level mode, enabled
-    Speaker output is enabled
-    Function 0:
-      Config register base = 0x0800
-        Option = 0x63, status = 0x08
-      I/O window 1: 0x0280 to 0x02bf, auto sized
-      I/O window 2: 0x02f8 to 0x02ff, 8 bit
+       Socket 0:
+         not configured
+       Socket 1:
+         Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
+         Card type is memory and I/O
+         IRQ 3 is dynamic shared, level mode, enabled
+         Speaker output is enabled
+         Function 0:
+           Config register base = 0x0800
+             Option = 0x63, status = 0x08
+           I/O window 1: 0x0280 to 0x02bf, auto sized
+           I/O window 2: 0x02f8 to 0x02ff, 8 bit
 
   Or ``cardctl ident'', to get card identification information:
 

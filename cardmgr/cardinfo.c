@@ -2,7 +2,7 @@
 
     X Windows PCMCIA device control program
 
-    cardinfo.c 1.32 2000/06/12 21:54:18
+    cardinfo.c 1.33 2001/02/14 03:25:48
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -136,12 +136,17 @@ static int lookup_dev(char *name)
 
 static int open_dev(dev_t dev)
 {
-    char *fn;
+    static char *paths[] = {
+	"/var/lib/pcmcia", "/var/run", "/dev", "/tmp", NULL
+    };
+    char **p, *fn;
     int fd;
-    
-    if ((fn = tmpnam(NULL)) == NULL)
-	return -1;
-    if (mknod(fn, (S_IFCHR|S_IREAD), dev) != 0)
+
+    for (p = paths; *p; p++)
+	if ((fn = tempnam(*p, "ci")) &&
+	    (mknod(fn, (S_IFCHR|S_IREAD), dev) == 0))
+	    break;
+    if (!*p)
 	return -1;
     if ((fd = open(fn, O_RDONLY)) < 0) {
 	unlink(fn);

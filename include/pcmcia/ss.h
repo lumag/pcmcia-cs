@@ -1,5 +1,5 @@
 /*
- * ss.h 1.28 2000/06/12 21:55:40
+ * ss.h 1.30 2001/03/05 03:59:06
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -87,6 +87,7 @@ typedef struct socket_state_t {
 #define SS_DMA_MODE	0x0080
 #define SS_SPKR_ENA	0x0100
 #define SS_OUTPUT_ENA	0x0200
+#define SS_ZVCARD	0x0400
 
 /* Flags for I/O port and memory windows */
 #define MAP_ACTIVE	0x01

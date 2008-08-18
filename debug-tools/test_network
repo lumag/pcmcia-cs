@@ -146,7 +146,7 @@ if (!$stab) {
     exit 1;
 }
 
-$net = `cat /etc/pcmcia/network`;
+$net = `cat /etc/pcmcia/network 2>/dev/null`;
 $opts = `cat /etc/pcmcia/network.opts`;
 $rh = "/etc/sysconfig/network-scripts/ifcfg-eth0";
 print "PCMCIA network settings are coming from ";

@@ -4,14 +4,14 @@
     
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    3c589_cs.c 1.154 2000/09/30 17:39:04
+    3c589_cs.c 1.158 2001/02/28 03:43:43
 
     The network driver code is based on Donald Becker's 3c589 code:
     
     Written 1994 by Donald Becker.
     Copyright 1993 United States Government as represented by the
     Director, National Security Agency.  This software may be used and
-    distributed according to the terms of the GNU Public License,
+    distributed according to the terms of the GNU General Public License,
     incorporated herein by reference.
     Donald Becker may be reached at becker@cesdis1.gsfc.nasa.gov
 
@@ -120,7 +120,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.154 2000/09/30 17:39:04 (David Hinds)";
+"3c589_cs.c 1.158 2001/02/28 03:43:43 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -247,7 +247,7 @@ static dev_link_t *tc589_attach(void)
     init_dev_name(dev, lp->node);
     dev->open = &el3_open;
     dev->stop = &el3_close;
-#ifdef HAVE_NETIF_QUEUE
+#ifdef HAVE_TX_TIMEOUT
     dev->tx_timeout = el3_tx_timeout;
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
@@ -693,7 +693,7 @@ static void el3_tx_timeout(struct net_device *dev)
     /* Issue TX_RESET and TX_START commands. */
     wait_for_completion(dev, TxReset);
     outw(TxEnable, ioaddr + EL3_CMD);
-    netif_start_queue(dev);
+    netif_wake_queue(dev);
 }
 
 static void pop_tx_status(struct net_device *dev)
@@ -994,15 +994,14 @@ static int el3_rx(struct net_device *dev)
 		  pkt_len, rx_status);
 	    if (skb != NULL) {
 		skb->dev = dev;
-		
 		skb_reserve(skb, 2);
 		insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
 			(pkt_len+3)>>2);
 		skb->protocol = eth_type_trans(skb, dev);
-		
 		netif_rx(skb);
+		dev->last_rx = jiffies;
 		lp->stats.rx_packets++;
-		add_rx_bytes(&lp->stats, skb->len);
+		add_rx_bytes(&lp->stats, pkt_len);
 	    } else {
 		DEBUG(1, "%s: couldn't allocate a sk_buff of"
 		      " size %d.\n", dev->name, pkt_len);

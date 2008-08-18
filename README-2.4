@@ -70,20 +70,20 @@ SCSI low-level drivers:
   apa1480_cb   Adaptec APA1480 CardBus   CONFIG_PCMCIA_APA1480
 
 The CardBus network drivers (3c575_cb, tulip_cb, epic_cb) have been
-folded into the corresponding PCI drivers using the new hot plug PCI
+folded into the corresponding PCI drivers using the new "hot plug PCI"
 interface.  The tulip_cb driver has been partially merged into the
 tulip driver ('DECchip Tulip (dc21x4x)', CONFIG_TULIP).  Xircom
 CardBus cards are supported by a separate driver ('Xircom Tulip-like
 CardBus', CONFIG_PCMCIA_XIRTULIP).  The 3c575_cb driver is merged into
 the 3c59x driver ('3C590/3c900 series (592/595/597) "Vortex/Boomerang"
 support', CONFIG_VORTEX).  And the epic_cb driver has been folded into
-the epic100 driver ('SMC EtherPower II', CONFIG_EPIC100).
+the epic100 driver ('SMC EtherPower II', CONFIG_EPIC100).  These
+drivers are not managed by cardmgr; they are managed by the "hotplug"
+subsystem.  See http://linux-hotplug.sourceforge.net for information
+about this new facility.
 
 Known problems and limitations:
 
-o ISA-to-PCMCIA and PCI-to-PCMCIA bridges are not supported.  The
-  bridge driver interface in 2.4 is significantly different, and the
-  tcic and i82365 drivers have not been ported to the new interface.
 o Some of the less widely used client drivers, like the memory card
   drivers, have not been ported into the 2.4 driver tree yet.
 o The yenta_socket driver does not have the /proc interface of the
@@ -92,13 +92,10 @@ o The yenta_socket driver does not have the /proc interface of the
 o The kernel PCMCIA package cannot be configured to use PnP BIOS calls
   for resource management.  This will not be fixed, but is rarely a
   serious issue.
-o There is a somewhat serious API issue with the new "PCI hot plug"
-  interface used by the new tulip and 3c59x drivers.  It is unable to
-  pass device name information to cardmgr, so the PCMCIA configuration
-  scripts don't work.  Fixing this properly is non-trivial, because
-  the new API is not intended to be tightly linked to the PCMCIA card
-  control interface at all.  A substitute for that interface, but for
-  PCI hot plug, has not really been sketched out yet.
+o With the introduction of the Hot Plug PCI subsystem, some CardBus
+  drivers now no longer act like other PCMCIA drivers; most obviously,
+  they don't interact with the PCMCIA device configuration scripts.
+  These devices are configured using the "hotplug" scripts.
 
 Answers to some common questions:
 

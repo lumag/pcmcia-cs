@@ -5,8 +5,9 @@
 # interface can't be set up using settings given higher up in this
 # file.
 
-if ! is_true $PUMP && ! is_true $BOOTP && ! is_true $DHCP && \
-    [ ! "$IPADDR" -a -f /etc/sysconfig/network-scripts/ifcfg-$2 ] ; then
+is_true $PUMP || is_true $BOOTP || is_true $DHCP || \
+if [ ! "$IPADDR" -a -f /etc/sysconfig/network-scripts/ifcfg-$2 ] ; then
+    INFO="Red Hat netconf setup"
     start_fn () {
 	. /etc/sysconfig/network-scripts/ifcfg-$1
 	if [ "$ONBOOT" = "yes" ] ; then log /sbin/ifup $1 ; fi

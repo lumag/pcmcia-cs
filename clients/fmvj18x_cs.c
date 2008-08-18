@@ -19,7 +19,7 @@
     Director, National Security Agency.
     
     This software may be used and distributed according to the terms
-    of the GNU Public License, incorporated herein by reference.
+    of the GNU General Public License, incorporated herein by reference.
     
     The author may be reached as becker@CESDIS.gsfc.nasa.gov, or C/O
     Center of Excellence in Space Data and Information Sciences
@@ -106,7 +106,7 @@ static dev_link_t *fmvj18x_attach(void);
 static void fmvj18x_detach(dev_link_t *);
 
 /*
-    LAN controler(MBH86960A) specific routines
+    LAN controller(MBH86960A) specific routines
  */
 static int fjn_config(struct net_device *dev, struct ifmap *map);
 static int fjn_open(struct net_device *dev);
@@ -228,8 +228,8 @@ typedef struct local_info_t {
 #define RECV_ALL             0x03 /* (RX_MODE) */
 #define CONFIG0_DFL          0x5a /* 16bit bus, 4K x 2 Tx queues */
 #define CONFIG0_DFL_1        0x5e /* 16bit bus, 8K x 2 Tx queues */
-#define CONFIG0_RST          0xda /* Data Link Controler off (CONFIG_0) */
-#define CONFIG0_RST_1        0xde /* Data Link Controler off (CONFIG_0) */
+#define CONFIG0_RST          0xda /* Data Link Controller off (CONFIG_0) */
+#define CONFIG0_RST_1        0xde /* Data Link Controller off (CONFIG_0) */
 #define BANK_0               0xa0 /* bank 0 (CONFIG_1) */
 #define BANK_1               0xa4 /* bank 1 (CONFIG_1) */
 #define BANK_2               0xa8 /* bank 2 (CONFIG_1) */
@@ -240,8 +240,8 @@ typedef struct local_info_t {
 #define MANU_MODE            0x03 /* Stop and skip packet on 16 col */
 #define TDK_AUTO_MODE        0x47 /* Auto skip packet on 16 col detected */
 #define TDK_MANU_MODE        0x43 /* Stop and skip packet on 16 col */
-#define INTR_OFF             0x0d /* LAN controler ignores interrupts */
-#define INTR_ON              0x1d /* LAN controler will catch interrupts */
+#define INTR_OFF             0x0d /* LAN controller ignores interrupts */
+#define INTR_ON              0x1d /* LAN controller will catch interrupts */
 
 #define TX_TIMEOUT		((400*HZ)/1000)
 
@@ -327,7 +327,7 @@ static dev_link_t *fmvj18x_attach(void)
     init_dev_name(dev, lp->node);
     dev->open = &fjn_open;
     dev->stop = &fjn_close;
-#ifdef HAVE_NETIF_QUEUE
+#ifdef HAVE_TX_TIMEOUT
     dev->tx_timeout = fjn_tx_timeout;
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
@@ -528,7 +528,7 @@ req_irq:
     else
 	outb(BANK_0, ioaddr + CONFIG_1);
 
-    /* Reset controler */
+    /* Reset controller */
     if( sram_config == 0 ) 
 	outb(CONFIG0_RST, ioaddr + CONFIG_0);
     else
@@ -864,7 +864,7 @@ static void fjn_tx_timeout(struct net_device *dev)
     lp->sent = 0;
     lp->open_time = jiffies;
     sti();
-    netif_start_queue(dev);
+    netif_wake_queue(dev);
 }
 
 static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1013,7 +1013,7 @@ static void fjn_reset(struct net_device *dev)
     outb(D_TX_INTR, ioaddr + TX_INTR);
     outb(D_RX_INTR, ioaddr + RX_INTR);
 
-    /* Turn on interrupts from LAN card controler */
+    /* Turn on interrupts from LAN card controller */
     if( lp->cardtype != TDK ) 
 		outb(INTR_ON, ioaddr + LAN_CTRL);
 } /* fjn_reset */
@@ -1085,8 +1085,9 @@ static void fjn_rx(struct net_device *dev)
 #endif
 
 	    netif_rx(skb);
+	    dev->last_rx = jiffies;
 	    lp->stats.rx_packets++;
-	    add_rx_bytes(&lp->stats, skb->len);
+	    add_rx_bytes(&lp->stats, pkt_len);
 	}
 	if (--boguscount <= 0)
 	    break;

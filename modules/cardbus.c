@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.78 2000/10/26 20:10:55
+    cardbus.c 1.79 2001/01/29 02:21:44
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -114,6 +114,7 @@ typedef struct cb_config_t {
 
 #if (LINUX_VERSION_CODE >= VERSION(2,3,15))
 #define BASE(cb,n)	((cb).dev.resource[n].start)
+#define FLAGS(cb,n)	((cb).dev.resource[n].flags)
 #define ROM(cb)		((cb).dev.resource[6].start)
 #else
 #ifdef NEW_LINUX_PCI
@@ -123,6 +124,7 @@ typedef struct cb_config_t {
 #define BASE(cb,n)	((cb).extra.base_address[n])
 #define ROM(cb)		((cb).extra.rom_address)
 #endif
+#define FLAGS(cb,n)	BASE(cb,n)
 #endif
 
 /* There are three classes of bridge maps: IO ports,
@@ -522,7 +524,8 @@ int cb_config(socket_info_t *s)
 			printk(KERN_INFO "  fn %d rom: ", i);
 		    printk("%s 0x%x-0x%x\n", (m) ? "mem" : "io",
 			   base[m], base[m]+sz-1);
-		    BASE(c[i], j) = base[m] | map_flags[m];
+		    BASE(c[i], j) = base[m];
+		    FLAGS(c[i], j) |= map_flags[m];
 		}
 	    }
 	}
@@ -651,7 +654,8 @@ void cb_enable(socket_info_t *s)
     for (i = 0; i < s->functions; i++) {
 	for (j = 0; j < 6; j++) {
 	    if (BASE(c[i], j) != 0)
-		pci_writel(&c[i].dev, CB_BAR(j), BASE(c[i], j));
+		pci_writel(&c[i].dev, CB_BAR(j),
+			   BASE(c[i], j) | FLAGS(c[i], j));
 	}
 	if (ROM(c[i]) != 0)
 	    pci_writel(&c[i].dev, CB_ROM_BASE, ROM(c[i]) | 1);

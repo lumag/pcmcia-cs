@@ -20,6 +20,13 @@
  *		Have a closer look to the endianess (PPC problems).
  *
  * HISTORY
+ *	v1.0.7	11/01/2000 - Jean II and Anton Blanchard
+ *		Dont hold spinlock during copy_{to,from}_user, we might
+ *		sleep. (brought to my attention by Dave Gibson)
+ *		New Ad-Hoc mode accepts ESSID=any (Jean II)
+ *		Support new wireless extension - Transmit Power (Jean II)
+ *              Added support for 3.3V cards, fixed IPv6 (David)
+ *
  *	v1.0.6	7/12/2000 - David Hinds, Anton Blanchard, Jean II and others
  *		Endianess fix for PPC users, first try (David)
  *		Fix some ranges (power management, key size, ...) (me)
@@ -86,7 +93,7 @@
  *
  *	v1.0.1	1999/09/02
  *		Interrupts are now disabled during ioctl to prevent being
- *			disturbed during our fiddling with the NIC (occured
+ *			disturbed during our fiddling with the NIC (occurred
  *			when using wireless tools while heavy loaded link).
  *		Fixed a problem with more than 6 spy addresses (thanks to
  *			Thomas Ekstrom).
@@ -123,7 +130,7 @@
  *			kernels (thanks to Derrick J Brashear).
  *		Fixed wrong adjustment of receive buffer length. This was only
  *			a problem when a higher level protocol relies on correct
- *			length information, so it never occured with IPv4
+ *			length information, so it never occurred with IPv4
  *			(thanks to Henrik Gulbrandsen).
  *
  *	v0.2.6	1999/05/04
@@ -1095,21 +1102,22 @@ static int wvlan_hw_config (struct net_device *dev)
  			 * This is what we mainly support...
  			 * Note : this will work at least for Lucent
  			 * firmwares */
- 			local->has_port3  = (firmware <= 0x60006);
- 			local->has_ibssid = (firmware >= 0x60006);
+ 			local->has_port3  = 1;
+ 			local->has_ibssid = ((firmware >= 0x60006) +
+					     (firmware >= 0x60010));
  			local->has_mwo    = (firmware >= 0x60000);
  			local->has_wep    = (firmware >= 0x40020);
  			local->has_pwep   = 0;
  			local->has_pm     = (firmware >= 0x40020);
  			/* Note : I've tested the following firmwares :
- 			 * 1.16 ; 4.08 ; 4.52 ; 6.04 and 6.06
+ 			 * 1.16 ; 4.08 ; 4.52 ; 6.04 ; 6.06 and 6.16
  			 * Jean II */
 			/* Tested CableTron 4.32 - Anton */
  			break;
  		case 0x6:
  			/* This is a LinkSys/D-Link card. This is not a Lucent
  			 * card, but a PrismII card. It is is *very* similar
- 			 * to the Lucent, and the the driver work 95%,
+ 			 * to the Lucent, and the driver work 95%,
  			 * therefore, we attempt to support it... */
  			printk(KERN_NOTICE "%s: This is LinkSys/D-Link card, not a Wavelan IEEE card :-(
 You may want report firmare revision (0x%X) and what the card support.
@@ -1131,8 +1139,8 @@ I will try to make it work, but you should look for a better driver.\n", dev_inf
  		}
   	}
  
-	DEBUG(DEBUG_INFO, "%s: Found firmware 0x%X (%d) - Firmware capabilities : %d-%d-%d-%d-%d\n",
-	      dev_info, firmware, first, local->has_port3, local->has_ibssid,
+ 	printk(KERN_INFO "%s: Found firmware 0x%X (vendor %d) - Firmware capabilities : %d-%d-%d-%d-%d\n",
+ 	      dev_info, firmware, vendor, local->has_port3, local->has_ibssid,
 	      local->has_mwo, local->has_wep, local->has_pm);
 
  	if(!rc) {
@@ -1145,7 +1153,8 @@ I will try to make it work, but you should look for a better driver.\n", dev_inf
  			printk(KERN_NOTICE "%s: This firmware doesn't support ``allow_ibss=1'', please update it.\n", dev_info);
  			rc = 255;
  		}
- 		if((local->allow_ibss) && (local->network_name[0] == '\0')) {
+ 		if((local->allow_ibss) && (local->has_ibssid == 1) &&
+		   (local->network_name[0] == '\0')) {
  			printk(KERN_NOTICE "%s: This firmware require an ESSID in Ad-Hoc mode, please use iwconfig.\n", dev_info);
  			rc = 255;
  		}
@@ -1396,10 +1405,14 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 						break;
 					}
 					wv_driver_unlock(local, &flags);
-					copy_from_user(essid,
+					rc = copy_from_user(essid,
 						       wrq->u.data.pointer,
 						       wrq->u.data.length);
 					wv_driver_lock(local, &flags);
+					if (rc) {
+						rc = -EFAULT;
+						break;
+					}
 					essid[IW_ESSID_MAX_SIZE] = '\0';
 				}
 				strncpy(local->network_name, essid, sizeof(local->network_name)-1);
@@ -1428,8 +1441,10 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				wrq->u.data.length = strlen(essid) + 1;
 				wrq->u.data.flags = 1; /* active */
 				wv_driver_unlock(local, &flags);
-				copy_to_user(wrq->u.data.pointer, essid, sizeof(essid));
+				rc = copy_to_user(wrq->u.data.pointer, essid, sizeof(essid));
 				wv_driver_lock(local, &flags);
+				if (rc)
+					rc = -EFAULT;
 			}
 			break;
 
@@ -1453,8 +1468,12 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					break;
 				}
 				wv_driver_unlock(local, &flags);
-				copy_from_user(name, wrq->u.data.pointer, wrq->u.data.length);
+				rc = copy_from_user(name, wrq->u.data.pointer, wrq->u.data.length);
 				wv_driver_lock(local, &flags);
+				if (rc) {
+					rc = -EFAULT;
+					break;
+				}
 				name[IW_ESSID_MAX_SIZE] = '\0';
 				strncpy(local->station_name, name, sizeof(local->station_name)-1);
 				local->need_commit = 1;
@@ -1469,8 +1488,10 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				wvlan_hw_getstationname(&local->ifb, name, IW_ESSID_MAX_SIZE);
 				wrq->u.data.length = strlen(name) + 1;
 				wv_driver_unlock(local, &flags);
-				copy_to_user(wrq->u.data.pointer, name, sizeof(name));
+				rc = copy_to_user(wrq->u.data.pointer, name, sizeof(name));
 				wv_driver_lock(local, &flags);
+				if (rc)
+					rc = -EFAULT;
 			}
 			break;
 
@@ -1540,6 +1561,7 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					wrq->u.bitrate.fixed = 1;
 
 				wrq->u.bitrate.value = brate * 500000;
+				wrq->u.bitrate.disabled = 0;
 			}
 			break;
 
@@ -1778,10 +1800,12 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				// Cleanup
 				memset(local->key[index].key, 0, MAX_KEY_SIZE);
 				// Copy the key in the driver
-				if (copy_from_user(local->key[index].key, wrq->u.encoding.pointer, wrq->u.encoding.length))
-				{
-					local->key[index].len = 0;
+				wv_driver_unlock(local, &flags);
+				rc = copy_from_user(local->key[index].key, wrq->u.encoding.pointer, wrq->u.encoding.length);
+				wv_driver_lock(local, &flags);
+				if (rc) {
 					rc = -EFAULT;
+					local->key[index].len = 0;
 					break;
 				}
 				// Set the length
@@ -1850,11 +1874,25 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				wrq->u.encoding.flags |= index + 1;
 				// Copy the key to the user buffer
 				wrq->u.encoding.length = local->key[index].len;
-				if (copy_to_user(wrq->u.encoding.pointer, local->key[index].key, local->key[index].len))
+				wv_driver_unlock(local, &flags);
+				rc = copy_to_user(wrq->u.encoding.pointer, local->key[index].key, local->key[index].len);
+				wv_driver_lock(local, &flags);
+				if (rc)
 					rc = -EFAULT;
+				
 			}
 			break;
 #endif /* WIRELESS_EXT > 8 */
+
+#if WIRELESS_EXT > 9
+		// Get the current Tx-Power
+		case SIOCGIWTXPOW:
+			wrq->u.txpower.value = 15;	/* 15 dBm */
+			wrq->u.txpower.fixed = 1;	/* No power control */
+			wrq->u.txpower.disabled = 0;	/* Can't turn off */
+			wrq->u.txpower.flags = IW_TXPOW_DBM;
+			break;
+#endif /* WIRELESS_EXT > 9 */
 
 		// Get range of parameters
 		case SIOCGIWRANGE:
@@ -1918,16 +1956,23 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				}
 #endif /* WIRELESS_EXT > 8 */
 #if WIRELESS_EXT > 9
+				/* Power Management */
 				range.min_pmp = 0;		/* ??? */
 				range.max_pmp = 65535000;	/* ??? */
 				range.pmp_flags = IW_POWER_PERIOD;
 				range.pmt_flags = 0;
 				range.pm_capa = IW_POWER_PERIOD |
 				  IW_POWER_UNICAST_R;
+				/* Transmit Power */
+				range.txpower[0] = 15;
+				range.num_txpower = 1;
+				range.txpower_capa = IW_TXPOW_DBM;
 #endif /* WIRELESS_EXT > 9 */
 				wv_driver_unlock(local, &flags);
-				copy_to_user(wrq->u.data.pointer, &range, sizeof(struct iw_range));
+				rc = copy_to_user(wrq->u.data.pointer, &range, sizeof(struct iw_range));
 				wv_driver_lock(local, &flags);
+				if (rc)
+					rc = -EFAULT;
 			}
 			break;
 
@@ -1948,8 +1993,12 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				if (rc)
 					break;
 				wv_driver_unlock(local, &flags);
-				copy_from_user(address, wrq->u.data.pointer, sizeof(struct sockaddr) * local->spy_number);
+				rc = copy_from_user(address, wrq->u.data.pointer, sizeof(struct sockaddr) * local->spy_number);
 				wv_driver_lock(local, &flags);
+				if (rc) {
+					rc = -EFAULT;
+					break;
+				}
 				for (i=0; i<local->spy_number; i++)
 					memcpy(local->spy_address[i], address[i].sa_data, MAC_ADDR_SIZE);
 				memset(local->spy_stat, 0, sizeof(struct iw_quality) * IW_MAX_SPY);
@@ -1978,9 +2027,12 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					address[i].sa_family = AF_UNIX;
 				}
 				wv_driver_unlock(local, &flags);
-				copy_to_user(wrq->u.data.pointer, address, sizeof(struct sockaddr) * local->spy_number);
-				copy_to_user(wrq->u.data.pointer + (sizeof(struct sockaddr)*local->spy_number), local->spy_stat, sizeof(struct iw_quality) * local->spy_number);
+				rc = copy_to_user(wrq->u.data.pointer, address, sizeof(struct sockaddr) * local->spy_number);
+				rc += copy_to_user(wrq->u.data.pointer + (sizeof(struct sockaddr)*local->spy_number), local->spy_stat, sizeof(struct iw_quality) * local->spy_number);
 				wv_driver_lock(local, &flags);
+				if (rc)
+					rc = -EFAULT;
+
 				for (i=0; i<local->spy_number; i++)
 					local->spy_stat[i].updated = 0;
 			}
@@ -2008,8 +2060,12 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				if (rc)
 					break;
 				wv_driver_unlock(local, &flags);
-				copy_from_user(local->his_range, wrq->u.data.pointer, sizeof(char) * local->his_number);
+				rc = copy_from_user(local->his_range, wrq->u.data.pointer, sizeof(char) * local->his_number);
 				wv_driver_lock(local, &flags);
+				if (rc) {
+					rc = -EFAULT;
+					break;
+				}
 				memset(local->his_sum, 0, sizeof(long) * 16);
 			}
 			break;
@@ -2023,8 +2079,10 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 				if (rc)
 					break;
 				wv_driver_unlock(local, &flags);
-				copy_to_user(wrq->u.data.pointer, local->his_sum, sizeof(long) * local->his_number);
+				rc = copy_to_user(wrq->u.data.pointer, local->his_sum, sizeof(long) * local->his_number);
 				wv_driver_lock(local, &flags);
+				if (rc)
+					rc = -EFAULT;
 			}
 			break;
 #endif /* HISTOGRAM */
@@ -2048,8 +2106,10 @@ int wvlan_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 					break;
 				wrq->u.data.length = sizeof(priv) / sizeof(priv[0]);
 				wv_driver_unlock(local, &flags);
-				copy_to_user(wrq->u.data.pointer, priv, sizeof(priv));
+				rc = copy_to_user(wrq->u.data.pointer, priv, sizeof(priv));
 				wv_driver_lock(local, &flags);
+				if (rc)
+					rc = -EFAULT;
 			}
 			break;
 
@@ -2349,8 +2409,10 @@ static void wvlan_set_multicast_list (struct net_device *dev)
  */
 static void wvlan_watchdog (struct net_device *dev)
 {
+#ifdef WVLAN_RESET_ON_TX_TIMEOUT
 	struct net_local *local = (struct net_local *) dev->priv;
 	unsigned long flags;
+#endif
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_wathdog(%s)\n", dev->name);
 
@@ -2378,7 +2440,7 @@ int wvlan_tx (struct sk_buff *skb, struct net_device *dev)
 	struct net_local *local = (struct net_local *)dev->priv;
 	unsigned long flags;
 	int rc, len;
-	char *p;
+	u_char *p;
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_tx(%s)\n", dev->name);
 
@@ -2456,7 +2518,7 @@ void wvlan_rx (struct net_device *dev, int len)
 {
 	struct net_local *local = (struct net_local *)dev->priv;
 	struct sk_buff *skb;
-	char *p;
+	u_char *p;
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_rx(%s)\n", dev->name);
 
@@ -2670,7 +2732,7 @@ static void wvlan_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 	cnt = 7;
 	while (cnt--)
 	{
-		// Ask NIC why interrupt occured
+		// Ask NIC why interrupt occurred
 		ev = hcf_service_nic(&local->ifb);
 		DEBUG(DEBUG_NOISY, "%s: hcf_service_nic() returned 0x%x RscInd 0x%x\n", dev_info, ev, local->ifb.IFB_PIFRscInd);
 
@@ -2779,6 +2841,8 @@ static int wvlan_config (dev_link_t *link)
 	win_req_t req;
 	memreq_t map;
 	int rc, i;
+	config_info_t config;
+	cistpl_cftable_entry_t dflt = { 0 };
 
 	DEBUG(DEBUG_CALLTRACE, "-> wvlan_config(0x%p)\n", link);
 
@@ -2797,6 +2861,10 @@ static int wvlan_config (dev_link_t *link)
 	// Configure card
 	link->state |= DEV_CONFIG;
 
+	// Use card's current Vcc setting
+	CS_CHECK(GetConfigurationInfo, handle, &config);
+	link->conf.Vcc = config.Vcc;
+
 	// In this loop, we scan the CIS for configuration table entries,
 	// each of which describes a valid card configuration, including
 	// voltage, IO window, memory window, and interrupt settings.
@@ -2809,7 +2877,6 @@ static int wvlan_config (dev_link_t *link)
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	CS_CHECK(GetFirstTuple, handle, &tuple);
 	while (1) {
-		cistpl_cftable_entry_t dflt = { 0 };
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 		CFG_CHECK(GetTupleData, handle, &tuple);
 		CFG_CHECK(ParseTuple, handle, &tuple, &parse);
@@ -3041,7 +3108,6 @@ static dev_link_t *wvlan_attach (void)
 	memset(link, 0, sizeof(struct dev_link_t));
 	link->release.function = &wvlan_release;
 	link->release.data = (u_long) link;
-	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	// Allocate space for netdevice (private data of link)

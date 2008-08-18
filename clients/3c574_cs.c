@@ -5,7 +5,7 @@
 	David Hinds, dahinds@users.sourceforge.net (from his PC card code).
 
 	This software may be used and distributed according to the terms of
-	the GNU Public License, incorporated herein by reference.
+	the GNU General Public License, incorporated herein by reference.
 
 	This driver derives from Donald Becker's 3c509 core, which has the
 	following copyright:
@@ -330,7 +330,7 @@ static dev_link_t *tc574_attach(void)
 	init_dev_name(dev, lp->node);
 	dev->open = &el3_open;
 	dev->stop = &el3_close;
-#ifdef HAVE_NETIF_QUEUE
+#ifdef HAVE_TX_TIMEOUT
 	dev->tx_timeout = el3_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 #endif
@@ -867,7 +867,7 @@ static void el3_tx_timeout(struct net_device *dev)
 	/* Issue TX_RESET and TX_START commands. */
 	wait_for_completion(dev, TxReset);
 	outw(TxEnable, ioaddr + EL3_CMD);
-	netif_start_queue(dev);
+	netif_wake_queue(dev);
 }
 
 static void pop_tx_status(struct net_device *dev)
@@ -1142,7 +1142,6 @@ static void update_stats(struct net_device *dev)
 	/* BadSSD */					   inb(ioaddr + 12);
 	up								 = inb(ioaddr + 13);
 
-	add_rx_bytes(&lp->stats, rx + ((up & 0x0f) << 16));
 	add_tx_bytes(&lp->stats, tx + ((up & 0xf0) << 12));
 
 	EL3WINDOW(1);
@@ -1180,13 +1179,13 @@ static int el3_rx(struct net_device *dev, int worklimit)
 			if (skb != NULL) {
 				skb->dev = dev;
 				skb_reserve(skb, 2);
-
 				insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
 						((pkt_len+3)>>2));
-
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
+				dev->last_rx = jiffies;
 				lp->stats.rx_packets++;
+				add_rx_bytes(&lp->stats, pkt_len);
 			} else {
 				DEBUG(1, "%s: couldn't allocate a sk_buff of"
 					  " size %d.\n", dev->name, pkt_len);

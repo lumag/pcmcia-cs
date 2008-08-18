@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.79 2000/08/30 20:23:58
+    rsrc_mgr.c 1.81 2001/03/04 21:11:43
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -466,7 +466,29 @@ static void do_io_probe(ioaddr_t base, ioaddr_t num)
     printk(any ? "\n" : " clean.\n");
     RELEASE_RESOURCE_LOCK;
 }
-#endif
+
+static int io_scan; /* = 0 */
+
+static void invalidate_io(void)
+{
+    io_scan = 0;
+}
+
+static void validate_io(void)
+{
+    resource_map_t *m;
+    if (!probe_io || io_scan++)
+	return;
+    for (m = io_db.next; m != &io_db; m = m->next)
+	do_io_probe(m->base, m->num);
+}
+
+#else /* CONFIG_ISA */
+
+#define validate_io() do { } while (0)
+#define invalidate_io() do { } while (0)
+
+#endif /* CONFIG_ISA */
 
 /*======================================================================
 
@@ -531,23 +553,29 @@ static u_long inv_probe(int (*is_valid)(u_long),
     return do_mem_probe(m->base, m->num, is_valid, do_cksum);
 }
 
+static int hi_scan, lo_scan; /* = 0 */
+
+static void invalidate_mem(void)
+{
+    hi_scan = lo_scan = 0;
+}
+
 void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 		  int force_low)
 {
     resource_map_t *m, *n;
     static u_char order[] = { 0xd0, 0xe0, 0xc0, 0xf0 };
-    static int hi = 0, lo = 0;
     u_long b, i, ok = 0;
     
     if (!probe_mem) return;
     /* We do up to four passes through the list */
     if (!force_low) {
-	if (hi++ || (inv_probe(is_valid, do_cksum, mem_db.next) > 0))
+	if (hi_scan++ || (inv_probe(is_valid, do_cksum, mem_db.next) > 0))
 	    return;
 	printk(KERN_NOTICE "cs: warning: no high memory space "
 	       "available!\n");
     }
-    if (lo++) return;
+    if (lo_scan++) return;
     for (m = mem_db.next; m != &mem_db; m = n) {
 	n = m->next;
 	/* Only probe < 1 MB */
@@ -570,6 +598,8 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 }
 
 #else /* CONFIG_ISA */
+
+#define invalidate_mem() do { } while (0)
 
 void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 		  int force_low)
@@ -604,8 +634,9 @@ int find_io_region(ioaddr_t *base, ioaddr_t num, ioaddr_t align,
 {
     ioaddr_t try;
     resource_map_t *m;
-    
+
     ACQUIRE_RESOURCE_LOCK;
+    validate_io();
     for (m = io_db.next; m != &io_db; m = m->next) {
 	try = (m->base & ~(align-1)) + *base;
 	for (try = (try >= m->base) ? try : try+align;
@@ -784,6 +815,7 @@ static int adjust_memory(adjust_t *adj)
     case REMOVE_MANAGED_RESOURCE:
 	ret = sub_interval(&mem_db, base, num);
 	if (ret == CS_SUCCESS) {
+	    invalidate_mem();
 	    for (i = 0; i < sockets; i++) {
 		release_cis_mem(socket_table[i]);
 #ifdef CONFIG_CARDBUS
@@ -816,13 +848,10 @@ static int adjust_io(adjust_t *adj)
     case ADD_MANAGED_RESOURCE:
 	if (add_interval(&io_db, base, num) != 0)
 	    return CS_IN_USE;
-#ifdef CONFIG_ISA
-	if (probe_io)
-	    do_io_probe(base, num);
-#endif
 	break;
     case REMOVE_MANAGED_RESOURCE:
 	sub_interval(&io_db, base, num);
+	invalidate_io();
 	break;
     default:
 	return CS_UNSUPPORTED_FUNCTION;

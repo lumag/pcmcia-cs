@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.79 2001/01/01 21:14:21 (David Hinds)
+# network 1.81 2001/03/07 14:39:03 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -58,7 +58,7 @@ case "$ACTION" in
 'start')
     [ -n "$VERBOSE" -a -n "$INFO" ] && echo "$INFO"
 
-    test "$IF_PORT" && /sbin/ifport $DEVICE $IF_PORT
+    [ -n "$IF_PORT" ] && /sbin/ifport $DEVICE $IF_PORT
 
     if is_true $PUMP ; then
 	log "/sbin/pump -i $DEVICE > /dev/null" || exit 1
@@ -122,15 +122,15 @@ case "$ACTION" in
 	    /sbin/ifuser $DEVICE $GATEWAY || \
 		log /sbin/route add $GATEWAY $DEVICE
 	fi
-	test "$GATEWAY" && /sbin/route add default gw $GATEWAY metric 1
+	[ -n "$GATEWAY" ] && /sbin/route add default gw $GATEWAY metric 1
     fi
     
     # Update DNS stuff
     if [ -n "$DOMAIN$SEARCH$DNSSRVS$DNS_1$DNS_2$DNS_3" ] ; then
 	echo "# $DEVICE begin" > $RESOLV.N
 	chmod og+r $RESOLV.N
-	test "$DOMAIN" && echo "domain $DOMAIN" >> $RESOLV.N
-	test "$SEARCH" && echo "search $SEARCH" >> $RESOLV.N
+	[ -n "$DOMAIN" ] && echo "domain $DOMAIN" >> $RESOLV.N
+	[ -n "$SEARCH" ] && echo "search $SEARCH" >> $RESOLV.N
 	for DNS in $DNSSRVS $DNS_1 $DNS_2 $DNS_3 ; do
 	    echo "nameserver $DNS" >> $RESOLV.N
 	done
@@ -172,7 +172,7 @@ case "$ACTION" in
 	}
 	mount -t nfs | sed -e 's/:.* on \(.*\) type .*/ \1/' | nfsstop
 
-	test "$IPX_NETNUM" && ipx_interface del $DEVICE $IPX_FRAME
+	[ -n "$IPX_NETNUM" ] && ipx_interface del $DEVICE $IPX_FRAME
 
 	# Remove nameservers
 	if fgrep -q "# $DEVICE begin" $RESOLV ; then
@@ -184,12 +184,16 @@ case "$ACTION" in
 	    log pump -r -i $DEVICE
 	elif is_true $DHCP ; then
 	    if [ -x /sbin/dhcpcd ] ; then
-		kill -TERM `cat /var/run/dhcpcd-$DEVICE.pid`
-		sleep 2
+		PID=`cat /var/run/dhcpcd-$DEVICE.pid 2>/dev/null`
+		if [ -n "$PID" ] ; then
+		    kill -TERM $PID
+		    sleep 2
+		fi
 		/sbin/dhcpcd -XYZZY 2>&1 | grep -q DHCP || \
 		    rm -f /var/run/dhcpcd-$DEVICE.pid
 	    elif [ -x /sbin/dhclient ] ; then
-		kill -TERM `cat /var/run/dhclient.pid`
+		PID=`cat /var/run/dhclient.pid 2>/dev/null`
+		if [ -n "$PID" ] ; then kill -TERM $PID ; fi
 	    elif [ -x /sbin/pump ] ; then
 		log /sbin/pump -r -i $DEVICE
 	    fi
@@ -234,7 +238,7 @@ case "$ACTION" in
     ;;
 
 'restart')
-    test "$IPADDR" && /sbin/ifconfig $DEVICE down up
+    [ -n "$IPADDR" ] && /sbin/ifconfig $DEVICE down up
     ;;
 
 'suspend'|'resume')

@@ -11,14 +11,14 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    pcnet_cs.c 1.130 2001/01/18 03:05:29
+    pcnet_cs.c 1.133 2001/03/06 05:28:36
     
     The network driver code is based on Donald Becker's NE2000 code:
 
     Written 1992,1993 by Donald Becker.
     Copyright 1993 United States Government as represented by the
     Director, National Security Agency.  This software may be used and
-    distributed according to the terms of the GNU Public License,
+    distributed according to the terms of the GNU General Public License,
     incorporated herein by reference.
     Donald Becker may be reached at becker@cesdis1.gsfc.nasa.gov
 
@@ -42,6 +42,7 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/system.h>
+#include <asm/byteorder.h>
 
 #include <linux/netdevice.h>
 #include <../drivers/net/8390.h>
@@ -75,7 +76,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.130 2001/01/18 03:05:29 (David Hinds)";
+"pcnet_cs.c 1.133 2001/03/06 05:28:36 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -1105,6 +1106,7 @@ static void ei_watchdog(u_long arg)
     if (!link || (link == 0xffff)) {
 	printk(KERN_INFO "%s: MII is missing!\n", dev->name);
 	info->flags &= ~HAS_MII;
+	goto reschedule;
     }
 
     link &= 0x0004;

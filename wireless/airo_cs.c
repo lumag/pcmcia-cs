@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"airo_cs.c .99zz 2000/05/26 09:41:21 (Benjamin Reed)";
+"airo_cs.c 1.0 2001/02/08 (Benjamin Reed)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -90,6 +90,11 @@ static u_int irq_mask = 0xdeb8;
 /* Newer, simpler way of listing specific interrupts */
 static int irq_list[4] = { -1 };
 
+MODULE_AUTHOR("Benjamin Reed");
+MODULE_DESCRIPTION("Support for Cisco/Aironet 802.11 wireless ethernet \
+                   cards.  This is the module that links the PCMCIA card \
+		   with the airo module.");
+MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340 PCMCIA cards");
 MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
 
@@ -105,7 +110,7 @@ MODULE_PARM(irq_list, "1-4i");
 */
 
 struct net_device *init_airo_card( int, int );
-void stop_airo_card( struct net_device * );
+void stop_airo_card( struct net_device *, int );
 int reset_airo_card( struct net_device * );
 
 static void airo_config(dev_link_t *link);
@@ -309,7 +314,7 @@ static void airo_detach(dev_link_t *link)
 	}
 	
 	if ( ((local_info_t*)link->priv)->eth_dev ) {
-		stop_airo_card( ((local_info_t*)link->priv)->eth_dev );
+		stop_airo_card( ((local_info_t*)link->priv)->eth_dev, 0 );
 	}
 	((local_info_t*)link->priv)->eth_dev = 0;   
 	
@@ -352,6 +357,7 @@ static void airo_config(dev_link_t *link)
 	u_char buf[64];
 	win_req_t req;
 	memreq_t map;
+	cistpl_cftable_entry_t dflt = { 0 };
 	
 	handle = link->handle;
 	dev = link->priv;
@@ -391,7 +397,6 @@ static void airo_config(dev_link_t *link)
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	CS_CHECK(GetFirstTuple, handle, &tuple);
 	while (1) {
-		cistpl_cftable_entry_t dflt = { 0 };
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 		CFG_CHECK(GetTupleData, handle, &tuple);
 		CFG_CHECK(ParseTuple, handle, &tuple, &parse);

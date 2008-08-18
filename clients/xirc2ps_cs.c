@@ -128,7 +128,7 @@ enum xirc_esr {
 enum xirc_isr {
     TxBufOvr = 0x01,	/* TX Buffer Overflow */
     PktTxed  = 0x02,	/* Packet Transmitted */
-    MACIntr  = 0x04,	/* MAC Interrupt occured */
+    MACIntr  = 0x04,	/* MAC Interrupt occurred */
     TxResGrant = 0x08,	/* Tx Reservation Granted */
     RxFullPkt = 0x20,	/* Rx Full Packet */
     RxPktRej  = 0x40,	/* Rx Packet Rejected */
@@ -650,7 +650,7 @@ xirc2ps_attach(void)
     init_dev_name(dev, local->node);
     dev->open = &do_open;
     dev->stop = &do_stop;
-#ifdef HAVE_NETIF_QUEUE
+#ifdef HAVE_TX_TIMEOUT
     dev->tx_timeout = do_tx_timeout;
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
@@ -1425,6 +1425,7 @@ xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		skb->protocol = eth_type_trans(skb, dev);
 		skb->dev = dev;
 		netif_rx(skb);
+		dev->last_rx = jiffies;
 		lp->stats.rx_packets++;
 		add_rx_bytes(&lp->stats, pktlen);
 		if (!(rsr & PhyPkt))
@@ -1528,7 +1529,7 @@ do_tx_timeout(struct net_device *dev)
     /* reset the card */
     do_reset(dev,1);
     dev->trans_start = jiffies;
-    netif_start_queue(dev);
+    netif_wake_queue(dev);
 }
 
 static int

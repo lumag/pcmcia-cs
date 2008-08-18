@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.154 2001/01/05 00:03:17 (David Hinds)
+# config 1.159 2001/03/09 01:19:20 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -709,6 +709,10 @@ card "Argosy EN220 Fast Ethernet"
   version "ARGOSY", "Fast Ethernet PCCard"
   bind "smc91c92_cs"
 
+card "Ark Sky Link Express PA2600"
+  manfid 0xffff, 0x1090
+  bind "pcnet_cs"
+
 card "Buffalo LPC3-CLX Fast Ethernet"
   manfid 0x026f, 0x0301
   bind "pcnet_cs"
@@ -724,6 +728,10 @@ card "Corega PCC-TX Fast Ethernet"
 card "Corega FEther PCC-TXF"
   version "corega", "FEther PCC-TXF"
   bind "pcnet_cs"
+
+card "dit Co., Ltd., PC Card-10/100BTX"
+  version "dit Co., Ltd.", "PC Card-10/100BTX"
+  bind "smc91c92_cs"
 
 card "D-Link Fast Ethernet"
   version "ETHER-C16"
@@ -747,6 +755,10 @@ card "Intel EtherExpress PRO/100"
 
 card "IO DATA PCET/TX Fast Ethernet"
   version "IO DATA", "PCETTX"
+  bind "pcnet_cs"
+
+card "iPort 10/100 Fast Ethernet"
+  version "iPort", "10/100 Ethernet Card"
   bind "pcnet_cs"
 
 card "Laneed LD-10/100CD Fast Ethernet"
@@ -821,6 +833,10 @@ card "Toshiba 10/100 Fast Ethernet"
 #  manfid 0x8a01, 0xc1ab
 #  bind "smc91c92_cs"
 
+card "WiseCom iPort 10/100 Fast Ethernet"
+  manfid 0x0274, 0x1103
+  bind "pcnet_cs"
+
 card "Xircom CompactCard Ethernet"
   version "Xircom", "*", "CFE-10"
   bind "pcnet_cs"
@@ -854,6 +870,10 @@ card "AT&T WaveLAN Adapter"
 
 card "Cabletron RoamAbout 802.11 DS"
   version "Cabletron", "RoamAbout 802.11 DS"
+  bind "wvlan_cs"
+
+card "Compaq WL100 11 Mbps Wireless Adapter"
+  manfid 0x0138, 0x0002
   bind "wvlan_cs"
 
 card "Digital RoamAbout/DS"
@@ -1123,6 +1143,10 @@ card "Franklink/Rolodex REX-3000"
 
 card "Franklink/Rolodex REX-4100"
   version "Starfish, Inc.", "REX-4100"
+  bind "memory_cs"
+
+card "Kingmax 256K SRAM"
+  version "KINGMAX TECHNOLOGY INC.", "SRAM 256K Bytes"
   bind "memory_cs"
 
 #card "RATOC SmartMedia Adapter"
@@ -1734,6 +1758,10 @@ card "Linksys EtherFast PCMPC200 v2"
   manfid 0x13d1, 0xab03
   bind "tulip_cb"
 
+card "Macsense MPC-200 Fast Ethernet"
+  version "Macsense", "MPC-200"
+  bind "tulip_cb"
+
 card "NDC Communications Sohoware NCB100 Fast Ethernet"
   version "NDC Communications, Inc.", "NCB100"
   bind "tulip_cb"
@@ -1752,6 +1780,10 @@ card "PLANET ENW-3502-FC"
 
 card "PrimeXPress 10/100 Fast Ethernet"
   manfid 0x021b, 0x0510
+  bind "tulip_cb"
+
+card "RATOC REX-CB80 Fast Ethernet"
+  version "RATOC Systems,Inc.", "CardBus LAN 01"
   bind "tulip_cb"
 
 card "Silicom FEM56 Fast Ethernet"
@@ -1811,7 +1843,7 @@ card "Xircom CBEM56G-100 CardBus 10/100 Ethernet + 56K Modem"
   bind "tulip_cb" to 0, "serial_cb" to 1
 
 card "Xircom RBM56G Modem"
-  manfid 0x0105, 0x1000
+  pci 0x115d, 0x0101
   bind "serial_cb"
 
 # Include configuration files for add-on drivers

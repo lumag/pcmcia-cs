@@ -125,7 +125,7 @@ wv_structuct_check(void)
 
 /******************* MODEM MANAGEMENT SUBROUTINES *******************/
 /*
- * Usefull subroutines to manage the modem of the wavelan
+ * Useful subroutines to manage the modem of the wavelan
  */
 
 /*------------------------------------------------------------------*/
@@ -540,7 +540,7 @@ void wv_roam_init(struct net_device *dev)
   /* Do not remove this unless you have a good reason */
   printk(KERN_NOTICE "%s: Warning, you have enabled roaming on"
 	 " device %s !\n", dev->name, dev->name);
-  printk(KERN_NOTICE "Roaming is currently an experimental unsuported feature"
+  printk(KERN_NOTICE "Roaming is currently an experimental unsupported feature"
 	 " of the Wavelan driver.\n");
   printk(KERN_NOTICE "It may work, but may also make the driver behave in"
 	 " erratic ways or crash.\n");
@@ -853,7 +853,7 @@ static inline int WAVELAN_BEACON(unsigned char *data)
 
 /************************ I82593 SUBROUTINES *************************/
 /*
- * Usefull subroutines to manage the Ethernet controler
+ * Useful subroutines to manage the Ethernet controller
  */
 
 /*------------------------------------------------------------------*/
@@ -897,7 +897,7 @@ wv_82593_cmd(device *	dev,
       return(FALSE);
     }
 
-  /* Issue the command to the controler */
+  /* Issue the command to the controller */
   outb(cmd, LCCR(base));
 
   /* If we don't have to check the result of the command
@@ -2736,8 +2736,9 @@ wv_packet_read(device *		dev,
   netif_rx(skb);
 
   /* Keep stats up to date */
+  dev->last_rx = jiffies;
   lp->stats.rx_packets++;
-  add_rx_bytes(&lp->stats, skb->len);
+  add_rx_bytes(&lp->stats, sksize);
 
 #ifdef DEBUG_RX_TRACE
   printk(KERN_DEBUG "%s: <-wv_packet_read()\n", dev->name);
@@ -2954,7 +2955,7 @@ wv_packet_write(device *	dev,
 /*------------------------------------------------------------------*/
 /*
  * This routine is called when we want to send a packet (NET3 callback)
- * In this routine, we check if the the harware is ready to accept
+ * In this routine, we check if the harware is ready to accept
  * the packet. We also prevent reentrance. Then, we call the function
  * to send the packet...
  */
@@ -2986,7 +2987,7 @@ wavelan_packet_xmit(struct sk_buff *	skb,
    */
   netif_stop_queue(dev);
 
-  /* If somebody has asked to reconfigure the controler,
+  /* If somebody has asked to reconfigure the controller,
    * we can do it now */
   if(lp->reconfig_82593)
     {
@@ -3363,7 +3364,7 @@ wv_ru_start(device *	dev)
 
 /*------------------------------------------------------------------*/
 /*
- * This routine does a standard config of the WaveLAN controler (i82593).
+ * This routine does a standard config of the WaveLAN controller (i82593).
  * In the ISA driver, this is integrated in wavelan_hardware_reset()
  * (called by wv_hw_config(), wv_82593_reconfig() & wavelan_packet_xmit())
  */
@@ -3639,7 +3640,7 @@ wv_hw_config(device *	dev)
       hacr_write_slow(base, HACR_RESET);
       hacr_write(base, HACR_DEFAULT);
 
-      /* Check if the the module has been powered up... */
+      /* Check if the module has been powered up... */
       if(hasr_read(base) & HASR_NO_CLK)
 	{
 #ifdef DEBUG_CONFIG_ERRORS
@@ -3663,7 +3664,7 @@ wv_hw_config(device *	dev)
       outb(OP0_RESET, LCCR(base));
       mdelay(1);	/* A bit crude ! */
 
-      /* Initialize the LAN controler */
+      /* Initialize the LAN controller */
       if(wv_82593_config(dev) == FALSE)
 	{
 #ifdef DEBUG_CONFIG_ERRORS
@@ -3984,7 +3985,7 @@ wv_flush_stale_links(void)
  * This function is the interrupt handler for the WaveLAN card. This
  * routine will be called whenever: 
  *	1. A packet is received.
- *	2. A packet has successfully been transfered and the unit is
+ *	2. A packet has successfully been transferred and the unit is
  *	   ready to transmit another packet.
  *	3. A command has completed execution.
  */
@@ -4345,7 +4346,7 @@ wavelan_open(device *	dev)
       /* Power up (power up time is 250us) */
       hacr_write(base, HACR_DEFAULT);
 
-      /* Check if the the module has been powered up... */
+      /* Check if the module has been powered up... */
       if(hasr_read(base) & HASR_NO_CLK)
 	{
 #ifdef DEBUG_CONFIG_ERRORS

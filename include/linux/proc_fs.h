@@ -22,7 +22,9 @@ create_proc_read_entry(const char *name, mode_t mode,
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,29))
+#ifndef proc_mkdir
 #define proc_mkdir(name, root) create_proc_entry(name, S_IFDIR, root)
+#endif
 #endif
 
 #endif

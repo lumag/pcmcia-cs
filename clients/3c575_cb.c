@@ -119,6 +119,12 @@ static int down_poll_rate = 20;
 #endif
 #if LINUX_VERSION_CODE < 0x20138
 #define test_and_set_bit(val, addr) set_bit(val, addr)
+typedef long spinlock_t;
+#define SPIN_LOCK_UNLOCKED 0
+#define spin_lock(lock)
+#define spin_unlock(lock)
+#define spin_lock_irqsave(lock, flags)	save_flags(flags); cli();
+#define spin_unlock_irqrestore(lock, flags) restore_flags(flags);
 #endif
 #if LINUX_VERSION_CODE < 0x20155
 #define PCI_SUPPORT_VER1
@@ -865,7 +871,7 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 	dev->get_stats = &vortex_get_stats;
 	dev->do_ioctl = &vortex_ioctl;
 	dev->set_multicast_list = &set_rx_mode;
-#ifdef HAVE_NETIF_QUEUE
+#ifdef HAVE_TX_TIMEOUT
 	dev->tx_timeout = vortex_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 #endif

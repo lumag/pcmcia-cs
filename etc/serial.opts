@@ -11,6 +11,10 @@ case "$ADDRESS" in
     SERIAL_OPTS=""
     # Should we create an inittab entry for this port?
     #INITTAB="/sbin/mgetty"
+    # Extra stuff to do after setting up the device
+    start_fn () { return; }
+    # Extra stuff to do before shutting down the device
+    stop_fn () { return; }
     # Card eject policy options
     NO_CHECK=n
     NO_FUSER=n

@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.7 2000/06/12 21:32:03
+# Makefile 1.8 2001/02/07 00:41:40
 #
 
 # Include site dependent options and kernel configuration
@@ -10,8 +10,7 @@ include ../config.mk
 # Don't remove "-O3" or bad things will happen!
 CFLAGS = -O3 -Wall -Wstrict-prototypes -pipe
 CPPFLAGS += $(PCDEBUG) -D__KERNEL__ -DMODULE
-
-CC += $(AFLAGS) $(KFLAGS)
+CC = $(KCC) $(AFLAGS) $(KFLAGS)
 
 XFLAGS = $(CFLAGS) $(CPPFLAGS) $(MFLAG)
 

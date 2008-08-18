@@ -503,9 +503,7 @@ static int tulip_rx(struct net_device *dev);
 static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
 static int tulip_close(struct net_device *dev);
 static struct net_device_stats *tulip_get_stats(struct net_device *dev);
-#ifdef HAVE_PRIVATE_IOCTL
 static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-#endif
 static void set_rx_mode(struct net_device *dev);
 
 
@@ -862,11 +860,11 @@ static struct net_device *tulip_probe1(int pci_bus, int pci_devfn,
 	dev->hard_start_xmit = &tulip_start_xmit;
 	dev->stop = &tulip_close;
 	dev->get_stats = &tulip_get_stats;
-#ifdef HAVE_PRIVATE_IOCTL
 	dev->do_ioctl = &private_ioctl;
-#endif
-#ifdef HAVE_MULTICAST
 	dev->set_multicast_list = &set_rx_mode;
+#ifdef HAVE_TX_TIMEOUT
+	dev->tx_timeout = tulip_tx_timeout;
+	dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
 	if ((tp->flags & HAS_NWAY143)  || tp->chip_id == DC21041)
@@ -2723,7 +2721,7 @@ static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 					(tp->link_change)(dev, csr5);
 			}
 			if (csr5 & SytemError) {
-				printk(KERN_ERR "%s: (%lu) System Error occured\n", dev->name, tp->nir);
+				printk(KERN_ERR "%s: (%lu) System Error occurred\n", dev->name, tp->nir);
 			}
 			/* Clear all error sources, included undocumented ones! */
 			outl(0x0800f7ba, ioaddr + CSR5);
@@ -2987,7 +2985,6 @@ static struct net_device_stats *tulip_get_stats(struct net_device *dev)
 	return &tp->stats;
 }
 
-#ifdef HAVE_PRIVATE_IOCTL
 /* Provide ioctl() calls to examine the MII xcvr state. */
 static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
@@ -3053,7 +3050,6 @@ static int private_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	return -EOPNOTSUPP;
 }
-#endif  /* HAVE_PRIVATE_IOCTL */
 
 /* Set or clear the multicast filter for this adaptor.
    Note that we only use exclusion around actually queueing the
@@ -3297,6 +3293,7 @@ static dev_node_t *tulip_attach(dev_locator_t *loc)
 	case 0x19851317:
 	case 0xab0213d1:
 	case 0xab0313d1:
+	case 0x12161113:
 		chip_idx = CENTAUR;
 		break;
 	default:

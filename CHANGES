@@ -1,3 +1,28 @@
+[08-Mar-01] Version 3.1.25
+-- Fixed a few kernel compatibility glitches.
+-- Fixed a bug in /proc/bus/pnp/devices.
+-- Minor tweaks (last_rx, rx_bytes handling) to network clients.
+-- Added support for ENE Tech CB1211, CB1225, CB1410, CB1420 bridges.
+-- Re-enabled the PnP BIOS config option for post-2.3.37 kernels.
+-- Updates for airo_cs driver from Ben Reed: fixed shutdown oops, and
+   some wireless_ext enhancements.
+-- Fixed ash compatibility issues in config scripts and install-etc.
+-- Changed cardmgr, cardctl to try several options (/var/lib/pcmcia,
+   /var/run, /dev, /tmp) when creating device files.
+-- Fixed two resource handling bugs: one broke "killall -HUP cardmgr"
+   on some configurations, and the other caused probing of IO ranges
+   that are included but later excluded.
+-- Several ToPIC bridge bug fixes.
+-- Split Configure --cc option into --ucc, --kcc options.
+-- Fixed Configure script bug with Debian 'man' command.
+-- A few wvlan_cs fixes from Jean Tourrilhes and Anton Blanchard; also
+   added 3.3V card support and fixed IPv6 support.
+-- Added support for the new Adaptec aic7xxx kernel driver, and for
+   the new aic7xxx file arrangement in pre-2.2.19 kernels.
+-- Fixed cardmgr to cooperate with the 2.4.* hot plug PCI stuff.
+-- Fixed a CardBus configuration problem affecting 2.4.0 with the
+   apa1480_cb driver.
+
 [19-Jan-01] Version 3.1.24
 -- Added TI PCI4450 bridge support.
 -- Fixed Makefiles to not use kgcc for user programs.

@@ -27,10 +27,6 @@ static int proc_read_devices(char *buf, char **start, off_t pos,
 	u8 num;
 	char *p = buf;
 
-	if (pos != 0) {
-	    *eof = 1;
-	    return 0;
-	}
 	node = kmalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node) return -ENOMEM;
 	for (num = 0; num != 0xff; ) {
@@ -105,9 +101,9 @@ void pnp_proc_init(void)
 	node = kmalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node) return;
 	for (num = 0; num != 0xff; ) {
-		sprintf(name, "%02x", num);
 		if (pnp_bios_get_dev_node(&num, 0, node) != 0)
 			break;
+		sprintf(name, "%02x", node->handle);
 		ent = create_proc_entry(name, 0, proc_pnp);
 		if (ent) {
 			ent->read_proc = proc_read_node;

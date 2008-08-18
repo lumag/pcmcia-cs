@@ -1258,7 +1258,7 @@ static int netwave_start_xmit(struct sk_buff *skb, struct net_device *dev) {
  *    This function is the interrupt handler for the Netwave card. This
  *    routine will be called whenever: 
  *	  1. A packet is received.
- *	  2. A packet has successfully been transfered and the unit is
+ *	  2. A packet has successfully been transferred and the unit is
  *	     ready to transmit another packet.
  *	  3. A command has completed execution.
  */
@@ -1400,7 +1400,7 @@ static void netwave_watchdog(u_long a) {
     DEBUG(1, "%s: netwave_watchdog: watchdog timer expired\n", dev->name);
     netwave_reset(dev);
     dev->trans_start = jiffies;
-    netif_start_queue(dev);
+    netif_wake_queue(dev);
 } /* netwave_watchdog */
 
 static struct net_device_stats *netwave_get_stats(struct net_device *dev) {
@@ -1513,16 +1513,16 @@ static int netwave_rx(struct net_device *dev) {
 	skb->protocol = eth_type_trans(skb,dev);
 	/* Queue packet for network layer */
 	netif_rx(skb);
+
+	dev->last_rx = jiffies;
+	priv->stats.rx_packets++;
+	add_rx_bytes(&priv->stats, rcvLen);
 		
 	/* Got the packet, tell the adapter to skip it */
 	wait_WOC(iobase);
 	writeb(NETWAVE_CMD_SRP, ramBase + NETWAVE_EREG_CB + 0);
 	writeb(NETWAVE_CMD_EOC, ramBase + NETWAVE_EREG_CB + 1);
 	DEBUG(3, "Packet reception ok\n");
-		
-	priv->stats.rx_packets++;
-
-	add_rx_bytes(&priv->stats, skb->len);
     }
     return 0;
 }

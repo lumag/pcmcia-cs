@@ -317,7 +317,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.21 2000/07/27 17:56:04 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.23 2001/02/28 03:41:13 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -2474,8 +2474,9 @@ static void rx_data(struct net_device *dev, struct rcs *prcs, unsigned int pkt_a
     skb->protocol = eth_type_trans(skb,dev);
     netif_rx(skb);
 
+    dev->last_rx = jiffies;
     local->stats.rx_packets++;
-    add_rx_bytes(&local->stats, skb->len);
+    add_rx_bytes(&local->stats, total_len);
 
     /* Gather signal strength per address */
 #ifdef WIRELESS_SPY

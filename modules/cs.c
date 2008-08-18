@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.273 2001/01/15 23:29:50
+    cs.c 1.274 2001/03/05 04:01:49
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -71,7 +71,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.273 2001/01/15 23:29:50 (David Hinds)";
+"cs.c 1.274 2001/03/05 04:01:49 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -1202,7 +1202,7 @@ static int get_status(client_handle_t handle, cs_status_t *status)
     } else
 	c = CONFIG(handle);
     if ((c != NULL) && (c->state & CONFIG_LOCKED) &&
-	(c->IntType & INT_MEMORY_AND_IO)) {
+	(c->IntType & (INT_MEMORY_AND_IO | INT_ZOOMED_VIDEO))) {
 	u_char reg;
 	if (c->Present & PRESENT_PIN_REPLACE) {
 	    read_cis_mem(s, 1, (c->ConfigBase+CISREG_PRR)>>1, 1, &reg);
@@ -1636,6 +1636,8 @@ static int request_configuration(client_handle_t handle,
     c->Attributes = req->Attributes;
     if (req->IntType & INT_MEMORY_AND_IO)
 	s->socket.flags |= SS_IOCARD;
+    if (req->IntType & INT_ZOOMED_VIDEO)
+	s->socket.flags |= SS_ZVCARD;
     if (req->Attributes & CONF_ENABLE_DMA)
 	s->socket.flags |= SS_DMA_MODE;
     if (req->Attributes & CONF_ENABLE_SPKR)

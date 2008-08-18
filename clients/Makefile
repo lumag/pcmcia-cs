@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.131 2000/11/13 18:36:35
+# Makefile 1.133 2001/02/07 00:41:40
 #
 
 # Include site dependent options and kernel configuration
@@ -13,8 +13,7 @@ XFLAGS := -O2 $(CPPFLAGS) -D__KERNEL__ -DEXPORT_SYMTAB $(MFLAG)
 # Don't remove "-O3" or bad things will happen!
 CFLAGS = -O3 -Wall -Wstrict-prototypes -pipe
 CPPFLAGS += $(PCDEBUG) -D__KERNEL__ -DMODULE
-
-CC += $(AFLAGS) $(KFLAGS)
+CC = $(KCC) $(AFLAGS) $(KFLAGS)
 
 SRCS    = serial_cs.c memory_cs.c ftl_cs.c dummy_cs.c \
 	  sram_mtd.c iflash2_mtd.c iflash2+_mtd.c
@@ -34,6 +33,13 @@ ifdef CONFIG_SCSI
 ifdef DO_APA1480
 SRCS    += apa1480_stub.c aic7xxx.c
 MODULES += apa1480_cb.o
+AIC7XXX  = aic7xxx.o
+ifdef NEW_AIC7XXX
+SRCS    += aic7xxx_linux.c aic7xxx_linux_pci.c aic7xxx_proc.c \
+	   aic7770_linux.c aic7xxx_pci.c aic7xxx_93cx6.c aic7770.c
+AIC7XXX += aic7xxx_linux.o aic7xxx_linux_pci.o aic7xxx_proc.o \
+	   aic7770_linux.o aic7xxx_pci.o aic7xxx_93cx6.o aic7770.o
+endif
 endif
 endif
 ifdef CONFIG_IEEE1394
@@ -67,7 +73,8 @@ MODULES += parport_cs.o
 endif
 
 vpath %.c $(LINUX)/drivers/net $(LINUX)/drivers/scsi \
-	$(LINUX)/drivers/net/tokenring $(LINUX)/drivers/ieee1394
+	$(LINUX)/drivers/net/tokenring $(LINUX)/drivers/ieee1394 \
+	$(LINUX)/drivers/scsi/aic7xxx
 
 SCSI=$(LINUX)/drivers/scsi
 
@@ -83,17 +90,13 @@ all:	$(MODULES) $(EXTRA)
 	$(CC) -MD -c $(XFLAGS) -DMODULE $<
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
-ibmtr.o: ibmtr.c
-	$(CC) -MD -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
-	@mkdir -p .depfiles ; mv $*.d .depfiles
-
 ibmtr_cs.o: ibmtr_cs.c ibmtr.o
 	$(CC) -c -MD $(CFLAGS) $(CPPFLAGS) $< -o .$@
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 	$(LD) -r -o $@ .$@ ibmtr.o
 	rm -f .$@ ; chmod -x $@
 
-qlogicfas.o aha152x.o fdomain.o: %.o: %.c
+ibmtr.o qlogicfas.o aha152x.o fdomain.o: %.o: %.c
 	$(CC) -MD -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
@@ -110,34 +113,15 @@ fdomain_cs.o: fdomain_stub.o fdomain.o
 	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS $<
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
-aic7xxx.o: aic7xxx.c
-ifdef FIX_AIC7XXX
-	cd $(SCSI) ; if [ -r aic7xxx_asm.c -a ! -r aic7xxx_seq.h ] ; \
-		then $(CC) -o aic7xxx_asm aic7xxx_asm.c ; \
-		./aic7xxx_asm -o aic7xxx_seq.h aic7xxx.seq ; fi
-	patch -s $< patches/aic7xxx.old -o aic7xxx.c 2>/dev/null || \
-		( rm -f aic7xxx.c aic7xxx.c.rej aic7xxx.c.orig && \
-		patch -s $< patches/aic7xxx.fix -o aic7xxx.c )
-	$(CC) -MD -c $(CFLAGS) $(CPPFLAGS) -I$(SCSI) aic7xxx.c
-	rm aic7xxx.c
-else
+$(AIC7XXX) pcilynx.o ohci1394.o: %.o: %.c
 	$(CC) -MD -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
-endif
 	@mkdir -p .depfiles ; mv $*.d .depfiles
 
-apa1480_cb.o: apa1480_stub.o aic7xxx.o
+apa1480_cb.o: apa1480_stub.o $(AIC7XXX)
 	$(LD) -r -o $@ $+ ; chmod -x $@
-
-pcilynx.o: pcilynx.c
-	$(CC) -MD -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
-	@mkdir -p .depfiles ; mv $*.d .depfiles
 
 pcilynx_cb.o: pcilynx_stub.o pcilynx.o
 	$(LD) -r -o $@ $+ ; chmod -x $@
-
-ohci1394.o: ohci1394.c
-	$(CC) -MD -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $<
-	@mkdir -p .depfiles ; mv $*.d .depfiles
 
 ohci1394_cb.o: ohci1394_stub.o ohci1394.o
 	$(LD) -r -o $@ $+ ; chmod -x $@

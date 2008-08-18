@@ -1,10 +1,11 @@
 #
-# config.in 1.17 2000/11/09 17:06:26 (David Hinds)
+# config.in 1.18 2001/02/09 04:03:37 (David Hinds)
 #
 LINUX=/usr/src/linux
 PREFIX=
 MODDIR=
-CC=
+UCC=
+KCC=
 LD=ld
 PCDEBUG=
 KFLAGS=

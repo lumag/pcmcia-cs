@@ -520,7 +520,7 @@ static struct net_device *epic_probe1(int pci_bus, int pci_devfn,
 	dev->get_stats = &epic_get_stats;
 	dev->set_multicast_list = &set_rx_mode;
 	dev->do_ioctl = &mii_ioctl;
-#ifdef HAVE_NETIF_QUEUE
+#ifdef HAVE_TX_TIMEOUT
 	dev->watchdog_timeo = TX_TIMEOUT;
 	dev->tx_timeout = epic_tx_timeout;
 #endif

@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.104 2000/08/31 21:25:13
+    smc91c92_cs.c 1.109 2001/03/01 00:56:25
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -21,7 +21,7 @@
     Mariner, with help from Allen Brost. 
 
     This software may be used and distributed according to the terms of
-    the GNU Public License, incorporated herein by reference.
+    the GNU General Public License, incorporated herein by reference.
 
 ======================================================================*/
 
@@ -120,7 +120,6 @@ struct smc_private {
     int				watchdog, tx_err;
     u_short			media_status;
     u_short			fast_poll;
-    u_long			last_rx;
 };
 
 /* Special definitions for Megahertz multifunction cards */
@@ -234,7 +233,7 @@ enum RxCfg { RxAllMulti = 0x0004, RxPromisc = 0x0002,
 	     RxEnable = 0x0100, RxStripCRC = 0x0200};
 #define  RCR_SOFTRESET	0x8000 	/* resets the chip */
 #define	 RCR_STRIP_CRC	0x200	/* strips CRC */
-#define  RCR_ENABLE	0x100	/* IFF this is set, we can recieve packets */
+#define  RCR_ENABLE	0x100	/* IFF this is set, we can receive packets */
 #define  RCR_ALMUL	0x4 	/* receive all multicast packets */
 #define	 RCR_PROMISC	0x2	/* enable promiscuous mode */
 
@@ -367,7 +366,7 @@ static dev_link_t *smc91c92_attach(void)
     init_dev_name(dev, smc->node);
     dev->open = &smc91c92_open;
     dev->stop = &smc91c92_close;
-#ifdef HAVE_NETIF_QUEUE
+#ifdef HAVE_TX_TIMEOUT
     dev->tx_timeout = smc_tx_timeout;
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
@@ -1324,7 +1323,7 @@ static void smc_tx_timeout(struct net_device *dev)
     smc_reset(dev);
     dev->trans_start = jiffies;
     smc->saved_skb = NULL;
-    netif_start_queue(dev);
+    netif_wake_queue(dev);
 }
 
 static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1507,7 +1506,6 @@ static void smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (status & IM_RCV_INT) {
 	    /* Got a packet(s). */
 	    smc_rx(dev);
-	    smc->last_rx = jiffies;
 	}
 	if (status & IM_TX_INT) {
 	    smc_tx_err(dev);
@@ -1624,8 +1622,9 @@ static void smc_rx(struct net_device *dev)
 	
 	skb->dev = dev;
 	netif_rx(skb);
+	dev->last_rx = jiffies;
 	smc->stats.rx_packets++;
-	add_rx_bytes(&smc->stats, skb->len);
+	add_rx_bytes(&smc->stats, packet_length);
 	if (rx_status & RS_MULTICAST)
 	    smc->stats.multicast++;
     } else {
@@ -1899,7 +1898,7 @@ static void media_check(u_long arg)
 	goto reschedule;
 
     /* Ignore collisions unless we've had no rx's recently */
-    if (jiffies - smc->last_rx > HZ) {
+    if (jiffies - dev->last_rx > HZ) {
 	if (smc->tx_err || (smc->media_status & EPH_16COL))
 	    media |= EPH_16COL;
     }

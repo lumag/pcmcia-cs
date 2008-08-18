@@ -36,7 +36,7 @@
 *
 * FILE	  : hcfio.cpp
 *
-* DATE    : 2000/01/06 23:30:53   1.2
+* DATE    : 2001/03/01 01:03:15   1.3
 *
 * AUTHOR  : Nico Valster
 *
@@ -52,6 +52,9 @@
 
 /****************************************************************************
 wvlan_hcfio.c,v
+Revision 1.3  2001/03/01 01:03:15  root
+*** empty log message ***
+
 Revision 1.2  2000/01/06 23:30:53  root
 *** empty log message ***
 
@@ -210,7 +213,7 @@ int hcfio_string( IFBP ifbp, int bap, int fid,
   If a card removal is returned, the MSF has the option to drop the message or recover in any other way it 
   sees fit.
   BAP Initialization failure indicates an H/W error which is very likely to signal complete H/W failure. Once
-  a BAP Initialization failure has occured all subsequent interactions with the Hermes will return a time out
+  a BAP Initialization failure has occurred all subsequent interactions with the Hermes will return a time out
   status till the Hermes is re-initialized by means of an hcf_disable (at all ports in case of a multi-port
   environment)
 

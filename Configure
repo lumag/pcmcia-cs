@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.176 2000/12/19 22:16:47
+# Configure 1.182 2001/02/27 14:47:45
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -64,20 +64,21 @@ arg () {
 
 usage () {
     echo "usage: $0 [-n|--noprompt] [--kernel=src-dir] [--target=dir]"
-    echo "    [--moddir=dir] [--cc=path] [--ld=path] [--debug=debug-flags]"
-    echo "    [--uflags=user-flags] [--kflags=kernel-flags] [--{no}trust]"
+    echo "    [--moddir=dir] [--ucc=path] [--kcc=path] [--ld=path]"
+    echo "    [--uflags=flags] [--kflags=flags] [--debug=flags] [--{no}trust]"
     echo "    [--{no}cardbus] [--{no}pnp] [--{no}apm] [--current] [--srctree]"
     echo ""
-    echo "  -n, --noprompt     non-interactive mode: no prompting"
+    echo "  -n, --noprompt     non-int eractive mode: no prompting"
     echo "  --kernel=DIR       use kernel source tree at DIR"
     echo "  --target=DIR       install all files using DIR as root"
     echo "  --moddir=DIR       install modules under DIR"
     echo "  --arch=ARCH        select target architecture for build"
-    echo "  --cc=PATH          use another C compiler"
+    echo "  --ucc=PATH         specify C compiler for user code"
+    echo "  --kcc=PATH         specify C compiler for kernel code"
     echo "  --ld=PATH          use another linker"
-    echo "  --debug=FLAGS      set compiler flags for debugging"
     echo "  --uflags=FLAGS     set compiler flags for user-mode tools"
     echo "  --kflags=FLAGS     set compiler flags for kernel modules"
+    echo "  --debug=FLAGS      set compiler flags for debugging"
     echo "  --{no}trust        disable or enable trusted user tools"
     echo "  --{no}cardbus      disable or enable CardBus card support"
     echo "  --{no}pnp          disable or enable PnP BIOS support"
@@ -96,7 +97,9 @@ while [ $# -gt 0 ] ; do
     --kernel=*)		arg LINUX $1 		;;
     --target=*)		arg PREFIX $1		;;
     --moddir=*)		arg MODDIR $1		;;
-    --cc=*)		arg CC "$1"		;;
+    --cc=*)		arg UCC "$1"		;;
+    --ucc=*)		arg UCC "$1"		;;
+    --kcc=*)		arg KCC "$1"		;;
     --ld=*)		arg LD "$1"		;;
     --debug=*)		arg PCDEBUG "$1"	;;
     --kflags=*)		arg KFLAGS "$1"		;;
@@ -283,18 +286,18 @@ if [ -f $LINUX/include/linux/compile.h ] ; then
 fi
 echo ""
 
-if [ ! "$CC" ] ; then
-    if which kgcc >/dev/null 2>&1 ; then CC=kgcc ; else CC=cc ; fi
+if [ ! "$UCC" ] ; then UCC=cc ; fi
+if [ ! "$KCC" ] ; then
+    if which kgcc >/dev/null 2>&1 ; then KCC=kgcc ; else KCC="$UCC" ; fi
 fi
-for x in PREFIX CC LD KFLAGS UFLAGS PCDEBUG ; do
+for x in PREFIX KCC UCC LD KFLAGS UFLAGS PCDEBUG ; do
     write_str $x
 done
 write_bool USE_PM
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
 ask_bool "Include 32-bit (CardBus) card support" CONFIG_CARDBUS
-if [ $ARCH = "i386" -a $VERSION_CODE -gt `version 2 2 0` -a \
-     $VERSION_CODE -lt `version 2 3 37` ] ; then
+if [ $ARCH = "i386" -a $VERSION_CODE -gt `version 2 2 0` ] ; then
     ask_bool "Include PnP BIOS resource checking" CONFIG_PNP_BIOS
 else
     CONFIG_PNP_BIOS=n
@@ -565,6 +568,9 @@ case $CONF_SRC in
 	    CONFIG_NET_PCMCIA_RADIO CONFIG_IEEE1394 ; do
 	    configcheck $C
 	done
+	if grep "^CONFIG_PARPORT_PC=y" $AUTOCONF >/dev/null ; then
+	    CONFIG_PARPORT_PC=n
+	fi
 	if [ $CONFIG_NET_RADIO = "y" ] ; then
 	    CONFIG_NET_PCMCIA_RADIO=y
 	fi
@@ -692,13 +698,6 @@ if [ $VERSION_CODE -ge `version 2 1 90` -a \
     echo "Kernel versions 2.1.90-2.1.102 are broken.  Upgrade to 2.2."
     fail
 fi
-if [ "$CONFIG_CARDBUS" = "y" -a \
-     $VERSION_CODE -ge `version 2 1 90` ] ; then
-    if [ $VERSION_CODE -lt `version 2 1 125` -o \
-	 $VERSION_CODE -ge `version 2 1 132` ] ; then
-	DO_APA1480=y
-    fi
-fi
 if [ $VERSION_CODE -gt `version 2 1 104` ] ; then
     HAS_PROC_BUS=$CONFIG_PROC_FS
 fi
@@ -729,15 +728,20 @@ if [ $CONFIG_PARPORT_PC = "y" -a $VERSION_CODE -ge `version 2 2 0` ] ; then
 fi
 
 SCSI=$LINUX/drivers/scsi
-if [ "$CONFIG_SCSI" = "y" ] ; then
-    if [ "$DO_APA1480" = "y" ] ; then
+if [ "$CONFIG_SCSI" = "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
+    if grep ADAPTEC_1480A $SCSI/aic7xxx.c >/dev/null 2>&1 ; then
 	echo "DO_APA1480=y" >> $CONFIG_MK
-	if grep ADAPTEC_1480A $SCSI/aic7xxx.c >/dev/null ; then
-	    echo "# FIX_AIC7XXX is not defined" >> $CONFIG_MK
-	else
-	    echo "FIX_AIC7XXX=y" >> $CONFIG_MK
-	fi
+	NEW_AIC7XXX=n
     fi
+    if [ -r $SCSI/aic7xxx/aic7xxx.c ] ; then
+	echo "DO_APA1480=y" >> $CONFIG_MK
+	NEW_AIC7XXX=y
+    fi
+    write_bool NEW_AIC7XXX
+    for f in aic7xxx.h aic7xxx/aic7xxx{,_linux,_osm}.h ; do
+	if [ -r $SCSI/$f ] ; then AIC7XXX_H=$f ; fi
+    done
+    echo "#define AIC7XXX_H <../drivers/scsi/$AIC7XXX_H>" >> $CONFIG_H
 fi
 
 #=======================================================================
@@ -873,8 +877,8 @@ fi
 
 md ()
 {
-    L=`man -cw $1 2>/dev/null`
-    if [ $L ] ; then
+    L=`man -w $1 2>/dev/null`
+    if [ -f "$L" ] ; then
 	M=`dirname $L 2>/dev/null`
 	MD=`dirname $M 2>/dev/null`
 	if [ -d "$MD" ] ; then echo $MD ; else echo $2 ; fi

@@ -4,13 +4,13 @@ Linux PCMCIA ethernet adapter driver for the New Media Ethernet LAN.
 
   The Ethernet LAN uses the Advanced Micro Devices (AMD) Am79C940 Media
   Access Controller for Ethernet (MACE).  It is essentially the Am2150
-  PCMCIA Ethernet card contained in the the Am2150 Demo Kit.
+  PCMCIA Ethernet card contained in the Am2150 Demo Kit.
 
 Written by Roger C. Pao <rpao@paonet.org>
   Copyright 1995 Roger C. Pao
 
   This software may be used and distributed according to the terms of
-  the GNU Public License.
+  the GNU General Public License.
 
 Ported to Linux 1.3.* network driver environment by
   Matti Aarnio <mea@utu.fi>
@@ -519,7 +519,7 @@ static dev_link_t *nmclan_attach(void)
     init_dev_name(dev, lp->node);
     dev->open = &mace_open;
     dev->stop = &mace_close;
-#ifdef HAVE_NETIF_QUEUE
+#ifdef HAVE_TX_TIMEOUT
     dev->tx_timeout = mace_tx_timeout;
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
@@ -1051,7 +1051,7 @@ static void mace_tx_timeout(struct net_device *dev)
   printk("NOT resetting card\n");
 #endif /* #if RESET_ON_TIMEOUT */
   dev->trans_start = jiffies;
-  netif_start_queue(dev);
+  netif_wake_queue(dev);
 }
 
 static int mace_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1316,6 +1316,7 @@ static int mace_rx(struct net_device *dev, unsigned char RxCnt)
 	
 	netif_rx(skb); /* Send the packet to the upper (protocol) layers. */
 
+	dev->last_rx = jiffies;
 	lp->linux_stats.rx_packets++;
 	add_rx_bytes(&lp->linux_stats, skb->len);
 	outb(0xFF, ioaddr + AM2150_RCV_NEXT); /* skip to next frame */

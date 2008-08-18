@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2001/01/17 01:10:37
+		Last updated: 2001/03/09 01:19:25
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -44,7 +44,7 @@ Ethernet cards:
 	New Media LiveWire	[ NOT the LiveWire+ ]
 	Portable Add-ons Ethernet+
 
-	[pcnet_cs driver] [x86,axp]
+	[pcnet_cs driver] [x86,ppc,axp]
 	4Lan EP100 Ethernet
 	Accton EN2212, EN2216 EtherCard
 	Accton SOHO BASIC EN220
@@ -172,13 +172,15 @@ Fast Ethernet (10/100baseT) adapters:
 	3Com 3c574TX
 	3Com Megahertz 3CCFE574BT, 3CXFE574BT, 3CCSH572BT, 3CXSH572BT
 
-	[pcnet_cs driver] [x86]
+	[pcnet_cs driver] [x86,ppc,axp]
 	Abocom LinkMate FE1000, FE1500
 	AnyCom ECO Ethernet 10/100
 	Apollo Fast Ethernet
+	Ark Sky Link Express PA2600
 	Buffalo LPC3-CLX
 	COMPU-SHACK FASTline 10/100
 	Corega FastEther PCC-TX, FEther PCC-TXF
+	CyQ've ELA-110E 10/100
 	Digicom Palladio
 	D-Link DFE-650, DRP-16TX
 	EXP ThinLan 100
@@ -186,11 +188,13 @@ Fast Ethernet (10/100baseT) adapters:
 	Hamlet FE1000 10/100
 	Hawking PN652TX
 	IO DATA PCET/TX
+	iPort 10/100 Ethernet
 	KTI KF-C16
 	Laneed LD-10/100CD
 	LevelOne FPC-0100TX
-	Linksys PCMPC100 EtherFast, PCM100H1 HomeLink 10/100
-	Linksys NP100 Network Everywhere
+	Linksys PCMPC100 EtherFast	[ NOT the v3 cards! ]
+	Linksys PCM100H1 HomeLink 10/100
+	Linksys NP100 Network Everywhere [ NOT the v2 ones! ]
 	Logitec LPM-LN100TX
 	Melco LPC2-TX
 	Microcom TravelCard 10/100
@@ -199,10 +203,12 @@ Fast Ethernet (10/100baseT) adapters:
 	NetGear FA410TXC
 	New Media LiveWire 10/100
 	Planex FNW-3600T
+	WiseCom iPort 10/100
 	ZONET Fast Ethernet
 
-	[smc91c92_cs driver] [x86]
+	[smc91c92_cs driver] [x86,ppc]
 	Argosy EN220
+	dit Co., Ltd. PC Card-10/100BTX
 	Dynalink L100C
 	EXP ThinLan-110
 	Lantech FastNet/TX
@@ -214,7 +220,7 @@ Fast Ethernet (10/100baseT) adapters:
 	[xirc2ps_cs driver] [x86,axp]
 	Accton Fast EtherCard-16
 	Compaq Netelligent 10/100
-	Intel EtherExpress PRO/100 16-bit
+	Intel EtherExpress PRO/100 Mobile Adapter 16-bit
 	Toshiba IPC5008A, Advanced Network 10/100
 	Xircom CreditCard CE3-100, CE3B, RE-100, R2E-100BTX, XE2000
 
@@ -231,7 +237,7 @@ Fast Ethernet (10/100baseT) adapters:
 	[somewhat experimental]
 	Ositech Seven of Spades CardBus
 
-	[tulip_cb driver] [x86]
+	[tulip_cb driver] [x86,ppc]
 	Accton EN2220 CardBus
 	Allied Telesyn AT-2800
 	AmbiCom AMB8100
@@ -239,6 +245,7 @@ Fast Ethernet (10/100baseT) adapters:
 	Asante FriendlyNET CardBus
 	Billionton LND-100B
 	Compex Linkport TX
+	Corega FEther CB-TXL
 	D-Link DFE-660TX
 	Farallon EtherTX
 	Fujitsu FMV-J184
@@ -246,13 +253,15 @@ Fast Ethernet (10/100baseT) adapters:
 	Gericom Fast Ethernet
 	Kingston KNE-CB4TX
 	Laneed LD-10/100CB
-	LevelOne FPC-0101TX 10/100Mbps CardBus
+	LevelOne FPC-0101TX, FPC-0103TX 10/100Mbps CardBus
 	Linksys PCMPC200 EtherFast CardBus
+	Macsense MPC-200
 	NDC Communications Sohoware NCB100
 	NetGear FA510C
 	OvisLink LFS PCM 32
 	PLANET ENW-3502-FC
 	PrimeXpress Fast Ethernet
+	RATOC REX-CB80
 	SMC EZ CardBus 10/100 Ethernet
 	SVEC FD606 10/100 Ethernet
 	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
@@ -295,14 +304,17 @@ Wireless network adapters:
 
 	[wvlan_cs driver] [x86,axp,ppc,smp]
 	1stWave 1ST-PC-DSS11IS, DSS11IG, DSS11ES, DSS11EG
-	Addtron AWP-100
+	ARtem Onair ComCard STD & EMB versions, 128- & 64-bit
 	Cabletron/Enterasys RoamAbout 802.11 DS
 	ELSA AirLancer MC-11
 	IBM High Rate Wireless LAN
 	Lucent Orinoco WaveLAN/IEEE 802.11(b)
 	Melco WLI-PCM-L11
 	NCR WaveLAN/IEEE 802.11
-	[ functional but some features missing ]
+	[ PrismII based cards: limited functionality ]
+	Addtron AWP-100
+	Ambicom WL1100 PC
+	Compaq WL100
 	D-Link DWL-650
 	Linksys WPC11 Instant Wireless
 	SMC2632W
@@ -328,6 +340,9 @@ Modem and serial cards:
 	Quatech quad RS-232 card
 	Socket Communications dual RS-232 card
 	Trimble Mobile GPS
+
+	[serial_cb driver] [x86]
+	Xircom RBM56G	[ note: some are WinModems! ]
 
 	[ The following cards are WinModems and are NOT supported ]
 	3Com/Megahertz 3CXM356/3CCM356, 3CXM656/3CCM656
@@ -467,7 +482,7 @@ Multifunction ethernet/modem cards:
 
 	[xirc2ps_cs driver] [x86]
 	Compaq Microcom CPQ550 Modem + 10/100 LAN
-	Intel EtherExpress PRO/100 LAN/Modem
+	Intel EtherExpress PRO/100 16-bit LAN/Modem
 	Xircom CreditCard CEM28, CEM33, CEM56, XEM5600
 	Xircom RealPort REM10BT, REM56G-100
 
@@ -476,14 +491,14 @@ Multifunction ethernet/modem cards:
 	3Com 3CCFEM656B, 3CXFEM656C
 
 	[eepro100_cb driver] [x86]
-	Intel EtherExpress Pro/100 LAN+Modem 56K
+	Intel EtherExpress PRO/100 CardBus LAN/Modem
 
 	[epic_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
 	Ositech Jack of Spades CardBus
 	Psion Gold Card Netglobal 56K+10/100Mb
 
-	[tulip_cb driver] [x86]
+	[tulip_cb driver] [x86,ppc]
 	[ ethernet only ]
 	Silicom FEM56 Fast Ethernet
 	[ Not recommended: support is experimental and unreliable ]
@@ -512,8 +527,9 @@ ATA/IDE Interface Cards:
 	Creo DNBoy
 	GREYSTONE DD-25
 	IBM Portable Drive Bay		[ only CD-ROM tested ]
+	Iomega Zip-250
 	MCE DataShuttle
-	Shining Technology CitiDISK 250PE
+	Shining Technology CitiDISK 250PE, PMIDE-ASC
 	Sicon Periperal Micro Mate
 
 ATA/IDE CD-ROM and DVD adapters:
@@ -633,12 +649,15 @@ own web sites.
 	Xircom CE-10BC Ethernet (maybe also CE-10BT)
 	  (Stanislav Meduna <stano@trillian.eunet.sk>)
 
-The following drivers have their own web sites:
+The following drivers have their own web sites.  For more information
+about wireless network adapters, see the Wireless-HOWTO at
+http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/.
 
 	GemPlus GPR400 Smart Card Reader
 	  http://www.linuxnet.com/smartcard/code.html
 	  (Wolf Geldmacher <wgeldmacher@paus.ch>)
 
+	[ Intersil PrismI wireless cards ]
 	Harris PRISM/AM79C930 IEEE 802.11 wireless LAN
 	Nokia/InTalk ST-500A
 	Nokia C020
@@ -646,6 +665,17 @@ The following drivers have their own web sites:
 	Zoom Telephonics ZoomAir 4000
 	  http://www.absoval.com/linux-wlan
 	  (Mark Mathews <mark@absoval.com>)
+
+	[ Intersil PrismII wireless cards ]
+	Addtron AWP-100
+	Ambicom WL1100 PC
+	Compaq WL100
+	D-Link DWL-650
+	Linksys WPC11 Instant Wireless
+	Samsung MagicLAN
+	SMC2632W
+	  http://www.magiclan.com
+	  http://www.absoval.com/linux-wlan
 
 	Proxim RangeLAN2 and Symphony wireless LAN cards
 	  http://www.komacke.com/distribution.html
@@ -679,6 +709,7 @@ email just to ask if their status has changed.
 
 	Adaptec/Trantor APA-460 SlimSCSI
 	Eiger Labs SCSI w/FCC ID K36...
+	Melco LPC3-TX
 	New Media .WAVjammer and all other sound cards
 	New Media LiveWire+
 	Nikon CoolPix100

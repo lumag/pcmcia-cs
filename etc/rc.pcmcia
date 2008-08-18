@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.35 2001/01/06 03:16:00 (David Hinds)
+# rc.pcmcia 1.36 2001/02/28 03:50:07 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -113,9 +113,7 @@ for x in "1" ; do
 	    echo " cardmgr."
 	    /sbin/cardmgr $CARDMGR_OPTS
 	fi
-	if [ -d /var/lock/subsys ] ; then
-	    touch /var/lock/subsys/pcmcia
-	fi
+	touch /var/lock/subsys/pcmcia 2>/dev/null
 	;;
 
     stop)

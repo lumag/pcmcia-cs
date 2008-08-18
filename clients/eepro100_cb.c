@@ -894,7 +894,7 @@ static void *speedo_found1(struct pci_dev *pdev, void *init_dev,
 	dev->get_stats = &speedo_get_stats;
 	dev->set_multicast_list = &set_rx_mode;
 	dev->do_ioctl = &speedo_ioctl;
-#ifdef HAVE_NETIF_QUEUE
+#ifdef HAVE_TX_TIMEOUT
 	dev->watchdog_timeo = TX_TIMEOUT;
 	dev->tx_timeout = speedo_tx_timeout;
 #endif

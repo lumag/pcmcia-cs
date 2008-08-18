@@ -1,5 +1,5 @@
 #
-# cardmgr/Makefile 1.84 2001/01/18 03:15:46 (David Hinds)
+# cardmgr/Makefile 1.85 2001/02/07 00:41:40 (David Hinds)
 #
 
 # Include site dependent options
@@ -7,7 +7,7 @@ include ../config.mk
 
 CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 CPPFLAGS += -I../modules
-CC := $(CC:kgcc=gcc) $(UFLAGS)
+CC = $(UCC) $(UFLAGS)
 
 SRCS  = cardmgr.c cardctl.c yacc_config.c lex_config.c probe.c
 TOOLS = cardmgr cardctl

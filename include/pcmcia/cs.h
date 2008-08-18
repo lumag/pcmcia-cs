@@ -1,5 +1,5 @@
 /*
- * cs.h 1.71 2000/08/29 00:54:20
+ * cs.h 1.72 2001/02/09 04:30:30
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -181,6 +181,7 @@ typedef struct config_req_t {
 #define INT_MEMORY		0x01
 #define INT_MEMORY_AND_IO	0x02
 #define INT_CARDBUS		0x04
+#define INT_ZOOMED_VIDEO	0x08
 
 /* For RequestIO and ReleaseIO */
 typedef struct io_req_t {

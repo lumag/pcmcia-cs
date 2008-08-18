@@ -1,7 +1,7 @@
 #
 # Copyright (C) 2000 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.118 2000/08/23 20:22:47
+# Makefile 1.119 2001/02/07 00:41:40
 #
 
 # Include site dependent options and kernel configuration
@@ -13,8 +13,7 @@ include ../config.mk
 
 CFLAGS = -O2 -Wall -Wstrict-prototypes -pipe
 CPPFLAGS += $(PCDEBUG) -D__KERNEL__ -DMODULE
-
-CC += $(AFLAGS) $(KFLAGS)
+CC = $(KCC) $(AFLAGS) $(KFLAGS)
 
 SRCS    = cs.c cistpl.c rsrc_mgr.c bulkmem.c ds.c
 CORE    = cs.o cistpl.o rsrc_mgr.o bulkmem.o

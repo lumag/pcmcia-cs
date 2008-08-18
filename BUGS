@@ -1,11 +1,10 @@
-Known problems and limitations for the 3.1.23 PCMCIA release
+Known problems and limitations for the 3.1.25 PCMCIA release
 ============================================================
 
 Bug summaries:
 
 o CardBus devices with 2.0.* kernels are not recommended
 o PCI interrupt routing issues for CardBus bridges on some systems
-o PCI configuration problems with 2.3.* kernels
 o O2Micro and ToPIC CardBus bridge configuration problems
 o On the Sony VAIO PCG-N505VE, interrupts break after a suspend
 o SCSI drivers are not hot swap safe
@@ -20,7 +19,6 @@ o IDE driver shutdown bug in certain 2.2.*, 2.3.* kernels
 o Tedious IDE probes for nonexistent slave devices
 o IDE driver does not share PCI interrupts properly
 o SuSE 6.4 IDE driver problem
-o parport_cs doesn't work in 2.3.*
 o Xircom CardBus driver instability
 o NE2000 compatible cards based on the Asix AX88190 are unsupported
 
@@ -38,15 +36,6 @@ o With some PCI host bridges, the PCMCIA subsystem is not able to
   loaded, they may complain about an "unknown interrupt router".
 
   Prognosis: see the discussion in the PCMCIA-HOWTO.
-
-o Some 2.3.* kernels may make mistakes when autoconfiguring CardBus
-  bridges.  Specifically, the kernel may memory map bridges at invalid
-  addresses.  The i82365 driver reports a "Bad bridge mapping".  In
-  other cases, the PCI subsystem may misconfigure PCI interrupts for
-  CardBus bridges.
-
-  Prognosis: either upgrade to a newer 2.3.* kernel if possible, or
-  revert to a 2.2.* kernel.
 
 o Interrupt routing on O2Micro CardBus bridges seems to have problems.
   Toshiba ToPIC97 bridges also seem to have problems, particularly
@@ -172,11 +161,6 @@ o The SuSE 6.4 version of the 2.2.14 kernel has a broken IDE probe
 
   Prognosis: substitute drivers/block/ide-probe.c from SuSE's 2.2.13
   kernel or from a virgin 2.2.14 source tree.
-
-o The 2.3.6 kernel update broke the PCMCIA parport_cs driver.
-
-  Prognosis: it should be fixable in newer 2.3.* kernels, but I just
-  have not gotten around to doing it.
 
 o Xircom CBEM support in the tulip_cb driver seems to be extremely
   unreliable.  A wide range of symptoms are reported, ranging from no
