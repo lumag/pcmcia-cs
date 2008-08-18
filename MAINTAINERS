@@ -1,6 +1,6 @@
 		Linux PCMCIA Maintainers List
 
-		Last updated: 2000/01/25 02:33:54
+		Last updated: 2000/04/05 21:01:43
 
 The following PCMCIA driver components have active maintainers.  Bug
 reports and questions are often best addressed to the maintainer of
@@ -26,7 +26,7 @@ http://www.linuxtr.org
 Dag Brattli <dagb@cs.uit.no>
 
 [ray_cs]
-Corey Thomas <corey@world.std.com>
+Corey Thomas <coreythomas@charter.net>
 http://world.std.com/~corey/raylink.html
 
 [wavelan_cs]

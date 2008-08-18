@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.23, 06 January 2000
+  v2.24, 16 March 2000
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -3533,6 +3533,10 @@
      SS_CAP_MEM_ALIGN
         Indicates that memory windows must be aligned by the window
         size.
+
+     SS_CAP_STATIC_MAP
+        Indicates that memory windows are statically mapped at fixed
+        locations in the host address space, and cannot be repositioned.
 
      SS_CAP_PCCARD
         Indicates that this socket supports 16-bit PC cards.

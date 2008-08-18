@@ -1173,8 +1173,7 @@ xirc2ps_config(dev_link_t * link)
 	 * memory and write direct to the CIS registers
 	 */
 	req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-	req.Base = 0;
-	req.Size = 0x1000; /* 4k window */
+	req.Base = req.Size = 0;
 	req.AccessSpeed = 0;
 	link->win = (window_handle_t)link->handle;
 	if ((err = CardServices(RequestWindow, &link->win, &req))) {

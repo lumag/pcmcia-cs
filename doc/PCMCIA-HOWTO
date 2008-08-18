@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.53, 04 March 2000
+  v2.58, 07 April 2000
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -43,9 +43,10 @@
      3.4 IO port scan failures
      3.5 Memory probe failures
      3.6 Failure to detect card insertions and removals
-     3.7 System resource starvation
-     3.8 Resource conflict only with two cards inserted
-     3.9 Device configuration does not complete
+     3.7 Interrupt delivery problems
+     3.8 System resource starvation
+     3.9 Resource conflict only with two cards inserted
+     3.10 Device configuration does not complete
 
   4. Usage and features
 
@@ -587,10 +588,15 @@
      card recognition problems.
 
   +o  This is not a timing issue, but if you have more than one ISA-to-
-     PCMCIA controller in your system or extra sockets in a docking
-     station, the i82365 module should be loaded with the extra_sockets
-     parameter set to 1.  This should not be necessary for detection of
-     PCI-to-PCMCIA or PCI-to-CardBus bridges.
+     PCMCIA controller in your system or extra sockets in a laptop
+     docking station, the i82365 module should be loaded with the
+     extra_sockets parameter set to 1.  This should not be necessary for
+     detection of PCI-to-PCMCIA or PCI-to-CardBus bridges.
+
+  +o  With SCM Microsystems SBP series PCI card readers (which are also
+     being distributed with Lucent WaveLan cards), it is necessary to
+     specify irq_mode=0 for the i82365 module, to force use of PCI
+     interrupts.
 
   Here are some timing settings for specific systems:
 
@@ -628,6 +634,8 @@
      5.
 
   +o  On the Dell Inspiron 7000, exclude irq 3, irq 5.
+
+  +o  On the Fujitsu C series, exclude port 0x200-0x27f.
 
   +o  On the HP Omnibook 4000C, exclude port 0x300-0x30f.
 
@@ -882,8 +890,8 @@
   to be loaded for a particular client.  For example, for the serial
   driver, one would use:
 
-  device "serial_cs"
-    class "serial" module "misc/serial", "serial_cs"
+       device "serial_cs"
+         class "serial" module "misc/serial", "serial_cs"
 
   Module paths are specified relative to the top-level module directory
   for the current kernel version; if no relative path is given, then the
@@ -934,8 +942,7 @@
 
   In either case, the probe options can be specified using the PCIC_OPTS
   definition in the PCMCIA startup script, for example:
-
-  PCIC_OPTS="irq_list=5,9,10"
+       PCIC_OPTS="irq_list=5,9,10"
 
   It should be noted that /proc/interrupts is completely useless when it
   comes to diagnosing interrupt probe problems.  The probe is sensible
@@ -1068,7 +1075,56 @@
   /etc/rc.d/rc.pcmcia or /etc/sysconfig/pcmcia, depending on your site
   setup.
 
-  33..77..  SSyysstteemm rreessoouurrccee ssttaarrvvaattiioonn
+  33..77..  IInntteerrrruupptt ddeelliivveerryy pprroobblleemmss
+
+  Symptoms:
+
+  +o  Cards appear to be configured successfully, but don't work.
+
+  +o  Serial and modem cards may respond very sluggishly.
+
+  +o  Network cards may report ``interrupt(s) dropped'', and/or transmit
+     timeouts.
+
+  The most simple interrupt delivery problems are due to conflicts with
+  other system devices.  These can generally be resolved by excluding
+  problem interrupts in /etc/pcmcia/config.opts.  To test, just exclude
+  interrupts one by one until either the problem is fixed or you run out
+  of interrupts.  If no interrupts work, then device conflicts are
+  probably not the problem.
+
+  CardBus bridges usually support two types of interrupts, PCI and ISA.
+  Partly for historical reasons, it has become conventional to use PCI
+  interrupts for signaling card insertion and removal events, and for
+  CardBus card interrupts; and ISA interrupts for 16-bit cards.  Since
+  version 3.1.9, this is the scheme that the Linux PCMCIA system will
+  use by default.  Most CardBus bridges support multiple methods for
+  delivering interrupts to the host CPU.  Methods include ``parallel''
+  interrupts, where each supported irq has a dedicated pin on the
+  bridge; various serial interrupt protocols, where one or two pins are
+  used to communicate with an interrupt controller; and hybrids, where,
+  for instance, PCI interrupts may be signalled using dedicated pins,
+  while ISA interrupts are delivered via a serial controller.
+
+  In general, it is the responsibility of the BIOS to program a bridge
+  for the appropriate interrupt delivery method.  However, there are
+  systems that do this incorrectly, and in some cases, there is no way
+  for software to safely detect the correct delivery method.  The i82365
+  module reports the bridge mode at startup time, and has a parameter,
+  irq_mode, that can be used to reconfigure it.  Not all bridges support
+  this parameter, and the meaning of irq_mode depends on the bridge
+  type.  See the i82365 man page for a description of what values are
+  supported by your bridge.  In some cases, a bridge may function
+  correctly in more than one interrupt mode.
+
+  Most PCMCIA card readers that fit in a PCI bus slot only provide PCI
+  interrupt routing.  The Linux drivers assume that all bridges have ISA
+  interrupt capability, since that is usually correct.  In this case, it
+  will be necessary to use the irq_mode parameter to specify a ``PCI
+  only'' interrupt delivery mode; the value of the parameter depends on
+  the bridge type, so check the i82365 man page.
+
+  33..88..  SSyysstteemm rreessoouurrccee ssttaarrvvaattiioonn
 
   Symptoms:
 
@@ -1114,7 +1170,7 @@
   in the 640K-1MB ``hole'' in PC systems), it is helpful to specify
   large memory windows in high memory, such as 0xa0000000-0xa0ffffff.
 
-  33..88..  RReessoouurrccee ccoonnfflliicctt oonnllyy wwiitthh ttwwoo ccaarrddss iinnsseerrtteedd
+  33..99..  RReessoouurrccee ccoonnfflliicctt oonnllyy wwiitthh ttwwoo ccaarrddss iinnsseerrtteedd
 
   Symptoms:
 
@@ -1134,7 +1190,7 @@
   card.  Exclude these in /etc/pcmcia/config.opts, and restart the
   cardmgr daemon to reload the resource database.
 
-  33..99..  DDeevviiccee ccoonnffiigguurraattiioonn ddooeess nnoott ccoommpplleettee
+  33..1100..  DDeevviiccee ccoonnffiigguurraattiioonn ddooeess nnoott ccoommpplleettee
 
   Symptoms:
 
@@ -1166,10 +1222,10 @@
   If the modules are all loaded correctly, the output of the lsmod
   command should look like the following, when no cards are inserted:
 
-  Module                  Size  Used by
-  ds                      5640   2
-  i82365                 15452   2
-  pcmcia_core            30012   3  [ds i82365]
+       Module                  Size  Used by
+       ds                      5640   2
+       i82365                 15452   2
+       pcmcia_core            30012   3  [ds i82365]
 
   The system log should also include output from the socket driver
   describing the host controller(s) found and the number of sockets
@@ -1219,6 +1275,7 @@
   see how it is configured.  It can also be used to alter the
   configuration status of a card.  Here is an example of the output of
   the ``cardctl config'' command:
+
        Socket 0:
          not configured
        Socket 1:
@@ -1350,7 +1407,6 @@
   device configuration tools.  In that case, some of the following
   sections may not apply; ideally, this will be documented by the
   distribution maintainers.
-
   44..33..  PPCCMMCCIIAA nneettwwoorrkk aaddaapptteerrss
 
   Linux ethernet-type network interfaces normally have names like eth0,
@@ -1392,13 +1448,13 @@
   Alternatively, they could be configured using their hardware
   addresses, as in:
 
-  case "$ADDRESS" in
-  *,*,*,00:80:C8:76:00:B1)
-      # definitions for a D-Link card
-      ;;
-  *,*,*,08:00:5A:44:80:01)
-      # definitions for an IBM card
-  esac
+       case "$ADDRESS" in
+       *,*,*,00:80:C8:76:00:B1)
+           # definitions for a D-Link card
+           ;;
+       *,*,*,08:00:5A:44:80:01)
+           # definitions for an IBM card
+       esac
 
   44..33..11..  NNeettwwoorrkk ddeevviiccee ppaarraammeetteerrss
 
@@ -1418,6 +1474,10 @@
         A boolean (y/n) value: indicates if the host's IP address and
         routing information should be obtained from a DHCP server.  The
         network script first looks for dhcpcd, then dhclient, then pump.
+
+     DHCP_HOSTNAME
+        Specifies a hostname to be passed to dhcpcd or pump, for
+        inclusion in DHCP messages.
 
      IPADDR
         The IP address for this interface.
@@ -1454,19 +1514,19 @@
 
   For example:
 
-       case "$ADDRESS" in
-       *,*,*,*)
-           IF_PORT="10base2"
-           BOOTP="n"
-           IPADDR="10.0.0.1"
-           NETMASK="255.255.255.0"
-           NETWORK="10.0.0.0"
-           BROADCAST="10.0.0.255"
-           GATEWAY="10.0.0.1"
-           DOMAIN="domain.org"
-           DNS_1="dns1.domain.org"
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,*,*,*)
+      IF_PORT="10base2"
+      BOOTP="n"
+      IPADDR="10.0.0.1"
+      NETMASK="255.255.255.0"
+      NETWORK="10.0.0.0"
+      BROADCAST="10.0.0.255"
+      GATEWAY="10.0.0.1"
+      DOMAIN="domain.org"
+      DNS_1="dns1.domain.org"
+      ;;
+  esac
 
   To automatically mount and unmount NFS filesystems, first add all
   these filesystems to /etc/fstab, but include noauto in the mount
@@ -2207,6 +2267,10 @@
      removable-media drives if no media is present at insertion time.
      The IBM Portable DriveBay has this problem.
 
+  +o  Some kernels will report a pair of ``drive_cmd'' errors at
+     insertion time.  These errors can be ignored: they pop up when a
+     removable IDE device does not accept the IDE ``door lock'' command.
+
   44..99..  MMuullttiiffuunnccttiioonn ccaarrddss
 
   A single interrupt can be shared by several drivers, such as the
@@ -2399,7 +2463,7 @@
   To customize the initrd startup sequence, you could mount the image
   using the ``loopback'' device with a command like:
 
-  mount -o loop -t ext2 initrd /mnt
+       mount -o loop -t ext2 initrd /mnt
 
   and then edit the linuxrc script.  The configuration files will be
   installed under /etc in the image, and can also be customized.  See
@@ -2533,7 +2597,6 @@
   copy the strings exactly, preserving case and blank spaces.  Also be
   sure that the config entry has the same number of strings as are
   reported in the log file.
-
   Beware that you can specify just about any driver for a card, but if
   you're just shooting in the dark, there is not much reason to expect
   this to be productive.  You may get lucky and find that your card is
@@ -2647,7 +2710,6 @@
   +o  All PCMCIA-related messages in your system log file.  That includes
      startup messages, and messages generated when your cards are
      configured.
-
   All the PCMCIA modules and the cardmgr daemon send status messages to
   the system log.  This will usually be something like /var/log/messages
   or /usr/adm/messages.  This file should be the first place to look
@@ -2884,19 +2946,19 @@
   Makefile for the all and install targets.  Here is an example of how
   such a makefile could be constructed:
 
-  # Sample Makefile for contributed client driver
-  FILES = sample_cs.mk README.sample_cs \
-          modules/sample_cs.c modules/sample_cs.h \
-          etc/sample.conf etc/sample etc/sample.opts \
-          man/sample_cs.4
-  all:
-          $(MAKE) -C modules MODULES=sample_cs.o
-  install:
-          $(MAKE) -C modules install-modules MODULES=sample_cs.o
-          $(MAKE) -C etc install-clients CLIENTS=sample
-          $(MAKE) -C man install-man4 MAN4=sample_cs.4
-  dist:
-          tar czvf sample_cs.tar.gz $(FILES)
+       # Sample Makefile for contributed client driver
+       FILES = sample_cs.mk README.sample_cs \
+               modules/sample_cs.c modules/sample_cs.h \
+               etc/sample.conf etc/sample etc/sample.opts \
+               man/sample_cs.4
+       all:
+               $(MAKE) -C modules MODULES=sample_cs.o
+       install:
+               $(MAKE) -C modules install-modules MODULES=sample_cs.o
+               $(MAKE) -C etc install-clients CLIENTS=sample
+               $(MAKE) -C man install-man4 MAN4=sample_cs.4
+       dist:
+               tar czvf sample_cs.tar.gz $(FILES)
 
   This makefile uses install targets defined in 2.9.10 and later
   versions of the PCMCIA package.  This makefile also includes a

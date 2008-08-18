@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.79 2000/03/01 20:24:40
+    cistpl.c 1.80 2000/03/31 03:53:35
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -92,6 +92,17 @@ static const u_int exponent[] = {
 #define IS_ATTR		1
 #define IS_INDIRECT	8
 
+static void set_cis_map(socket_info_t *s, pccard_mem_map *mem)
+{
+    s->ss_entry(s->sock, SS_SetMemMap, mem);
+    if (s->cap.features & SS_CAP_STATIC_MAP) {
+	if (s->cis_virt)
+	    bus_iounmap(s->cap.bus, s->cis_virt);
+	s->cis_virt = bus_ioremap(s->cap.bus, mem->sys_start,
+				  s->cap.map_size);
+    }
+}
+
 void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 		  u_int len, void *ptr)
 {
@@ -104,7 +115,6 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 	return;
     }
     mem->flags |= MAP_ACTIVE; mem->flags &= ~MAP_ATTRIB;
-    sys = s->cis_virt;
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -112,7 +122,8 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 	u_char flags = ICTRL0_COMMON|ICTRL0_AUTOINC|ICTRL0_BYTEGRAN;
 	if (attr & IS_ATTR) { addr *= 2; flags = ICTRL0_AUTOINC; }
 	mem->card_start = 0;
-	s->ss_entry(s->sock, SS_SetMemMap, mem);
+	set_cis_map(s, mem);
+	sys = s->cis_virt;
 	bus_writeb(s->cap.bus, flags, sys+CISREG_ICTRL0);
 	bus_writeb(s->cap.bus, addr & 0xff, sys+CISREG_IADDR0);
 	bus_writeb(s->cap.bus, (addr>>8) & 0xff, sys+CISREG_IADDR1);
@@ -125,14 +136,15 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
 	if (attr) { mem->flags |= MAP_ATTRIB; inc++; addr *= 2; }
 	sys += (addr & (s->cap.map_size-1));
 	mem->card_start = addr & ~(s->cap.map_size-1);
-
-	for (; len > 0; sys = s->cis_virt) {
-	    s->ss_entry(s->sock, SS_SetMemMap, mem);
+	while (len) {
+	    set_cis_map(s, mem);
+	    sys = s->cis_virt + (addr & (s->cap.map_size-1));
 	    for ( ; len > 0; len--, buf++, sys += inc) {
 		if (sys == s->cis_virt+s->cap.map_size) break;
 		*buf = bus_readb(s->cap.bus, sys);
 	    }
 	    mem->card_start += s->cap.map_size;
+	    addr = 0;
 	}
     }
     DEBUG(3, "cs:  %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
@@ -149,7 +161,6 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
     DEBUG(3, "cs: write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
     if (setup_cis_mem(s) != 0) return;
     mem->flags |= MAP_ACTIVE; mem->flags &= ~MAP_ATTRIB;
-    sys = s->cis_virt;
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -157,7 +168,8 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
 	u_char flags = ICTRL0_COMMON|ICTRL0_AUTOINC|ICTRL0_BYTEGRAN;
 	if (attr & IS_ATTR) { addr *= 2; flags = ICTRL0_AUTOINC; }
 	mem->card_start = 0;
-	s->ss_entry(s->sock, SS_SetMemMap, mem);
+	set_cis_map(s, mem);
+	sys = s->cis_virt;
 	bus_writeb(s->cap.bus, flags, sys+CISREG_ICTRL0);
 	bus_writeb(s->cap.bus, addr & 0xff, sys+CISREG_IADDR0);
 	bus_writeb(s->cap.bus, (addr>>8) & 0xff, sys+CISREG_IADDR1);
@@ -168,16 +180,16 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
     } else {
 	int inc = 1;
 	if (attr & IS_ATTR) { mem->flags |= MAP_ATTRIB; inc++; addr *= 2; }
-	sys += (addr & (s->cap.map_size-1));
 	mem->card_start = addr & ~(s->cap.map_size-1);
-
-	for (; len > 0; sys = s->cis_virt) {
-	    s->ss_entry(s->sock, SS_SetMemMap, mem);
+	while (len) {
+	    set_cis_map(s, mem);
+	    sys = s->cis_virt + (addr & (s->cap.map_size-1));
 	    for ( ; len > 0; len--, buf++, sys += inc) {
 		if (sys == s->cis_virt+s->cap.map_size) break;
 		bus_writeb(s->cap.bus, *buf, sys);
 	    }
 	    mem->card_start += s->cap.map_size;
+	    addr = 0;
 	}
     }
 }
@@ -242,7 +254,8 @@ static int checksum_match(u_long base)
 
 int setup_cis_mem(socket_info_t *s)
 {
-    if (s->cis_mem.sys_start == 0) {
+    if (!(s->cap.features & SS_CAP_STATIC_MAP) &&
+	(s->cis_mem.sys_start == 0)) {
 	int low = !(s->cap.features & SS_CAP_PAGE_REGS);
 	vs = s;
 	validate_mem(cis_readable, checksum_match, low);
@@ -266,9 +279,11 @@ void release_cis_mem(socket_info_t *s)
     if (s->cis_mem.sys_start != 0) {
 	s->cis_mem.flags &= ~MAP_ACTIVE;
 	s->ss_entry(s->sock, SS_SetMemMap, &s->cis_mem);
-	release_mem_region(s->cis_mem.sys_start, s->cap.map_size);
+	if (!(s->cap.features & SS_CAP_STATIC_MAP))
+	    release_mem_region(s->cis_mem.sys_start, s->cap.map_size);
 	bus_iounmap(s->cap.bus, s->cis_virt);
 	s->cis_mem.sys_start = 0;
+	s->cis_virt = NULL;
     }
 }
 

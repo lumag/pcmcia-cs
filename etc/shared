@@ -1,5 +1,5 @@
 #
-# shared 1.15 1999/11/23 03:47:47 (David Hinds)
+# shared 1.16 2000/03/30 19:06:49 (David Hinds)
 #
 
 usage ()
@@ -91,7 +91,7 @@ chk_simple ()
     # usage: chk_simple [new-address]
     ADDRESS=""
     OLD=`set | grep -v '^OLD=' | md5sum`
-    ADDRESS=$1
+    ADDRESS="$1"
     . $0.opts
     ADDRESS=""
     NEW=`set | grep -v '^OLD=' | md5sum`
@@ -101,7 +101,7 @@ chk_simple ()
 chk_parts ()
 {
     # usage: chk_parts [new-address]
-    OLD_ADDR=$ADDRESS
+    OLD_ADDR="$ADDRESS"
     chk_simple $1 || return 1
     if [ ! "$PARTS" ] ; then return 0 ; fi
     for PART in $PARTS ; do

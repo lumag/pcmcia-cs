@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.146 2000/03/04 00:45:26
+# Configure 1.151 2000/03/31 03:58:40
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -81,9 +81,12 @@ usage () {
     echo "  --{no}trust        disable or enable trusted user tools"
     echo "  --{no}cardbus      disable or enable CardBus card support"
     echo "  --{no}pnp          disable or enable PnP BIOS support"
-    echo "  --{no}apm          disable or enable APM support"
+    echo "  --{no}apm          disable or enable power management support"
     echo "  --current          read configuration of current kernel"
     echo "  --srctree          read kernel configuration from source tree"
+    echo "  --sysv             target has SysV init script layout"
+    echo "  --bsd              target uses BSD init scripts"
+    echo "  --rcdir=DIR        SysV init scripts are under DIR"
     exit 1
 }
 
@@ -105,10 +108,13 @@ while [ $# -gt 0 ] ; do
     --nocardbus)	CONFIG_CARDBUS=n	;;
     --pnp)		CONFIG_PNP_BIOS=y	;;
     --nopnp)		CONFIG_PNP_BIOS=n	;;
-    --apm)		USE_APM=y		;;
-    --noapm)		USE_APM=n		;;
+    --apm)		USE_PM=y		;;
+    --noapm)		USE_PM=n		;;
     --current)		CONF_SRC=1		;;
     --srctree)		CONF_SRC=2		;;
+    --sysv)		SYSV_INIT=y		;;
+    --bsd)		SYSV_INIT=n		;;
+    --rcdir=*)		arg RC_DIR "$1"		;;
     *)			usage			;;
     esac
     shift
@@ -150,6 +156,13 @@ write_bool() {
 	echo "# $1 is not defined" >> $CONFIG_MK
 	echo "#undef  $1" >> $CONFIG_H
     fi
+}
+
+write_int () {
+    value=`eval echo '$'$1`
+    echo "$1"=$value >> $CONFIG
+    echo "$1=$value" >> $CONFIG_MK
+    echo "#define $1 $value" >> $CONFIG_H
 }
 
 write_str () {
@@ -274,7 +287,7 @@ ask_str "Alternate target install directory" PREFIX
 for x in CC LD KFLAGS UFLAGS PCDEBUG ; do
     write_str $x
 done
-write_bool USE_APM
+write_bool USE_PM
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
 ask_bool "Include 32-bit (CardBus) card support" CONFIG_CARDBUS
@@ -386,7 +399,7 @@ printconfig () {
     printflag "Symmetric multiprocessing support" CONFIG_SMP
     printflag "PCI BIOS support" CONFIG_PCI
     tweak
-    printflag "Advanced Power Management (APM) support" CONFIG_APM
+    printflag "Power management (APM) support" CONFIG_PM
     printflag "SCSI support" CONFIG_SCSI
     printflag "Networking support" CONFIG_INET
     printflag " Radio network interface support" CONFIG_NET_RADIO
@@ -396,8 +409,18 @@ printconfig () {
     if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	printflag "PCMCIA IDE device support" CONFIG_BLK_DEV_IDE_PCMCIA
     fi
+    if [ $ARCH = "i386" ] ; then
+	CONFIG_X86_L1_CACHE_BYTES=32
+	write_int CONFIG_X86_L1_CACHE_BYTES
+    fi
     if [ $ARCH = "alpha" ] ; then
-	printflag "DEC Alpha UDB target platform" CONFIG_ALPHA_LCA
+	if [ $VERSION_CODE -lt `version 2 2 0`] ; then
+	    CONFIG_ALPHA_LCA=y
+	    write_bool CONFIG_ALPHA_LCA
+	else
+	    CONFIG_ALPHA_GENERIC=y
+	    write_bool CONFIG_ALPHA_GENERIC
+	fi
     fi
     if [ $ARCH = "arm" ] ; then
 	printflag "Brutus architecture" CONFIG_ARCH_BRUTUS
@@ -449,7 +472,11 @@ case $CONF_SRC in
 	fi
 	symcheck CONFIG_SMP smp_invalidate_needed
 	symcheck CONFIG_PCI pcibios
-	symcheck CONFIG_APM apm_register_callback
+	if [ $VERSION_CODE -lt `version 2 3 43` ] ; then
+	    symcheck CONFIG_PM apm_register_callback
+	else
+	    symcheck CONFIG_PM pm_register
+	fi
 	symcheck CONFIG_SCSI scsi_register scsi_mod
 	symcheck CONFIG_SERIAL register_serial serial
 	symcheck CONFIG_PARPORT parport_register parport
@@ -466,9 +493,6 @@ case $CONF_SRC in
 	    symcheck CONFIG_BLK_DEV_IDE_PCMCIA ide_register
 	fi
 	symcheck CONFIG_TR tr_setup
-	if [ $ARCH = "alpha" ] ; then
-	    symcheck CONFIG_ALPHA_LCA hwrpb
-	fi
 	if [ "$BIGMEM" ] ; then
 	    symcheck CONFIG_1GB ^c01
 	    symcheck CONFIG_2GB ^801
@@ -478,7 +502,7 @@ case $CONF_SRC in
 	echo "#ifndef __LINUX_MODVERSIONS_H" > $MODVER
 	echo "#define __LINUX_MODVERSIONS_H" >> $MODVER
 	H='[0-9a-f][0-9a-f]'
-	$KSYMS | sed -ne 's/.* \(.*\)_R\('.*$H$H$H$H'\)/\1 \2/p' | \
+	$KSYMS | sed -ne 's/.* \(.*\)_R\(.*'$H$H$H$H'\)/\1 \2/p' | \
 	    awk '{ printf "#define %s\t%s_R%s\n", $1, $1, $2 }' \
 	    >> $MODVER
 	echo "#endif" >> $MODVER
@@ -511,15 +535,17 @@ case $CONF_SRC in
 	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	    configcheck CONFIG_BLK_DEV_IDE_PCMCIA
 	fi
-	for C in CONFIG_PCI CONFIG_APM CONFIG_SCSI CONFIG_INET \
+	if [ $VERSION_CODE -lt `version 2 3 43` ] ; then
+	    configcheck CONFIG_APM ; CONFIG_PM=$CONFIG_APM
+	else
+	    configcheck CONFIG_PM
+	fi
+	for C in CONFIG_PCI CONFIG_SCSI CONFIG_INET \
 	    CONFIG_NET_FASTROUTE CONFIG_NET_RADIO CONFIG_TR \
 	    CONFIG_MODVERSIONS CONFIG_PROC_FS CONFIG_PARPORT \
 	    CONFIG_PARPORT_PC CONFIG_SERIAL ; do
 	    configcheck $C
 	done
-	if [ $ARCH = "alpha" ] ; then
-	    configcheck CONFIG_ALPHA_LCA
-	fi
 	if [ $ARCH = "arm" ] ; then
 	    configcheck CONFIG_ARCH_BRUTUS
 	    configcheck CONFIG_ITSY
@@ -742,14 +768,11 @@ if [ "$PREFIX" = "" ] ; then
 	echo "It looks like you have a System V init file setup."
 	SYSV_INIT=y
 	if [ -d /etc/rc.d/init.d ] ; then
-	    echo "RC_DIR=/etc/rc.d" >> $CONFIG
-	    echo "RC_DIR=/etc/rc.d" >> $CONFIG_MK
+	    RC_DIR=/etc/rc.d
 	elif [ -d /sbin/init.d ] ; then
-	    echo "RC_DIR=/sbin" >> $CONFIG
-	    echo "RC_DIR=/sbin" >> $CONFIG_MK
+	    RC_DIR=/sbin
 	else
-	    echo "RC_DIR=/etc" >> $CONFIG
-	    echo "RC_DIR=/etc" >> $CONFIG_MK
+	    RC_DIR=/etc
 	fi
     else
 	echo "It looks like you have a BSD-ish init file setup."
@@ -761,6 +784,7 @@ if [ "$PREFIX" = "" ] ; then
 	SYSV_INIT=
     fi
     write_bool SYSV_INIT
+    if [ "$SYSV_INIT" = "y" ] ; then write_str RC_DIR ; fi
 else
     ask_bool "System V init script layout" SYSV_INIT
     if [ "$SYSV_INIT" = "y" ] ; then

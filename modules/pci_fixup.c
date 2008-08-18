@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.11 2000/03/13 22:30:50
+    pci_fixup.c 1.14 2000/04/03 18:00:03
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -222,6 +222,29 @@ static void opti_init(struct pci_dev *router, u8 link, u8 irq)
     pci_write_config_byte(router, 0xb8 + (link >> 5), pirq);
 }
 
+static u8 ali_link(struct pci_dev *router, u8 link)
+{
+    /* No, you're not dreaming */
+    static const u8 map[] =
+    { 0, 9, 3, 10, 4, 5, 7, 6, 1, 11, 0, 12, 0, 14, 0, 15 };
+    u8 pirq;
+    /* link should be 0x01..0x08 */
+    pci_read_config_byte(router, 0x48 + ((link-1)>>1), &pirq);
+    return (link & 1) ? map[pirq&15] : map[pirq>>4];
+}
+
+static void ali_init(struct pci_dev *router, u8 link, u8 irq)
+{
+    /* Inverse of map in ali_link */
+    static const u8 map[] =
+    { 0, 8, 0, 2, 4, 5, 7, 6, 0, 1, 3, 9, 11, 0, 13, 15 };
+    u8 pirq;
+    pci_read_config_byte(router, 0x48 + ((link-1)>>1), &pirq);
+    pirq &= (link & 1) ? 0x0f : 0xf0;
+    pirq |= (link & 1) ? (map[irq] << 4) : (map[irq] & 15);
+    pci_write_config_byte(router, 0x48 + ((link-1)>>1), pirq);
+}
+
 /*
   A table of all the PCI interrupt routers for which we know how to
   interpret the link bytes.
@@ -229,6 +252,15 @@ static void opti_init(struct pci_dev *router, u8 link, u8 irq)
 
 #ifndef PCI_DEVICE_ID_INTEL_82371FB_0
 #define PCI_DEVICE_ID_INTEL_82371FB_0 0x122e
+#endif
+#ifndef PCI_DEVICE_ID_INTEL_82371SB_0
+#define PCI_DEVICE_ID_INTEL_82371SB_0 0x7000
+#endif
+#ifndef PCI_DEVICE_ID_INTEL_82371AB_0
+#define PCI_DEVICE_ID_INTEL_82371AB_0 0x7110
+#endif
+#ifndef PCI_DEVICE_ID_INTEL_82440MX_1
+#define PCI_DEVICE_ID_INTEL_82440MX_1 0x7198
 #endif
 #ifndef PCI_DEVICE_ID_VIA_82C596
 #define PCI_DEVICE_ID_VIA_82C596 0x0596
@@ -247,9 +279,11 @@ struct router {
     { ID(INTEL, 82371FB_0),	&pIIx_link,	&pIIx_init },
     { ID(INTEL, 82371SB_0),	&pIIx_link,	&pIIx_init },
     { ID(INTEL, 82371AB_0),	&pIIx_link,	&pIIx_init },
+    { ID(INTEL, 82440MX_1),	&pIIx_link,	&pIIx_init },
     { ID(VIA, 82C596),		&via_link,	&via_init },
     { ID(VIA, 82C686),		&via_link,	&via_init },
-    { ID(OPTI, 82C700),		&opti_link,	&opti_init }
+    { ID(OPTI, 82C700),		&opti_link,	&opti_init },
+    { ID(AL, M1533),		&ali_link,	&ali_init }
 };
 #define ROUTER_COUNT (sizeof(router_table)/sizeof(router_table[0]))
 

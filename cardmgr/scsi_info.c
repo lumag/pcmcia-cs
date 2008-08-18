@@ -2,7 +2,7 @@
 
     Utility to look up information about SCSI devices
 
-    scsi_info.c 1.14 1999/10/25 20:00:14
+    scsi_info.c 1.15 2000/04/03 19:44:50
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -86,7 +86,7 @@ static int get_host_no(int host)
 int main(int argc, char *argv[])
 {
     int i, fd, host, channel, id, lun;
-    u_long arg[2];
+    u_int arg[2];
     char match[128], s[128], vendor[9], model[17], rev[5];
     FILE *f;
 
@@ -112,8 +112,15 @@ int main(int argc, char *argv[])
     channel = (arg[0] >> 16) & 0xff;
     host = ((arg[0] >> 24) & 0xff);
 
+#ifdef SCSI_IOCTL_GET_BUS_NUMBER
+    if (ioctl(fd, SCSI_IOCTL_GET_BUS_NUMBER, arg) == 0)
+	host = arg[0];
+    else
+#endif
+	host = get_host_no(host);
+
     sprintf(match, "Host: scsi%d Channel: %02x Id: %02x Lun: %02x\n",
-	    get_host_no(host), channel, id, lun);
+	    host, channel, id, lun);
 
     printf("SCSI_ID=\"%d,%d,%d\"\n", channel, id, lun);
     

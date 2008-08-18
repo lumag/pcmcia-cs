@@ -2,7 +2,7 @@
 
     A driver for the Adaptec APA1480 CardBus SCSI Host Adapter
 
-    apa1480_cb.c 1.19 2000/02/14 22:39:25
+    apa1480_cb.c 1.20 2000/04/03 17:58:48
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -45,6 +45,7 @@
 #include <scsi/scsi.h>
 #include <linux/major.h>
 #include <linux/blk.h>
+#include <linux/pci.h>
 
 #include <../drivers/scsi/scsi.h>
 #include <../drivers/scsi/hosts.h>
@@ -58,7 +59,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"apa1480_cb.c 1.19 2000/02/14 22:39:25 (David Hinds)";
+"apa1480_cb.c 1.20 2000/04/03 17:58:48 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -94,6 +95,7 @@ static dev_node_t *apa1480_attach(dev_locator_t *loc)
     Scsi_Device *dev;
     dev_node_t *node;
     char s[60];
+    u_int io;
     int n = 0;
 #if (LINUX_VERSION_CODE >= VERSION(2,1,75))
     struct Scsi_Host *host;
@@ -109,6 +111,10 @@ static dev_node_t *apa1480_attach(dev_locator_t *loc)
 #else
     driver_template.usage_count = &GET_USE_COUNT(__this_module);
 #endif
+
+    /* A hack to work around resource allocation confusion */
+    pcibios_read_config_dword(bus, devfn, PCI_BASE_ADDRESS_0, &io);
+    release_region(io & PCI_BASE_ADDRESS_IO_MASK, 0x100);
 
     sprintf(s, "no_probe:1,no_reset:%d,ultra:%d",
 	    (reset==0), (ultra!=0));

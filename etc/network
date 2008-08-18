@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.66 2000/02/28 23:09:20 (David Hinds)
+# network 1.70 2000/04/07 22:18:39 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -30,6 +30,12 @@ stop_fn () { return; }
 . $0.opts
 
 RESOLV=/etc/resolv.conf
+
+# Now, run the specific script for Wireless LAN interfaces
+# Note : we need the wireless parameters to be set up before IP parameters,
+# so that we can perform DHCP over the Wireless link if needed. Jean II
+if [ -r ./wireless ] ; then . ./wireless ; else . /etc/pcmcia/wireless ; fi
+WIRELESS=$?
 
 match () { case $1 in $2) return 0; ;; *) return 1; ;; esac ; }
 bootp_setup ()
@@ -66,15 +72,16 @@ case "$ACTION" in
 	fi
     elif is_true $DHCP ; then
 	bootp_setup
+	HN=${DHCP_HOSTNAME:+-h $DHCP_HOSTNAME}
 	if [ -x /sbin/dhcpcd ] ; then
 	    # This is a version check: I know it looks weird
 	    if /sbin/dhcpcd -XYZZY 2>&1 | grep -q DHCP ; then
-		/sbin/dhcpcd $DEVICE >/dev/null 2>&1 || exit 1
+		/sbin/dhcpcd $DEVICE $HN >/dev/null 2>&1 || exit 1
 	    else
 		# Jump through hoops for lame 0.70-era dhcpcd
 		L=/var/run/dhcp-lock-$DEVICE
 		/bin/echo "#!/bin/sh\nrm $L" > $L ; chmod +x $L
-		/sbin/dhcpcd -c $L $DEVICE >/dev/null 2>&1
+		/sbin/dhcpcd $HN -c $L $DEVICE >/dev/null 2>&1
 		for t in 0 1 2 3 4 5 6 7 8 9 ; do
 		    sleep 2 ; if [ ! -e $L ] ; then break ; fi
 		done
@@ -89,7 +96,7 @@ case "$ACTION" in
 	elif [ -x /sbin/dhclient ] ; then
 	    /sbin/dhclient $DEVICE >/dev/null 2>&1 || exit 1
 	elif [ -x /sbin/pump ] ; then
-	    /sbin/pump -i $DEVICE
+	    /sbin/pump $HN -i $DEVICE
 	else
 	    exit 1
 	fi
@@ -211,6 +218,7 @@ case "$ACTION" in
     ;;
 
 'cksum')
+    if [ $WIRELESS = 1 ] ; then exit 1 ; fi
     chk_simple "$3,$SOCKET,$INSTANCE,$HWADDR" || exit 1
     ;;
 

@@ -132,7 +132,8 @@ static int pci_claim_resources(void)
 		a &= PCI_BASE_ADDRESS_IO_MASK;
 		sz = (~(sz & PCI_BASE_ADDRESS_IO_MASK))+1;
 		sz &= 0xffff;
-		request_io_region(a, sz, name);
+		if (sz <= 0x100)
+		    request_io_region(a, sz, name);
 	    } else {
 		a &= PCI_BASE_ADDRESS_MEM_MASK;
 		sz = (~(sz & PCI_BASE_ADDRESS_MEM_MASK))+1;

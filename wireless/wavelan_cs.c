@@ -3865,13 +3865,13 @@ wv_pcmcia_config(dev_link_t *	link)
 	}
 
       /*
-       * Allocate a 4K memory window.  Note that the dev_link_t
+       * Allocate a small memory window.  Note that the dev_link_t
        * structure provides space for one window handle -- if your
        * device needs several windows, you'll need to keep track of
        * the handles in your private data structure, link->priv.
        */
       req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-      req.Base = 0; req.Size = 0x1000;
+      req.Base = req.Size = 0;
       req.AccessSpeed = mem_speed;
       link->win = (window_handle_t)link->handle;
       i = CardServices(RequestWindow, &link->win, &req);
@@ -3882,7 +3882,7 @@ wv_pcmcia_config(dev_link_t *	link)
 	}
 
       dev->rmem_start = dev->mem_start =
-	  (u_long)ioremap(req.Base, 0x1000);
+	  (u_long)ioremap(req.Base, req.Size);
       dev->rmem_end = dev->mem_end = dev->mem_start + req.Size;
 
       mem.CardOffset = 0; mem.Page = 0;

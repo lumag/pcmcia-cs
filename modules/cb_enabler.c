@@ -2,7 +2,7 @@
 
     CardBus device enabler
 
-    cb_enabler.c 1.28 1999/12/09 20:57:37
+    cb_enabler.c 1.29 2000/03/31 19:56:11
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.28 1999/12/09 20:57:37 (David Hinds)";
+"cb_enabler.c 1.29 2000/03/31 19:56:11 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -136,13 +136,16 @@ struct dev_link_t *cb_attach(int n)
     client_reg_t client_reg;
     dev_link_t *link;
     int ret;
-    
+
+    MOD_INC_USE_COUNT;
     DEBUG(0, "cb_attach(%d)\n", n);
 
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    if (!link) return NULL;
+    if (!link) {
+	MOD_DEC_USE_COUNT;
+	return NULL;
+    }
 
-    MOD_INC_USE_COUNT;
     memset(link, 0, sizeof(struct dev_link_t));
     link->conf.IntType = INT_CARDBUS;
     link->conf.Vcc = 33;

@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.114 2000/03/13 21:56:31
+ * k_compat.h 1.115 2000/03/22 18:41:21
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -99,7 +99,7 @@ typedef struct wait_queue *wait_queue_head_t;
 #define register_symtab(x)
 #endif
 #ifdef CONFIG_MODVERSIONS
-#define MODVERSIONS 1
+#define MODVERSIONS		1
 #include <linux/modversions.h>
 #endif
 #include <linux/module.h>
@@ -122,8 +122,8 @@ typedef struct wait_queue *wait_queue_head_t;
 #define INVALIDATE_INODES(r)	invalidate_inodes(r)
 #else
 #define INVALIDATE_INODES(r) \
-		do { struct super_block *sb = get_super(r); \
-		if (sb) invalidate_inodes(sb); } while (0)
+	do { struct super_block *sb = get_super(r); \
+	if (sb) invalidate_inodes(sb); } while (0)
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,60))
@@ -159,11 +159,11 @@ typedef struct wait_queue *wait_queue_head_t;
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,90))
-#define spin_lock(l) do { } while (0)
-#define spin_unlock(l) do { } while (0)
-#define spin_lock_irqsave(l,f) do { save_flags(f); cli(); } while (0)
+#define spin_lock(l)		do { } while (0)
+#define spin_unlock(l)		do { } while (0)
+#define spin_lock_irqsave(l,f)	do { save_flags(f); cli(); } while (0)
 #define spin_unlock_irqrestore(l,f) do { restore_flags(f); } while (0)
-#define spin_lock_init(s) do { } while (0)
+#define spin_lock_init(s)	do { } while (0)
 typedef int spinlock_t;
 #else
 #if (LINUX_VERSION_CODE < VERSION(2,3,17))
@@ -241,8 +241,8 @@ typedef int spinlock_t;
 #endif
 
 typedef unsigned long k_time_t;
-#define ACQUIRE_RESOURCE_LOCK do {} while (0)
-#define RELEASE_RESOURCE_LOCK do {} while (0)
+#define ACQUIRE_RESOURCE_LOCK	do {} while (0)
+#define RELEASE_RESOURCE_LOCK	do {} while (0)
 
 /* Only for backwards compatibility */
 #include <asm/uaccess.h>
@@ -306,8 +306,8 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,3,43))
-#define netif_stop_queue(dev) set_bit(0, (void *)&(dev)->tbusy)
-#define netif_start_queue(dev) clear_bit(0, (void *)&(dev)->tbusy)
+#define netif_stop_queue(dev)	set_bit(0, (void *)&(dev)->tbusy)
+#define netif_start_queue(dev)	clear_bit(0, (void *)&(dev)->tbusy)
 #define netif_wake_queue(dev) \
     do { netif_start_queue(dev); mark_bh(NET_BH); } while (0)
 #define netif_device_attach(dev) \
@@ -315,9 +315,9 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 #define netif_device_detach(dev) \
     do { (dev)->start = 0; netif_stop_queue(dev); } while (0)
 #define netif_device_present(dev) ((dev)->start)
-#define netif_running(dev) ((dev)->start)
-#define netif_mark_up(dev) do { (dev)->start = 1; } while (0)
-#define netif_mark_down(dev) do { (dev)->start = 0; } while (0)
+#define netif_running(dev)	((dev)->start)
+#define netif_mark_up(dev)	do { (dev)->start = 1; } while (0)
+#define netif_mark_down(dev)	do { (dev)->start = 0; } while (0)
 #define netif_queue_stopped(dev) ((dev)->tbusy)
 #define tx_timeout_check(dev, tx_timeout) \
     do { if (test_and_set_bit(0, (void *)&(dev)->tbusy) != 0) { \
@@ -328,7 +328,7 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 #else
 #define netif_mark_up(dev)	do { } while (0)
 #define netif_mark_down(dev)	do { } while (0)
-#define tx_timeout_check(dev, handler) do { } while (0)
+#define tx_timeout_check(d,h)	do { } while (0)
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

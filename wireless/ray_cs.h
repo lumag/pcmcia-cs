@@ -33,6 +33,7 @@ typedef struct ray_dev_t {
     UCHAR *rmem;                   /* pointer to receive buffer window       */
     dev_link_t *finder;            /* pointer back to dev_link_t for card    */
     struct timer_list timer;
+    spinlock_t ray_lock;
     int tx_ccs_lock;
     int ccs_lock;
     int   dl_param_ccs;

@@ -215,7 +215,7 @@ MODULE_PARM(basic_rate,"i");
 MODULE_PARM(rates,"1-8i");
 MODULE_PARM(ssids,"1-3s");
 MODULE_PARM(auto_wep,"i");
-MODULE_PARM(auto_bap,"i");
+MODULE_PARM(aux_bap,"i");
 
 #include <asm/uaccess.h>
 
@@ -226,7 +226,7 @@ MODULE_PARM(auto_bap,"i");
 #define SPIN_LOCK_UNLOCKED 0
 #define spinlock_t int
 #define spin_lock_irqsave(x, y) save_flags(y); cli()
-#define spin_lock_irqrestore(x, y) restore_flags(y)
+#define spin_unlock_irqrestore(x, y) restore_flags(y)
 #define le32_to_cpu(x) (x)
 #define cpu_to_le32(x) (x)
 #define le16_to_cpu(x) (x)
@@ -345,7 +345,7 @@ typedef struct {
 	u16 kindex;
 	u8 mac[6];
 	u16 klen;
-	u8 key[5];  /* 40-bit keys */
+	u8 key[16];  /* 40-bit keys */
 } WepKeyRid;
 
 /* These structures are from the Aironet's PC4500 Developers Manual */
@@ -549,7 +549,7 @@ typedef struct {
 #define BUSY_FID 0x10000
 
 static char *version =
-"airo.c 0.99ze 2000/02/26 12:43:17 (Benjamin Reed)";
+"airo.c 0.99zf 2000/03/25 16:27:17 (Benjamin Reed)";
 
 struct airo_info;
 
@@ -1721,7 +1721,7 @@ static int setup_proc_entry( struct net_device *dev,
 	apriv->proc_entry.name = dev->name;
 	apriv->proc_entry.mode = S_IFDIR | S_IRUGO | S_IXUGO;
 	apriv->proc_entry.nlink = 2;
-	apriv->proc_entry.ops = 0; //airo_entry.ops;
+	apriv->proc_entry.ops = airo_entry.ops;
 	PROC_REGISTER( &airo_entry, &apriv->proc_entry );
 	
 	/* Setup the StatsDelta */
@@ -1793,42 +1793,46 @@ static int setup_proc_entry( struct net_device *dev,
 				  S_IFREG | S_IRUGO | S_IWUSR,
 				  apriv->proc_entry);
 	entry->data = dev;
+/*	This is what was needed right up to the last few versions
+        of 2.3:
 	entry->ops = &proc_inode_statsdelta_ops;
+*/
+	entry->proc_fops = &proc_statsdelta_ops;
 	
 	/* Setup the Stats */
 	entry = create_proc_entry("Stats",
 				  S_IFREG | S_IRUGO,
 				  apriv->proc_entry);
 	entry->data = dev;
-	entry->ops = &proc_inode_stats_ops;
+	entry->proc_fops = &proc_stats_ops;
 	
 	/* Setup the Status */
 	entry = create_proc_entry("Status",
 				  S_IFREG | S_IRUGO,
 				  apriv->proc_entry);
 	entry->data = dev;
-	entry->ops = &proc_inode_status_ops;
+	entry->proc_fops = &proc_status_ops;
 	
 	/* Setup the Config */
 	entry = create_proc_entry("Config",
 				  S_IFREG | S_IRUGO | S_IWUGO,
 				  apriv->proc_entry);
 	entry->data = dev;
-	entry->ops = &proc_inode_config_ops;
+	entry->proc_fops = &proc_config_ops;
 
 	/* Setup the SSID */
 	entry = create_proc_entry("SSID",
 				  S_IFREG | S_IRUGO | S_IWUGO,
 				  apriv->proc_entry);
 	entry->data = dev;
-	entry->ops = &proc_inode_SSID_ops;
+	entry->proc_fops = &proc_SSID_ops;
 
 	/* Setup the WepKey */
 	entry = create_proc_entry("WepKey",
 				  S_IFREG | S_IWUSR,
 				  apriv->proc_entry);
 	entry->data = dev;
-	entry->ops = &proc_inode_wepkey_ops;
+	entry->proc_fops = &proc_wepkey_ops;
 
 	return 0;
 }

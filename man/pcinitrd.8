@@ -1,5 +1,5 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" pcinitrd.8 1.10 1999/10/25 19:50:46
+.\" pcinitrd.8 1.11 2000/03/26 07:47:28
 .\"
 .TH PCINITRD 8 "$Date" "pcmcia-cs"
 .SH NAME
@@ -102,27 +102,27 @@ the normal initrd environment.
 .B \-v
 Verbose mode.  Identify files as they are copied.
 .TP
-.B \-a, \-\-all
+\fB\-a\fR, \fB\-\-all\fR
 Install all socket drivers and block-style PCMCIA device drivers,
 including memory card, SCSI card, and fixed-disk drivers.  This is
 mainly intended for use by package maintainers.
 .TP
-.BI "\-d " alternate-root ", " "\-\-dir=" alternate-root
+\fB\-d\fI alternate-root\fR, \fB\-\-dir=\fIalternate-root\fR
 Specifies an alternate directory tree to search for all the files used
 to put together the initrd image.  This may be helpful for running 
 .B pcinitrd
 after booting from an installation or rescue diskette.
 .TP
-.BI "\-r " kernel-release ", " "\-\-release=" kernel-release
+\fB\-r\fI kernel-release\fR, \fB\-\-release=\fIkernel-release\fR
 Specifies the kernel release number (i.e., 2.0.28) to use when looking
 for modules in /lib/modules.  The default is the release of the
 running kernel.
 .TP
-.BI "\-s " image-size ", " "\-\-size=" image-size
+\fB\-s\fI image-size\fR, \fB\-\-size=\fIimage-size\fR
 Specifies the filesystem size to create on the target file or device,
 in 1k blocks.  The default is 1440.
 .TP
-.B \-u, \-\-update
+\fB\-u\fR, \fB\-\-update\fR
 Update mode: updates
 .B cardmgr
 and all the kernel modules in an existing initrd image, but does not

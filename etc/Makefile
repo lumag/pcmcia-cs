@@ -1,14 +1,14 @@
 #
-# etc/Makefile 1.53 2000/02/12 00:25:38 (David Hinds)
+# etc/Makefile 1.54 2000/04/07 22:18:39 (David Hinds)
 #
 
 # Include site dependent options
 include ../config.mk
 
 EXTRA = shared
-CLIENTS = config network memory serial ftl scsi ide parport
+CLIENTS = config network memory serial ftl scsi ide parport wireless
 CLIENT_OPTS = config.opts network.opts memory.opts serial.opts \
-	ftl.opts scsi.opts ide.opts parport.opts
+	ftl.opts scsi.opts ide.opts parport.opts wireless.opts
 
 ifdef SYSV_INIT
 INST = install-sysv

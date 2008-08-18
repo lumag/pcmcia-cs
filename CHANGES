@@ -1,3 +1,32 @@
+[10-Apr-00] Version 3.1.14
+-- Added wireless.opts config script for drivers that support the
+   wireless tools API.
+-- Made the i82365 module's wedged-irq test more conservative.
+-- Updated scsi_info to use SCSI_IOCTL_GET_BUS_NUMBER when available.
+-- Added more info about CardBus interrupt routing issues to the HOWTO
+   and the i82365 man page.
+-- Fixed apa1480 driver for compatibility with latest aic7xxx driver.
+-- Changed i82365 module to also report chip revision for PCI bridges.
+-- Fixed i82365 driver to ignore phantom card in unwired second socket
+   of Lucent/SCM TI 1225 based card docks.
+-- Fixed power management to be compatible with 2.3.* stuff.
+-- Added ALI M1533 chipset support to dump_pirq and pci_fixup.
+-- Changed alpha builds to use the "generic" hardware configuration.
+-- Fixed config scripts to quote $ADDRESS in a few spots, to handle a
+   Maxtor IDE card with a non-ascii serial number.
+-- Updated airo_cs driver to build with 2.3.*.
+-- Added a DHCP_HOSTNAME parameter to network script.
+-- Fixed a 2.3.99pre3 module compilation quirk.
+-- Updated ray_cs driver to release 1.70.
+-- Added MII access routines for DL10019 cards to pcnet_cs driver.
+-- Minor smc91c92_cs driver cleanup, added SMC91C110 identification.
+-- Added --sysv, --bsd, --rcdir options to Configure script.
+-- Added PCI interrupt fixup support for the Intel 440MX chipset.
+-- Added another sanity check to PnP resource allocator.
+-- Added SS_CAP_STATIC_MAP: support for architectures that map PCMCIA
+   memory at fixed addresses in host memory.
+-- Fixed i82365 /proc cleanup bug exposed in 2.2.14/2.2.15 kernels.
+
 [14-Mar-00] Version 3.1.13
 -- Added 3.3V card detection for Cirrus PD6729 bridges.
 -- Added PCI fixup support for VIA and OPTi bridges, and "cb_pci_irq"

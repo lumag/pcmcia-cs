@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/03/13 22:29:22
+		Last updated: 2000/04/11 01:25:17
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -23,7 +23,7 @@ Ethernet cards:
 
 	[3c589_cs driver] [x86,ppc]
 	3Com 3c589, 3c589B, 3c589C, 3c589D
-	3Com Megahertz 3CCE589E, 3CXE589D, 3CXE589EC
+	3Com Megahertz 3CXE589D, 3CXE589EC, 3CCE589ET
 	Farallon EtherWave, EtherMac
 
 	[fmvj18x_cs driver] [x86,ppc]
@@ -42,6 +42,7 @@ Ethernet cards:
 	New Media LiveWire	[ NOT the LiveWire+ ]
 
 	[pcnet_cs driver] [x86,axp]
+	4Lan EP100 Ethernet
 	Accton EN2212, EN2216 EtherCard
 	Accton SOHO BASIC EN220
 	Addtron Ethernet
@@ -50,6 +51,7 @@ Ethernet cards:
 	AmbiCom AMB8002, AMB8002T, AMB8010
 	AnyCom ECO Ethernet
 	Apollo RE450CT
+	Archtek Ethernet
 	Argosy EN210
 	Ark Sky-Link Express PA2100
 	Arowana RE 450 Ethernet
@@ -123,7 +125,7 @@ Ethernet cards:
 	Pretec Ethernet
 	PreMax PE-200 Ethernet
 	Proteon Ethernet
-	Psion Gold Card Ethernet, Gold Card Netglobal Ethernet
+	Psion Gold Card Ethernet
 	Relia RE2408T Ethernet
 	Reliasys 2400A Ethernet
 	RPTI EP400, EP401, 1625B Ethernet
@@ -172,7 +174,7 @@ Fast Ethernet (10/100baseT) adapters:
 	KTI KF-C16
 	Laneed LD-10/100CD
 	LevelOne FPC-0100TX
-	Linksys PCMPC100 EtherFast, PCM100H1 HomeLink 10/100
+	Linksys PCMPC100 EtherFast, PCM100H1 HomeLink 10/100, NP100
 	Logitec LPM-LN100TX
 	Melco LPC2-TX
 	Microcom TravelCard 10/100
@@ -187,8 +189,9 @@ Fast Ethernet (10/100baseT) adapters:
 	Dynalink L100C
 	EXP ThinLan-110
 	Lantech FastNet/TX
-	Ositech Seven of Diamonds
 	Melco/SMC LPC-TX
+	Ositech Seven of Diamonds
+	Psion Gold Card Netglobal
 	WiseCom WC-PC400
 	
 	[xirc2ps_cs driver] [x86,axp]
@@ -291,6 +294,7 @@ Modem and serial cards:
 	Billionton 56K HSP
 	Com1 Platinum MC221 Discovery 56K
 	Compaq 192
+	IBM 10L7394
 	Megahertz XJ/CC2560
 	Motorola Montana
 	New Media WinSurfer
@@ -528,8 +532,8 @@ ftp://sourceforge.org/pcmcia/contrib; some have their own web sites.
 
 	[ss5136dn_cs driver]  
 	SST 5136-DN-PC DeviceNet Interface
-	  http://www.gnofn.org/~marksu/dn5136man.html
-	  (Mark Sutton <Mark.Sutton@laitram.com>)
+	  http://www.spectra-one.com/dn5136man.html
+	  (Mark Sutton <marksu@spectra-one.com>)
 
 	[wavelan2_cs driver]
 	Lucent WaveLAN/IEEE wireless network adapter
@@ -545,6 +549,7 @@ ftp://sourceforge.org/pcmcia/contrib; some have their own web sites.
 
 	Harris PRISM/AM79C930 IEEE 802.11 wireless LAN
 	Nokia/InTalk ST-500A
+	Nokia C020
 	Samsung MagicWave SWL-1000N
 	Zoom Telephonics ZoomAir 4000
 	  http://www.absoval.com/linux-wlan

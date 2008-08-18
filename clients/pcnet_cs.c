@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    pcnet_cs.c 1.113 2000/02/28 23:02:28
+    pcnet_cs.c 1.115 2000/03/31 21:03:29
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.113 2000/02/28 23:02:28 (David Hinds)";
+"pcnet_cs.c 1.115 2000/03/31 21:03:29 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -127,6 +127,7 @@ static int pcnet_event(event_t event, int priority,
 		       event_callback_args_t *args);
 static int pcnet_open(struct net_device *dev);
 static int pcnet_close(struct net_device *dev);
+static int do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs);
 static void ei_watchdog(u_long arg);
 static void pcnet_reset_8390(struct net_device *dev);
@@ -215,7 +216,7 @@ static hw_info_t hw_info[] = {
     { /* SuperSocket RE450T */ 0x0110, 0x00, 0xe0, 0x98, 0 },
     { /* Volktek NPL-402CT */ 0x0060, 0x00, 0x40, 0x05, 0 },
     { /* NEC PC-9801N-J12 */ 0x0ff0, 0x00, 0x00, 0x4c, 0 },
-    { /* PCMCIA Technology OEM */ 0x01c8, 0xa0, 0x0c, 0 }
+    { /* PCMCIA Technology OEM */ 0x01c8, 0x00, 0xa0, 0x0c, 0 }
 };
 
 #define NR_INFO		(sizeof(hw_info)/sizeof(hw_info_t))
@@ -472,13 +473,13 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
 static hw_info_t *get_prom(dev_link_t *link)
 {
     struct net_device *dev = link->priv;
-    unsigned char prom[32];
+    u_char prom[32];
     ioaddr_t ioaddr;
     int i, j;
 
     /* This is lifted straight from drivers/net/ne.c */
     struct {
-	unsigned char value, offset;
+	u_char value, offset;
     } program_seq[] = {
 	{E8390_NODMA+E8390_PAGE0+E8390_STOP, E8390_CMD}, /* Select page 0*/
 	{0x48,	EN0_DCFG},	/* Set byte-wide (0x48) access. */
@@ -732,6 +733,8 @@ static void pcnet_config(dev_link_t *link)
     ei_status.name = "NE2000";
     ei_status.word16 = 1;
     ei_status.reset_8390 = &pcnet_reset_8390;
+    if (info->flags & IS_DL10019A)
+	dev->do_ioctl = &do_ioctl;
 
     link->dev = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
@@ -953,7 +956,7 @@ static void pcnet_reset_8390(struct net_device *dev)
     
 } /* pcnet_reset_8390 */
 
-/* ======================================================================= */
+/*====================================================================*/
 
 static int set_config(struct net_device *dev, struct ifmap *map)
 {
@@ -971,7 +974,7 @@ static int set_config(struct net_device *dev, struct ifmap *map)
     return 0;
 }
 
-/* ======================================================================= */
+/*====================================================================*/
 
 static void ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -1020,7 +1023,85 @@ reschedule:
     add_timer(&info->watchdog);
 }
 
-/* ======================================================================= */
+/*======================================================================
+
+    MII interface support for DL10019 based cards
+
+======================================================================*/
+
+#define MDIO_SHIFT_CLK		0x80
+#define MDIO_DIR_WRITE		0x10
+#define MDIO_DATA_WRITE0	0x10
+#define MDIO_DATA_WRITE1	0x60
+#define MDIO_DATA_READ		0x10
+#define MDIO_MASK		0x0f
+#define MDIO_ENB_IN		0x00
+
+static void mdio_sync(ioaddr_t addr)
+{
+    int bits, mask = inb(addr) & MDIO_MASK;
+    for (bits = 0; bits < 32; bits++) {
+	outb(mask | MDIO_DATA_WRITE1, addr);
+	outb(mask | MDIO_DATA_WRITE1 | MDIO_SHIFT_CLK, addr);
+    }
+}
+
+static int mdio_read(ioaddr_t addr, int phy_id, int loc)
+{
+    u_int cmd = (0xf6<<10)|(phy_id<<5)|loc;
+    int i, retval = 0, mask = inb(addr) & MDIO_MASK;
+
+    mdio_sync(addr);
+    for (i = 14; i >= 0; i--) {
+	int dat = (cmd&(1<<i)) ? MDIO_DATA_WRITE1 : MDIO_DATA_WRITE0;
+	outb(mask | dat, addr);
+	outb(mask | dat | MDIO_SHIFT_CLK, addr);
+    }
+    for (i = 19; i > 0; i--) {
+	outb(mask | MDIO_ENB_IN, addr);
+	retval = (retval << 1) | ((inb(addr) & MDIO_DATA_READ) != 0);
+	outb(mask | MDIO_ENB_IN | MDIO_SHIFT_CLK, addr);
+    }
+    return (retval>>1) & 0xffff;
+}
+
+static void mdio_write(ioaddr_t addr, int phy_id, int loc, int value)
+{
+    u_int cmd = (0x05<<28)|(phy_id<<23)|(loc<<18)|(1<<17)|value;
+    int i, mask = inb(addr) & MDIO_MASK;
+
+    mdio_sync(addr);
+    for (i = 31; i >= 0; i--) {
+	int dat = (cmd&(1<<i)) ? MDIO_DATA_WRITE1 : MDIO_DATA_WRITE0;
+	outb(mask | dat, addr);
+	outb(mask | dat | MDIO_SHIFT_CLK, addr);
+    }
+    for (i = 1; i >= 0; i--) {
+	outb(mask | MDIO_ENB_IN, addr);
+	outb(mask | MDIO_ENB_IN | MDIO_SHIFT_CLK, addr);
+    }
+}
+
+static int do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+    u16 *data = (u16 *)&rq->ifr_data;
+    ioaddr_t addr = dev->base_addr + 0x1c;
+    switch (cmd) {
+    case SIOCDEVPRIVATE:
+	data[0] = 0;
+    case SIOCDEVPRIVATE+1:
+	data[3] = mdio_read(addr, 0, data[1] & 0x1f);
+	return 0;
+    case SIOCDEVPRIVATE+2:
+	if (!capable(CAP_NET_ADMIN))
+	    return -EPERM;
+	mdio_write(addr, 0, data[1] & 0x1f, data[2]);
+	return 0;
+    }
+    return -EOPNOTSUPP;
+}
+
+/*====================================================================*/
 
 static void dma_get_8390_hdr(struct net_device *dev,
 			     struct e8390_pkt_hdr *hdr,
@@ -1052,7 +1133,7 @@ static void dma_get_8390_hdr(struct net_device *dev,
     ei_status.dmaing &= ~0x01;
 }
 
-/* ======================================================================= */
+/*====================================================================*/
 
 static void dma_block_input(struct net_device *dev, int count,
 			    struct sk_buff *skb, int ring_offset)
@@ -1110,8 +1191,7 @@ static void dma_block_input(struct net_device *dev, int count,
 /*====================================================================*/
 
 static void dma_block_output(struct net_device *dev, int count,
-			     const unsigned char *buf,
-			     const int start_page)
+			     const u_char *buf, const int start_page)
 {
     ioaddr_t nic_base = dev->base_addr;
     pcnet_dev_t *info = (pcnet_dev_t *)dev;
@@ -1215,33 +1295,31 @@ static int setup_dma_config(dev_link_t *link, int start_pg,
 
 /*====================================================================*/
 
-static void copyin(unsigned char *dest, unsigned char *src, int c)
+static void copyin(u_char *dest, u_char *src, int c)
 {
-    unsigned short *d = (unsigned short *) dest;
-    unsigned short *s = (unsigned short *) src;
+    u_short *d = (u_short *)dest, *s = (u_short *)src;
     int odd;
 
     if (c <= 0)
 	return;
-    odd = (c & 01); c >>= 1;
+    odd = (c & 1); c >>= 1;
 
     if (c) {
 	do { *d++ = readw_ns(s++); } while (--c);
     }
     /* get last byte by fetching a word and masking */
     if (odd)
-	*((unsigned char *)d) = readw(s) & 0xff;
+	*((u_char *)d) = readw(s) & 0xff;
 }
 
-static void copyout(unsigned char *dest, const unsigned char *src, int c)
+static void copyout(u_char *dest, const u_char *src, int c)
 {
-    volatile unsigned short *d = (unsigned short *) dest;
-    unsigned short *s = (unsigned short *) src;
+    u_short *d = (u_short *)dest, *s = (u_short *)src;
     int odd;
 
     if (c <= 0)
 	return;
-    odd = (c & 01); c >>= 1;
+    odd = (c & 1); c >>= 1;
 
     if (c) {
 	do { writew_ns(*s++, d++); } while (--c);
@@ -1289,15 +1367,10 @@ static void shmem_block_input(struct net_device *dev, int count,
 /*====================================================================*/
 
 static void shmem_block_output(struct net_device *dev, int count,
-			       const unsigned char *buf,
-			       const int start_page)
+			       const u_char *buf, const int start_page)
 {
     void *shmem = (void *)dev->mem_start + (start_page << 8);
     shmem -= ei_status.tx_start_page << 8;
-
-    if (ei_debug > 4)
-	printk(KERN_DEBUG "[bo=%d @ %x]\n", count, start_page);
-
     copyout(shmem, buf, count);
 }
 

@@ -5,7 +5,7 @@
     This driver implements a disk-like block device driver with an
     apparent block size of 512 bytes for flash memory cards.
 
-    ftl_cs.c 1.62 2000/02/01 00:59:04
+    ftl_cs.c 1.63 2000/03/30 19:18:06
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -118,7 +118,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ftl_cs.c 1.62 2000/02/01 00:59:04 (David Hinds)";
+"ftl_cs.c 1.63 2000/03/30 19:18:06 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -1055,20 +1055,21 @@ static int ftl_open(struct inode *inode, struct file *file)
     partition_t *partition;
     open_mem_t open;
     int ret;
-    
+
+    MOD_INC_USE_COUNT;
     DEBUG(0, "ftl_cs: ftl_open(%d)\n", minor);
 
     link = dev_table[DEVICE_NR(minor)];
     if (!DEV_OK(link))
-	return -ENODEV;
-    
+	goto failed;
+
     dev = (ftl_dev_t *)link->priv;
     partition = &dev->minor[REGION_NR(minor)];
     if (partition->region.RegionSize == 0)
-	return -ENODEV;
+	goto failed;
     while (partition->locked)
 	sleep_on(&ftl_wait_open);
-    
+
     if (partition->handle == NULL) {
 	partition->handle = (memory_handle_t)link->handle;
 	open.Attributes = partition->region.Attributes;
@@ -1076,7 +1077,7 @@ static int ftl_open(struct inode *inode, struct file *file)
 	ret = CardServices(OpenMemory, &partition->handle, &open);
 	if (ret != CS_SUCCESS) {
 	    cs_error(OpenMemory, ret);
-	    return -ENODEV;
+	    goto failed;
 	}
 	if ((scan_header(partition) == 0) &&
 	    (build_maps(partition) == 0)) {
@@ -1090,14 +1091,16 @@ static int ftl_open(struct inode *inode, struct file *file)
 	    CardServices(CloseMemory, partition->handle);
 	    partition->handle = NULL;
 	    printk(KERN_NOTICE "ftl_cs: FTL partition is invalid.\n");
-	    return -ENODEV;
+	    goto failed;
 	}
     }
-    
+
     partition->open++;
     link->open++;
-    MOD_INC_USE_COUNT;
     return 0;
+failed:
+    MOD_DEC_USE_COUNT;
+    return -ENODEV;
 } /* ftl_open */
 
 /*====================================================================*/
@@ -1389,8 +1392,7 @@ static int ftl_ioctl(struct inode *inode, struct file *file,
     case BLKGETSIZE:
 	ret = verify_area(VERIFY_WRITE, (long *)arg, sizeof(long));
 	if (ret) return ret;
-	put_user(part->header.FormattedSize/SECTOR_SIZE,
-		 (long *)arg);
+	put_user(ftl_hd[minor].nr_sects, (long *)arg);
 	break;
     case BLKRRPART:
 	ret = ftl_reread_partitions(minor);

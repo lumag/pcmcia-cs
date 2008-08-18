@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.299 2000/03/13 18:29:40
+    i82365.c 1.304 2000/04/04 17:43:49
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.299 2000/03/13 18:29:40 (David Hinds)";
+"i82365.c 1.304 2000/04/04 17:43:49 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -346,8 +346,8 @@ static pcic_t pcic[] = {
     { "Cirrus PD6832", IS_CIRRUS|IS_CARDBUS, ID(CIRRUS, 6832) },
     { "O2Micro OZ6729", IS_O2MICRO|IS_PCI|IS_VG_PWR, ID(O2, 6729) },
     { "O2Micro OZ6730", IS_O2MICRO|IS_PCI|IS_VG_PWR, ID(O2, 6730) },
-    { "O2Micro OZ6832/OZ6833", IS_O2MICRO|IS_CARDBUS, ID(O2, 6832) },
-    { "O2Micro OZ6836/OZ6860", IS_O2MICRO|IS_CARDBUS, ID(O2, 6836) },
+    { "O2Micro OZ6832/33", IS_O2MICRO|IS_CARDBUS, ID(O2, 6832) },
+    { "O2Micro OZ6836/60", IS_O2MICRO|IS_CARDBUS, ID(O2, 6836) },
     { "O2Micro OZ6812", IS_O2MICRO|IS_CARDBUS, ID(O2, 6812) },
     { "Ricoh RL5C465", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C465) },
     { "Ricoh RL5C466", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C466) },
@@ -1213,7 +1213,7 @@ static irq_ret_t irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
 #ifndef __BEOS__
     DEBUG(2, "-> hit on irq %d\n", irq);
 #endif
-    if (!irq_shared && (irq_hits > 1)) {
+    if (!irq_shared && (irq_hits > 100)) {
 	printk(KERN_INFO "    PCI irq %d seems to be wedged!\n", irq);
 	disable_irq(irq);
 	return (irq_ret_t)0;
@@ -1292,7 +1292,7 @@ static u_int __init test_irq(socket_info_t *s, int irq, int pci)
     i365_set(s, I365_CSCINT, 0);
     DEBUG(2, "    hits = %d\n", irq_hits);
     
-    return irq_shared ? (irq_hits == 0) : (irq_hits != 1);
+    return pci ? (irq_hits == 0) : (irq_hits != 1);
 }
 
 #ifdef CONFIG_ISA
@@ -1484,9 +1484,10 @@ static void __init add_pcic(int ns, int type)
     printk(KERN_INFO "  %s", pcic[type].name);
 #ifdef CONFIG_PCI
     if (s->flags & IS_UNKNOWN)
-	printk(" [0x%04x 0x%04x]", s->vendor, s->device);
+	printk(" [%04x %04x]", s->vendor, s->device);
+    printk(" rev %02x", s->revision);
     if (s->flags & IS_CARDBUS)
-	printk(" PCI-to-CardBus at slot %02x:%02x, mem 0x%08x\n",
+	printk(" PCI-to-CardBus at slot %02x:%02x, mem %#08x\n",
 	       s->bus, PCI_SLOT(s->devfn), s->cb_phys);
     else if (s->flags & IS_PCI)
 	printk(" PCI-to-PCMCIA at slot %02x:%02x, port %#x\n",
@@ -1924,6 +1925,9 @@ static int i365_get_status(socket_info_t *s, u_int *value)
 	*value |= (status & PD67_EXD_VS1(s->psock)) ? 0 : SS_3VCARD;
 	*value |= (status & PD67_EXD_VS2(s->psock)) ? 0 : SS_XVCARD;
     }
+    /* For now, ignore cards with unsupported voltage keys */
+    if (*value & SS_XVCARD)
+	*value &= ~(SS_DETECT|SS_3VCARD|SS_XVCARD);
 #endif
 #ifdef CONFIG_ISA
     if (s->type == IS_VG469) {
@@ -2699,6 +2703,10 @@ static int __init init_i82365(void)
 static void __exit exit_i82365(void)
 {
     int i;
+#ifdef HAS_PROC_BUS
+    for (i = 0; i < sockets; i++)
+	pcic_proc_remove(&socket[i]);
+#endif
     unregister_ss_entry(&pcic_service);
     if (poll_interval != 0)
 	del_timer(&poll_timer);
@@ -2721,9 +2729,6 @@ static void __exit exit_i82365(void)
 	socket_info_t *s = &socket[i];
 	/* Turn off all interrupt sources! */
 	i365_set(s, I365_CSCINT, 0);
-#ifdef HAS_PROC_BUS
-	pcic_proc_remove(s);
-#endif
 #ifdef CONFIG_PCI
 	if (s->flags & IS_CARDBUS)
 	    cb_writel(s, CB_SOCKET_MASK, 0);

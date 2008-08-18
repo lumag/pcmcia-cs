@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.253 2000/03/10 02:28:54
+    cs.c 1.254 2000/03/31 03:53:35
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -49,7 +49,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
-#include <linux/apm_bios.h>
+#include <linux/pm.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #endif
@@ -70,7 +70,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.253 2000/03/10 02:28:54 (David Hinds)";
+"cs.c 1.254 2000/03/31 03:53:35 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -83,10 +83,10 @@ static const char *version =
 #else
 #define CB_OPT ""
 #endif
-#ifdef CONFIG_APM
-#define APM_OPT " [apm]"
+#ifdef CONFIG_PM
+#define PM_OPT " [apm]"
 #else
-#define APM_OPT ""
+#define PM_OPT ""
 #endif
 #ifdef CONFIG_PNP_BIOS
 #define PNP_OPT " [pnp]"
@@ -94,10 +94,10 @@ static const char *version =
 #define PNP_OPT ""
 #endif
 #if !defined(CONFIG_CARDBUS) && !defined(CONFIG_PCI) && \
-    !defined(CONFIG_APM) && !defined(CONFIG_PNP_BIOS)
+    !defined(CONFIG_PM) && !defined(CONFIG_PNP_BIOS)
 #define OPTIONS " none"
 #else
-#define OPTIONS PCI_OPT CB_OPT APM_OPT PNP_OPT
+#define OPTIONS PCI_OPT CB_OPT PM_OPT PNP_OPT
 #endif
 
 #ifdef __BEOS__
@@ -137,7 +137,7 @@ INT_MODULE_PARM(cis_speed,	300);		/* ns */
 INT_MODULE_PARM(io_speed,	0);		/* ns */
 
 /* Optional features */
-#ifdef CONFIG_APM
+#ifdef CONFIG_PM
 INT_MODULE_PARM(do_apm, 1);
 #endif
 #ifdef CONFIG_PNP_BIOS
@@ -680,16 +680,21 @@ static void parse_events(void *info, u_int events)
     
 ======================================================================*/
 
-#ifdef CONFIG_APM
-static int handle_apm_event(apm_event_t event)
+#ifdef CONFIG_PM
+#if (LINUX_VERSION_CODE < VERSION(2,3,43))
+static int handle_pm_event(apm_event_t rqst)
+#else
+static int handle_pm_event(struct pm_dev *dev, pm_request_t rqst,
+			   void *data)
+#endif
 {
     int i, stat;
     socket_info_t *s;
     static int down = 0;
-    
-    switch (event) {
-    case APM_SYS_SUSPEND:
-    case APM_USER_SUSPEND:
+
+    /* <linux/pm.h> hides a hack so this works with old APM support */
+    switch (rqst) {
+    case PM_SUSPEND:
 	DEBUG(1, "cs: received suspend notification\n");
 	if (down) {
 	    printk(KERN_DEBUG "cs: received extra suspend event\n");
@@ -706,8 +711,7 @@ static int handle_apm_event(apm_event_t event)
 	    }
 	}
 	break;
-    case APM_NORMAL_RESUME:
-    case APM_CRITICAL_RESUME:
+    case PM_RESUME:
 	DEBUG(1, "cs: received resume notification\n");
 	if (!down) {
 	    printk(KERN_DEBUG "cs: received bogus resume event\n");
@@ -727,7 +731,7 @@ static int handle_apm_event(apm_event_t event)
 	break;
     }
     return 0;
-} /* handle_apm_event */
+} /* handle_pm_event */
 #endif
 
 /*======================================================================
@@ -1882,11 +1886,12 @@ static int request_window(client_handle_t *handle, win_req_t *req)
 	     req->Size : s->cap.map_size);
     if (req->Size & (s->cap.map_size-1))
 	return CS_BAD_SIZE;
-    if (req->Base & (align-1))
+    if ((req->Base && (s->cap.features & SS_CAP_STATIC_MAP)) ||
+	(req->Base & (align-1)))
 	return CS_BAD_BASE;
     if (req->Base)
 	align = 0;
-    
+
     /* Allocate system memory window */
     for (w = 0; w < MAX_WIN; w++)
 	if (!(s->state & SOCKET_WIN_REQ(w))) break;
@@ -1900,13 +1905,13 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->sock = s;
     win->base = req->Base;
     win->size = req->Size;
-	
-    if (find_mem_region(&win->base, win->size, align,
+
+    if (!(s->cap.features & SS_CAP_STATIC_MAP) &&
+	find_mem_region(&win->base, win->size, align,
 			(req->Attributes & WIN_MAP_BELOW_1MB) ||
 			!(s->cap.features & SS_CAP_PAGE_REGS),
 			(*handle)->dev_info))
 	return CS_IN_USE;
-    req->Base = win->base;
     (*handle)->state |= CLIENT_WIN_REQ(w);
 
     /* Configure the socket controller */
@@ -1921,14 +1926,15 @@ static int request_window(client_handle_t *handle, win_req_t *req)
 	win->ctl.flags |= MAP_16BIT;
     if (req->Attributes & WIN_USE_WAIT)
 	win->ctl.flags |= MAP_USE_WAIT;
-    win->ctl.sys_start = req->Base;
-    win->ctl.sys_stop = req->Base + req->Size-1;
+    win->ctl.sys_start = win->base;
+    win->ctl.sys_stop = win->base + win->size-1;
     win->ctl.card_start = 0;
     if (s->ss_entry(s->sock, SS_SetMemMap, &win->ctl) != 0)
 	return CS_BAD_ARGS;
     s->state |= SOCKET_WIN_REQ(w);
 
     /* Return window handle */
+    req->Base = win->ctl.sys_start;
     *handle = (client_handle_t)win;
     
     return CS_SUCCESS;
@@ -2334,9 +2340,9 @@ static int __init init_pcmcia_cs(void)
 #endif
     printk(KERN_INFO "  %s\n", options);
     DEBUG(0, "%s\n", version);
-#ifdef CONFIG_APM
+#ifdef CONFIG_PM
     if (do_apm)
-	apm_register_callback(&handle_apm_event);
+	pm_register(PM_SYS_DEV, PM_SYS_PCMCIA, handle_pm_event);
 #endif
 #ifdef CONFIG_PCI
     pci_fixup_init();
@@ -2389,9 +2395,9 @@ static void __exit exit_pcmcia_cs(void)
 	remove_proc_entry("pccard", proc_bus);
     }
 #endif
-#ifdef CONFIG_APM
+#ifdef CONFIG_PM
     if (do_apm)
-	apm_unregister_callback(&handle_apm_event);
+	pm_unregister_all(handle_pm_event);
 #endif
 #ifdef CONFIG_PCI
     pci_fixup_done();
