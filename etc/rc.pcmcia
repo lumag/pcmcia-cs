@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# rc.pcmcia 1.25 1998/10/19 09:54:40 (David Hinds)
+# rc.pcmcia 1.26 1999/04/15 03:02:41 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -83,7 +83,7 @@ for x in "1" ; do
 	    fi
 	fi
 	if [ -s /var/run/cardmgr.pid ] && \
-	   kill -0 `cat /var/run/cardmgr.pid` 2>/dev/null ; then
+	    kill -0 `cat /var/run/cardmgr.pid` 2>/dev/null ; then
 	    echo " cardmgr is already running."
 	else
 	    if [ -r /var/run/stab ] ; then

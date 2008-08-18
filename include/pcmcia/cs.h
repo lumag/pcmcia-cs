@@ -1,5 +1,5 @@
 /*
- * cs.h 1.63 1998/12/09 07:36:24
+ * cs.h 1.64 1999/04/09 03:21:28
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -87,6 +87,7 @@ typedef struct event_callback_args_t {
     void	*buffer;
     void	*misc;
     void	*client_data;
+    struct bus_operations *bus;
 } event_callback_args_t;
 
 /* for GetConfigurationInfo */

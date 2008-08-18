@@ -2,7 +2,7 @@
 
     PC Card CIS dump utility
 
-    dump_cis.c 1.40 1998/09/25 21:44:46
+    dump_cis.c 1.41 1999/05/02 16:15:16
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -478,8 +478,94 @@ static void print_org(cistpl_org_t *org)
 
 /*====================================================================*/
 
+static char *data_mod[] = {
+    "Bell103", "V.21", "V.23", "V.22", "Bell212A", "V.22bis",
+    "V.26", "V.26bis", "V.27bis", "V.29", "V.32", "V.32bis",
+    "V.34", "rfu", "rfu", "rfu"
+};
+static char *fax_mod[] = {
+    "V.21-C2", "V.27ter", "V.29", "V.17", "V.33", "rfu", "rfu", "rfu"
+};
+static char *fax_features[] = {
+    "T.3", "T.4", "T.6", "error", "voice", "poll", "file", "passwd"
+};
+
 static void print_serial(cistpl_funce_t *funce)
 {
+    cistpl_data_serv_t *ds;
+    cistpl_fax_serv_t *fs;
+    int i, j;
+    
+    switch (funce->type & 0x0f) {
+    case CISTPL_FUNCE_SERIAL_SERV_DATA:
+	ds = (cistpl_data_serv_t *)(funce->data);
+	printf("%sserial_data_services\n", indent);
+	printf("%s  data_rate %d\n", indent,
+	       75*((ds->max_data_0<<8) + ds->max_data_1));
+	printf("%s  modulation", indent);
+	for (i = j = 0; i < 16; i++)
+	    if (((ds->modulation_1<<8) + ds->modulation_0) & (1<<i)) {
+		if (++j % 6 == 0)
+		    printf("\n%s   ", indent);
+		printf(" [%s]", data_mod[i]);
+	    }
+	printf("\n");
+	if (ds->error_control) {
+	    printf("%s  error_control", indent);
+	    if (ds->error_control & CISTPL_SERIAL_ERR_MNP2_4)
+		printf(" [MNP2-4]");
+	    if (ds->error_control & CISTPL_SERIAL_ERR_V42_LAPM)
+		printf(" [V.42/LAPM]");
+	    printf("\n");
+	}
+	if (ds->compression) {
+	    printf("%s  compression", indent);
+	    if (ds->compression & CISTPL_SERIAL_CMPR_V42BIS)
+		printf(" [V.42bis]");
+	    if (ds->compression & CISTPL_SERIAL_CMPR_MNP5)
+		printf(" [MNP5]");
+	    printf("\n");
+	}
+	if (ds->cmd_protocol) {
+	    printf("%s  cmd_protocol", indent);
+	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_AT1)
+		printf(" [AT1]");
+	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_AT2)
+		printf(" [AT2]");
+	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_AT3)
+		printf(" [AT3]");
+	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_MNP_AT)
+		printf(" [MNP_AT]");
+	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_V25BIS)
+		printf(" [V.25bis]");
+	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_V25A)
+		printf(" [V.25A]");
+	    if (ds->cmd_protocol & CISTPL_SERIAL_CMD_DMCL)
+		printf(" [DMCL]");
+	    printf("\n");
+	}
+	break;
+	
+    case CISTPL_FUNCE_SERIAL_SERV_FAX:
+	fs = (cistpl_fax_serv_t *)(funce->data);
+	printf("%sserial_fax_services [class=%d]\n",
+	       indent, funce->type>>4);
+	printf("%s  data_rate %d\n", indent,
+	       75*((fs->max_data_0<<8) + fs->max_data_1));
+	printf("%s  modulation", indent);
+	for (i = 0; i < 8; i++)
+	    if (fs->modulation & (1<<i))
+		printf(" [%s]", fax_mod[i]);
+	printf("\n");
+	if (fs->features_0) {
+	    printf("%s  features", indent);
+	    for (i = 0; i < 8; i++)
+		if (fs->features_0 & (1<<i))
+		    printf(" [%s]", fax_features[i]);
+	    printf("\n");
+	}
+	break;
+    }
 }
 
 /*====================================================================*/

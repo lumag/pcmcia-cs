@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" tc589_cs.4 1.12 1999/02/08 08:02:05
+.\" tc589_cs.4 1.13 1999/03/13 10:05:04
 .\"
-.TH 3C589_CS 4 "1999/02/08 08:02:05" "pcmcia-cs"
+.TH 3C589_CS 4 "1999/03/13 10:05:04" "pcmcia-cs"
 .SH NAME
 3c589_cs \- 3Com 3c589 Etherlink III device driver
 .SH SYNOPSIS
@@ -25,9 +25,13 @@ This
 device name will be reported in the kernel log file, and passed on to
 .BR cardmgr (8).
 .PP
-The driver will attempt to autodetect the transceiver type (10base2 or
-10baseT) when an ethernet device is opened.  If the autodetection is
-unsuccessful, it may be necessary to specify the specify the interface
+With the default transceiver setting, the driver will attempt to
+continuously autodetect the transceiver type (10base2 or 10baseT).
+There should normally only be a one or two second lag before the
+correct transceiver is selected.  On particularly noisy or busy
+networks, it is possible for the detection logic to incorrectly
+toggle the transceiver type.  If this becomes a problem, it may be
+necessary to explicitly select the interface
 type when the module is loaded or with the
 .B ifport
 command.
@@ -50,6 +54,13 @@ default is 0 (autodetect).
 .TP
 .BI irq_list= i,j,...
 Specifies the set of interrupts that may be allocated by this driver.
+.SH DIAGNOSTICS
+.TP
+.B eth#: interrupt(s) dropped!
+Indicates that the driver did not receive an interrupt notification
+for some reason.  The driver will poll the card (with a significant
+performance penalty) if the problem persists.  The most likely cause
+is an interrupt conflict and/or host bridge configuration problem.
 .SH AUTHOR
 David Hinds \- dhinds@hyper.stanford.edu
 .SH "SEE ALSO"

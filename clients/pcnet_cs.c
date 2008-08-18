@@ -11,7 +11,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.85 1999/02/13 06:47:20
+    pcnet_cs.c 1.91 1999/05/14 17:30:54
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.85 1999/02/13 06:47:20 (David Hinds)";
+"pcnet_cs.c 1.91 1999/05/14 17:30:54 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -101,9 +101,6 @@ static int delay_output = 0;
 /* Length of delay, in microseconds */
 static int delay_time = 4;
 
-/* Use shared memory or polled IO?  Default is to use hw_info */
-static int use_shmem = -1;
-
 /* Ugh!  Let the user hardwire the hardware address for queer cards */
 static int hw_addr[6] = { 0, /* ... */ };
 
@@ -114,7 +111,6 @@ MODULE_PARM(use_big_buf, "i");
 MODULE_PARM(mem_speed, "i");
 MODULE_PARM(delay_output, "i");
 MODULE_PARM(delay_time, "i");
-MODULE_PARM(use_shmem, "i");
 MODULE_PARM(hw_addr, "6i");
 
 /*====================================================================*/
@@ -153,14 +149,14 @@ typedef struct hw_info_t {
 
 #define DELAY_OUTPUT	0x01
 #define HAS_MISC_REG	0x02
-#define USE_SHMEM	0x04
-#define USE_BIG_BUF	0x08
-#define HAS_IBM_MISC	0x10
-#define IS_DL10019A	0x20
+#define USE_BIG_BUF	0x04
+#define HAS_IBM_MISC	0x08
+#define IS_DL10019A	0x10
+#define USE_SHMEM	0x80	/* autodetected */
 
 static hw_info_t hw_info[] = {
     { /* Accton EN2212 */ 0x0ff0, 0x00, 0x00, 0xe8, DELAY_OUTPUT }, 
-    { /* Allied Telesis LA-PCM */ 0x0ff0, 0x00, 0x00, 0xf4, USE_SHMEM },
+    { /* Allied Telesis LA-PCM */ 0x0ff0, 0x00, 0x00, 0xf4, 0 },
     { /* APEX MultiCard */ 0x03f4, 0x00, 0x20, 0xe5, 0 },
     { /* ASANTE FriendlyNet */ 0x4910, 0x00, 0x00, 0x94,
       DELAY_OUTPUT | HAS_IBM_MISC },
@@ -171,41 +167,41 @@ static hw_info_t hw_info[] = {
     { /* EP-210 Ethernet */ 0x0110, 0x00, 0x40, 0x33, 0 },
     { /* EP4000 Ethernet */ 0x01c0, 0x00, 0x00, 0xb4, 0 },
     { /* Epson EEN10B */ 0x0ff0, 0x00, 0x00, 0x48,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* ELECOM Laneed LD-CDWA */ 0xb8, 0x08, 0x00, 0x42, 0 },
     { /* Hypertec Ethernet */ 0x01c0, 0x00, 0x40, 0x4c, 0 },
     { /* IBM CCAE */ 0x0ff0, 0x08, 0x00, 0x5a,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* IBM CCAE */ 0x0ff0, 0x00, 0x04, 0xac,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* IBM CCAE */ 0x0ff0, 0x00, 0x06, 0x29,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* IBM FME */ 0x0374, 0x08, 0x00, 0x5a,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* IBM FME */ 0x0374, 0x00, 0x04, 0xac,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
+    { /* Kansai KLA-PCM/T */ 0x0ff0, 0x00, 0x60, 0x87,
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* NSC DP83903 */ 0x0374, 0x00, 0xc0, 0xa8,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* NSC DP83903 */ 0x0374, 0x00, 0xa0, 0xb0,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* NSC DP83903 */ 0x0198, 0x00, 0x20, 0xe0,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* I-O DATA PCLA/T */ 0x0ff0, 0x00, 0xa0, 0xb0, 0 },
     { /* Katron PE-520 */ 0x0110, 0x00, 0x40, 0xf6, 0 },
     { /* Kingston KNE-PCM/x */ 0x0ff0, 0x00, 0xc0, 0xf0,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* Kingston KNE-PCM/x */ 0x0ff0, 0xe2, 0x0c, 0x0f,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* Kingston KNE-PC2 */ 0x0180, 0x00, 0xc0, 0xf0, 0 },
-    { /* Longshine LCS-8534 */ 0, 0x08, 0x00, 0x00, 0 },
     { /* Maxtech PCN2000 */ 0x5000, 0x00, 0x00, 0xe8, 0 },
     { /* NDC Instant-Link */ 0x003a, 0x00, 0x80, 0xc6, 0 },
     { /* NE2000 Compatible */ 0x0ff0, 0x00, 0xa0, 0x0c, 0 },
     { /* Network General Sniffer */ 0x0ff0, 0x00, 0x00, 0x65,
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
-    { /* Olicom GoCard */ 0x00ae, 0x00, 0x00, 0x24, 0 },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* Panasonic VEL211 */ 0x0ff0, 0x00, 0x80, 0x45, 
-      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+      HAS_MISC_REG | HAS_IBM_MISC },
     { /* PreMax PE-200 */ 0x07f0, 0x00, 0x20, 0xe0, 0 },
     { /* RPTI EP400 */ 0x0110, 0x00, 0x40, 0x95, 0 },
     { /* SCM Ethernet */ 0x0ff0, 0x00, 0x20, 0xcb, 0 },
@@ -228,6 +224,24 @@ typedef struct pcnet_dev_t {
     u_long		flags;
     caddr_t		base;
 } pcnet_dev_t;
+
+/*======================================================================
+
+    This bit of code is used to avoid unregistering network devices
+    at inappropriate times.  2.2 and later kernels are fairly picky
+    about when this can happen.
+    
+======================================================================*/
+
+static void flush_stale_links(void)
+{
+    dev_link_t *link, *next;
+    for (link = dev_list; link; link = next) {
+	next = link->next;
+	if (link->state & DEV_STALE_LINK)
+	    pcnet_detach(link);
+    }
+}
 
 /*====================================================================*/
 
@@ -266,6 +280,7 @@ static dev_link_t *pcnet_attach(void)
     int i, ret;
 
     DEBUG(0, "pcnet_attach()\n");
+    flush_stale_links();
 
     /* Create new ethernet device */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
@@ -362,6 +377,8 @@ static void pcnet_detach(dev_link_t *link)
     *linkp = link->next;
     if (link->priv) {
 	struct device *dev = link->priv;
+	if (link->dev != NULL)
+	    unregister_netdev(dev);
 	if (dev->priv)
 	    kfree_s(dev->priv, sizeof(struct ei_device));
 	kfree_s(dev, sizeof(struct pcnet_dev_t));
@@ -406,9 +423,9 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
     u_char *base, *virt;
     int i, j;
 
-    /* Allocate a 4K memory window */
+    /* Allocate a small memory window */
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = 0; req.Size = 0x1000;
+    req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
     link->win = (window_handle_t)link->handle;
     i = CardServices(RequestWindow, &link->win, &req);
@@ -417,12 +434,12 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
 	return NULL;
     }
 
-    virt = ioremap(req.Base, 0x1000);
+    virt = ioremap(req.Base, req.Size);
     mem.Page = 0;
     for (i = 0; i < NR_INFO; i++) {
-	mem.CardOffset = hw_info[i].offset & ~0x0fff;
+	mem.CardOffset = hw_info[i].offset & ~(req.Size-1);
 	CardServices(MapMemPage, link->win, &mem);
-	base = &virt[hw_info[i].offset & 0x0fff];
+	base = &virt[hw_info[i].offset & (req.Size-1)];
 	if ((readb(base+0) == hw_info[i].a0) &&
 	    (readb(base+2) == hw_info[i].a1) &&
 	    (readb(base+4) == hw_info[i].a2))
@@ -572,7 +589,7 @@ static void pcnet_config(dev_link_t *link)
     pcnet_dev_t *info;
     struct device *dev;
     int i, last_ret, last_fn, start_pg, stop_pg, cm_offset;
-    int manfid = 0, prodid = 0, slave = 0;
+    int manfid = 0, prodid = 0;
     u_short buf[64];
     hw_info_t *hw_info;
 
@@ -602,8 +619,6 @@ static void pcnet_config(dev_link_t *link)
  	(CardServices(GetTupleData, handle, &tuple) == CS_SUCCESS)) {
 	manfid = le16_to_cpu(buf[0]);
 	prodid = le16_to_cpu(buf[1]);
-	slave = ((manfid == MANFID_OLICOM) &&
-		 (prodid == PRODID_OLICOM_OC2232));
     }
     
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
@@ -616,8 +631,6 @@ static void pcnet_config(dev_link_t *link)
 	CFG_CHECK(GetTupleData, handle, &tuple);
 	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
 	if ((cfg->index == 0) || (cfg->io.nwin == 0))
-	    goto next_entry;
-	if (slave && ((io->nwin != 2) || (io->win[1].len != 8)))
 	    goto next_entry;
 	
 	link->conf.ConfigIndex = cfg->index;
@@ -687,10 +700,6 @@ static void pcnet_config(dev_link_t *link)
 	info->flags &= ~USE_BIG_BUF;
     if (!use_big_buf)
 	info->flags &= ~USE_BIG_BUF;
-    if (use_shmem != -1) {
-	info->flags &= ~USE_SHMEM;
-	info->flags |= (use_shmem) ? USE_SHMEM : 0;
-    }
     
     if (info->flags & USE_BIG_BUF) {
 	start_pg = SOCKET_START_PG;
@@ -702,10 +711,8 @@ static void pcnet_config(dev_link_t *link)
 	cm_offset = 0;
     }
 
-    if ((info->flags & USE_SHMEM) ?
-	setup_shmem_window(link, start_pg, stop_pg, cm_offset) :
-	setup_dma_config(link, start_pg, stop_pg))
-	goto config_undo;
+    if (setup_shmem_window(link, start_pg, stop_pg, cm_offset) != 0)
+	setup_dma_config(link, start_pg, stop_pg);
 
     ei_status.name = "NE2000";
     ei_status.word16 = 1;
@@ -764,13 +771,8 @@ static void pcnet_release(u_long arg)
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
-    if (link->dev)
-	unregister_netdev(&info->dev);
-    link->dev = NULL;
 
     link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
-    if (link->state & DEV_STALE_LINK)
-	pcnet_detach(link);
 
 } /* pcnet_release */
 
@@ -881,7 +883,7 @@ static int pcnet_open(struct device *dev)
     }
     
     set_misc_reg(dev);
-    REQUEST_IRQ(dev->irq, ei_interrupt, SA_SHIRQ, dev_info, dev);
+    request_irq(dev->irq, ei_interrupt, SA_SHIRQ, dev_info, dev);
     return ei_open(dev);
 } /* pcnet_open */
 
@@ -897,7 +899,7 @@ static int pcnet_close(struct device *dev)
 	if (link->priv == dev) break;
     if (link == NULL)
 	return -ENODEV;
-    FREE_IRQ(dev->irq, dev);
+    free_irq(dev->irq, dev);
     
     link->open--; dev->start = 0;
     if (link->state & DEV_STALE_CONFIG) {
@@ -1247,12 +1249,11 @@ static void shmem_block_output(struct device *dev, int count,
 static int setup_shmem_window(dev_link_t *link, int start_pg,
 			      int stop_pg, int cm_offset)
 {
-    win_req_t req;
-    memreq_t mem;
-    int offset = 0, last_ret, last_fn;
     struct device *dev = link->priv;
     pcnet_dev_t *info = link->priv;
-    int window_size;
+    win_req_t req;
+    memreq_t mem;
+    int i, window_size, offset, last_ret, last_fn;
 
     window_size = (stop_pg - start_pg) << 8;
     if (window_size > 32 * 1024)
@@ -1276,7 +1277,21 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
     mem.Page = 0;
     CS_CHECK(MapMemPage, link->win, &mem);
 
+    /* Try scribbling on the buffer */
     info->base = ioremap(req.Base, window_size);
+    for (i = 0; i < (TX_PAGES<<8); i += 2)
+	writew_ns(i, info->base+offset+i);
+    udelay(100);
+    for (i = 0; i < (TX_PAGES<<8); i += 2)
+	if (readw_ns(info->base+offset+i) != i) break;
+    pcnet_reset_8390(dev);
+    if (i != (TX_PAGES<<8)) {
+	iounmap(info->base);
+	CardServices(ReleaseWindow, link->win);
+	info->base = NULL; link->win = NULL;
+	goto failed;
+    }
+    
     dev->mem_start = (u_long)info->base + offset;
     dev->rmem_start = dev->mem_start + (TX_PAGES<<8);
     dev->mem_end = dev->rmem_end = (u_long)info->base + req.Size;
@@ -1290,10 +1305,12 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
     ei_status.block_input = &shmem_block_input;
     ei_status.block_output = &shmem_block_output;
 
+    info->flags |= USE_SHMEM;
     return 0;
 
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
+failed:
     return 1;
 }
 

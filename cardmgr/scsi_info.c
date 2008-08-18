@@ -2,7 +2,7 @@
 
     Utility to look up information about SCSI devices
 
-    scsi_info.c 1.10 1998/11/18 08:10:05
+    scsi_info.c 1.11 1999/04/09 03:10:07
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -85,6 +85,8 @@ int main(int argc, char *argv[])
     }
     
     fd = open(argv[1], O_RDONLY);
+    if (fd < 0)
+	fd = open(argv[1], O_RDONLY|O_NONBLOCK);
     if (fd < 0) {
 	perror("open() failed");
 	exit(1);

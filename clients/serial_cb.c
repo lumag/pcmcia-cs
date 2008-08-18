@@ -1,22 +1,22 @@
 /*======================================================================
 
-    A driver for PCMCIA serial devices
+    A driver for CardBus serial devices
 
-    serial_cb.c 1.1 1999/02/13 06:47:03
+    serial_cb.c 1.4 1999/04/07 06:32:19
 
-    The contents of this file are subject to the Mozilla Public
-    License Version 1.0 (the "License"); you may not use this file
-    except in compliance with the License. You may obtain a copy of
-    the License at http://www.mozilla.org/MPL/
-
-    Software distributed under the License is distributed on an "AS
-    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-    implied. See the License for the specific language governing
-    rights and limitations under the License.
-
-    The initial developer of the original code is David A. Hinds
-    <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    Copyright 1998, 1999 by Donald Becker and David Hinds
+    
+    This software may be used and distributed according to the terms
+    of the GNU Public License, incorporated herein by reference.
+    All other rights reserved.
+    
+    This driver is an activator for CardBus serial cards, as
+    found on multifunction (e.g. Ethernet and Modem) CardBus cards.
+    
+    Donald Becker may be reached as becker@CESDIS.edu, or C/O
+    USRA Center of Excellence in Space Data and Information Sciences
+    Code 930.5, NASA Goddard Space Flight Center, Greenbelt MD 20771
+    David Hinds may be reached at dhinds@zen.stanford.edu
     
 ======================================================================*/
 
@@ -38,7 +38,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cb.c 1.1 1999/02/13 06:47:03 (David Hinds)";
+"serial_cb.c 1.4 1999/04/07 06:32:19 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -47,25 +47,25 @@ static char *version =
 
     Card-specific configuration hacks
 
-    Donald Becker's code to configure the Jack of Spades card
-
 ======================================================================*/
 
 static void device_setup(u_char bus, u_char devfn, u_int ioaddr)
 {
-    u_int sub;
-    
-    pcibios_read_config_dword(bus, devfn, PCI_SUBSYSTEM_ID, &sub);
-    if (sub == 0x800713a2) {
+    u_short a, b;
+
+    pcibios_read_config_word(bus, devfn, PCI_SUBSYSTEM_VENDOR_ID, &a);
+    pcibios_read_config_word(bus, devfn, PCI_SUBSYSTEM_ID, &b);
+    if ((a == 0x13a2) && (b == 0x8007)) {
+	/* Ositech Jack of Spades */
 	DEBUG(0, "  83c175 NVCTL_m = 0x%4.4x.\n", inl(ioaddr+0x80));
 	outl(0x4C00, ioaddr + 0x80);
 	outl(0x4C80, ioaddr + 0x80);
-	DEBUG(0, "  modem registers are %2.2x %2.2x %2.2x "
-	      "%2.2x %2.2x %2.2x %2.2x %2.2x  %2.2x.\n",
-	      inb(ioaddr + 0), inb(ioaddr + 1), inb(ioaddr + 2),
-	      inb(ioaddr + 3), inb(ioaddr + 4), inb(ioaddr + 5),
-	      inb(ioaddr + 6), inb(ioaddr + 7), inb(ioaddr + 8));
     }
+    DEBUG(0, "  modem registers are %2.2x %2.2x %2.2x "
+	  "%2.2x %2.2x %2.2x %2.2x %2.2x  %2.2x.\n",
+	  inb(ioaddr + 0), inb(ioaddr + 1), inb(ioaddr + 2),
+	  inb(ioaddr + 3), inb(ioaddr + 4), inb(ioaddr + 5),
+	  inb(ioaddr + 6), inb(ioaddr + 7), inb(ioaddr + 8));
 }
 
 /*======================================================================
@@ -88,6 +88,7 @@ static dev_node_t *serial_attach(dev_locator_t *loc)
     printk(KERN_INFO "serial_attach(bus %d, fn %d)\n", bus, devfn);
     pcibios_read_config_dword(bus, devfn, PCI_BASE_ADDRESS_0, &io);
     pcibios_read_config_byte(bus, devfn, PCI_INTERRUPT_LINE, &irq);
+    io &= PCI_BASE_ADDRESS_IO_MASK;
     device_setup(bus, devfn, io);
     serial.port = io; serial.irq = irq;
     serial.flags = ASYNC_SKIP_TEST | ASYNC_SHARE_IRQ;
@@ -108,7 +109,7 @@ static dev_node_t *serial_attach(dev_locator_t *loc)
 
 static void serial_detach(dev_node_t *node)
 {
-    DEBUG(0, "serial_detach(line %d)\n", node->minor - 0x40);
+    DEBUG(0, "serial_detach(tty%02d)\n", node->minor - 0x40);
     unregister_serial(node->minor - 0x40);
     kfree(node);
     MOD_DEC_USE_COUNT;

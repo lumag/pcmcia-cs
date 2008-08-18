@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_config.y 1.43 1998/08/03 17:14:06
+ * yacc_config.y 1.44 1999/05/14 15:58:04
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -99,7 +99,7 @@ list:	  /* nothing */
 			yyerror("no ID method for this card");
 			YYERROR;
 		    }
-		    if ($2->functions == 0) {
+		    if ($2->bindings == 0) {
 			yyerror("no function bindings");
 			YYERROR;
 		    }
@@ -459,7 +459,7 @@ void yyerror(char *msg, ...)
 static int add_binding(card_info_t *card, char *name, int fn)
 {
     device_info_t *dev = root_device;
-    if (card->functions == MAX_FUNCTIONS) {
+    if (card->bindings == MAX_BINDINGS) {
 	yyerror("too many bindings\n");
 	return -1;
     }
@@ -469,9 +469,9 @@ static int add_binding(card_info_t *card, char *name, int fn)
 	yyerror("unknown device: %s", name);
 	return -1;
     }
-    card->device[card->functions] = dev;
-    card->dev_fn[card->functions] = fn;
-    card->functions++;
+    card->device[card->bindings] = dev;
+    card->dev_fn[card->bindings] = fn;
+    card->bindings++;
     free(name);
     return 0;
 }

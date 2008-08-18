@@ -1,5 +1,5 @@
 /*
- * ss.h 1.18 1998/10/01 20:54:49
+ * ss.h 1.20 1999/04/08 06:04:16
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -48,10 +48,14 @@ typedef struct socket_cap_t {
     u_int	map_size;
     u_char	pci_irq;
     u_char	cardbus;
+    struct bus_operations *bus;
 } socket_cap_t;
 
-/* InquireSocket features */
-#define SS_HAS_PAGE_REGS	0x0001
+/* InquireSocket capabilities */
+#define SS_CAP_PAGE_REGS	0x0001
+#define SS_CAP_VIRTUAL_BUS	0x0002
+#define SS_CAP_PCCARD		0x4000
+#define SS_CAP_CARDBUS		0x8000
 
 /* for GetSocket, SetSocket */
 typedef struct socket_state_t {
@@ -61,7 +65,7 @@ typedef struct socket_state_t {
     u_char	io_irq;
 } socket_state_t;
 
-/* Various card configuration flags */
+/* Socket configuration flags */
 #define SS_PWR_AUTO	0x0010
 #define SS_IOCARD	0x0020
 #define SS_RESET	0x0040

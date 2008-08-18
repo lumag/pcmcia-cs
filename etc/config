@@ -1,5 +1,7 @@
 #
-# config.sample 1.87 1999/02/16 01:33:35 (David Hinds)
+# PCMCIA Card Configuration Database
+#
+# config 1.88 1999/05/15 08:11:57 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -143,6 +145,10 @@ card "Billionton LNT-10TB"
   version "Billionton", "LNT-10TB"
   bind "pcnet_cs"
 
+card "Billionton LNT-10TN"
+  version "PCMCIA", "LNT-10TN"
+  bind "pcnet_cs"
+
 card "California Access Ethernet"
   version "PCMCIAs", "ComboCard"
   bind "pcnet_cs"
@@ -178,6 +184,22 @@ card "Connectware LANdingGear Ethernet"
 card "CONTEC Ethernet"
   version "CONTEC Co.,Ltd."
   bind "fmvj18x_cs"
+
+card "Corega PCC-T Ethernet"
+  version "corega K.K.", "corega Ether PCC-T"
+  bind "pcnet_cs"
+
+card "Corega PCC-T Ethernet"
+  version "corega,K.K.", "Ethernet LAN Card"
+  bind "pcnet_cs"
+
+card "CyQ've 10baseT Ethernet"
+  version "CyQ've 10 Base-T LAN CARD"
+  bind "pcnet_cs"
+
+card "CyQ've ELA-010 Ethernet"
+  version "CyQ've", "ELA-010"
+  bind "pcnet_cs"
 
 card "Danpex EN-6200P2 Ethernet"
   version "*", "EN-6200P2"
@@ -243,6 +265,10 @@ card "Eiger Labs EPX-ET 10BT Ethernet"
   version "Eiger labs,Inc.", "EPX-10BT PC Card Ethernet 10BT"
   bind "fmvj18x_cs"
 
+card "ELECOM Laneed LD-CDF"
+  version "Laneed", "LD-CDF"
+  bind "pcnet_cs"
+
 card "EZLink 4109 Ethernet"
   version "PCMCIA", "Ethernet Card"
   bind "pcnet_cs"
@@ -269,6 +295,10 @@ card "Farallon ENet"
 
 card "Fujitsu FMV-J181 Ethernet"
   version "PCMCIA MBH10302"
+  bind "fmvj18x_cs"
+
+card "Fujitsu FMV-1080 Ethernet"
+  version "FUJITSU", "MBH10308"
   bind "fmvj18x_cs"
 
 card "Fujitsu FMV-J182 Ethernet"
@@ -299,6 +329,10 @@ card "Hitachi HT-4840-11 Ethernet"
   version "HITACHI", "HT-4840-11"
   bind "fmvj18x_cs"
 
+card "Hypertec EP401 Ethernet"
+  version "Hypertec", "*", "EP401"
+  bind "pcnet_cs"
+
 card "IBM Credit Card Ethernet"
   version "IBM Corp.", "Ethernet"
   bind "pcnet_cs"
@@ -311,9 +345,9 @@ card "IC-Card Plus Ethernet"
   version "IC-CARD+", "IC-CARD+"
   bind "pcnet_cs"
 
-card "Intel EtherExpress PRO/100"
-  version "Intel", "EtherExpress(TM) PRO/100 PC Card Mobile Adapter16"
-  bind "xirc2ps_cs"
+card "Kansai KLA-PCM/T Ethernet"
+  version "KANSAI ELECTRIC CO.,LTD", "KLA-PCM/T"
+  bind "pcnet_cs"
 
 card "Katron PE-520 Ethernet"
   version "KCI", "PE520 PCMCIA Ethernet Adapter"
@@ -341,6 +375,7 @@ card "Kingston KNE-PC2 Ethernet"
 
 card "KTI PE-520 Plus Ethernet"
   version "KTI", "PE520 PLUS"
+  cis "cis/PE520.dat"
   bind "pcnet_cs"
 
 card "Linksys Ethernet"
@@ -380,12 +415,20 @@ card "MACNICA Ethernet"
   version "MACNICA", "ME1-JEIDA"
   bind "pcnet_cs"
 
+card "Maxtech PCN2000 Ethernet"
+  version "MAXTECH", "PCN2000"
+  bind "pcnet_cs"
+
 card "Megahertz CC10BT/2 Ethernet"
   version "Megahertz", "CC10BT/2"
   bind "smc91c92_cs"
 
-card "Maxtech PCN2000 Ethernet"
-  version "MAXTECH", "PCN2000", "ETHERNET"
+card "Melco LPC2-T Ethernet"
+  manfid 0x01bf, 0x2216
+  bind "pcnet_cs"
+
+card "Midori LT-PCMT Ethernet"
+  version "MIDORI ELEC.", "LT-PCMT"
   bind "pcnet_cs"
 
 card "National Semiconductor InfoMover 4100 Ethernet"
@@ -428,6 +471,10 @@ card "NE2000 Compatible Ethernet"
   version "Ethernet", "Adapter"
   bind "pcnet_cs"
 
+card "NE2000 Compatible Ethernet"
+  manfid 0x0149, 0xc1ab
+  bind "pcnet_cs"
+
 card "NDC Instant-Link Ethernet"
   version "NDC", "Ethernet"
   bind "pcnet_cs"
@@ -444,11 +491,11 @@ card "Ositech Four of Diamonds Ethernet"
   version "Ositech", "Trumpcard:Four of Diamonds Ethernet"
   bind "smc91c92_cs"
 
-card "I-O DATA PCLA/T Ethernet"
+card "IO DATA PCLA/T Ethernet"
   version "I-O DATA", "PCLA", "ETHERNET"
   bind "pcnet_cs"
 
-card "I-O DATA PCLA/TE Ethernet"
+card "IO DATA PCLA/TE Ethernet"
   version "IO DATA", "PCLATE", "ETHERNET"
   bind "pcnet_cs"
 
@@ -458,10 +505,19 @@ card "Panasonic CF-VEL211 Ethernet"
 
 card "PreMax PE-200 Ethernet"
   version "PMX   ", "PE-200"
+  cis "cis/PE-200.dat"
+  bind "pcnet_cs"
+
+card "Psion Gold Card Ethernet"
+  version "Psion Dacom", "Gold Card Ethernet"
   bind "pcnet_cs"
 
 card "RATOC Ethernet"
   version "PCMCIA LAN MBH10304  ES"
+  bind "fmvj18x_cs"
+
+card "RATOC REX-R280 Ethernet"
+  version "RATOC System Inc.", "10BASE_T CARD R280"
   bind "fmvj18x_cs"
 
 card "Relia RE2408T Ethernet"
@@ -537,26 +593,58 @@ card "3Com 3c574TX Fast Ethernet"
   version "3Com", "3C574-TX Fast EtherLink PC Card"
   bind "3c574_cs"
 
+card "3Com Megahertz 3c574B Fast Ethernet"
+  version "3Com", "Megahertz 574B"
+  bind "3c574_cs"
+
 card "Abocom LinkMate FE1000 Fast Ethernet"
   version "Fast Ethernet", "Adapter"
   bind "pcnet_cs"
 
+card "Accton Fast EtherCard-16"
+  manfid 0x01bf, 0x010a
+  bind "xirc2ps_cs"
+
 card "AnyCom ECO 10/100 Fast Ethernet"
   version "AnyCom", "ECO Ethernet 10/100"
-  bind "pcnet_cs"
-
-card "Apollo Fast Ethernet"
-  manfid 0x0149, 0xc1ab
   bind "pcnet_cs"
 
 card "COMPU-SHACK FASTline 10/100 Fast Ethernet"
   version "COMPU-SHACK", "FASTline PCMCIA 10/100 Fast-Ethernet"
   bind "pcnet_cs"
 
+card "Corega PCC-TX Fast Ethernet"
+  version "corega K.K.", "corega FastEther PCC-TX"
+  bind "pcnet_cs"
+
+card "D-Link Fast Ethernet"
+  version "ETHER-C16"
+  bind "pcnet_cs"
+
+card "Intel EtherExpress PRO/100"
+  version "Intel", "EtherExpress(TM) PRO/100 PC Card Mobile Adapter16"
+  bind "xirc2ps_cs"
+
+card "IO DATA PCET/TX Fast Ethernet"
+  version "IO DATA", "PCETTX"
+  bind "pcnet_cs"
+
+card "KTI ETHER-C16 Fast ethernet"
+  manfid 0x0149, 0x0230
+  bind "pcnet_cs"
+
 card "Linksys EtherFast 10/100 Fast Ethernet"
   version "Linksys", "EtherFast 10/100 PC Card (PCMPC100)"
   bind "pcnet_cs"
 
+card "Logitec LPM-LN100TX Fast Ethernet"
+  version "Logitec", "LPM-LN100TX"
+  bind "pcnet_cs"
+
+card "Melco LPC2-TX Fast Ethernet"
+  version "MELCO", "LPC2-TX"
+  bind "pcnet_cs"
+  
 card "Microcom C.E. Travel Card 10/100 Fast Ethernet"
   version "Microcom C.E.", "Travel Card LAN 10/100"
   bind "pcnet_cs"
@@ -565,8 +653,16 @@ card "NetGear FA410TXC Fast Ethernet"
   version "NETGEAR", "FA410TX"
   bind "pcnet_cs"
 
+card "Planet FNW-3600 Fast Ethernet"
+  version "Fast Ethernet", "Adapter"
+  bind "pcnet_cs"
+
 card "Toshiba Advanced Network Fast Ethernet"
   version "Toshiba Information Systems", "*", "TPCENET"
+  bind "xirc2ps_cs"
+
+card "Toshiba 10/100 Fast Ethernet"
+  version "Toshiba", "10/100 Ethernet PC Card"
   bind "xirc2ps_cs"
 
 card "Xircom CE3-10/100 Fast Ethernet"
@@ -694,6 +790,11 @@ card "Quatech Quad RS-232"
   manfid 0x0137, 0x001b
   bind "serial_cs"
 
+card "Argosy Dual Serial I/O"
+  version "*", "RS-COM 2P"
+  cis "cis/RS-COM-2P.dat"
+  bind "serial_cs"
+
 card "Socket Communications Dual RS-232"
   manfid 0x0104, 0x0006
   bind "serial_cs"
@@ -741,7 +842,7 @@ card "Intel Series 100 Flash"
   version "intel", "VALUE SERIES 100 "
   bind "memory_cs", "ftl_cs"
 
-card "I/O DATA 2MB SRAM"
+card "IO DATA 2MB SRAM"
   version "IO DATA", "PCS-2M", "2MB SRAM"
   bind "memory_cs"
 
@@ -802,6 +903,10 @@ card "Eiger Labs SCSI"
   version "EIger Labs", "PCMCIA-to-SCSI Adapter"
   bind "qlogic_cs"
 
+card "Epson SC200 SCSI"
+  version "EPSON", "SCSI-2 PC Card SC200"
+  bind "qlogic_cs"
+  
 card "IBM SCSI"
   version "IBM Corp.", "SCSI PCMCIA Card"
   bind "fdomain_cs"
@@ -816,6 +921,10 @@ card "IBM SCSI"
 
 card "MACNICA mPS110 SCSI"
   version "MACNICA", "MIRACLE SCSI-II mPS110"
+  bind "qlogic_cs"
+
+card "Midori CN-SC43 SCSI"
+  version "MIDORI ELECTRONICS ", "CN-SC43"
   bind "qlogic_cs"
 
 card "NEC PC-9801N-J03R SCSI"
@@ -867,6 +976,10 @@ card "Simple Technology SCSI"
     "SCSI PCMCIA Credit Card Controller"
   bind "fdomain_cs"
 
+card "Toshiba SCSC200A SCSI"
+  version "TOSHIBA", "SCSC200A PC CARD SCSI"
+  bind "qlogic_cs"
+
 card "Toshiba SCSC200B SCSI"
   version "TOSHIBA", "SCSC200B PC CARD SCSI-10"
   bind "qlogic_cs"
@@ -896,6 +1009,10 @@ card "3Com/Megahertz 3CCFEM556 Ethernet/Modem"
 card "Accton UE2218 LAN/Modem"
   version "PCMCIA", "UE2218-LAN/MODEM"
   cis "cis/PCMLM28.dat"
+  bind "pcnet_cs", "serial_cs"
+
+card "AnyCom Fast Ethernet/Modem"
+  version "AnyCom", "Fast Ethernet + 56K COMBO"
   bind "pcnet_cs", "serial_cs"
 
 card "Apex MultiCard Ethernet/Modem"
@@ -956,6 +1073,10 @@ card "Linksys LANmodem 33.6"
   version "LINKSYS", "PCMLM336"
   bind "pcnet_cs", "serial_cs"
 
+card "Linksys EtherFast LANmodem 56K"
+  version "Linksys", "EtherFast 10&100 + 56K PC Card (PCMLM56)"
+  bind "pcnet_cs", "serial_cs"
+
 card "Megahertz CC/XJEM1144 Ethernet/Modem"
   version "MEGAHERTZ", "XJEM1144/CCEM1144", "PCMCIA MODEM"
   bind "smc91c92_cs", "serial_cs"
@@ -989,16 +1110,12 @@ card "NSC DP83903-based Ethernet/Modem"
   cis "cis/DP83903.dat"
   bind "pcnet_cs" to 0, "serial_cs" to 1
 
-card "Olicom GoCard 28.8 Ethernet/Modem"
-  manfid 0x0121, 0x3122
-  bind "pcnet_cs", "serial_cs"
-
-card "Olicom GoCard 33.6 Ethernet/Modem"
-  manfid 0x0121, 0x3222
-  bind "pcnet_cs", "serial_cs"
-
 card "Ositech Jack of Diamonds Ethernet/Modem"
   version "Ositech", "Trumpcard:Jack of Diamonds Modem+Ethernet"
+  bind "smc91c92_cs", "serial_cs"
+
+card "Ositech Jack of Hearts Ethernet/Modem"
+  version "Ositech", "Trumpcard:Jack of Hearts Modem+Ethernet"
   bind "smc91c92_cs", "serial_cs"
 
 card "Psion Gold Card V34 Ethernet"
@@ -1017,6 +1134,14 @@ card "Rover ComboCard Ethernet/Modem"
 card "TDK Global Networker Ethernet/Modem"
   version "TDK", "GlobalNetworker 3410/3412"
   bind "serial_cs"
+
+card "TDK 3000/3400/5670 Ethernet/Modem"
+  manfid 0x0143, 0x3341
+  bind "pcnet_cs", "serial_cs"
+
+card "Telecom Device SuperSocket LM336 Ethernet/Modem"
+  version "PCMCIAs", "LanModem"
+  bind "pcnet_cs", "serial_cs"
 
 card "Xircom CE II Ethernet/Modem"
   version "Xircom", "CreditCard Ethernet+Modem II"
@@ -1081,19 +1206,19 @@ card "IBM Max Portable CD-ROM"
   manfid 0x00a4, 0x002d
   bind "ide_cs"
 
-card "IO-DATA CDP-TX/PCIDE"
+card "IO DATA CDP-TX/PCIDE"
   version "IO DATA", "PCIDE"
   bind "ide_cs"
 
-card "IO-DATA PCIDE II"
+card "IO DATA PCIDE II"
   version "IO DATA", "PCIDEII"
   bind "ide_cs"
 
-card "IO-DATA CBIDE"
+card "IO DATA CBIDE"
   version "WIT", "IDE16"
   bind "ide_cs"
 
-card "OTI-SCYLLA ATAPI CD-ROM"
+card "Generic ATAPI CD-ROM"
   version "PCMCIA", "CD-ROM"
   bind "ide_cs"
 
@@ -1121,6 +1246,10 @@ card "IBM Smart Capture Card"
   version "IBM Corp.", "Video Capture"
   bind "iscc_cs"
 
+#card "Quatech SPP-100 Parallel Port Card"
+#  manfid 0x0137, 0x0003
+#  bind "dummy_cs"
+
 card "TELES S0/PC ISDN"
   version "TELES", "S0/PC"
   bind "teles_cs"
@@ -1136,9 +1265,17 @@ card "3Com 3CCFE575B/3CXFE575B Fast EtherLink XL"
   manfid 0x0101, 0x5157
   bind "3c575_cb"
 
+card "Accton EN2220 Fast Ethernet"
+  version "Accton", "EN2220 CardBus Fast Ethernet Card"
+  bind "tulip_cb"
+
 card "Adaptec APA-1480 SCSI Host Adapter"
   manfid 0x012f, 0xcb01
   bind "apa1480_cb"
+
+card "Ambicom AMB8100 Fast Ethernet"
+  manfid 0x9513, 0x0081
+  bind "tulip_cb"
 
 card "D-Link DFE-660"
   manfid 0x50c7, 0xcafe
@@ -1152,16 +1289,20 @@ card "Linksys EtherFast 10/100"
   manfid 0x0149, 0xc2ab
   bind "tulip_cb"
 
-card "TDK NetworkFlyer LAK-CB100X"
+card "TDK NetworkFlyer 10/100"
   manfid 0x0105, 0x0500
   bind "tulip_cb"
 
-card "Trumpcard: Seven of Spades Ethernet"
+card "Ositech Seven of Spades Ethernet"
   manfid 0x0140, 0x0011
   bind "epic_cb"
 
-card "Trumpcard: Jack of Spades Ethernet/Modem"
-  manfid 0x0140, 0x000F
+card "Ositech Jack of Spades Ethernet/Modem"
+  manfid 0x0140, 0x000f
+  bind "epic_cb" to 0, "serial_cb" to 1
+
+card "Ositech Jack of Spades Ethernet/Modem"
+  manfid 0x0140, 0x0012
   bind "epic_cb" to 0, "serial_cb" to 1
 
 # Include local configuration settings

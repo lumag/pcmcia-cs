@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.31 1999/02/16 01:16:46
+ * ciscode.h 1.32 1999/02/26 07:20:21
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -25,6 +25,9 @@
 #define PRODID_3COM_3CXEM556		0x0035
 #define PRODID_3COM_3CCFEM556		0x0556
 #define PRODID_3COM_3C562		0x0562
+
+#define MANFID_ACCTON			0x01bf
+#define PRODID_ACCTON_EN2226		0x010a
 
 #define MANFID_ADAPTEC			0x012f
 #define PRODID_ADAPTEC_SCSI		0x0001

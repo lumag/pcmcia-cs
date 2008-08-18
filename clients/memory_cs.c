@@ -137,7 +137,7 @@ typedef struct memory_dev_t {
     dev_node_t		node;
     eraseq_handle_t	eraseq_handle;
     eraseq_entry_t	eraseq[MAX_ERASE];
-    struct wait_queue	*erase_pending;
+    wait_queue_head_t	erase_pending;
     direct_dev_t	direct;
     minor_dev_t		minor[2*MAX_PART];
 } memory_dev_t;
@@ -236,7 +236,7 @@ static dev_link_t *memory_attach(void)
     
     dev = kmalloc(sizeof(struct memory_dev_t), GFP_KERNEL);
     memset(dev, 0, sizeof(memory_dev_t));
-    init_waitqueue(&dev->erase_pending);
+    init_waitqueue_head(&dev->erase_pending);
     link->priv = dev;
 
     /* Register with Card Services */
@@ -548,7 +548,7 @@ static int memory_event(event_t event, int priority,
 	break;
     case CS_EVENT_ERASE_COMPLETE:
 	erase = (eraseq_entry_t *)(args->info);
-	wake_up((struct wait_queue **)&erase->Optional);
+	wake_up((wait_queue_head_t *)&erase->Optional);
 	dev = (memory_dev_t *)(link->priv);
 	wake_up_interruptible(&dev->erase_pending);
 	break;
@@ -791,9 +791,9 @@ static int memory_erase(int minor, u_long f_pos, U_FS_SIZE_T count)
     }
 
     /* Wait for request to complete */
-    init_waitqueue((struct wait_queue **)&dev->eraseq[i].Optional);
+    init_waitqueue_head((wait_queue_head_t *)&dev->eraseq[i].Optional);
     if (ERASE_IN_PROGRESS(dev->eraseq[i].State))
-	sleep_on((struct wait_queue **)&dev->eraseq[i].Optional);
+	sleep_on((wait_queue_head_t *)&dev->eraseq[i].Optional);
     if (dev->eraseq[i].State != ERASE_PASSED)
 	return -EIO;
     return 0;

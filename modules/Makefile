@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.95 1998/10/18 23:03:35
+# Makefile 1.96 1999/03/05 18:14:45
 #
 
 # Include site dependent options and kernel configuration
@@ -46,8 +46,8 @@ clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d
 
 install install-modules: $(MODULES)
-	mkdir -p $(MODDIR)/pcmcia
-	cp -p $(MODULES) $(MODDIR)/pcmcia
+	mkdir -p $(PREFIX)/$(MODDIR)/pcmcia
+	cp -p $(MODULES) $(PREFIX)/$(MODDIR)/pcmcia
 
 .c.s:
 	$(CC) $(CFLAGS) $(CPPFLAGS) -S $<

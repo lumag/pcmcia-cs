@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.43 1999/01/15 07:46:14
+    cardbus.c 1.47 1999/04/14 05:52:07
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 #define PCDATA_IMAGE_SZ		0x0010	/* 2 bytes */
 #define PCDATA_ROM_LEVEL	0x0012	/* 2 bytes */
 #define PCDATA_CODE_TYPE	0x0014
-#define PCDATA_INDICATOR	0x0014
+#define PCDATA_INDICATOR	0x0015
 
 #ifdef __LINUX__
 #if (LINUX_VERSION_CODE >= VERSION(2,1,90))
@@ -106,9 +106,17 @@ typedef struct cb_config_t {
    non-prefetchable memory, and prefetchable memory */
 typedef enum { B_IO, B_M1, B_M2 } bridge_type;
 
-/*===================================================================*/
+/*=====================================================================
 
-static void dump_rom(u_char *b)
+    Expansion ROM's have a special layout, and pointers specify an
+    image number and an offset within that image.  check_rom()
+    verifies that the expansion ROM exists and has the standard
+    layout.  xlate_rom_addr() converts an image/offset address to an
+    absolute offset from the ROM's base address.
+    
+=====================================================================*/
+
+static int check_rom(u_char *b, u_long len)
 {
     u_int img = 0, ofs = 0, sz;
     u_short data;
@@ -118,6 +126,7 @@ static void dump_rom(u_char *b)
 	    (readb(b+ROM_DATA_PTR+1) << 8);
 	sz = 512 * (readb(b+data+PCDATA_IMAGE_SZ) +
 		    (readb(b+data+PCDATA_IMAGE_SZ+1) << 8));
+	if (sz == 0) break;
 	DEBUG(0, ("  image %d: 0x%06x-0x%06x, signature %c%c%c%c\n",
 		  img, ofs, ofs+sz-1,
 		  readb(b+data+PCDATA_SIGNATURE),
@@ -125,9 +134,10 @@ static void dump_rom(u_char *b)
 		  readb(b+data+PCDATA_SIGNATURE+2),
 		  readb(b+data+PCDATA_SIGNATURE+3)));
 	b += sz; ofs += sz; img++;
-	if (readb(b+data+PCDATA_INDICATOR) & 0x80) break;
+	if ((readb(b+data+PCDATA_INDICATOR) & 0x80) ||
+	    (ofs >= len)) break;
     }
-    if (img == 0) printk(KERN_INFO "  no valid images found!\n");
+    return img;
 }
 
 static u_int xlate_rom_addr(u_char *b, u_int addr)
@@ -140,36 +150,18 @@ static u_int xlate_rom_addr(u_char *b, u_int addr)
 	data = readb(b+ROM_DATA_PTR) + (readb(b+ROM_DATA_PTR+1) << 8);
 	sz = 512 * (readb(b+data+PCDATA_IMAGE_SZ) +
 		    (readb(b+data+PCDATA_IMAGE_SZ+1) << 8));
+	if (sz == 0) break;
 	b += sz; ofs += sz; img++;
 	if (readb(b+data+PCDATA_INDICATOR) & 0x80) break;
     }
     return 0;
 }
 
-/*===================================================================*/
-
-void read_cb_mem(socket_info_t *s, u_char fn, int space,
-		 u_int addr, u_int len, void *ptr)
-{
-    DEBUG(3, ("cs: read_cb_mem(%d, %#x, %u)\n", space, addr, len));
-    if (space == 0) {
-	for (; len; addr++, ptr++, len--)
-	    pci_readb(s->cap.cardbus, fn, addr, (u_char *)ptr);
-    } else {
-	cb_setup_cis_mem(s, space);
-	if (space == 7)
-	    addr = xlate_rom_addr(s->cb_cis_virt, addr);
-	if (s->cb_cis_virt != NULL)
-	    for (; len; addr++, ptr++, len--)
-		*(u_char *)ptr = readb(s->cb_cis_virt+addr);
-    }
-}
-
 /*=====================================================================
 
     These are similar to setup_cis_mem and release_cis_mem for 16-bit
     cards.  The "result" that is used externally is the cb_cis_virt
-    pointer.
+    pointer in the socket_info_t structure.
     
 =====================================================================*/
 
@@ -192,18 +184,20 @@ int cb_setup_cis_mem(socket_info_t *s, int space)
 	s->cb_cis_space = space;
 	return CS_SUCCESS;
     }
+    
     /* Not configured?  Then set up temporary map */
     br = (space == 7) ? CB_ROM_BASE : CB_BAR(space-1);
-    s->cb_cis_space = space;
     pci_writel(s->cap.cardbus, 0, br, 0xffffffff);
     pci_readl(s->cap.cardbus, 0, br, &sz);
     sz &= PCI_BASE_ADDRESS_MEM_MASK;
-    sz = (FIND_FIRST_BIT(sz) + 0x0fff) & ~0x0fff;
+    sz = FIND_FIRST_BIT(sz);
+    if (sz < PAGE_SIZE) sz = PAGE_SIZE;
     if (find_mem_region(&base, sz, "cb_enabler", 0) != 0) {
 	printk(KERN_NOTICE "cs: could not allocate %dK memory for"
 	       " CardBus socket %d\n", sz/1024, s->sock);
 	return CS_OUT_OF_RESOURCE;
     }
+    s->cb_cis_space = space;
     s->cb_cis_virt = ioremap(base, sz);
     DEBUG(1, ("  phys 0x%08lx-0x%08lx, virt 0x%08lx\n",
 	      base, base+sz-1, (u_long)s->cb_cis_virt));
@@ -212,7 +206,10 @@ int cb_setup_cis_mem(socket_info_t *s, int space)
     m->map = 0; m->flags = MAP_ACTIVE;
     m->start = base; m->stop = base+sz-1;
     s->ss_entry(s->sock, SS_SetBridge, m);
-    if (space == 7) dump_rom(s->cb_cis_virt);
+    if ((space == 7) && (check_rom(s->cb_cis_virt, sz) == 0)) {
+	printk(KERN_NOTICE "cs: no valid ROM images found!\n");
+	return CS_READ_FAILURE;
+    }
     return CS_SUCCESS;
 }
 
@@ -242,130 +239,28 @@ void cb_release_cis_mem(socket_info_t *s)
 
 /*=====================================================================
 
-    cb_enable() has the job of configuring a socket for a Cardbus
-    card, and initializing the card's PCI configuration registers.
-
-    It first sets up the Cardbus bridge windows, for IO and memory
-    accesses.  Then, it initializes each card function's base address
-    registers, interrupt line register, and command register.
-
-    It is called as part of the RequestConfiguration card service.
-    It should be called after a previous call to cb_config() (via the
-    RequestIO service).
+    This is used by the CIS processing code to read CIS information
+    from a CardBus device.
     
-======================================================================*/
+=====================================================================*/
 
-void cb_enable(socket_info_t *s)
+void read_cb_mem(socket_info_t *s, u_char fn, int space,
+		 u_int addr, u_int len, void *ptr)
 {
-    u_char i, j, bus = s->cap.cardbus;
-    cb_config_t *c = s->cb_config;
-    
-    DEBUG(0, ("cs: cb_enable(bus %d)\n", bus));
-    
-    /* Configure bridge */
-    if (s->cb_cis_map.start)
-	cb_release_cis_mem(s);
-    for (i = 0; i < 3; i++) {
-	cb_bridge_map m;
-	switch (i) {
-	case B_IO:
-	    m.map = 0; m.flags = MAP_IOSPACE | MAP_ACTIVE;
-	    m.start = s->io[0].BasePort;
-	    m.stop = m.start + s->io[0].NumPorts - 1;
-	    break;
-	case B_M1:
-	    m.map = 0; m.flags = MAP_ACTIVE;
-	    m.start = s->win[0].base;
-	    m.stop = m.start + s->win[0].size - 1;
-	    break;
-	case B_M2:
-	    m.map = 1; m.flags = MAP_PREFETCH | MAP_ACTIVE;
-	    m.start = s->win[1].base;
-	    m.stop = m.start + s->win[1].size - 1;
-	    break;
+    DEBUG(3, ("cs: read_cb_mem(%d, %#x, %u)\n", space, addr, len));
+    if (space == 0) {
+	for (; len; addr++, ptr++, len--)
+	    pci_readb(s->cap.cardbus, fn, addr, (u_char *)ptr);
+    } else {
+	if (cb_setup_cis_mem(s, space) != 0) {
+	    memset(ptr, 0xff, len);
+	    return;
 	}
-	if (m.start == 0) continue;
-	DEBUG(0, ("  bridge %s map %d (flags 0x%x): 0x%x-0x%x\n",
-		  (m.flags & MAP_IOSPACE) ? "io" : "mem",
-		  m.map, m.flags, m.start, m.stop));
-	s->ss_entry(s->sock, SS_SetBridge, &m);
-    }
-
-    /* Set up base address registers */
-    for (i = 0; i < s->functions; i++) {
-	for (j = 0; j < 6; j++) {
-	    if (c[i].dev.base_address[j] != 0)
-		pci_writel(bus, i, CB_BAR(j), c[i].dev.base_address[j]);
-	}
-	if (c[i].dev.rom_address != 0)
-	    pci_writel(bus, i, CB_ROM_BASE, c[i].dev.rom_address | 1);
-    }
-
-    /* Set up PCI interrupt and command registers */
-    for (i = 0; i < s->functions; i++) {
-	pci_writeb(bus, i, PCI_COMMAND, PCI_COMMAND_MASTER |
-		   PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
-	pci_writeb(bus, i, PCI_CACHE_LINE_SIZE, 8);
-    }
-    
-    if (s->irq.AssignedIRQ) {
-	for (i = 0; i < s->functions; i++)
-	    pci_writeb(bus, i, PCI_INTERRUPT_LINE,
-		       s->irq.AssignedIRQ);
-	s->socket.io_irq = s->irq.AssignedIRQ;
-	s->ss_entry(s->sock, SS_SetSocket, &s->socket);
-    }
-
-#ifdef NEW_LINUX_PCI
-    /* Link into PCI device chain */
-    c[s->functions-1].dev.next = pci_devices;
-    pci_devices = &c[0].dev;
-#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
-    /* pci_proc_attach_device(&c[0].dev); */
-#endif
-#endif
-}
-
-/*======================================================================
-
-    cb_disable() unconfigures a Cardbus card previously set up by
-    cb_enable().
-
-    It is called from the ReleaseConfiguration service.
-    
-======================================================================*/
-
-void cb_disable(socket_info_t *s)
-{
-    u_char i;
-    cb_bridge_map m = { 0, 0, 0, 0xffff };
-#ifdef NEW_LINUX_PCI
-    struct pci_dev **p, *q;
-    cb_config_t *c = s->cb_config;
-    
-    /* Unlink from PCI device chain */
-#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
-    /* pci_proc_detach_device(&c[0].dev); */
-#endif
-    for (p = &pci_devices; *p; p = &((*p)->next))
-	if (*p == &c[0].dev) break;
-    for (q = *p; q; q = q->next)
-	if (q->bus != (*p)->bus) break;
-    if (*p) *p = q;
-#endif
-    
-    DEBUG(0, ("cs: cb_disable(bus %d)\n", s->cap.cardbus));
-    
-    /* Turn off bridge windows */
-    if (s->cb_cis_map.start)
-	cb_release_cis_mem(s);
-    for (i = 0; i < 3; i++) {
-	switch (i) {
-	case B_IO: m.map = 0; m.flags = MAP_IOSPACE; break;
-	case B_M1: m.map = m.flags = 0; break;
-	case B_M2: m.map = 1; m.flags = 0; break;
-	}
-	s->ss_entry(s->sock, SS_SetBridge, &m);
+	if (space == 7)
+	    addr = xlate_rom_addr(s->cb_cis_virt, addr);
+	if (s->cb_cis_virt != NULL)
+	    for (; len; addr++, ptr++, len--)
+		*(u_char *)ptr = readb(s->cb_cis_virt+addr);
     }
 }
 
@@ -584,4 +479,133 @@ void cb_release(socket_info_t *s)
     kfree(s->pci_bus);
     s->pci_bus = NULL;
 #endif
+}
+
+/*=====================================================================
+
+    cb_enable() has the job of configuring a socket for a Cardbus
+    card, and initializing the card's PCI configuration registers.
+
+    It first sets up the Cardbus bridge windows, for IO and memory
+    accesses.  Then, it initializes each card function's base address
+    registers, interrupt line register, and command register.
+
+    It is called as part of the RequestConfiguration card service.
+    It should be called after a previous call to cb_config() (via the
+    RequestIO service).
+    
+======================================================================*/
+
+void cb_enable(socket_info_t *s)
+{
+    u_char i, j, bus = s->cap.cardbus;
+    cb_config_t *c = s->cb_config;
+    
+    DEBUG(0, ("cs: cb_enable(bus %d)\n", bus));
+    
+    /* Configure bridge */
+    if (s->cb_cis_map.start)
+	cb_release_cis_mem(s);
+    for (i = 0; i < 3; i++) {
+	cb_bridge_map m;
+	switch (i) {
+	case B_IO:
+	    m.map = 0; m.flags = MAP_IOSPACE | MAP_ACTIVE;
+	    m.start = s->io[0].BasePort;
+	    m.stop = m.start + s->io[0].NumPorts - 1;
+	    break;
+	case B_M1:
+	    m.map = 0; m.flags = MAP_ACTIVE;
+	    m.start = s->win[0].base;
+	    m.stop = m.start + s->win[0].size - 1;
+	    break;
+	case B_M2:
+	    m.map = 1; m.flags = MAP_PREFETCH | MAP_ACTIVE;
+	    m.start = s->win[1].base;
+	    m.stop = m.start + s->win[1].size - 1;
+	    break;
+	}
+	if (m.start == 0) continue;
+	DEBUG(0, ("  bridge %s map %d (flags 0x%x): 0x%x-0x%x\n",
+		  (m.flags & MAP_IOSPACE) ? "io" : "mem",
+		  m.map, m.flags, m.start, m.stop));
+	s->ss_entry(s->sock, SS_SetBridge, &m);
+    }
+
+    /* Set up base address registers */
+    for (i = 0; i < s->functions; i++) {
+	for (j = 0; j < 6; j++) {
+	    if (c[i].dev.base_address[j] != 0)
+		pci_writel(bus, i, CB_BAR(j), c[i].dev.base_address[j]);
+	}
+	if (c[i].dev.rom_address != 0)
+	    pci_writel(bus, i, CB_ROM_BASE, c[i].dev.rom_address | 1);
+    }
+
+    /* Set up PCI interrupt and command registers */
+    for (i = 0; i < s->functions; i++) {
+	pci_writeb(bus, i, PCI_COMMAND, PCI_COMMAND_MASTER |
+		   PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
+	pci_writeb(bus, i, PCI_CACHE_LINE_SIZE, 8);
+    }
+    
+    if (s->irq.AssignedIRQ) {
+	for (i = 0; i < s->functions; i++)
+	    pci_writeb(bus, i, PCI_INTERRUPT_LINE,
+		       s->irq.AssignedIRQ);
+	s->socket.io_irq = s->irq.AssignedIRQ;
+	s->ss_entry(s->sock, SS_SetSocket, &s->socket);
+    }
+
+#ifdef NEW_LINUX_PCI
+    /* Link into PCI device chain */
+    c[s->functions-1].dev.next = pci_devices;
+    pci_devices = &c[0].dev;
+#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
+    /* pci_proc_attach_device(&c[0].dev); */
+#endif
+#endif
+}
+
+/*======================================================================
+
+    cb_disable() unconfigures a Cardbus card previously set up by
+    cb_enable().
+
+    It is called from the ReleaseConfiguration service.
+    
+======================================================================*/
+
+void cb_disable(socket_info_t *s)
+{
+    u_char i;
+    cb_bridge_map m = { 0, 0, 0, 0xffff };
+#ifdef NEW_LINUX_PCI
+    struct pci_dev **p, *q;
+    cb_config_t *c = s->cb_config;
+    
+    /* Unlink from PCI device chain */
+#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
+    /* pci_proc_detach_device(&c[0].dev); */
+#endif
+    for (p = &pci_devices; *p; p = &((*p)->next))
+	if (*p == &c[0].dev) break;
+    for (q = *p; q; q = q->next)
+	if (q->bus != (*p)->bus) break;
+    if (*p) *p = q;
+#endif
+    
+    DEBUG(0, ("cs: cb_disable(bus %d)\n", s->cap.cardbus));
+    
+    /* Turn off bridge windows */
+    if (s->cb_cis_map.start)
+	cb_release_cis_mem(s);
+    for (i = 0; i < 3; i++) {
+	switch (i) {
+	case B_IO: m.map = 0; m.flags = MAP_IOSPACE; break;
+	case B_M1: m.map = m.flags = 0; break;
+	case B_M2: m.map = 1; m.flags = 0; break;
+	}
+	s->ss_entry(s->sock, SS_SetBridge, &m);
+    }
 }

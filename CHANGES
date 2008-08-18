@@ -1,3 +1,35 @@
+Version 3.0.10
+-- Updated for 2.3.1 kernel wait queue changes.
+-- Updated wavelan_cs, ibmtr_cs drivers.
+-- Started to add support for foreign host bridge architectures.
+-- Config file updates for PE-200, KTI PE520 ethernet.
+-- Changed ide_cs driver to accommodate some smartmedia cards with
+   inadequate CIS information.
+-- Changed pcnet_cs driver to autodetect whether or not to use shared
+   memory, and removed use_shmem parameter.
+-- Changed network script to undo NFS mounts in reverse order, and to
+   avoid dhcpd blocking problem.
+-- Changed module install directory to be specified relative to the
+   alternate target directory.
+-- Added more sanity checks to CardBus expansion ROM validation.
+-- Added support for TI 1225 CardBus bridge.
+-- Tweaked Configure script for bash-2.0.
+-- Cleaned up 3c589_cs driver: fixed some corner cases, added better
+   media detection and broken-interrupt recovery.
+-- Better handling of removable SCSI devices with missing media.
+-- Fixed bug in driver cleanup logic that could sometimes prevent
+   proper driver shutdown.
+-- Fixed all 16-bit network clients to deal with 2.2.* restrictions on
+   when devices can be unregistered.
+-- Fixed pack_cis to be more flexible about number formats, added
+   packing of device info tuples.
+-- Fixed several bugs in FTL layer driver.
+-- Fixed CardBus card shutdown race condition.
+-- Fixed rx/tx buffer sizing, tx available bugs in 3c574_cs driver.
+-- Fixed ToPIC chipset bug affecting odd-numbered sockets.
+-- Fixed power description coding in pack_cis.
+-- Fixed 'ifuser' to check routes in proper order.
+
 Version 3.0.9
 -- Moved cardinfo to /usr/X11R6/bin where it belongs.
 -- Added support for 4-socket configurations with I82092AA bridge.
@@ -16,8 +48,6 @@ Version 3.0.9
    16-bit cards, and vice-versa.
 -- Tweaked O2Micro bridge initialization to be sure DMA is off.
 -- Added fix for buggy PCI bus enumeration on some Toshiba laptops.
--- Fixed an IO port allocation bug in pcnet_cs affecting configuration
-   for the Olicom GoCard.
 -- Fixed network script to handle net-tools-1.46 ifconfig output.
 -- Fixed SMP compilation with 2.2-pre9 and later kernels.
 

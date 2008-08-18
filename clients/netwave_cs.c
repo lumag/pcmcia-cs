@@ -213,6 +213,7 @@ static void netwave_pcmcia_config(dev_link_t *arg); /* Runs after card
 													   insertion */
 static dev_link_t *netwave_attach(void);     /* Create instance */
 static void netwave_detach(dev_link_t *);    /* Destroy instance */
+static void netwave_flush_stale_links(void);	     /* Destroy all staled instances */
 
 /* Hardware configuration */
 static void netwave_doreset(unsigned long iobase, u_char* ramBase);
@@ -445,6 +446,9 @@ static dev_link_t *netwave_attach(void)
     
     DEBUG(0, "netwave_attach()\n");
     
+    /* Perform some cleanup */
+    netwave_flush_stale_links();
+
     /* Initialize the dev_link_t structure */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
     memset(link, 0, sizeof(struct dev_link_t));
@@ -543,12 +547,6 @@ static void netwave_detach(dev_link_t *link)
 
     DEBUG(0, "netwave_detach(0x%p)\n", link);
   
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
-
     save_flags(flags);
     if (link->state & DEV_RELEASE_PENDING) {
 	del_timer(&link->release);
@@ -578,10 +576,23 @@ static void netwave_detach(dev_link_t *link)
     if (link->handle)
 	CardServices(DeregisterClient, link->handle);
     
+    /* Locate device structure */
+    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
+	if (*linkp == link) break;
+    if (*linkp == NULL)
+      {
+	DEBUG(1, "netwave_cs: detach fail, '%s' not in list\n",
+	      link->dev->dev_name);
+	return;
+      }
+
     /* Unlink device structure, free pieces */
     *linkp = link->next;
     if (link->priv) {
 	struct device *dev = link->priv;
+	if (link->dev != NULL)
+	  unregister_netdev(dev);
+	link->dev = NULL;
 	if (dev->priv)
 	    kfree_s(dev->priv, sizeof(netwave_private));
 	kfree_s(link->priv, sizeof(struct device));
@@ -589,6 +600,31 @@ static void netwave_detach(dev_link_t *link)
     kfree_s(link, sizeof(struct dev_link_t));
     
 } /* netwave_detach */
+
+/*
+ * Function netwave_flush_stale_links (void)
+ *
+ *    This deletes all driver "instances" that need to be deleted.
+ *    Sometimes, netwave_detach can't be performed following a call from
+ *    cardmgr (device still open) and the device is put in a STALE_LINK
+ *    state.
+ *    This function is in charge of making the cleanup...
+ */
+static void netwave_flush_stale_links(void)
+{
+    dev_link_t *	link;		/* Current node in linked list */
+    dev_link_t *	next;		/* Next node in linked list */
+
+    DEBUG(1, "netwave_flush_stale_links(0x%p)\n", dev_list);
+
+    /* Go through the list */
+    for (link = dev_list; link; link = next) {
+        next = link->next;
+        /* Check if in need of being removed */
+        if(link->state & DEV_STALE_LINK)
+	    netwave_detach(link);
+    }
+} /* netwave_flush_stale_links */
 
 /*
  * Function netwave_ioctl (dev, rq, cmd)
@@ -899,12 +935,6 @@ static void netwave_release(u_long arg) {
 	return;
     }
 	
-    if (link->dev != '\0')
-	unregister_netdev(dev);
-    
-    /* Unlink the device chain */
-    link->dev = NULL;
-    
     /* Don't bother checking to see if these succeed or not */
     if (link->win) {
 	iounmap(((netwave_private *)dev->priv)->ramBase);
@@ -914,10 +944,7 @@ static void netwave_release(u_long arg) {
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
  
-    link->state &= ~DEV_CONFIG;
-    
-    if (link->state & DEV_STALE_LINK)
-	netwave_detach(link);
+    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING | DEV_STALE_CONFIG);
     
 } /* netwave_release */
 
@@ -1542,14 +1569,14 @@ static int netwave_rx(struct device *dev) {
 static int netwave_open(struct device *dev) {
     dev_link_t *link;
 
-    DEBUG(2, "netwave_open: starting.\n");
+    DEBUG(1, "netwave_open: starting.\n");
 
     for (link = dev_list; link; link = link->next)
 	if (link->priv == dev) break;
     
     if (!DEV_OK(link))
 	return -ENODEV;
-	
+
     link->open++;
     MOD_INC_USE_COUNT;
 	
@@ -1562,7 +1589,9 @@ static int netwave_open(struct device *dev) {
 static int netwave_close(struct device *dev) {
     dev_link_t *link;
     netwave_private *priv = (netwave_private *) dev->priv;
-    
+
+    DEBUG(1, "netwave_close: finishing.\n");
+
     for (link = dev_list; link; link = link->next)
 	if (link->priv == dev) break;
     if (link == NULL)
@@ -1603,11 +1632,11 @@ void cleanup_module(void) {
     DEBUG(1, "netwave_cs: unloading\n");
 
     unregister_pcmcia_driver(&dev_info);
-    while (dev_list != NULL) {
-	if (dev_list->state & DEV_CONFIG)
-	    netwave_release((u_long)dev_list);
-	netwave_detach(dev_list);
-    }
+
+    /* Do some cleanup of the device list */
+    netwave_flush_stale_links();
+    if(dev_list != NULL)	/* Critical situation */
+        printk("netwave_cs: devices remaining when removing module\n");
 }
 
 

@@ -64,7 +64,8 @@ const unsigned char	MAC_ADDRESSES[][3] =
 {
   { 0x08, 0x00, 0x0E },		/* AT&T Wavelan (standard) & DEC RoamAbout */
   { 0x08, 0x00, 0x6A },		/* AT&T Wavelan (alternate) */
-  { 0x00, 0x00, 0xE1 }		/* Hitachi Wavelan */
+  { 0x00, 0x00, 0xE1 },		/* Hitachi Wavelan */
+  { 0x00, 0x60, 0x1D }		/* Lucent Wavelan (another one) */
   /* Add your card here and send me the patch ! */
 };
 

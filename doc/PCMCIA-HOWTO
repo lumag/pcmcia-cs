@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.30, 16 February 1999
+  v2.32, 15 May 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -607,12 +607,13 @@
         of the PCMCIA configuration scripts'' for a discussion of
         schemes.
 
-  The low level socket drivers, tcic and i82365, have numerous bus
-  timing parameters that may need to be adjusted for systems with
-  unusual bus clocking.  Symptoms of timing problems include card
+  The low level socket drivers, tcic and i82365, have various bus timing
+  parameters that may need to be adjusted for certain systems with
+  unusual bus clocking.  Symptoms of timing problems can include card
   recognition problems, lock-ups under heavy loads, high error rates, or
-  poor device performance.  Check the corresponding man pages for more
-  details, but here is a brief summary:
+  poor device performance.  Only certain host bridges have adjustable
+  timing parameters: check the corresponding man page to see what
+  options are available for your controller.  Here is a brief summary:
 
 
   +o  Cirrus controllers have numerous configurable timing parameters.
@@ -651,6 +652,10 @@
   +o  On a Midwest Micro Soundbook Elite, use ``cmd_time=12''.
 
   +o  On a Gateway Liberty, try ``cmd_time=16''.
+
+  +o  On a Samsung SENS 810, use ``fast_pci=1''.
+
+
 
 
   22..44..  SSyysstteemm rreessoouurrccee sseettttiinnggss
@@ -719,7 +724,6 @@
 
   This section is incomplete.  Corrections and additions are welcome.
 
-
   22..55..11..  DDeebbiiaann
 
   Debian uses a System V boot script arrangement.  The PCMCIA startup
@@ -785,10 +789,6 @@
   SuSE uses a System V init script arrangement, with init scripts stored
   under /sbin/init.d.  The PCMCIA startup script is installed as
   /sbin/init.d/pcmcia, and startup options are kept in /etc/rc.config.
-
-
-
-
 
   33..  RReessoollvviinngg iinnssttaallllaattiioonn aanndd ccoonnffiigguurraattiioonn pprroobblleemmss
 
@@ -1373,12 +1373,13 @@
   44..11..44..  CCaarrdd SSeerrvviicceess aanndd AAddvvaanncceedd PPoowweerr MMaannaaggeemmeenntt
 
   Card Services can be compiled with support for APM (Advanced Power
-  Management) if you've configured your kernel with APM support.  It is
-  currently being maintained by Rick Faith (faith@cs.unc.edu), and APM
-  tools can be obtained from
-  <ftp://ftp.cs.unc.edu/pub/users/faith/linux>.  The PCMCIA modules will
-  automatically be configured for APM if a compatible version is
-  detected on your system.
+  Management) if you've configured your kernel with APM support.  The
+  APM kernel driver is maintained by Stephen Rothwell
+  (Stephen.Rothwell@canb.auug.org.au).  The apmd daemon is maintained by
+  Avery Pennarun (apenwarr@worldvisions.ca), with more information
+  available at <http://www.worldvisions.ca/~apenwarr/apmd/>.  The PCMCIA
+  modules will automatically be configured for APM if a compatible
+  version is detected on your system.
 
   Whether or not APM is configured, you can use ``cardctl suspend''
   before suspending your laptop, and ``cardctl resume'' after resuming,
@@ -1448,6 +1449,7 @@
   parameters.  The current scheme is selected using the ``cardctl
   scheme'' command.  The default if no scheme is set is ``default''.
 
+
   As a general rule, when configuring Linux for a laptop, PCMCIA devices
   should only be configured from the PCMCIA device scripts.  Do not try
   to configure a PCMCIA device the same way you would configure a
@@ -1513,8 +1515,6 @@
        *,*,*,08:00:5A:44:80:01)
            # definitions for an IBM card
        esac
-
-
 
   44..33..11..  NNeettwwoorrkk ddeevviiccee ppaarraammeetteerrss
 
@@ -1633,16 +1633,16 @@
 
 
 
-  Current releases of the 3c589 driver attempt to autodetect the network
-  connection, but this doesn't seem to be completely functional yet.
-  For autodetection to work, the network cable should be connected to
-  the card when the card is configured.  Alternatively, once the network
-  is connected, you can force the driver to check the connection with:
+  The current (3.0.10 or later) 3c589 driver should quickly autodetect
+  transceiver changes at any time.  Earlier releases of the 3c589 driver
+  had a somewhat slow and flaky transceiver autodetection algorithm.
+  For these releases, the appropriate network cable should be connected
+  to the card when the card is configured, or you can force
+  autodetection with:
 
 
 
        ifconfig eth0 down up
-
 
 
 
@@ -1686,11 +1686,9 @@
   +o  The driver used by the IBM and 3Com token ring adapters seems to
      behave very badly if the cards are not connected to a ring when
      they get initialized.  Always connect these cards to the net before
-     they are powered up.  This driver also requires free IO ports in
-     the range of 0xa20-0xa27.  On some systems, the automatic IO port
-     conflict checker will incorrectly determine that this port range is
-     unavailable.  In that case, the port check can be disabled by
-     loading the pcmcia_core module with probe_io=0.
+     they are powered up.  If ifconfig reports the hardware address as
+     all 0's, this is likely to be due to a memory window configuration
+     problem.
 
   +o  Some Linksys, D-Link, and IC-Card 10baseT/10base2 cards have a
      unique way of selecting the transceiver type that isn't handled by
@@ -1782,8 +1780,6 @@
   one modem, you may want to specify different settings based on socket
   position, as in:
 
-
-
        case "$ADDRESS" in
        *,0,*)
            # Options for modem in socket 0
@@ -1842,6 +1838,10 @@
            LINK="/dev/modem"
            SERIAL_OPTS=""
            INITTAB="/sbin/getty"
+
+
+
+
 
 
 
@@ -2074,6 +2074,18 @@
 
 
 
+  +o  Also with the aha152x_cs driver, certain devices seem to require a
+     longer startup delay, controlled via the reset_delay module
+     parameter.  The Yamaha 4416S CDR drive is one such device.  The
+     result is the device is identified successfully, then hangs the
+     system.  In such cases, try:
+
+
+       module "aha152x_cs" opts "reset_delay=500"
+
+
+
+
   +o  If you have compiled SCSI support as modules (CONFIG_SCSI is
      ``m''), when configuring PCMCIA, you must explicitly specify that
      you want the SCSI drivers to be built.  You must also modify
@@ -2164,9 +2176,6 @@
        esac
 
 
-
-
-
   44..66..22..  UUssiinngg ffllaasshh mmeemmoorryy ccaarrddss
 
   The device address passed to ftl.opts consists of three or four
@@ -2174,7 +2183,6 @@
   optionally, the partition number.  Most flash cards have just one
   flash memory region, so the region number will generally always be
   zero.
-
 
   To use a flash memory card as an ordinary disk-like block device,
   first create an FTL, or ``flash translation layer'', partition on the
@@ -2239,9 +2247,6 @@
   called for each partition.
 
 
-
-
-
   44..77..11..  AATTAA//IIDDEE ffiixxeedd--ddiisskk ddeevviiccee ppaarraammeetteerrss
 
 
@@ -2304,8 +2309,6 @@
      CONFIG_BLK_DEV_IDECD enabled.  This will normally be the case for
      standard kernels, however it is something to be aware of if you
      compile a custom kernel.
-
-
 
 
   44..88..  MMuullttiiffuunnccttiioonn ccaarrddss
@@ -2374,6 +2377,7 @@
   options should be set in your /etc/pcmcia/config file.  For example:
 
 
+
        device "serial_cs"
          module "serial_cs" opts "irq_list=8,12"
          ...
@@ -2439,6 +2443,8 @@
   configurations are not explicitly dependant on the scheme setting).
 
   To find out the current scheme setting, run:
+
+
 
        cardctl scheme
 
@@ -2566,7 +2572,6 @@
   installed under /etc in the image, and can also be customized.  See
   the man page for pcinitrd for more information.
 
-
   55..33..22..  CCrreeaattiinngg aann iinniittrrdd bboooott ffllooppppyy
 
 
@@ -2632,8 +2637,8 @@
 
 
 
-       LOADLIN <kernel> initrd=<initrd-image>
 
+  LOADLIN <kernel> initrd=<initrd-image>
 
 
 
@@ -2697,10 +2702,9 @@
   root= options.
 
 
+
+
   66..  DDeeaalliinngg wwiitthh uunnssuuppppoorrtteedd ccaarrddss
-
-
-
 
 
 
@@ -2770,6 +2774,7 @@
   file with:
 
 
+
        kill -HUP `cat /var/run/cardmgr.pid`
 
 
@@ -2836,7 +2841,7 @@
 
 
 
-  module "pcnet_cs" opts "hw_addr=0x00,0x80,0xc8,0x01,0x02,0x03"
+       module "pcnet_cs" opts "hw_addr=0x00,0x80,0xc8,0x01,0x02,0x03"
 
 
 
@@ -2960,7 +2965,6 @@
                  ...
        c2026000  (9k)                              [3c574_cs]
        c202a000  (4k)                              [serial_cs]
-
 
 
 
@@ -3095,6 +3099,7 @@
   hyper.stanford.edu in /pub/pcmcia/doc, or on the web at
   <http://hyper.stanford.edu/HyperNews/get/pcmcia/home.html>.
 
+
   For devices that are close relatives of normal ISA devices, you will
   probably be able to use parts of existing Linux drivers.  In some
   cases, the biggest stumbling block will be modifying an existing
@@ -3160,12 +3165,16 @@
 
 
 
+
   This makefile uses install targets defined in 2.9.10 and later
   versions of the PCMCIA package.  This makefile also includes a
   ``dist'' target for the convenience of the driver author.  You would
   probably want to add a version number to the final package filename
   (for example, sample_cs-1.5.tar.gz).  A complete distribution could
   look like:
+
+
+
        sample_cs.mk
        README.sample_cs
        modules/sample_cs.c
@@ -3222,6 +3231,63 @@
   previous section.  The split between integral and separate drivers is
   somewhat arbitrary and partly historical, and should not imply a
   difference in quality.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

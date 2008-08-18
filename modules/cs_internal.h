@@ -53,7 +53,7 @@ typedef struct client_t {
     struct client_t 	*next;
     u_int		mtd_count;
 #ifdef __LINUX__
-    struct wait_queue	*mtd_req;
+    wait_queue_head_t	mtd_req;
 #endif
 #ifdef __BEOS__
     struct wchan	mtd_req;

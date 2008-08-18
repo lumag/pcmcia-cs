@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.90 1999/02/11 06:17:24
+    ds.c 1.91 1999/05/14 16:40:31
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -49,7 +49,7 @@ int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.90 1999/02/11 06:17:24 (David Hinds)";
+"ds.c 1.91 1999/05/14 16:40:31 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -88,7 +88,7 @@ typedef struct socket_info_t {
     int			state;
     user_info_t		*user;
     int			req_pending, req_result;
-    struct wait_queue	*queue, *request;
+    wait_queue_head_t	queue, request;
     struct timer_list	removal;
     socket_bind_t	*bind;
 } socket_info_t;
@@ -173,7 +173,7 @@ int unregister_pccard_driver(dev_info_t *dev_info)
     DEBUG(0, "ds: unregister_pccard_driver('%s')\n",
 	  (char *)dev_info);
     while ((*d) && (strncmp((*d)->dev_info, (char *)dev_info,
-			    DEV_NAME_LEN) == 0))
+			    DEV_NAME_LEN) != 0))
 	d = &(*d)->next;
     if (*d == NULL)
 	return -1;
@@ -187,7 +187,7 @@ int unregister_pccard_driver(dev_info_t *dev_info)
 	target->attach = NULL; target->detach = NULL;
 	for (i = 0; i < sockets; i++)
 	    for (b = socket_table[i].bind; b; b = b->next)
-		if (b->driver == *d) b->instance = NULL;
+		if (b->driver == target) b->instance = NULL;
     }
     return 0;
 } /* unregister_pccard_driver */
@@ -442,7 +442,8 @@ static int unbind_request(int i, bind_info_t *bind_info)
     c = *b;
     c->driver->use_count--;
     if (c->driver->detach) {
-	if (c->instance) c->driver->detach(c->instance);
+	if (c->instance)
+	    c->driver->detach(c->instance);
     } else {
 	if (c->driver->use_count == 0) {
 	    driver_info_t **d;
@@ -861,8 +862,8 @@ int init_module(void)
 	s->state = 0;
 	s->user = NULL;
 	s->req_pending = 0;
-	init_waitqueue(&s->queue);
-	init_waitqueue(&s->request);
+	init_waitqueue_head(&s->queue);
+	init_waitqueue_head(&s->request);
 	s->handle = NULL;
 	s->removal.prev = s->removal.next = NULL;
 	s->removal.data = i;

@@ -1,5 +1,5 @@
 /*
- * cardmgr.h 1.28 1998/08/03 17:14:06
+ * cardmgr.h 1.29 1999/05/14 15:58:04
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -17,7 +17,7 @@
  */
 
 #define MAX_SOCKS	8
-#define MAX_FUNCTIONS	4
+#define MAX_BINDINGS	4
 #define MAX_MODULES	4
 
 typedef struct adjust_list_t {
@@ -67,9 +67,9 @@ typedef struct card_info_t {
 	tuple_ident_t	tuple;
 	func_ident_t	func;
     } id;
-    int			functions;
-    device_info_t	*device[MAX_FUNCTIONS];
-    int			dev_fn[MAX_FUNCTIONS];
+    int			bindings;
+    device_info_t	*device[MAX_BINDINGS];
+    int			dev_fn[MAX_BINDINGS];
     char		*cis_file;
     struct card_info_t	*next;
 } card_info_t;

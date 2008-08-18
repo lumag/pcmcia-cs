@@ -69,9 +69,6 @@ http://www.national.com/pf/DP/DP83840.html
 Thanks to Terry Murphy of 3Com for providing development information for
 earlier 3Com products.
 
-No printed Roadrunner documentation is available.  This driver is the only
-publically-available documentation about its operation (1/98).
-
 */
 
 #include <pcmcia/config.h>
@@ -270,6 +267,16 @@ static void tc574_detach(dev_link_t *);
 
 static dev_link_t *dev_list = NULL;
 
+static void flush_stale_links(void)
+{
+	dev_link_t *link, *next;
+	for (link = dev_list; link; link = next) {
+		next = link->next;
+	    if (link->state & DEV_STALE_LINK)
+			tc574_detach(link);
+    }
+}
+
 static void cs_error(client_handle_t handle, int func, int ret)
 {
 #if CS_RELEASE_CODE < 0x2911
@@ -304,6 +311,7 @@ static dev_link_t *tc574_attach(void)
 	int i, ret;
 
 	DEBUG(0, "3c574_attach()\n");
+	flush_stale_links();
 
 	/* Create the PC card device object. */
 	link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
@@ -422,6 +430,8 @@ static void tc574_detach(dev_link_t *link)
 	*linkp = link->next;
 	if (link->priv) {
 		struct device *dev = link->priv;
+		if (link->dev != NULL)
+			unregister_netdev(dev);
 		if (dev->priv)
 			kfree_s(dev->priv, sizeof(struct el3_private));
 		kfree_s(link->priv, sizeof(struct device));
@@ -665,13 +675,8 @@ static void tc574_release(u_long arg)
 		iounmap((void *)(dev->mem_start - 0x800));
 		CardServices(ReleaseWindow, link->win);
 	}
-	if (link->dev)
-		unregister_netdev(dev);
-	link->dev = NULL;
 
-	link->state &= ~DEV_CONFIG;
-	if (link->state & DEV_STALE_LINK)
-		tc574_detach(link);
+	link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
 
 } /* tc574_release */
 
@@ -730,6 +735,20 @@ static int tc574_event(event_t event, int priority,
 	}
 	return 0;
 } /* tc574_event */
+
+/*
+  Use this for commands that may take time to finish
+*/
+static void wait_for_completion(struct device *dev, int cmd)
+{
+    int i = 1500;
+    outw(cmd, dev->base_addr + EL3_CMD);
+    while (--i > 0)
+		if (!(inw(dev->base_addr + EL3_STATUS) & 0x1000)) break;
+    if (i == 0)
+		printk(KERN_NOTICE "%s: command 0x%04x did not complete!\n",
+			   dev->name, cmd);
+}
 
 /* Read a word from the EEPROM using the regular EEPROM access register.
    Assume that we are in register window zero.
@@ -828,17 +847,10 @@ static void mdio_write(int ioaddr, int phy_id, int location, int value)
 static void tc574_reset(struct device *dev)
 {
 	struct el3_private *lp = (struct el3_private *)dev->priv;
-	int ioaddr = dev->base_addr;
-	int i = 1500;
+	int i, ioaddr = dev->base_addr;
 
-	/* Typically 0 or 1 tick. */
-	outw(TotalReset|0x10, ioaddr + EL3_CMD);
-	while (inw(ioaddr + EL3_STATUS) & CmdBusy)
-		if (--i < 0)  break;
-	if (i < 0)
-		printk(KERN_ERR "%s: Card reset did not complete, status 0x%4.4x.\n",
-			   dev->name, inw(ioaddr + EL3_STATUS));
-
+	wait_for_completion(dev, TotalReset|0x10);
+ 
 	/* Set the PIO ctrl bits in the PC card LAN COR using Runner window 1. */
 	if (dev->mem_start || no_wait) {
 		u8 lan_cor;
@@ -864,7 +876,7 @@ static void tc574_reset(struct device *dev)
 	if (dev->if_port == 2)
 		/* Start the thinnet transceiver. Note: Tx is not reliable for 50ms. */
 		outw(StartCoax, ioaddr + EL3_CMD);
-	else if (dev->if_port < 2) {
+	else if (dev->if_port == 1) {
 		/* 10baseT interface, enabled link beat and jabber check. */
 		EL3WINDOW(4);
 		outw(inw(ioaddr + Wn4_Media) | MEDIA_TP, ioaddr + Wn4_Media);
@@ -874,6 +886,9 @@ static void tc574_reset(struct device *dev)
 	/* Set the full-duplex bit. */
 	outb((lp->force_full_duplex || lp->is_full_duplex ? 0x20 : 0) |
 		 (dev->mtu > 1500 ? 0x40 : 0), ioaddr + Wn3_MAC_Ctrl);
+	/* Reset config options */
+	outl((lp->autoselect ? 0x01000000 : 0) | 0x0062001b,
+		 ioaddr + Wn3_Config);
 	/* Roadrunner only: Turn on the MII transceiver. */
 	outw((lp->available_media & 0xff) | 0x8000, ioaddr + Wn3_Options);
 
@@ -920,6 +935,7 @@ static int el3_config(struct device *dev, struct ifmap *map)
 		} else
 			return -EINVAL;
 	}
+	tc574_reset(dev);
 	return 0;
 }
 
@@ -976,9 +992,33 @@ static void tc574_tx_timeout(struct device *dev)
 		   inw(ioaddr + TxFree));
 	dev->trans_start = jiffies;
 	/* Issue TX_RESET and TX_START commands. */
-	outw(TxReset, ioaddr + EL3_CMD);
+	wait_for_completion(dev, TxReset);
 	outw(TxEnable, ioaddr + EL3_CMD);
 	dev->tbusy = 0;
+}
+
+static void pop_tx_status(struct device *dev)
+{
+    struct el3_private *lp = (struct el3_private *)dev->priv;
+    int ioaddr = dev->base_addr;
+    int i;
+    
+    /* Clear the Tx status stack. */
+    for (i = 32; i > 0; i--) {
+		u_char tx_status = inb(ioaddr + TxStatus);
+		if (!(tx_status & 0x84)) break;
+		printk(KERN_INFO "tx_status 0x%02x\n", tx_status);
+		/* reset transmitter on jabber error or underrun */
+		if (tx_status & 0x30)
+			wait_for_completion(dev, TxReset);
+		if (tx_status & 0x38) {
+			DEBUG(1, "%s: transmit error: status 0x%02x\n",
+				  dev->name, tx_status);
+			outw(TxEnable, ioaddr + EL3_CMD);
+			lp->stats.tx_aborted_errors++;
+		}
+		outb(0x00, ioaddr + TxStatus); /* Pop the status stack. */
+    }
 }
 
 static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
@@ -1045,7 +1085,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
 	if (dev->mem_start)
 		memcpy((void*)dev->mem_start, skb->data, (skb->len + 3) & ~3);
 	else
-		outsl(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
+		outsl_ns(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
 
 #if 0
 	if (use_fifo_buffer) {
@@ -1064,23 +1104,13 @@ static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
 	if (inw(ioaddr + TxFree) > 1536) {
 		dev->tbusy = 0;
 	} else
-		/* Interrupt us when the FIFO has room for max-sized packet. */
-		outw(SetTxThreshold + 1536, ioaddr + EL3_CMD);
+		/* Interrupt us when the FIFO has room for max-sized packet. 
+		   The threshold is in units of dwords. */
+		outw(SetTxThreshold + (1536>>2), ioaddr + EL3_CMD);
 
 	DEV_KFREE_SKB (skb);
 
-	/* Clear the Tx status stack. */
-	{
-		char tx_status;
-		int i = 16;
-
-		while ((--i > 0) && (tx_status = inb(ioaddr + TxStatus)) > 0) {
-			if (tx_status & 0x38) lp->stats.tx_aborted_errors++;
-			if (tx_status & 0x30) outw(TxReset, ioaddr + EL3_CMD);
-			if (tx_status & 0x3C) outw(TxEnable, ioaddr + EL3_CMD);
-			outb(0x00, ioaddr + TxStatus); /* Pop the status stack. */
-		}
-	}
+	pop_tx_status(dev);
 
 	return 0;
 }
@@ -1130,16 +1160,8 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 			mark_bh(NET_BH);
 		}
 
-		if (status & TxComplete) {		/* Handle abnormal termination ASAP. */
-			char tx_status;
-			int i = 16;
-			while ((--i > 0) && (tx_status = inb(ioaddr + TxStatus)) > 0) {
-				if (tx_status & 0x38) lp->stats.tx_aborted_errors++;
-				if (tx_status & 0x30) outw(TxReset, ioaddr + EL3_CMD);
-				if (tx_status & 0x3C) outw(TxEnable, ioaddr + EL3_CMD);
-				outb(0x00, ioaddr + TxStatus); /* Pop the status stack. */
-			}
-		}
+		if (status & TxComplete)
+			pop_tx_status(dev);
 
 		if (status & (AdapterFailure | RxEarly | StatsFull)) {
 			/* Handle all uncommon interrupts. */
@@ -1150,25 +1172,20 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 				outw(AckIntr | RxEarly, ioaddr + EL3_CMD);
 			}
 			if (status & AdapterFailure) {
-				int i;
 				u16 fifo_diag;
 				EL3WINDOW(4);
 				fifo_diag = inw(ioaddr + Wn4_FIFODiag);
 				EL3WINDOW(1);
-				printk(KERN_NOTICE"%s: Host error, FIFO diagnostic register "
-					   "%4.4x.\n", dev->name, fifo_diag);
+				printk(KERN_NOTICE"%s: Adapter failure, FIFO diagnostic"
+					   " register %4.4x.\n", dev->name, fifo_diag);
 				/* Adapter failure requires Rx reset and reinit. */
 				if (fifo_diag & 0x0400) {
-					outw(TxReset, ioaddr + EL3_CMD);
-					for (i = 500; i >= 0 ; i--)
-						if ((inw(ioaddr + EL3_STATUS) & CmdBusy) == 0) break;
+					wait_for_completion(dev, TxReset);
+					outw(TxEnable, ioaddr + EL3_CMD);
 				}
-				outw(RxReset, ioaddr + EL3_CMD);
-				for (i = 500; i >= 0 ; i--)
-					if ((inw(ioaddr + EL3_STATUS) & CmdBusy) == 0) break;
+				wait_for_completion(dev, RxReset);
 				set_rx_mode(dev);
 				outw(RxEnable, ioaddr + EL3_CMD);
-				outw(TxEnable, ioaddr + EL3_CMD);
 				outw(AckIntr | AdapterFailure, ioaddr + EL3_CMD);
 			}
 		}
@@ -1252,8 +1269,8 @@ static int el3_rx(struct device *dev, int worklimit)
 
 	DEBUG(3, "%s: in rx_packet(), status %4.4x, rx_status %4.4x.\n",
 		  dev->name, inw(ioaddr+EL3_STATUS), inw(ioaddr+RxStatus));
-	while ((rx_status = inw(ioaddr + RxStatus)) > 0
-		   &&  --worklimit >= 0) {
+    while (!((rx_status = inw(ioaddr + RxStatus)) & 0x8000) &&
+		   (--worklimit >= 0)) {
 		if (rx_status & 0x4000) { /* Error, update stats. */
 			short error = rx_status & 0x3800;
 			lp->stats.rx_errors++;
@@ -1290,8 +1307,8 @@ static int el3_rx(struct device *dev, int worklimit)
 					memcpy((void*)dev->mem_start,
 						   skb_put(skb, pkt_len), (pkt_len+3)&~3);
 				} else {
-					insl(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
-						 (pkt_len+3)>>2);
+					insl_ns(ioaddr+RX_FIFO, skb_put(skb, pkt_len),
+							(pkt_len+3)>>2);
 				}
 				skb->protocol = eth_type_trans(skb, dev);
 
@@ -1302,23 +1319,15 @@ static int el3_rx(struct device *dev, int worklimit)
 				printk("%s: Rx packet with data %2.2x:%2.2x:%2.2x:....\n",
 					   dev->name, skb->head[0], skb->head[1], skb->head[2]);
 #endif
-				outw(RxDiscard, ioaddr + EL3_CMD); /* Pop top Rx packet. */
-
 				netif_rx(skb);
 				lp->stats.rx_packets++;
-				continue;
-			} else
+			} else {
 				DEBUG(1, "%s: couldn't allocate a sk_buff of"
 					  " size %d.\n", dev->name, pkt_len);
+				lp->stats.rx_dropped++;
+			}
 		}
-		outw(RxDiscard, ioaddr + EL3_CMD); /* Rx discard */
-		lp->stats.rx_dropped++;
-		/* Wait a limited time to skip this packet. */
-		{
-			int i = 200;
-			while (--i >= 0  &&  (inw(ioaddr + EL3_STATUS) & CmdBusy))
-				;
-		}
+		wait_for_completion(dev, RxDiscard);
 	}
 
 	return worklimit;

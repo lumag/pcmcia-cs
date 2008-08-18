@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.13, 08 February 1999
+  v2.14, 15 May 1999
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -74,7 +74,7 @@
      2.1 The socket interface
      2.2 The socket controller
 
-  3. Card Services subfunction descriptions
+  3. Card Services Subfunction Descriptions
 
      3.1 Client management functions
         3.1.1 RegisterClient
@@ -165,7 +165,7 @@
         6.2.3 MTDSetVpp
         6.2.4 MTDRDYMask
 
-  7. Driver Services interface
+  7. Driver Services Interface
 
      7.1 Interface to other client drivers
         7.1.1 The dev_link_t structure
@@ -188,7 +188,7 @@
      8.5 Locking and synchronization issues
      8.6 Using existing Linux drivers to access PC Card devices
 
-  9. The socket driver layer
+  9. The Socket Driver Layer
 
      9.1 Card Services entry points for socket drivers
      9.2 Services provided by the socket driver
@@ -200,6 +200,7 @@
         9.2.6 SS_GetMemMap, SS_SetMemMap
         9.2.7 SS_GetBridge, SS_SetBridge
         9.2.8 SS_ProcSetup
+     9.3 Supporting unusual socket architectures
 
   10. Where to Go for More Information
 
@@ -260,8 +261,12 @@
   published work, please contact me to make sure you have the latest
   available version.
 
+
   This document is provided ``AS IS'', with no express or implied
   warranties.  Use the information in this document at your own risk.
+
+
+
   11..22..  AAcckknnoowwlleeddggeemmeennttss
 
 
@@ -322,6 +327,7 @@
   All supported controllers support at least four independent memory
   windows and two IO windows per socket.
 
+
   Each memory window is defined by a base address in the host address
   space, a base address in the card address space, and a window size.
   Some controllers differ in their alignment rules for memory windows,
@@ -352,7 +358,7 @@
 
 
 
-  33..  CCaarrdd SSeerrvviicceess ssuubbffuunnccttiioonn ddeessccrriippttiioonnss
+  33..  CCaarrdd SSeerrvviicceess SSuubbffuunnccttiioonn DDeessccrriippttiioonnss
 
   Card Services calls have the general form:
 
@@ -387,22 +393,24 @@
 
 
 
-       int CardServices(RegisterClient, client_handle_t *client, client_reg_t *reg);
+
+  int CardServices(RegisterClient, client_handle_t *client, client_reg_t *reg);
 
 
 
 
   The client_reg_t data structure is given by:
 
-  typedef struct client_reg_t {
-          dev_info_t              *dev_info;
-          u_int                   Attributes;
-          u_int                   EventMask;
-          int                     (*event_handler)(event_t event, int priority,
-                                                   event_callback_args_t *args);
-          event_callback_args_t   event_callback_args;
-          u_int                   Version;
-  } client_reg_t;
+
+       typedef struct client_reg_t {
+               dev_info_t      *dev_info;
+               u_int           Attributes;
+               u_int           EventMask;
+               int             (*event_handler)(event_t event, int priority,
+                                                event_callback_args_t *args);
+               event_callback_args_t   event_callback_args;
+               u_int           Version;
+       } client_reg_t;
 
 
 
@@ -452,15 +460,11 @@
 
      CS_OUT_OF_RESOURCE
         An appropriate socket could not be found for this driver.
-
-
-
   33..11..22..  DDeerreeggiisstteerrCClliieenntt
 
 
 
-
-  int CardServices(DeregisterClient, client_handle_t client);
+       int CardServices(DeregisterClient, client_handle_t client);
 
 
 
@@ -521,10 +525,6 @@
 
 
   The bind_req structure is given by:
-
-
-
-
 
   typedef struct bind_req_t {
           socket_t        Socket;
@@ -3294,8 +3294,8 @@
                void                    *buffer;
                void                    *misc;
                void                    *client_data;
+               struct bus_operations   *bus;
        } event_callback_args_t;
-
 
 
   The client_handle member is set to the handle of the client whose
@@ -3304,6 +3304,10 @@
   return an exit status from a call to ResetCard.  The client_data field
   may be used by a driver to point to a local data structure associated
   with this device.  The remaining fields are currently unused.
+
+  For sockets that do not directly map cards into the host IO and memory
+  space, the bus field is a pointer to a table of entry points for IO
+  primitives for this socket.
 
 
   55..22..  EEvveenntt ddeessccrriippttiioonnss
@@ -3360,10 +3364,10 @@
         This event signals that Card Services has received either a user
         initiated or APM suspend request.  An event handler can veto the
         suspend by returning failure.
-
      CS_EVENT_PM_RESUME
         This signals that the system is back on line after a
         suspend/resume cycle.
+
      CS_EVENT_MTD_REQUEST
         This is used to initiate an MTD memory operation.  A description
         of the request is passed in the mtdrequest field of the callback
@@ -3421,10 +3425,6 @@
   address is passed in the buffer field.
 
   The mtd_request_t structure is given by:
-
-
-
-
 
 
 
@@ -3648,7 +3648,7 @@
 
 
 
-  77..  DDrriivveerr SSeerrvviicceess iinntteerrffaaccee
+  77..  DDrriivveerr SSeerrvviicceess IInntteerrffaaccee
 
   Driver Services provides a link between Card Services client drivers
   and user mode utilities like the cardmgr daemon.  It is a sort of Card
@@ -4246,13 +4246,12 @@
 
 
 
-  99..  TThhee ssoocckkeett ddrriivveerr llaayyeerr
+  99..  TThhee SSoocckkeett DDrriivveerr LLaayyeerr
 
   In the Linux PCMCIA model, the ``Socket Services'' layer is a private
   API intended only for the use of Card Services.  The API is based
-  loosely on the PCMCIA Socket Services specification, but implements
-  only the simple subset of its functionality needed for the common
-  laptop host controller types.
+  loosely on the PCMCIA Socket Services specification, but is oriented
+  towards support for the common x86 laptop host controller types.
 
 
   99..11..  CCaarrdd SSeerrvviicceess eennttrryy ppooiinnttss ffoorr ssoocckkeett ddrriivveerrss
@@ -4285,15 +4284,9 @@
 
 
 
+       #include "pcmcia/ss.h"
 
-
-
-  #include "ss.h"
-
-  int (*ss_entry)(u_int sock, int service, void *arg);
-
-
-
+       int (*ss_entry)(u_int sock, int service, void *arg);
 
   Non-zero return codes indicate that a request failed.
 
@@ -4312,11 +4305,12 @@
 
 
        typedef struct socket_cap_t {
-           u_int       features;
-           u_int       irq_mask;
-           u_int       map_size;
-           u_char      pci_irq;
-           u_char      cardbus;
+               u_int           features;
+               u_int           irq_mask;
+               u_int           map_size;
+               u_char          pci_irq;
+               u_char          cardbus;
+               struct bus_operations *bus;
        } socket_cap_t;
 
 
@@ -4330,12 +4324,27 @@
   with irq_mask.  For CardBus bridges, the cardbus field should be non-
   zero, and gives the PCI bus number of the CardBus side of the bridge.
 
+  For sockets that do not directly map cards into the host IO and memory
+  space, the bus field is a pointer to a table of entry points for IO
+  primitives for this socket.
+
   The following flags may be specified in features:
 
 
-     SS_HAS_PAGE_REGS
+     SS_CAP_PAGE_REGS
         Indicates that this socket supports full 32-bit addressing for
         16-bit PC Card memory windows.
+
+     SS_CAP_VIRTUAL_BUS
+        Indicates that 16-bit card memory and IO accesses must be
+        performed using the bus operations table, rather than using
+        native bus operations.
+
+     SS_CAP_PCCARD
+        Indicates that this socket supports 16-bit PC cards.
+
+     SS_CAP_CARDBUS
+        Indicates that this socket supports 32-bit CardBus cards.
 
 
 
@@ -4345,19 +4354,13 @@
 
        int (*ss_entry)(u_int sock, SS_RegisterCallback, ss_callback_t *call);
 
-
-
-
   The ss_callback_t data structure is given by:
 
 
-
-
-
-  typedef struct ss_callback_t {
-      void        (*handler)(void *info, u_int events);
-      void        *info;
-  } ss_callback_t;
+       typedef struct ss_callback_t {
+               void            (*handler)(void *info, u_int events);
+               void            *info;
+       } ss_callback_t;
 
 
 
@@ -4450,10 +4453,10 @@
 
 
        typedef struct socket_state_t {
-           u_int       flags;
-           u_int       csc_mask;
-           u_char      Vcc, Vpp;
-           u_char      io_irq;
+               u_int           flags;
+               u_int           csc_mask;
+               u_char          Vcc, Vpp;
+               u_char          io_irq;
        } socket_state_t;
 
 
@@ -4486,6 +4489,7 @@
      SS_PWR_AUTO
         Indicates that the socket should automatically power up sockets
         at card insertion time, if supported.
+
      SS_IOCARD
         Indicates that the socket should be configured for ``memory and
         IO'' interface mode, as opposed to simple memory card mode.
@@ -4516,10 +4520,10 @@
 
 
        typedef struct pccard_io_map {
-           u_char      map;
-           u_char      flags;
-           u_short     speed;
-           u_short     start, stop;
+               u_char          map;
+               u_char          flags;
+               u_short         speed;
+               u_short         start, stop;
        } pccard_io_map;
 
 
@@ -4547,10 +4551,10 @@
         Specifies that the map should be configured to auto-size bus
         accesses in response to the card's IOCS16 signal.
 
+
      MAP_0WS
         Requests zero wait states, as opposed to standard ISA bus
         timing.
-
 
      MAP_WRPROT
         Specifies that the map should be write protected.
@@ -4578,11 +4582,11 @@
 
 
        typedef struct pccard_mem_map {
-           u_char      map;
-           u_char      flags;
-           u_short     speed;
-           u_long      sys_start, sys_stop;
-           u_int       card_start;
+               u_char          map;
+               u_char          flags;
+               u_short         speed;
+               u_long          sys_start, sys_stop;
+               u_int           card_start;
        } pccard_mem_map;
 
 
@@ -4614,10 +4618,10 @@
 
      MAP_WRPROT
         Specifies that the map should be write protected.
-
      MAP_ATTRIB
         Specifies that the map should be for attribute (as opposed to
         common) memory.
+
      MAP_USE_WAIT
         Specifies that access timing should respect the card's WAIT
         signal.
@@ -4638,9 +4642,9 @@
 
 
        typedef struct cb_bridge_map {
-           u_char      map;
-           u_char      flags;
-           u_int       start, stop;
+               u_char          map;
+               u_char          flags;
+               u_int           start, stop;
        } cb_bridge_map;
 
 
@@ -4680,7 +4684,104 @@
   entries before it is unloaded.
 
 
+  99..33..  SSuuppppoorrttiinngg uunnuussuuaall ssoocckkeett aarrcchhiitteeccttuurreess
 
+
+  The Socket Services interface is oriented towards socket controllers
+  that allow PCMCIA cards to be configured to mimic native system
+  devices with the same functionality.  The ExCA standard specifies that
+  socket controllers should provide two IO and five memory windows per
+  socket, which can be independently configured and positioned in the
+  host address space and mapped to arbitrary segments of card address
+  space.  Some controllers and architectures do not provide this level
+  of functionality.  In these situations, Socket Services can
+  effectively virtualize the socket interface for client drivers.
+
+  On the client side (including internal Card Services uses), to use the
+  virtualized socket interface, code must first specify:
+
+
+
+       #include "pcmcia/bus_ops.h"
+
+
+
+
+  All IO operations then need to be replaced with new bus-neutral forms.
+  The following functions need to be virtualized:
+
+
+  +o  inb, inw, inl, inw_ns, inl_ns
+
+  +o  insb, insw, insl, insw_ns, insl_ns
+
+  +o  outb, outw, outl, outw_ns, outl_ns
+
+  +o  outsb, outsw, outsl, outsw_ns, outsl_ns
+
+  +o  readb, readw, readl, readw_ns, readl_ns
+
+  +o  writeb, writew, writel, writew_ns, writel_ns
+
+  +o  ioremap, iounmap
+
+  +o  memcpy_fromio, memcpy_toio
+
+  +o  request_irq, free_irq
+
+  The bus-neutral functions have a prefix of ``bus_'', with a new first
+  argument, the bus operations table pointer returned by
+  SS_InquireSocket.  For example, inb(port) should be replaced with
+  bus_inb(bus, port).
+
+  All the IO primitives are defined as macros that call entry points in
+  the bus operations table.  There is not a one-to-one mapping from IO
+  primitives to bus operation entry points.
+
+  The bus operations table is defined as:
+
+
+
+
+
+
+
+
+
+
+
+  typedef struct bus_operations {
+          void    *priv;
+          u32     (*b_in)(void *bus, u32 port, s32 sz);
+          void    (*b_ins)(void *bus, u32 port, void *buf,
+                           u32 count, s32 sz);
+          void    (*b_out)(void *bus, u32 val, u32 port, s32 sz);
+          void    (*b_outs)(void *bus, u32 port, void *buf,
+                            u32 count, s32 sz);
+          void    *(*b_ioremap)(void *bus, u_long ofs, u_long sz);
+          void    (*b_iounmap)(void *bus, void *addr);
+          u32     (*b_read)(void *bus, void *addr, s32 sz);
+          void    (*b_write)(void *bus, u32 val, void *addr, s32 sz);
+          void    (*b_copy_from)(void *bus, void *d, void *s, u32 count);
+          void    (*b_copy_to)(void *bus, void *d, void *s, u32 count);
+          int     (*b_request_irq)(void *bus, u_int irq,
+                                   void (*handler)(int, void *,
+                                                   struct pt_regs *),
+                                   u_long flags, const char *device,
+                                   void *dev_id);
+          void    (*b_free_irq)(void *bus, u_int irq, void *dev_id);
+  } bus_operations;
+
+
+
+
+
+  The priv field can be used for any purpose by the socket driver, for
+  instance, to indicate which of several sockets is being addressed.
+  The b_in, b_out, b_read, and b_write entry points each support byte,
+  word, and dword operations, either byte-swapped or unswapped.  The sz
+  parameter is 0, 1, or 2 for byte, word, or dword accesses; -1 and -2
+  select word and dword unswapped accesses.
 
 
 
@@ -4712,10 +4813,13 @@
 
 
 
-       Sycard Technology
-       1180-F Miraloma Way
-       Sunnyvale, CA 94086 USA
-       (408) 749-0130, (408) 749-1323 FAX
+
+
+
+  Sycard Technology
+  1180-F Miraloma Way
+  Sunnyvale, CA 94086 USA
+  (408) 749-0130, (408) 749-1323 FAX
 
 
 
@@ -4734,6 +4838,34 @@
   available from the corresponding chip vendors.  Generally, data sheets
   are either available on line or can be ordered from each company's web
   site.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

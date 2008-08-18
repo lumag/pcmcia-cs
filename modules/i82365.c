@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.231 1999/02/16 01:35:09
+    i82365.c 1.236 1999/05/14 17:36:21
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -72,7 +72,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static const char *version =
-"i82365.c 1.231 1999/02/16 01:35:09 (David Hinds)";
+"i82365.c 1.236 1999/05/14 17:36:21 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
@@ -345,7 +345,7 @@ typedef enum pcic_id {
     IS_RL5C465, IS_RL5C466, IS_RL5C475, IS_RL5C476, IS_RL5C478,
     IS_SMC34C90,
     IS_TI1130, IS_TI1131, IS_TI1250A, IS_TI1220, IS_TI1221, IS_TI1210,
-    IS_TI1251A, IS_TI1251B, IS_TI1450,
+    IS_TI1251A, IS_TI1251B, IS_TI1450, IS_TI1225,
     IS_TOPIC95_A, IS_TOPIC95_B, IS_TOPIC97,
     IS_UNK_PCI, IS_UNK_CARDBUS
 #endif
@@ -436,6 +436,8 @@ static pcic_t pcic[] = {
       PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1251B },
     { "TI 1450", IS_TI|IS_CARDBUS|IS_DF_PWR,
       PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1450 },
+    { "TI 1225", IS_TI|IS_CARDBUS|IS_DF_PWR,
+      PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1225 },
     { "Toshiba ToPIC95-A", IS_CARDBUS|IS_TOPIC|IS_DF_PWR,
       PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC95_A },
     { "Toshiba ToPIC95-B", IS_CARDBUS|IS_TOPIC|IS_DF_PWR,
@@ -1107,7 +1109,7 @@ static void cb_set_opts(u_short s, char *buf)
 	cb_bus_base += cb_bus_step+1;
     }
     if (!(t->flags & IS_TOPIC))
-	t->cap.features |= SS_HAS_PAGE_REGS;
+	t->cap.features |= SS_CAP_PAGE_REGS;
     sprintf(buf, " [lat %d/%d] [bus %d/%d]",
 	    t->pci_lat, t->cb_lat, t->cap.cardbus, t->sub_bus);
 }
@@ -1196,7 +1198,7 @@ static u_int set_host_opts(u_short s, u_short ns)
 	else if (socket[i].flags & IS_RICOH)
 	    m = rl5c4xx_set_opts(i, buf);
 	else if (socket[i].flags & IS_TOPIC)
-	    m = topic_set_opts(s, buf);
+	    m = topic_set_opts(i, buf);
 	if (socket[i].flags & IS_CARDBUS)
 	    cb_set_opts(i, buf+strlen(buf));
 #endif
@@ -1253,7 +1255,7 @@ static u_int test_irq(u_short sock, int irq, int pci)
     if (_request_irq(irq, irq_count, (pci?SA_SHIRQ:0), "scan") != 0)
 	return 1;
     irq_hits = 0; irq_sock = sock;
-    mdelay(10);
+    schedule_timeout(HZ/100);
     if (irq_hits) {
 	_free_irq(irq, irq_count);
 	return 1;
@@ -1538,12 +1540,15 @@ static void add_pcic(int ns, int type)
 	
     }
     
-    /* Update socket interrupt information */
+    /* Update socket interrupt information, capabilities */
     for (i = 0; i < ns; i++) {
+	t[i].cap.features |= SS_CAP_PCCARD;
 #ifdef CONFIG_PCI
-	if (t[i].flags & IS_CARDBUS)
+	if (t[i].flags & IS_CARDBUS) {
+	    t[i].cap.features |= SS_CAP_CARDBUS;
 	    cb_set_irq_mode(i, pci_csc && t[i].cap.pci_irq,
 			    pci_int && t[i].cap.pci_irq);
+	}
 #endif
 	t[i].cap.map_size = 0x1000;
 	t[i].cap.irq_mask = mask;
@@ -2566,7 +2571,12 @@ static int cb_set_bridge(u_short sock, struct cb_bridge_map *m)
 
 #endif /* CONFIG_CARDBUS */
 
-/*====================================================================*/
+/*======================================================================
+
+    Routines for accessing socket information and register dumps via
+    /proc/bus/pccard/...
+    
+======================================================================*/
 
 #ifdef HAS_PROC_BUS
 
@@ -2698,7 +2708,7 @@ static void pcic_proc_remove(u_short sock)
 
 typedef int (*subfn_t)(u_short, void *);
 
-static subfn_t i365_service_table[] = {
+static subfn_t pcic_service_table[] = {
     (subfn_t)&pcic_register_callback,
     (subfn_t)&pcic_inquire_socket,
     (subfn_t)&i365_get_status,
@@ -2719,7 +2729,7 @@ static subfn_t i365_service_table[] = {
 #endif
 };
 
-#define NFUNC (sizeof(i365_service_table)/sizeof(subfn_t))
+#define NFUNC (sizeof(pcic_service_table)/sizeof(subfn_t))
 
 static int pcic_service(u_int sock, u_int cmd, void *arg)
 {
@@ -2730,7 +2740,7 @@ static int pcic_service(u_int sock, u_int cmd, void *arg)
     if (cmd >= NFUNC)
 	return -EINVAL;
 
-    fn = i365_service_table[cmd];
+    fn = pcic_service_table[cmd];
 #ifdef CONFIG_CARDBUS
     if ((socket[sock].flags & IS_CARDBUS) &&
 	(cb_readl(sock, CB_SOCKET_STATE) & CB_SS_32BIT)) {

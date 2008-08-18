@@ -437,6 +437,17 @@ static int do_close(struct device *dev);
 
 /*=============== Helper functions =========================*/
 static void
+flush_stale_links(void)
+{
+    dev_link_t *link, *next;
+    for (link = dev_list; link; link = next) {
+	next = link->next;
+	if (link->state & DEV_STALE_LINK)
+	    xirc2ps_detach(link);
+    }
+}
+
+static void
 cs_error(client_handle_t handle, int func, int ret)
 {
     error_info_t err = { func, ret };
@@ -690,6 +701,7 @@ xirc2ps_attach(void)
     if(pc_debug)
 	printk(KDBG_XIRC "attach()\n");
   #endif
+    flush_stale_links();
 
     /* Initialize the dev_link_t structure */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
@@ -808,6 +820,8 @@ xirc2ps_detach(dev_link_t * link)
     *linkp = link->next;
     if(link->priv) {
 	struct device *dev = link->priv;
+	if (link->dev != NULL)
+	    unregister_netdev(dev);
 	if( dev->priv )
 	    kfree_s(dev->priv, sizeof(local_info_t));
 	kfree_s(link->priv, sizeof(struct device));
@@ -980,6 +994,13 @@ xirc2ps_config(dev_link_t * link)
 	#ifdef PCMCIA_DEBUG
 	  if(pc_debug)
 	    printk(KDBG_XIRC "found xircom card\n");
+	#endif
+	break;
+      case MANFID_ACCTON:
+	local->manf_str = "Accton";
+	#ifdef PCMCIA_DEBUG
+	  if(pc_debug)
+	    printk(KDBG_XIRC "found Accton card\n");
 	#endif
 	break;
       case MANFID_COMPAQ:
@@ -1340,9 +1361,6 @@ xirc2ps_release( u_long arg)
 	return;
     }
 
-    if( link->dev )
-       unregister_netdev(dev);
-    link->dev = NULL;
     if( link->win ) {
 	local_info_t *local = dev->priv;
 	if( local->dingo )
@@ -1352,10 +1370,7 @@ xirc2ps_release( u_long arg)
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
-    link->state &= ~DEV_CONFIG;
-
-    if(link->state & DEV_STALE_LINK)
-	xirc2ps_detach(link);
+    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
 
 } /* xirc2ps_release */
 

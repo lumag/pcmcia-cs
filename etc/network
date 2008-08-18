@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.49 1999/01/29 09:20:46 (David Hinds)
+# network 1.51 1999/04/27 15:28:00 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -54,9 +54,9 @@ case "$ACTION" in
 	/sbin/route add default dev $DEVICE
 	L=/var/run/dhcp-lock-$DEVICE
 	/bin/echo "#!/bin/sh\nrm $L" > $L ; chmod +x $L
-	/sbin/dhcpcd -c $L $DEVICE
+	/sbin/dhcpcd -c $L $DEVICE >/dev/null 2>&1
 	for t in 0 1 2 3 4 5 6 7 8 9 ; do
-	    sleep 2 ; if [ -e $L ] ; then break ; fi
+	    sleep 2 ; if [ ! -e $L ] ; then break ; fi
 	done
 	rm -f $L
 	if [ -e /etc/dhcpc/resolv.conf ] ; then
@@ -92,7 +92,7 @@ case "$ACTION" in
 		echo "nameserver $DNS" >> $RESOLV.N
 	    done
 	    echo "# $DEVICE end" >> $RESOLV.N
-	    cat $RESOLV >> $RESOLV.N
+	    sed -e "/# $DEVICE begin/,/# $DEVICE end/d" $RESOLV >> $RESOLV.N
 	    mv $RESOLV.N $RESOLV
 	fi
 
@@ -120,6 +120,7 @@ case "$ACTION" in
 	nfsstop ()
 	{
 	    while read HOST MT ; do
+		nfsstop
 		if /sbin/ifuser $DEVICE $HOST ; then
 		    fuser -s -k -m $MT
 		    umount -v $MT
@@ -132,8 +133,7 @@ case "$ACTION" in
 
 	# Remove nameservers
 	if fgrep -q "# $DEVICE begin" $RESOLV ; then
-	    sed -e "/# $DEVICE begin/,/# $DEVICE end/d"	\
-		< $RESOLV > $RESOLV.N
+	    sed -e "/# $DEVICE begin/,/# $DEVICE end/d"	$RESOLV > $RESOLV.N
 	    mv $RESOLV.N $RESOLV
 	fi
 

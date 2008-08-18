@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.97 1999/02/13 06:47:03
+# Makefile 1.99 1999/03/05 18:14:39
 #
 
 # Include site dependent options and kernel configuration
@@ -92,9 +92,6 @@ ibmtr_cs.o: ibmtr_cs.c ibmtr.o
 	rm -f .$@
 	chmod -x $@
 
-aztcd.o: $(LINUX)/drivers/cdrom/aztcd.c ../include/linux/config.h
-	$(CC) -c $(XFLAGS) -DMODULE $<
-
 ifdef NEW_QLOGIC
 qlogic.o: $(SCSI)/qlogicfas.c ../include/linux/config.h
 	$(CC) -c $(XFLAGS) -DPCMCIA -D__NO_VERSION__ $< -o $@
@@ -170,17 +167,13 @@ clean:
 	rm -f core core.* *.o .*.o *.s *.a *~ .depend .depfiles/*.d
 
 install-modules: $(MODULES)
-	mkdir -p $(MODDIR)/pcmcia
-	cp -p $(MODULES) $(MODDIR)/pcmcia
+	mkdir -p $(PREFIX)/$(MODDIR)/pcmcia
+	cp -p $(MODULES) $(PREFIX)/$(MODDIR)/pcmcia
 
 install-extra: $(EXTRA)
 	if [ -f 8390.o ] ; then				\
-	    mkdir -p $(MODDIR)/net ;			\
-	    cp -p 8390.o $(MODDIR)/net ;		\
-	fi
-	if [ -f aztcd.o ] ; then			\
-	    mkdir -p $(MODDIR)/cdrom ;			\
-	    cp -p aztcd.o $(MODDIR)/cdrom ;		\
+	    mkdir -p $(PREFIX)/$(MODDIR)/net ;		\
+	    cp -p 8390.o $(PREFIX)/$(MODDIR)/net ;	\
 	fi
 
 install: install-modules install-extra

@@ -223,7 +223,7 @@ static int set_rdy_mode(volatile u_short *esr, u_short mode)
     return CS_SUCCESS;
 }
 
-static int check_write(struct wait_queue **queue, volatile u_short *esr)
+static int check_write(wait_queue_head_t *queue, volatile u_short *esr)
 {
     writew(IF_READ_ESR, esr);
     if ((readw(esr+2) & BSR_READY) != BSR_READY) {
@@ -243,7 +243,7 @@ static int check_write(struct wait_queue **queue, volatile u_short *esr)
 	return CS_SUCCESS;
 }
 
-static int page_setup(struct wait_queue **queue, volatile u_short *esr,
+static int page_setup(wait_queue_head_t *queue, volatile u_short *esr,
 		      volatile u_short *address,  u_short count)
 {
     u_short nw;
@@ -470,7 +470,7 @@ static dev_link_t *flash_attach(void)
     memset(link, 0, sizeof(*link));
     link->release.function = &flash_release;
     link->release.data = (u_long)link;
-    init_waitqueue(&link->pending);
+    init_waitqueue_head(&link->pending);
     dev = kmalloc(sizeof(struct flash_dev_t), GFP_KERNEL);
     memset(dev, 0, sizeof(*dev));
     dev->vpp_timeout.function = vpp_off;
@@ -781,7 +781,7 @@ done:
     
 ======================================================================*/
 
-static int basic_write(struct wait_queue **queue, char *esr, char *dest,
+static int basic_write(wait_queue_head_t *queue, char *esr, char *dest,
 		       char *buf, u_int nb, u_int is_krnl)
 {
     u_short npb;

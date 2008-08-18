@@ -2,7 +2,7 @@
 
     Cardbus device enabler
 
-    cb_enabler.c 1.13 1999/02/07 08:53:29
+    cb_enabler.c 1.15 1999/04/16 15:46:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -50,7 +50,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.13 1999/02/07 08:53:29 (David Hinds)";
+"cb_enabler.c 1.15 1999/04/16 15:46:37 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -160,7 +160,8 @@ static void cb_detach(dev_link_t *link)
 {
     driver_info_t *dev = link->priv;
     dev_link_t **linkp;
-
+    u_long flags;
+    
     DEBUG(0, "cb_detach(0x%p)\n", link);
     
     /* Locate device structure */
@@ -169,6 +170,14 @@ static void cb_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
+    save_flags(flags);
+    cli();
+    if (link->state & DEV_RELEASE_PENDING) {
+	del_timer(&link->release);
+	link->state &= ~DEV_RELEASE_PENDING;
+    }
+    restore_flags(flags);
+    
     if (link->state & DEV_CONFIG)
 	cb_release((u_long)link);
 
@@ -252,7 +261,8 @@ static void cb_release(u_long arg)
     }
     if (link->state & DEV_CONFIG) {
 	if ((b->flags & DID_CONFIG) && (--b->ncfg == 0)) {
-	    CardServices(ReleaseConfiguration, link->handle);
+	    CardServices(ReleaseConfiguration, link->handle,
+			 &link->conf);
 	    b->flags &= ~DID_CONFIG;
 	}
 	if ((b->flags & DID_REQUEST) && (--b->nuse == 0)) {
@@ -280,6 +290,7 @@ static int cb_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    link->release.expires = RUN_AT(HZ/20);
+	    link->state |= DEV_RELEASE_PENDING;
 	    add_timer(&link->release);
 	}
 	break;
@@ -296,7 +307,8 @@ static int cb_event(event_t event, int priority,
 		drv->ops->suspend(link->dev);
 	    b->ncfg--;
 	    if (b->ncfg == 0)
-		CardServices(ReleaseConfiguration, link->handle);
+		CardServices(ReleaseConfiguration, link->handle,
+			     &link->conf);
 	}
 	break;
     case CS_EVENT_PM_RESUME:
@@ -306,7 +318,8 @@ static int cb_event(event_t event, int priority,
 	if (link->state & DEV_CONFIG) {
 	    b->ncfg++;
 	    if (b->ncfg == 1)
-		CardServices(RequestConfiguration, link->handle, NULL);
+		CardServices(RequestConfiguration, link->handle,
+			     &link->conf);
 	    if (drv->ops->resume != NULL)
 		drv->ops->resume(link->dev);
 	}

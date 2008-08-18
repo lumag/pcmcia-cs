@@ -19,8 +19,10 @@
  *
  *	-- Yunzhou Li (scip4166@nus.sg)
  *
+#ifdef WAVELAN_ROAMING	
  * Roaming support added 07/22/98 by Justin Seger (jseger@media.mit.edu)
  * based on patch by Joe Finney from Lancaster University.
+#endif :-)
  *
  * Lucent (formerly AT&T GIS, formerly NCR) WaveLAN PCMCIA card: An
  * Ethernet-like radio transceiver controlled by an Intel 82593 coprocessor.
@@ -220,16 +222,16 @@ psa_write(device *	dev,
   hacr_write(base, HACR_DEFAULT);
 } /* psa_write */
 
+#ifdef SET_PSA_CRC
 /*------------------------------------------------------------------*/
 /*
- * Calculate the PSA CRC (not tested yet)
- * As the Wavelan drivers don't use the CRC, I won't use it either...
+ * Calculate the PSA CRC
  * Thanks to Valster, Nico <NVALSTER@wcnd.nl.lucent.com> for the code
  * NOTE: By specifying a length including the CRC position the
  * returned value should be zero. (i.e. a correct checksum in the PSA)
  *
- * u_short is 2 bytes long, but the loop was assuming that it is only
- * one byte (so we switched to unsigned char).  RSG.  2/3/98.
+ * The Windows drivers don't use the CRC, but the AP and the PtP tool
+ * depend on it.
  */
 static u_short
 psa_crc(unsigned char *	psa,	/* The PSA */
@@ -254,40 +256,47 @@ psa_crc(unsigned char *	psa,	/* The PSA */
 
   return crc_bytes;
 } /* psa_crc */
+#endif	/* SET_PSA_CRC */
 
+/*------------------------------------------------------------------*/
 /*
- * update the checksum field in the Wavelan's EEPROM
+ * update the checksum field in the Wavelan's PSA
  */
-
-static void update_checksum (device *dev)
+static void
+update_psa_checksum(device *	dev)
 {
-    psa_t psa;
-    u_short crc;
-    u_short error_crc;
-    unsigned char *crcPointer;
+#ifdef SET_PSA_CRC
+  psa_t		psa;
+  u_short	crc;
 
-	/* read the parameter storage area */
+  /* read the parameter storage area */
+  psa_read(dev, 0, (unsigned char *) &psa, sizeof(psa));
 
-    psa_read (dev, 0, (unsigned char *) &psa, sizeof(psa));
+  /* update the checksum */
+  crc = psa_crc((unsigned char *) &psa,
+		sizeof(psa) - sizeof(psa.psa_crc[0]) - sizeof(psa.psa_crc[1])
+		- sizeof(psa.psa_crc_status));
 
-	/* update the checksum */
+  psa.psa_crc[0] = crc & 0xFF;
+  psa.psa_crc[1] = (crc & 0xFF00) >> 8;
 
-    crc = psa_crc ((unsigned char *) &psa, sizeof(psa) - sizeof(psa.psa_crc[0]) - sizeof(psa.psa_crc[1]) - sizeof(psa.psa_crc_status));
-    crcPointer = (unsigned char *) &crc;
-    psa.psa_crc[0] = crcPointer[0];
-    psa.psa_crc[1] = crcPointer[1];
-
-    error_crc = psa_crc ((unsigned char *) &psa, sizeof(psa) - sizeof(psa.psa_crc_status));
-
-    if (error_crc != 0) {
-	printk (KERN_WARNING "%s: wm_mmc_init(): CRC does not agree with PSA data (even after recalculating)\n", dev->name);
-    } else {
-	printk ("Wavelan card cheskum: 0x%02x%02x\n",
-	    psa.psa_crc[0], psa.psa_crc[1]);
-	psa_write(dev, (char *)&psa.psa_crc - (char *)&psa,
+  /* Write it ! */
+  psa_write(dev, (char *)&psa.psa_crc - (char *)&psa,
 	    (unsigned char *)&psa.psa_crc, 2);
-    }
-}
+
+#ifdef DEBUG_IOCTL_INFO
+  printk (KERN_DEBUG "%s: update_psa_checksum(): crc = 0x%02x%02x\n",
+          dev->name, psa.psa_crc[0], psa.psa_crc[1]);
+
+  /* Check again (luxury !) */
+  crc = psa_crc((unsigned char *) &psa,
+		 sizeof(psa) - sizeof(psa.psa_crc_status));
+
+  if(crc != 0)
+    printk(KERN_WARNING "%s: update_psa_checksum(): CRC does not agree with PSA data (even after recalculating)\n", dev->name);
+#endif /* DEBUG_IOCTL_INFO */
+#endif	/* SET_PSA_CRC */
+} /* update_psa_checksum */
 
 /*------------------------------------------------------------------*/
 /*
@@ -517,6 +526,8 @@ fee_write(u_long	base,	/* i/o port of the card */
 
 /******************* WaveLAN Roaming routines... ********************/
 
+#ifdef WAVELAN_ROAMING	/* Conditional compile, see wavelan_cs.h */
+
 unsigned char WAVELAN_BEACON_ADDRESS[]= {0x09,0x00,0x0e,0x20,0x03,0x00};
   
 void wv_roam_init(struct device *dev)
@@ -547,6 +558,7 @@ void wv_roam_cleanup(struct device *dev)
   
   printk(KERN_DEBUG "WaveLAN: Roaming Disabled on device %s\n",dev->name);
   
+  /* Fixme : maybe we should check that the timer exist before deleting it */
   del_timer(&lp->cell_timer);          /* Remove cell expiry timer       */
   ptr=lp->wavepoint_table.head;        /* Clear device's WavePoint table */
   while(ptr!=NULL)
@@ -823,6 +835,7 @@ static inline int WAVELAN_BEACON(unsigned char *data)
   else
     return 0;
 }
+#endif	/* WAVELAN_ROAMING */
 
 /************************ I82593 SUBROUTINES *************************/
 /*
@@ -887,7 +900,7 @@ wv_82593_cmd(device *	dev,
 	  printk(KERN_WARNING "wv_82593_cmd: interrupt handler not installed or interrupt disabled\n");
 #endif
 
-	  wavelan_interrupt IRQ(dev->irq, (void *) NULL,
+	  wavelan_interrupt IRQ(dev->irq, (void *) dev,
 				(struct pt_regs *) NULL);
 	}
       else
@@ -1001,7 +1014,7 @@ wv_82593_reconfig(device *	dev)
     {
       lp->reconfig_82593 = TRUE;
 #ifdef DEBUG_IOCTL_INFO
-      printk(KERN_DEBUG "%s: wv_82593_reconfig(): delayed (busy = %ld, link = %ld)\n",
+      printk(KERN_DEBUG "%s: wv_82593_reconfig(): delayed (busy = %ld, link = %d)\n",
 	     dev->name, dev->tbusy, link->open);
 #endif
     }
@@ -1307,21 +1320,21 @@ wv_packet_info(u_char *		p,		/* Packet to dump */
 	       char *		msg1,		/* Name of the device */
 	       char *		msg2)		/* Name of the function */
 {
-#ifndef DEBUG_PACKET_DUMP
+  int		i;
+  int		maxi;
+
   printk(KERN_DEBUG "%s: %s(): dest %02X:%02X:%02X:%02X:%02X:%02X, length %d\n",
 	 msg1, msg2, p[0], p[1], p[2], p[3], p[4], p[5], length);
   printk(KERN_DEBUG "%s: %s(): src %02X:%02X:%02X:%02X:%02X:%02X, type 0x%02X%02X\n",
 	 msg1, msg2, p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13]);
 
-#else	/* DEBUG_PACKET_DUMP */
-  int		i;
-  int		maxi;
+#ifdef DEBUG_PACKET_DUMP
 
-  printk(KERN_DEBUG "%s: %s(): len=%d, data=\"", msg1, msg2, length);
+  printk(KERN_DEBUG "data=\"");
 
   if((maxi = length) > DEBUG_PACKET_DUMP)
     maxi = DEBUG_PACKET_DUMP;
-  for(i = 0; i < maxi; i++)
+  for(i = 14; i < maxi; i++)
     if(p[i] >= ' ' && p[i] <= '~')
       printk(" %c", p[i]);
     else
@@ -1361,7 +1374,7 @@ wv_init_info(device *	dev)
 
 #ifdef DEBUG_BASIC_SHOW
   /* Now, let's go for the basic stuff */
-  printk(KERN_INFO "%s: WaveLAN: port %#x, irq %d, hw_addr",
+  printk(KERN_NOTICE "%s: WaveLAN: port %#x, irq %d, hw_addr",
 	 dev->name, base, dev->irq);
   for(i = 0; i < WAVELAN_ADDR_SIZE; i++)
     printk("%s%02X", (i == 0) ? " " : ":", dev->dev_addr[i]);
@@ -1391,7 +1404,7 @@ wv_init_info(device *	dev)
     }
   else
     {
-      printk(", ");
+      printk(", PCMCIA, ");
       switch (psa.psa_subband)
 	{
 	case PSA_SUBBAND_915:
@@ -1551,7 +1564,9 @@ wavelan_set_multicast_list(device *	dev)
 /*------------------------------------------------------------------*/
 /*
  * This function doesn't exist...
+ * (Note : it was a nice way to test the reconfigure stuff...)
  */
+#ifdef SET_MAC_ADDRESS
 static int
 wavelan_set_mac_address(device *	dev,
 			void *		addr)
@@ -1566,6 +1581,7 @@ wavelan_set_mac_address(device *	dev,
 
   return 0;
 }
+#endif	/* SET_MAC_ADDRESS */
 
 #ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
 
@@ -1908,9 +1924,6 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 	  psa_write(dev, (char *)psa.psa_nwid - (char *)&psa,
 		    (unsigned char *)psa.psa_nwid, 3);
 
-	  /* update the Wavelan checksum */
-	  update_checksum (dev);
-
 	  /* Set NWID in mmc */
 	  m.w.mmw_netw_id_l = wrq->u.nwid.nwid & 0xFF;
 	  m.w.mmw_netw_id_h = (wrq->u.nwid.nwid & 0xFF00) >> 8;
@@ -1925,12 +1938,11 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 	  psa_write(dev, (char *)&psa.psa_nwid_select - (char *)&psa,
 		    (unsigned char *)&psa.psa_nwid_select, 1);
 
-	  /* update the Wavelan checksum */
-	  update_checksum (dev);
-
 	  /* Disable nwid in the mmc (no filtering) */
 	  mmc_out(base, mmwoff(0, mmw_loopt_sel), MMW_LOOPT_SEL_DIS_NWID);
 	}
+      /* update the Wavelan checksum */
+      update_psa_checksum(dev);
       break;
 
     case SIOCGIWNWID:
@@ -1989,7 +2001,7 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
       psa_write(dev, (char *)&psa.psa_thr_pre_set - (char *)&psa,
 	       (unsigned char *)&psa.psa_thr_pre_set, 1);
       /* update the Wavelan checksum */
-      update_checksum (dev);
+      update_psa_checksum(dev);
       mmc_out(base, mmwoff(0, mmw_thr_pre_set), psa.psa_thr_pre_set);
       break;
 
@@ -2022,9 +2034,6 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 	   psa_write(dev, (char *) &psa.psa_encryption_select - (char *) &psa,
 		     (unsigned char *) &psa.psa_encryption_select, 8+1);
 
-	   /* update the Wavelan checksum */
-	   update_checksum (dev);
-
            mmc_out(base, mmwoff(0, mmw_encr_enable),
 		   MMW_ENCR_ENABLE_EN | MMW_ENCR_ENABLE_MODE);
            mmc_write(base, mmwoff(0, mmw_encr_key),
@@ -2036,11 +2045,10 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 	   psa_write(dev, (char *) &psa.psa_encryption_select - (char *) &psa,
 		     (unsigned char *) &psa.psa_encryption_select, 1);
 
-	   /* update the Wavelan checksum */
-	   update_checksum (dev);
-
 	   mmc_out(base, mmwoff(0, mmw_encr_enable), 0);
 	 }
+       /* update the Wavelan checksum */
+       update_psa_checksum(dev);
        break;
 
      case SIOCGIWENCODE:
@@ -2078,6 +2086,105 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 	     wrq->u.encoding.method = 0;
 	 }
        break;
+
+#ifdef WAVELAN_ROAMING
+#if WIRELESS_EXT > 5
+    case SIOCSIWESSID:
+      /* Check if disable */
+      if(wrq->u.data.flags == 0)
+	lp->filter_domains = 0;
+      else
+	/* Basic checking... */
+	if(wrq->u.data.pointer != (caddr_t) 0)
+	  {
+	    char	essid[IW_ESSID_MAX_SIZE + 1];
+	    char *	endp;
+
+	    /* Check the size of the string */
+	    if(wrq->u.data.length > IW_ESSID_MAX_SIZE + 1)
+	      {
+		ret = -E2BIG;
+		break;
+	      }
+
+	    /* Verify the user buffer */
+	    ret = verify_area(VERIFY_READ, wrq->u.data.pointer,
+			      wrq->u.data.length);
+	    if(ret)
+	      break;
+
+	    /* Copy the string in the driver */
+	    copy_from_user(essid, wrq->u.data.pointer, wrq->u.data.length);
+	    essid[IW_ESSID_MAX_SIZE] = '\0';
+
+#ifdef DEBUG_IOCTL_INFO
+	    printk(KERN_DEBUG "SetEssid : ``%s''\n", essid);
+#endif	/* DEBUG_IOCTL_INFO */
+
+	    /* Convert to a number (note : Wavelan specific) */
+	    lp->domain_id = simple_strtoul(essid, &endp, 16);
+	    /* Has it worked  ? */
+	    if(endp > essid)
+	      lp->filter_domains = 1;
+	    else
+	      {
+		lp->filter_domains = 0;
+		ret = -EINVAL;
+	      }
+	  }
+      break;
+
+    case SIOCGIWESSID:
+      /* Basic checking... */
+      if(wrq->u.data.pointer != (caddr_t) 0)
+	{
+	  char		essid[IW_ESSID_MAX_SIZE + 1];
+
+	  /* Verify the user buffer */
+	  ret = verify_area(VERIFY_WRITE, wrq->u.data.pointer,
+			    IW_ESSID_MAX_SIZE + 1);
+	  if(ret)
+	    break;
+
+	  /* Is the domain ID active ? */
+	  wrq->u.data.flags = lp->filter_domains;
+
+	  /* Copy Domain ID into a string (Wavelan specific) */
+	  /* Sound crazy, be we can't have a snprintf in the kernel !!! */
+	  sprintf(essid, "%lX", lp->domain_id);
+	  essid[IW_ESSID_MAX_SIZE] = '\0';
+
+	  /* Set the length */
+	  wrq->u.data.length = strlen(essid) + 1;
+
+	  /* Copy structure to the user buffer */
+	  copy_to_user(wrq->u.data.pointer, essid, wrq->u.data.length);
+	}
+      break;
+
+    case SIOCSIWAP:
+#ifdef DEBUG_IOCTL_INFO
+      printk(KERN_DEBUG "Set AP to : %02X:%02X:%02X:%02X:%02X:%02X\n",
+	     wrq->u.ap_addr.sa_data[0],
+	     wrq->u.ap_addr.sa_data[1],
+	     wrq->u.ap_addr.sa_data[2],
+	     wrq->u.ap_addr.sa_data[3],
+	     wrq->u.ap_addr.sa_data[4],
+	     wrq->u.ap_addr.sa_data[5]);
+#endif	/* DEBUG_IOCTL_INFO */
+
+      ret = -EOPNOTSUPP;	/* Not supported yet */
+      break;
+
+    case SIOCGIWAP:
+      /* Should get the real McCoy instead of own Ethernet address */
+      memcpy(wrq->u.ap_addr.sa_data, dev->dev_addr, WAVELAN_ADDR_SIZE);
+      wrq->u.ap_addr.sa_family = ARPHRD_ETHER;
+
+      ret = -EOPNOTSUPP;	/* Not supported yet */
+      break;
+#endif	/* WIRELESS_EXT > 5 */
+#endif	/* WAVELAN_ROAMING */
 
     case SIOCGIWRANGE:
       /* Basic checking... */
@@ -2129,7 +2236,6 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 	  {	/* cmd,		set_args,	get_args,	name */
 	    { SIOCSIPQTHR, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, 0, "setqualthr" },
 	    { SIOCGIPQTHR, 0, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, "getqualthr" },
-
 	    { SIOCSIPHISTO, IW_PRIV_TYPE_BYTE | 16,	0, "sethisto" },
 	    { SIOCGIPHISTO, 0,	    IW_PRIV_TYPE_INT | 16, "gethisto" },
 	    { SIOCSIPROAM, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1 , 0, "setroam" },
@@ -2191,7 +2297,7 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 #ifdef DEBUG_IOCTL_INFO
 	  printk(KERN_DEBUG "SetSpy - Set of new addresses is :\n");
 	  for(i = 0; i < wrq->u.data.length; i++)
-	    printk(KERN_DEBUG "%02X:%02X:%02X:%02X:%02X:%02X \n",
+	    printk(KERN_DEBUG "%02X:%02X:%02X:%02X:%02X:%02X\n",
 		   lp->spy_address[i][0],
 		   lp->spy_address[i][1],
 		   lp->spy_address[i][2],
@@ -2227,7 +2333,7 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
 	    {
 	      memcpy(address[i].sa_data, lp->spy_address[i],
 		     WAVELAN_ADDR_SIZE);
-	      address[i].sa_family = AF_UNIX;
+	      address[i].sa_family = ARPHRD_ETHER;
 	    }
 
 	  /* Copy addresses to the user buffer */
@@ -2256,7 +2362,7 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
       psa_write(dev, (char *)&psa.psa_quality_thr - (char *)&psa,
 	       (unsigned char *)&psa.psa_quality_thr, 1);
       /* update the Wavelan checksum */
-      update_checksum (dev);
+      update_psa_checksum(dev);
       mmc_out(base, mmwoff(0, mmw_quality_thr), psa.psa_quality_thr);
       break;
 
@@ -2266,7 +2372,9 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
       *(wrq->u.name) = psa.psa_quality_thr & 0x0F;
       break;
 
+#ifdef WAVELAN_ROAMING
     case SIOCSIPROAM:
+      /* Note : should check if user == root */
       if(do_roaming && (*wrq->u.name)==0)
 	wv_roam_cleanup(dev);
       else if(do_roaming==0 && (*wrq->u.name)!=0)
@@ -2279,6 +2387,7 @@ wavelan_ioctl(struct device *	dev,	/* Device on wich the ioctl apply */
     case SIOCGIPROAM:
       *(wrq->u.name) = do_roaming;
       break;
+#endif	/* WAVELAN_ROAMING */
 
 #ifdef HISTOGRAM
     case SIOCSIPHISTO:
@@ -2484,7 +2593,6 @@ wv_packet_read(device *		dev,
 {
   net_local *		lp = (net_local *) dev->priv;
   struct sk_buff *	skb;
-  int i;
 
 #ifdef DEBUG_RX_TRACE
   printk(KERN_DEBUG "%s: ->wv_packet_read(0x%X, %d)\n",
@@ -2528,53 +2636,46 @@ wv_packet_read(device *		dev,
      
   /* Statistics gathering & stuff associated.
    * It seem a bit messy with all the define, but it's really simple... */
-  i=0;
-#if defined(WIRELESS_SPY) || defined(HISTOGRAM)
-  i=1;
-#endif
-  if(do_roaming)
-    i=1;
-
-  if(i)
-    {
-      if(do_roaming ||
+  if(
 #ifdef WIRELESS_SPY
-	 (lp->spy_number > 0) ||
+     (lp->spy_number > 0) ||
 #endif	/* WIRELESS_SPY */
 #ifdef HISTOGRAM
-	 (lp->his_number > 0) ||
+     (lp->his_number > 0) ||
 #endif	/* HISTOGRAM */
-	 0)
-	{
-	  u_char	stats[3];	/* Signal level, Noise level, 
-					   Signal quality */
+#ifdef WAVELAN_ROAMING
+     (do_roaming) ||
+#endif	/* WAVELAN_ROAMING */
+     0)
+    {
+      u_char	stats[3];	/* Signal level, Noise level, Signal quality */
 
-	  /* read signal level, silence level and signal quality bytes */
-	  fd_p = read_ringbuf(dev, (fd_p + 4) % RX_SIZE + RX_BASE,
-			      stats, 3);
+      /* read signal level, silence level and signal quality bytes */
+      fd_p = read_ringbuf(dev, (fd_p + 4) % RX_SIZE + RX_BASE,
+			  stats, 3);
 #ifdef DEBUG_RX_INFO
-	  printk(KERN_DEBUG "%s: wv_packet_read(): Signal level %d/63, Silence level %d/63, signal quality %d/16\n",
-		 dev->name, stats[0] & 0x3F, stats[1] & 0x3F, stats[2] & 0x0F);
+      printk(KERN_DEBUG "%s: wv_packet_read(): Signal level %d/63, Silence level %d/63, signal quality %d/16\n",
+	     dev->name, stats[0] & 0x3F, stats[1] & 0x3F, stats[2] & 0x0F);
 #endif
 
-	  if(do_roaming)
-	    if(WAVELAN_BEACON(skb->data))
-	      wl_roam_gather(dev, skb->data, stats);
+#ifdef WAVELAN_ROAMING
+      if(do_roaming)
+	if(WAVELAN_BEACON(skb->data))
+	  wl_roam_gather(dev, skb->data, stats);
+#endif	/* WAVELAN_ROAMING */
 	  
-
-	  /* Spying stuff */
+      /* Spying stuff */
 #ifdef WIRELESS_SPY
-	  /* Same as above */
+      /* Same as above */
 #if (LINUX_VERSION_CODE < VERSION(1,3,0))
-	  wl_spy_gather(dev, skb->data + WAVELAN_ADDR_SIZE, stats);
+      wl_spy_gather(dev, skb->data + WAVELAN_ADDR_SIZE, stats);
 #else	/* 1.3.0 */
-	  wl_spy_gather(dev, skb->mac.raw + WAVELAN_ADDR_SIZE, stats);
+      wl_spy_gather(dev, skb->mac.raw + WAVELAN_ADDR_SIZE, stats);
 #endif	/* 1.3.0 */
 #endif	/* WIRELESS_SPY */
 #ifdef HISTOGRAM
-	  wl_his_gather(dev, stats);
+      wl_his_gather(dev, stats);
 #endif	/* HISTOGRAM */
-	}
     }
 
   /*
@@ -2685,16 +2786,7 @@ wv_packet_rcv(device *	dev)
       len = c[2] | (c[3] << 8);
 
       /* Check status */
-#ifdef WAVELAN_HIGH_COVERAGE
-      /* josullvn@cs.cmu.edu:
-       * We are more restrictive about the types of errors that are problems. 
-       * Most importantly RX_NO_AD_MATCH and RX_IA_MATCH are status messages in
-       * CMU like situations.
-       */
-      if ((status &  0x4270) != 0x0010)
-#else
-      if(!(status & RX_RCV_OK))
-#endif
+      if((status & RX_RCV_OK) != RX_RCV_OK)
 	{
 	  lp->stats.rx_errors++;
 	  if(status & RX_NO_SFD)
@@ -2704,8 +2796,8 @@ wv_packet_rcv(device *	dev)
 	  if(status & RX_OVRRUN)
 	    lp->stats.rx_over_errors++;
 
-#ifdef DEBUG_RX_ERROR
-	  printk(KERN_INFO "%s: wv_packet_rcv(): packet not received ok, status = 0x%x\n",
+#ifdef DEBUG_RX_FAIL
+	  printk(KERN_DEBUG "%s: wv_packet_rcv(): packet not received ok, status = 0x%x\n",
 		 dev->name, status);
 #endif
 	}
@@ -2779,9 +2871,8 @@ wv_packet_write(device *	dev,
 
   /* Indicate end of transmit chain */
   outb(OP0_NOP, PIOP(base));
-#ifdef WAVELAN_HIGH_COVERAGE
-  outb(OP0_NOP, PIOP(base));  /* josullvn@cs.cmu.edu: need to send a second NOP for alignment... */
-#endif
+  /* josullvn@cs.cmu.edu: need to send a second NOP for alignment... */
+  outb(OP0_NOP, PIOP(base));
 
   /* Reset the transmit DMA pointer */
   hacr_write_slow(base, HACR_PWR_STAT | HACR_TX_DMA_RESET);
@@ -2795,11 +2886,6 @@ wv_packet_write(device *	dev,
   lp->stats.tx_bytes += length;
 #endif	/* 2.1.25 */
 
-#ifndef WAVELAN_HIGH_COVERAGE
-  /* josullvn@cs.cmu.edu: 
-   * This watch dog thing is a nasty hack, and flares up 
-   * badly in our environment
-   */
   /* If watchdog not already active, activate it... */
   if(lp->watchdog.prev == (timer_list *) NULL)
     {
@@ -2807,7 +2893,6 @@ wv_packet_write(device *	dev,
       lp->watchdog.expires = jiffies + WATCHDOG_JIFFIES;
       add_timer(&lp->watchdog);
     }
-#endif
 
   wv_splx(x); 
 
@@ -3006,14 +3091,10 @@ wv_mmc_init(device *	dev)
 		(unsigned char *)&psa.psa_quality_thr, 1);
       psa_write(dev, (char *)&psa.psa_conf_status - (char *)&psa,
 		(unsigned char *)&psa.psa_conf_status, 1);
-#endif
+      /* update the Wavelan checksum */
+      update_psa_checksum(dev);
+#endif	/* USE_PSA_CONFIG */
     }
-
-
-  /*
-   * update the Wavelan checksum
-   */
-    update_checksum (dev);
 
   /* Zero the mmc structure */
   memset(&m, 0x00, sizeof(m));
@@ -3276,25 +3357,28 @@ wv_82593_config(device *	dev)
   printk(KERN_DEBUG "%s: ->wv_82593_config()\n", dev->name);
 #endif
 
-  /* Create & fill i82593 config block */
+  /* Create & fill i82593 config block
+   *
+   * Now conform to Wavelan document WCIN085B
+   */
   memset(&cfblk, 0x00, sizeof(struct i82593_conf_block));
   cfblk.d6mod = FALSE;  	/* Run in i82593 advanced mode */
-  cfblk.fifo_limit = 6;         /* = 48 bytes rx and tx fifo thresholds */
+  cfblk.fifo_limit = 5;         /* = 56 B rx and 40 B tx fifo thresholds */
   cfblk.forgnesi = FALSE;       /* 0=82C501, 1=AMD7992B compatibility */
-  cfblk.fifo_32 = 0;
-  cfblk.throttle_enb = TRUE;
+  cfblk.fifo_32 = 1;
+  cfblk.throttle_enb = FALSE;
   cfblk.contin = TRUE;          /* enable continuous mode */
   cfblk.cntrxint = FALSE;       /* enable continuous mode receive interrupts */
   cfblk.addr_len = WAVELAN_ADDR_SIZE;
   cfblk.acloc = TRUE;           /* Disable source addr insertion by i82593 */
-  cfblk.preamb_len = 2;         /* 7 byte preamble */
+  cfblk.preamb_len = 0;         /* 2 bytes preamble (SFD) */
   cfblk.loopback = FALSE;
   cfblk.lin_prio = 0;   	/* conform to 802.3 backoff algoritm */
-  cfblk.exp_prio = 0;	        /* conform to 802.3 backoff algoritm */
-  cfblk.bof_met = 0;	        /* conform to 802.3 backoff algoritm */
-  cfblk.ifrm_spc = 6;	        /* 96 bit times interframe spacing */
-  cfblk.slottim_low = 0x10 & 0x7;	/* 512 bit times slot time */
-  cfblk.slottim_hi = 0x10 >> 3;
+  cfblk.exp_prio = 5;	        /* conform to 802.3 backoff algoritm */
+  cfblk.bof_met = 1;	        /* conform to 802.3 backoff algoritm */
+  cfblk.ifrm_spc = 0x20;	/* 32 bit times interframe spacing */
+  cfblk.slottim_low = 0x20;	/* 32 bit times slot time */
+  cfblk.slottim_hi = 0x0;
   cfblk.max_retr = 15;
   cfblk.prmisc = ((lp->promiscuous) ? TRUE: FALSE);	/* Promiscuous mode */
   cfblk.bc_dis = FALSE;         /* Enable broadcast reception */
@@ -3329,37 +3413,12 @@ wv_82593_config(device *	dev)
   cfblk.frag_acpt = TRUE;	/* Do not accept fragments */
   cfblk.tstrttrs = FALSE;	/* No start transmission threshold */
   cfblk.fretx = TRUE;		/* FIFO automatic retransmission */
-  cfblk.syncrqs = TRUE; 	/* Synchronous DRQ deassertion... */
+  cfblk.syncrqs = FALSE; 	/* Synchronous DRQ deassertion... */
   cfblk.sttlen = TRUE;  	/* 6 byte status registers */
   cfblk.rx_eop = TRUE;  	/* Signal EOP on packet reception */
   cfblk.tx_eop = TRUE;  	/* Signal EOP on packet transmission */
   cfblk.rbuf_size = RX_SIZE>>11;	/* Set receive buffer size */
   cfblk.rcvstop = TRUE; 	/* Enable Receive Stop Register */
-#ifdef WAVELAN_HIGH_COVERAGE
-  /* josullvn@cs.cmu.edu:
-   * This are some of the more significant changes I made. Not
-   * all of them may be necessary, and some may not be correct.
-   * Basically, the configuration now exactly matches that of the datasheets
-   * driver. This is obviously stupid if the Linux code doesn't handle
-   * those things the same way. However, wished to fix the occurances
-   * of NO_CTS errors and HEART_BEAT errors. If the new cfblk changes
-   * introduced below are removed, they return. However, these changes
-   * introduce some error in frame handling - those errors are recoverable
-   * but should be fixed.
-   */
-  cfblk.fifo_limit = 8;        
-  cfblk.fifo_32 = 1;
-  cfblk.throttle_enb = 0;     //
-  cfblk.preamb_len = 0;       // this seems to be necessary to kill
-			      // those heartbeat messages... 
-  cfblk.exp_prio = 5;	      ///* conform to 802.3 backoff algoritm */       
-  cfblk.bof_met = 1;	      ///* conform to 802.3 backoff algoritm */
-  cfblk.ifrm_spc = 2;	      //
-  cfblk.slottim_low = 1;
-  cfblk.slottim_hi =  0;
-  cfblk.rcvstop = 0; 	      //
-  cfblk.syncrqs = 0; 	
-#endif
 
 #ifdef DEBUG_I82593_SHOW
   {
@@ -3403,11 +3462,12 @@ wv_82593_config(device *	dev)
 		   OP0_IA_SETUP, SR0_IA_SETUP_DONE))
     return(FALSE);
 
+#ifdef WAVELAN_ROAMING
     /* If roaming is enabled, join the "Beacon Request" multicast group... */
     /* But only if it's not in there already! */
   if(do_roaming)
     dev_mc_add(dev,WAVELAN_BEACON_ADDRESS, WAVELAN_ADDR_SIZE, 1);
-  
+#endif	/* WAVELAN_ROAMING */
 
   /* If any multicast address to set */
   if(lp->mc_count)
@@ -3625,7 +3685,7 @@ wv_hw_reset(device *	dev)
 
 /*------------------------------------------------------------------*/
 /*
- * wavelan_pcmcia_config() is called after a CARD_INSERTION event is
+ * wv_pcmcia_config() is called after a CARD_INSERTION event is
  * received, to configure the PCMCIA socket, and to make the ethernet
  * device available to the system.
  * (called by wavelan_event())
@@ -3768,7 +3828,7 @@ wv_pcmcia_config(dev_link_t *	link)
   /* If any step failed, release any partially configured state */
   if(i != 0)
     {
-      wavelan_release((u_long) link);
+      wv_pcmcia_release((u_long) link);
       return FALSE;
     }
 
@@ -3779,6 +3839,87 @@ wv_pcmcia_config(dev_link_t *	link)
   printk(KERN_DEBUG "<-wv_pcmcia_config()\n");
 #endif
   return TRUE;
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * After a card is removed, wv_pcmcia_release() will unregister the net
+ * device, and release the PCMCIA configuration.  If the device is
+ * still open, this will be postponed until it is closed.
+ */
+static void
+wv_pcmcia_release(u_long	arg)	/* Address of the interface struct */
+{
+  dev_link_t *	link = (dev_link_t *) arg;
+  device *	dev = (device *) link->priv;
+
+#ifdef DEBUG_CONFIG_TRACE
+  printk(KERN_DEBUG "%s: -> wv_pcmcia_release(0x%p)\n", dev->name, link);
+#endif
+
+  /* If the device is currently in use, we won't release until it is
+   * actually closed. */
+  if(link->open)
+    {
+#ifdef DEBUG_CONFIG_INFO
+      printk(KERN_DEBUG "%s: wv_pcmcia_release: release postponed, device still open\n",
+	     dev->name);
+#endif
+      link->state |= DEV_STALE_CONFIG;
+      return;
+    }
+
+  /* Don't bother checking to see if these succeed or not */
+  iounmap((u_char *)dev->mem_start);
+  CardServices(ReleaseWindow, link->win);
+  CardServices(ReleaseConfiguration, link->handle);
+  CardServices(ReleaseIO, link->handle, &link->io);
+  CardServices(ReleaseIRQ, link->handle, &link->irq);
+
+  link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING | DEV_STALE_CONFIG);
+
+#ifdef DEBUG_CONFIG_TRACE
+  printk(KERN_DEBUG "%s: <- wv_pcmcia_release()\n", dev->name);
+#endif
+} /* wv_pcmcia_release */
+
+/*------------------------------------------------------------------*/
+/*
+ * Sometimes, netwave_detach can't be performed following a call from
+ * cardmgr (device still open, pcmcia_release not done) and the device
+ * is put in a STALE_LINK state and remains in memory.
+ *
+ * This function run through our current list of device and attempt
+ * another time to remove them. We hope that since last time the
+ * device has properly been closed.
+ *
+ * (called by wavelan_attach() & cleanup_module())
+ */
+static void
+wv_flush_stale_links(void)
+{
+  dev_link_t *	link;		/* Current node in linked list */
+  dev_link_t *	next;		/* Next node in linked list */
+
+#ifdef DEBUG_CONFIG_TRACE
+  printk(KERN_DEBUG "-> wv_flush_stale_links(0x%p)\n", dev_list);
+#endif
+
+  /* Go through the list */
+  for (link = dev_list; link; link = next)
+    {
+      next = link->next;
+
+      /* Check if in need of being removed */
+      if((link->state & DEV_STALE_LINK) ||
+	 (! (link->state & DEV_PRESENT)))
+	wavelan_detach(link);
+
+    }
+
+#ifdef DEBUG_CONFIG_TRACE
+  printk(KERN_DEBUG "<- wv_flush_stale_links()\n");
+#endif
 }
 
 /************************ INTERRUPT HANDLING ************************/
@@ -3926,8 +4067,15 @@ wavelan_interrupt IRQ(int		irq,
 
       /* If a transmission has been done */
       if((status0 & SR0_EVENT_MASK) == SR0_TRANSMIT_DONE ||
-	 (status0 & SR0_EVENT_MASK) == SR0_RETRANSMIT_DONE)
+	 (status0 & SR0_EVENT_MASK) == SR0_RETRANSMIT_DONE ||
+	 (status0 & SR0_EVENT_MASK) == SR0_TRANSMIT_NO_CRC_DONE)
 	{
+#ifdef DEBUG_TX_ERROR
+	  if((status0 & SR0_EVENT_MASK) == SR0_TRANSMIT_NO_CRC_DONE)
+	    printk(KERN_INFO "%s: wv_interrupt(): packet transmitted without CRC.\n",
+		   dev->name);
+#endif
+
 	  /* If watchdog was activated, kill it ! */
 	  if(lp->watchdog.prev != (timer_list *) NULL)
 	    del_timer(&lp->watchdog);
@@ -3949,45 +4097,54 @@ wavelan_interrupt IRQ(int		irq,
 	  }
 #endif
 	  /* Check for possible errors */
-	  if(!(tx_status & TX_OK))
+	  if((tx_status & TX_OK) != TX_OK)
 	    {
+	      lp->stats.tx_errors++;
+
 	      if(tx_status & TX_FRTL)
 		{
-#ifdef DEBUG_INTERRUPT_ERROR
+#ifdef DEBUG_TX_ERROR
 		  printk(KERN_INFO "%s: wv_interrupt(): frame too long\n",
 			 dev->name);
 #endif
-		  lp->stats.tx_errors++;
 		}
 	      if(tx_status & TX_UND_RUN)
 		{
-#ifdef DEBUG_INTERRUPT_ERROR
-		  printk(KERN_INFO "%s: wv_interrupt(): DMA underrun\n",
+#ifdef DEBUG_TX_FAIL
+		  printk(KERN_DEBUG "%s: wv_interrupt(): DMA underrun\n",
 			 dev->name);
 #endif
-		  lp->stats.tx_errors++;
 		  lp->stats.tx_aborted_errors++;
 		}
 	      if(tx_status & TX_LOST_CTS)
 		{
-#ifdef DEBUG_INTERRUPT_ERROR
-		  printk(KERN_INFO "%s: wv_interrupt(): no CTS\n", dev->name);
+#ifdef DEBUG_TX_FAIL
+		  printk(KERN_DEBUG "%s: wv_interrupt(): no CTS\n", dev->name);
 #endif
-		  lp->stats.tx_errors++;
 		  lp->stats.tx_carrier_errors++;
 		}
-#ifndef IGNORE_NORMAL_XMIT_ERRS
 	      if(tx_status & TX_LOST_CRS)
 		{
-		  /* Ignore no carrier messages, they always happen! */
-#ifdef DEBUG_INTERRUPT_ERROR
-		  printk(KERN_INFO "%s: wv_interrupt(): no carrier\n",
+#ifdef DEBUG_TX_FAIL
+		  printk(KERN_DEBUG "%s: wv_interrupt(): no carrier\n",
 			 dev->name);
 #endif
-		  lp->stats.tx_errors++;
 		  lp->stats.tx_carrier_errors++;
 		}
-#endif	/* IGNORE_NORMAL_XMIT_ERRS */
+	      if(tx_status & TX_HRT_BEAT)
+		{
+#ifdef DEBUG_TX_FAIL
+		  printk(KERN_DEBUG "%s: wv_interrupt(): heart beat\n", dev->name);
+#endif
+		  lp->stats.tx_heartbeat_errors++;
+		}
+	      if(tx_status & TX_DEFER)
+		{
+#ifdef DEBUG_TX_FAIL
+		  printk(KERN_DEBUG "%s: wv_interrupt(): channel jammed\n",
+			 dev->name);
+#endif
+		}
 	      /* Ignore late collisions since they're more likely to happen
 	       * here (the WaveLAN design prevents the LAN controller from
 	       * receiving while it is transmitting). We take action only when
@@ -3997,37 +4154,17 @@ wavelan_interrupt IRQ(int		irq,
 		{
 		  if(tx_status & TX_MAX_COL)
 		    {
-#ifdef DEBUG_INTERRUPT_ERROR
-		      printk(KERN_INFO "%s: wv_interrupt(): channel congestion\n",
+#ifdef DEBUG_TX_FAIL
+		      printk(KERN_DEBUG "%s: wv_interrupt(): channel congestion\n",
 			     dev->name);
 #endif
 		      if(!(tx_status & TX_NCOL_MASK))
 			{
 			  lp->stats.collisions += 0x10;
 			}
-		      lp->stats.tx_errors++;
 		    }
-		  lp->stats.collisions++;
 		}
 	    }	/* if(!(tx_status & TX_OK)) */
-
-#ifndef IGNORE_NORMAL_XMIT_ERRS
-	  if(tx_status & TX_DEFER)
-	    {
-#ifdef DEBUG_INTERRUPT_ERROR
-	      printk(KERN_INFO "%s: wv_interrupt(): channel jammed\n",
-		     dev->name);
-#endif
-	      lp->stats.collisions++;
-	    }
-#endif	/* IGNORE_NORMAL_XMIT_ERRS */
-	  if(tx_status & TX_HRT_BEAT)
-	    {
-#ifdef DEBUG_INTERRUPT_ERROR
-	      printk(KERN_INFO "%s: wv_interrupt(): heart beat\n", dev->name);
-#endif
-	      lp->stats.tx_heartbeat_errors++;
-	    }
 
 	  lp->stats.collisions += (tx_status & TX_NCOL_MASK);
 	  lp->stats.tx_packets++;
@@ -4038,8 +4175,10 @@ wavelan_interrupt IRQ(int		irq,
     	} 
       else	/* if interrupt = transmit done or retransmit done */
 	{
+#ifdef DEBUG_INTERRUPT_ERROR
 	  printk(KERN_INFO "wavelan_cs: unknown interrupt, status0 = %02x\n",
 		 status0);
+#endif
 	  outb(CR0_INT_ACK | OP0_NOP, LCCR(base));	/* Acknowledge the interrupt */
     	}
     }
@@ -4186,6 +4325,11 @@ wavelan_open(device *	dev)
   link->open++;
   MOD_INC_USE_COUNT;
 
+#ifdef WAVELAN_ROAMING
+  if(do_roaming)
+    wv_roam_init(dev);
+#endif	/* WAVELAN_ROAMING */
+
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "%s: <-wavelan_open()\n", dev->name);
 #endif
@@ -4218,6 +4362,12 @@ wavelan_close(device *	dev)
       return 0;
     }
 
+#ifdef WAVELAN_ROAMING
+  /* Cleanup of roaming stuff... */
+  if(do_roaming)
+    wv_roam_cleanup(dev);
+#endif	/* WAVELAN_ROAMING */
+
   /* If watchdog was activated, kill it ! */
   if(lp->watchdog.prev != (timer_list *) NULL)
     del_timer(&lp->watchdog);
@@ -4238,9 +4388,9 @@ wavelan_close(device *	dev)
       hacr_write(base, HACR_DEFAULT & (~HACR_PWR_STAT));
     }
   else
-    /* The card is no more there (flag is activated in wavelan_release) */
+    /* The card is no more there (flag is activated in wv_pcmcia_release) */
     if(link->state & DEV_STALE_CONFIG)
-      wavelan_release((u_long)link);
+      wv_pcmcia_release((u_long)link);
 
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "%s: <-wavelan_close()\n", dev->name);
@@ -4265,62 +4415,6 @@ wavelan_init(device *	dev)
 
 /*------------------------------------------------------------------*/
 /*
- * After a card is removed, wavelan_release() will unregister the net
- * device, and release the PCMCIA configuration.  If the device is
- * still open, this will be postponed until it is closed.
- */
-static void
-wavelan_release(u_long	arg)	/* Address of the interface struct */
-{
-  dev_link_t *	link = (dev_link_t *) arg;
-  device *	dev = (device *) link->priv;
-
-#ifdef DEBUG_CALLBACK_TRACE
-  printk(KERN_DEBUG "-> wavelan_release(0x%p)\n", link);
-#endif
-
-  /* If the device is currently in use, we won't release until it is
-   * actually closed. */
-
-  if(do_roaming)
-    wv_roam_cleanup(dev);
-
-  if(link->open)
-    {
-#ifdef DEBUG_CONFIG_INFO
-      printk(KERN_DEBUG "wavelan_release: release postponed, '%s' still open\n",
-	     link->dev->dev_name);
-#endif
-      link->state |= DEV_STALE_CONFIG;
-      return;
-    }
-
-  /* Unlink the device chain */
-  if(link->dev != NULL)
-    unregister_netdev(dev);
-  link->dev = NULL;
-
-  /* Don't bother checking to see if these succeed or not */
-  iounmap((u_char *)dev->mem_start);
-  CardServices(ReleaseWindow, link->win);
-  CardServices(ReleaseConfiguration, link->handle);
-  CardServices(ReleaseIO, link->handle, &link->io);
-  CardServices(ReleaseIRQ, link->handle, &link->irq);
-
-  /* We still physically use the IRQ line, so we don't do free_irq().
-   * We do remove ourselves from the map. */
-
-  link->state &= ~DEV_CONFIG;
-  if(link->state & DEV_STALE_LINK)
-    wavelan_detach(link);
-
-#ifdef DEBUG_CALLBACK_TRACE
-  printk(KERN_DEBUG "<- wavelan_release()\n");
-#endif
-} /* wavelan_release */
-
-/*------------------------------------------------------------------*/
-/*
  * wavelan_attach() creates an "instance" of the driver, allocating
  * local data structures for one device (one interface).  The device
  * is registered with Card Services.
@@ -4342,10 +4436,15 @@ wavelan_attach(void)
   printk(KERN_DEBUG "-> wavelan_attach()\n");
 #endif
 
+  /* Perform some cleanup */
+  wv_flush_stale_links();
+
   /* Initialize the dev_link_t structure */
   link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
   memset(link, 0, sizeof(struct dev_link_t));
-  link->release.function = &wavelan_release;
+
+  /* Unused for the Wavelan */
+  link->release.function = &wv_pcmcia_release;
   link->release.data = (u_long) link;
 
   /* The io structure describes IO port mapping */
@@ -4361,9 +4460,8 @@ wavelan_attach(void)
   else
     for (i = 0; i < 4; i++)
       link->irq.IRQInfo2 |= 1 << irq_list[i];
-  link->irq.IRQInfo2 = irq_mask;
   link->irq.Handler = wavelan_interrupt;
-    
+
   /* General socket configuration */
   link->conf.Attributes = CONF_ENABLE_IRQ;
   link->conf.Vcc = 50;
@@ -4407,7 +4505,9 @@ wavelan_attach(void)
   dev->hard_start_xmit = &wavelan_packet_xmit;
   dev->get_stats = &wavelan_get_stats;
   dev->set_multicast_list = &wavelan_set_multicast_list;
+#ifdef SET_MAC_ADDRESS
   dev->set_mac_address = &wavelan_set_mac_address;
+#endif	/* SET_MAC_ADDRESS */
 
 #ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
   dev->do_ioctl = wavelan_ioctl;	/* wireless extensions */
@@ -4432,6 +4532,10 @@ wavelan_attach(void)
   client_reg.Version = 0x0210;
   client_reg.event_callback_args.client_data = link;
 
+#ifdef DEBUG_CONFIG_INFO
+  printk(KERN_DEBUG "wavelan_attach(): almost done, calling CardServices\n");
+#endif
+
   ret = CardServices(RegisterClient, &link->handle, &client_reg);
   if(ret != 0)
     {
@@ -4439,9 +4543,6 @@ wavelan_attach(void)
       wavelan_detach(link);
       return NULL;
     }
-
-  if(do_roaming)
-    wv_roam_init(dev);
 
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "<- wavelan_attach()\n");
@@ -4472,14 +4573,14 @@ wavelan_detach(dev_link_t *	link)
    */
   if(link->state & DEV_CONFIG)
     {
-#ifdef DEBUG_CONFIG_INFO
-      printk(KERN_DEBUG "wavelan_detach: detach postponed, '%s' still locked\n",
-	     link->dev->dev_name);
-#endif
       /* Some others haven't done their job : give them another chance */
-      wavelan_release((u_long) link);
+      wv_pcmcia_release((u_long) link);
       if(link->state & DEV_STALE_CONFIG)
 	{
+#ifdef DEBUG_CONFIG_INFO
+	  printk(KERN_DEBUG "wavelan_detach: detach postponed,"
+		 " '%s' still locked\n", link->dev->dev_name);
+#endif
 	  link->state |= DEV_STALE_LINK;
 	  return;
 	}
@@ -4514,6 +4615,12 @@ wavelan_detach(dev_link_t *	link)
   if(link->priv)
     {
       device *	dev = (device *) link->priv;
+
+      /* Remove ourselves from the kernel list of ethernet devices */
+      /* Warning : can't be called from interrupt, timer or wavelan_close() */
+      if(link->dev != NULL)
+	unregister_netdev(dev);
+      link->dev = NULL;
 
       if(dev->priv)
 	{
@@ -4561,7 +4668,7 @@ wavelan_event(event_t		event,		/* The event received */
     switch(event)
       {
       case CS_EVENT_REGISTRATION_COMPLETE:
-#ifdef DEBUG_PCMCIA_INFO
+#ifdef DEBUG_CONFIG_INFO
 	printk(KERN_DEBUG "wavelan_cs: registration complete\n");
 #endif
 	break;
@@ -4574,9 +4681,8 @@ wavelan_event(event_t		event,		/* The event received */
 	    /* Accept no more transmissions */
       	    dev->tbusy = 1; dev->start = 0;
 
-	    /* Postponed an event to release the card */
-            link->release.expires = RUN_AT(5);
-      	    add_timer(&link->release);
+	    /* Release the card */
+	    wv_pcmcia_release((u_long) link);
 	  }
 	break;
 
@@ -4658,7 +4764,9 @@ init_module(void)
 
 #ifdef DEBUG_MODULE_TRACE
   printk(KERN_DEBUG "-> init_wavelan_cs()\n");
+#ifdef DEBUG_VERSION_SHOW
   printk(KERN_DEBUG "%s", version);
+#endif
 #endif
 
   CardServices(GetCardServicesInfo, &serv);
@@ -4692,17 +4800,20 @@ cleanup_module(void)
   printk(KERN_NOTICE "wavelan_cs: unloading\n");
 #endif
 
-  unregister_pcmcia_driver(&dev_info);
+  /* Do some cleanup of the device list */
+  wv_flush_stale_links();
 
   /* If there remain some devices... */
 #ifdef DEBUG_CONFIG_ERRORS
   if(dev_list != NULL)
-    printk(KERN_INFO "wavelan_cs: devices remaining when removing module\n");
+    {
+      /* Honestly, if this happen we are in a deep s**t */
+      printk(KERN_INFO "wavelan_cs: devices remaining when removing module\n");
+      printk(KERN_INFO "Please flush your disks and reboot NOW !\n");
+    }
 #endif
 
-  /* Remove them */
-  while(dev_list != NULL)
-    wavelan_detach(dev_list);
+  unregister_pcmcia_driver(&dev_info);
 
 #ifdef DEBUG_MODULE_TRACE
   printk(KERN_DEBUG "<- cleanup_module()\n");

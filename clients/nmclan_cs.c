@@ -455,6 +455,21 @@ static void nmclan_detach(dev_link_t *);
 
 
 /* ----------------------------------------------------------------------------
+flush_stale_links
+	Clean up stale device structures
+---------------------------------------------------------------------------- */
+
+static void flush_stale_links(void)
+{
+    dev_link_t *link, *next;
+    for (link = dev_list; link; link = next) {
+	next = link->next;
+	if (link->state & DEV_STALE_LINK)
+	    nmclan_detach(link);
+    }
+}
+
+/* ----------------------------------------------------------------------------
 cs_error
 	Report a Card Services related error.
 ---------------------------------------------------------------------------- */
@@ -491,6 +506,7 @@ static dev_link_t *nmclan_attach(void)
 
   DEBUG(0, "nmclan_attach()\n");
   DEBUG(1, "%s\n", rcsid);
+  flush_stale_links();
 
   /* Create new ethernet device */
   link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
@@ -592,7 +608,8 @@ static void nmclan_detach(dev_link_t *link)
   *linkp = link->next;
   if (link->priv) {
     struct device *dev = link->priv;
-
+    if (link->dev != NULL)
+      unregister_netdev(dev);
     if (dev->priv)
       kfree_s(dev->priv, sizeof(mace_private));
     kfree_s(link->priv, sizeof(struct device));
@@ -859,7 +876,6 @@ nmclan_release
 static void nmclan_release(u_long arg)
 {
   dev_link_t *link = (dev_link_t *)arg;
-  struct device *dev = link->priv;
 
   DEBUG(0, "nmclan_release(0x%p)\n", link);
 
@@ -870,16 +886,11 @@ static void nmclan_release(u_long arg)
     return;
   }
 
-  if (link->dev)
-    unregister_netdev(dev);
-  link->dev = NULL;
   CardServices(ReleaseConfiguration, link->handle);
   CardServices(ReleaseIO, link->handle, &link->io);
   CardServices(ReleaseIRQ, link->handle, &link->irq);
 
-  link->state &= ~DEV_CONFIG;
-  if (link->state & DEV_STALE_LINK)
-    nmclan_detach(link);
+  link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
 
 } /* nmclan_release */
 

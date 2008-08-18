@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.213 1999/02/13 04:50:18
+    cs.c 1.216 1999/05/14 17:36:21
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -47,6 +47,7 @@
 #include <pcmcia/bulkmem.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
+#include <pcmcia/bus_ops.h>
 #include "cs_internal.h"
 #include "rsrc_mgr.h"
 
@@ -59,7 +60,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.213 1999/02/13 04:50:18 (David Hinds)";
+"cs.c 1.216 1999/05/14 17:36:21 (David Hinds)";
 #endif
 
 #ifdef __BEOS__
@@ -817,7 +818,7 @@ static int bind_device(bind_req_t *req)
     client->state = CLIENT_UNBOUND;
     client->erase_busy.next = &client->erase_busy;
     client->erase_busy.prev = &client->erase_busy;
-    init_waitqueue(&client->mtd_req);
+    init_waitqueue_head(&client->mtd_req);
     client->next = s->clients;
     s->clients = client;
     DEBUG(1, ("cs: bind_device(): client 0x%p, sock %d, dev %s\n",
@@ -1261,6 +1262,7 @@ static int register_client(client_handle_t *handle, client_reg_t *req)
     client->event_handler = req->event_handler;
     client->event_callback_args = req->event_callback_args;
     client->event_callback_args.client_handle = client;
+    client->event_callback_args.bus = s->cap.bus;
 
     if (s->state & SOCKET_CARDBUS)
 	client->state |= CLIENT_CARDBUS;
@@ -1412,7 +1414,7 @@ static int cs_release_irq(client_handle_t handle, irq_req_t *req)
     
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
 #ifdef __LINUX__
-	FREE_IRQ(req->AssignedIRQ, req->Instance);
+	bus_free_irq(s->cap.bus, req->AssignedIRQ, req->Instance);
 	if (req->Instance)
 	    IRQ_MAP(req->AssignedIRQ, NULL);
 #endif
@@ -1713,11 +1715,11 @@ static int cs_request_irq(client_handle_t handle, irq_req_t *req)
 
     if (req->Attributes & IRQ_HANDLE_PRESENT) {
 #ifdef __LINUX__
-	if (REQUEST_IRQ(irq, req->Handler,
-			((req->Attributes & IRQ_TYPE_DYNAMIC_SHARING) || 
-			 (s->functions > 1) ||
-			 (irq == s->cap.pci_irq)) ? SA_SHIRQ : 0,
-			handle->dev_info, req->Instance))
+	if (bus_request_irq(s->cap.bus, irq, req->Handler,
+			    ((req->Attributes & IRQ_TYPE_DYNAMIC_SHARING) || 
+			     (s->functions > 1) ||
+			     (irq == s->cap.pci_irq)) ? SA_SHIRQ : 0,
+			    handle->dev_info, req->Instance))
 	    return CS_IN_USE;
 	if (req->Instance)
 	    IRQ_MAP(irq, req->Instance);
@@ -1777,7 +1779,7 @@ static int request_window(client_handle_t *handle, win_req_t *req)
     win->size = req->Size;
     if (find_mem_region(&win->base, win->size, (*handle)->dev_info,
 			(req->Attributes & WIN_MAP_BELOW_1MB) ||
-			!(s->cap.features & SS_HAS_PAGE_REGS)))
+			!(s->cap.features & SS_CAP_PAGE_REGS)))
 	return CS_IN_USE;
     req->Base = win->base;
     (*handle)->state |= CLIENT_WIN_REQ(w);

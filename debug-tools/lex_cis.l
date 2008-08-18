@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_cis.l 1.7 1998/09/25 21:45:00
+ * lex_cis.l 1.9 1999/05/03 04:59:02
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -63,6 +63,7 @@ checksum	return CHECKSUM;
 dev_info	return DEV_INFO;
 attr_dev_info	return ATTR_DEV_INFO;
 no_info		return NO_INFO;
+NULL		return lex_number("0");
 ROM		return lex_number("1");
 EPROM		return lex_number("3");
 EEPROM		return lex_number("4");
@@ -129,19 +130,29 @@ scsi_adapter	return lex_number("8");
 {int}		return lex_number(yytext);
 {hex}		return lex_number(yytext);
 
-{int}b		return lex_units(yytext, 1024*1024, SIZE);
+{int}b		return lex_units(yytext, 1, SIZE);
 {int}kb		return lex_units(yytext, 1024, SIZE);
-{int}mb		return lex_units(yytext, 1, SIZE);
+{int}mb		return lex_units(yytext, 1024*1024, SIZE);
 
+{flt}s		return lex_units(yytext, 1000000000, TIME);
+{flt}ms		return lex_units(yytext, 1000000, TIME);
+{flt}us		return lex_units(yytext, 1000, TIME);
+{flt}ns		return lex_units(yytext, 1, TIME);
 {int}s		return lex_units(yytext, 1000000000, TIME);
 {int}ms		return lex_units(yytext, 1000000, TIME);
 {int}us		return lex_units(yytext, 1000, TIME);
 {int}ns		return lex_units(yytext, 1, TIME);
 
+{flt}V		return lex_units(yytext, 100000, VOLTAGE);
+{flt}mV		return lex_units(yytext, 100, VOLTAGE);
+{flt}uV		return lex_units(yytext, 0.1, VOLTAGE);
 {int}V		return lex_units(yytext, 100000, VOLTAGE);
 {int}mV		return lex_units(yytext, 100, VOLTAGE);
 {int}uV		return lex_units(yytext, 0.1, VOLTAGE);
 
+{flt}A		return lex_units(yytext, 10000000, CURRENT);
+{flt}mA		return lex_units(yytext, 10000, CURRENT);
+{flt}uA		return lex_units(yytext, 10, CURRENT);
 {int}A		return lex_units(yytext, 10000000, CURRENT);
 {int}mA		return lex_units(yytext, 10000, CURRENT);
 {int}uA		return lex_units(yytext, 10, CURRENT);
@@ -178,7 +189,9 @@ static int lex_float(char *s)
 
 static int lex_units(char *s, int scale, int token)
 {
-    yylval.num = strtoul(s, NULL, 0) * scale;
+    float f;
+    sscanf(s, "%f", &f);
+    yylval.num = scale*f + 0.5;
     return token;
 }
 

@@ -9,7 +9,7 @@
     The exit code is 0 if any host is using the specified interface,
     and 1 if the interface is not in use (just like fuser).
     
-    ifuser.c 1.5 1998/11/09 17:56:28
+    ifuser.c 1.8 1999/05/04 17:19:00
 
     1998/10/24: Regis "HPReg" Duchesne <regis@via.ecp.fr>
       . Added network names (/etc/networks) management
@@ -44,8 +44,9 @@
 #include <arpa/inet.h>
 
 typedef struct route_t {
-    u_int32_t dest, mask;
-    struct route_t *next;
+    u_int32_t		dest, mask;
+    int			match;
+    struct route_t	*next;
 } route_t;
 
 /*====================================================================*/
@@ -83,8 +84,8 @@ static void usage(char *s)
 
 int main(int argc, char *argv[])
 {
-    char *dev, s[129], d[16], m[16];
-    route_t *r, *tbl = NULL;
+    char *dev, s[129], dest[16], mask[16], iface[10];
+    route_t *r, *tbl, **tail;
     int i, verbose = 0, busy = 0;
     FILE *f;
 
@@ -103,20 +104,25 @@ int main(int argc, char *argv[])
 		argv[0], strerror(errno));
 	return 2;
     }
-    fgets(s, 128, f);
+    
+    do {
+	fgets(s, 128, f);
+    } while (strstr(s, "Destination") == NULL);
+    
+    tail = &tbl;
     while (fgets(s, 128, f) != NULL) {
-	if (strstr(s, dev) == NULL)
-	    continue;
 	r = malloc(sizeof(route_t));
 	if (r == NULL) {
 	    fprintf(stderr, "%s: out of memory\n", argv[0]);
 	    return 2;
 	}
-	sscanf(s, "%s %*s %s", d, m);
-	resolv_name(d, &r->dest);
-	resolv_name(m, &r->mask);
-	r->next = tbl; tbl = r;
+	sscanf(s, "%s %*s %s %*s %*s %*s %*s %s", dest, mask, iface);
+	resolv_name(dest, &r->dest);
+	resolv_name(mask, &r->mask);
+	r->match = (strcmp(iface, dev) == 0);
+	*tail = r; tail = &(r->next);
     }
+    *tail = NULL;
     pclose(f);
 
     /* Check each host on command line */
@@ -127,13 +133,16 @@ int main(int argc, char *argv[])
 		    argv[0], argv[i]);
 	    continue;
 	}
+
 	for (r = tbl; r; r = r->next) {
 	    if ((a & r->mask) == r->dest) {
-		if (verbose) {
-		    if (!busy) printf("%s:", dev);
-		    printf(" %s", argv[i]);
+		if (r->match) {
+		    if (verbose) {
+			if (!busy) printf("%s:", dev);
+			printf(" %s", argv[i]);
+		    }
+		    busy = 1;
 		}
-		busy = 1;
 		break;
 	    }
 	}

@@ -1,0 +1,38 @@
+		Linux PCMCIA Maintainers List
+
+		Last updated: 1999/05/17 04:37:33
+
+The following PCMCIA driver components have active maintainers.  Bug
+reports and questions are often best addressed to the maintainer of
+the appropriate driver.
+
+[core modules, socket drivers, 3c589_cs, pcnet_cs, serial_cs,
+memory_cs, ftl_cs, dummy_cs, ide_cs, aha152x_cs, etc]
+David Hinds <dhinds@zen.stanford.edu>
+http://hyper.stanford.edu/HyperNews/get/pcmcia/home.html
+
+[3c575_cb, epic_cb, tulip_cb]
+Donald Becker <becker@cesdis.gsfc.nasa.gov>
+http://cesdis.gsfc.nasa.gov/linux/driver
+
+[ibmtr_cs]
+Mike Phillips <phillim@amtrak.com>
+http://www.linuxtr.org
+
+[netwave_cs]
+Dag Brattli <dagb@cs.uit.no>
+
+[wavelan_cs]
+Jean Tourrilhes <jt@hplb.hpl.hp.com>
+http://www-uk.hpl.hp.com/people/jt/Linux/Wavelan.html
+Justin Seger <jseger@media.mit.edu>
+http://www.media.mit.edu/~jseger
+
+[xirc2ps_cs]
+Werner Koch <werner.koch@guug.de>
+http://www.d.shuttle.de/isil/xircom/xirc2ps.html
+
+The following PCMCIA sub-projects could really use maintainers:
+
+o PCMCIA on PowerPC
+o PCMCIA on Alpha

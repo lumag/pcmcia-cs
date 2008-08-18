@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.93 1999/02/16 01:33:29
+# Configure 1.101 1999/05/05 16:17:03
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -18,16 +18,23 @@
 #
 #=======================================================================
 
+fail ()
+{
+    echo ""
+    echo "Configuration failed."
+    exit 1
+}
+
 # Minimal requirements for sanity
 if /bin/echo --version | grep -q -- -version ; then
     echo "Ack!  Your shell utilities are too old for this script!"
     echo "    Upgrade to GNU shell utilities version 1.16 or later."
-    exit 1
+    fail
 fi
 if [ ! -L include/linux/config.h ] ; then
     echo "Ack!  The PCMCIA distribution is incomplete/damaged!"
     echo "    Unpack again -- and try using a Linux filesystem this time."
-    exit 1
+    fail
 fi
 
 if [ -r config.out ] ; then
@@ -35,7 +42,7 @@ if [ -r config.out ] ; then
 else
     if [ ! -r config.in ] ; then
 	echo "config.in does not exist!"
-	exit 1
+	fail
     fi
     . ./config.in
 fi
@@ -146,7 +153,7 @@ ask_bool () {
 ask_str () {
     default=`eval echo '$'$2`
     prompt "$1" "$default" answer
-    eval "$2=$answer"
+    eval "$2='$answer'"
     write_str $2
 }
 
@@ -162,10 +169,14 @@ echo ""
 ask_str "Linux source directory" LINUX
 
 if [ ! -f $LINUX/Makefile ] ; then
-    echo "Linux source tree $LINUX does not exist!"
+    echo "Linux source tree $LINUX is incomplete or missing!"
+    if [ -d $LINUX/include/linux ] ; then
+	echo "    The kernel header files are present, but not " \
+	     "the full source code."
+    fi
     echo "    See the HOWTO for a list of FTP sites for current" \
 	 "kernel sources."
-    exit 1
+    fail
 fi
 
 # What kernel are we compiling for?
@@ -176,14 +187,14 @@ version () {
 
 echo ""
 for TAG in VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION ; do
-    eval `sed -ne "/^$TAG/s/ //gp" $LINUX/Makefile`
+    eval `sed -ne "/^$TAG/s/[ 	]//gp" $LINUX/Makefile`
 done
 SRC_RELEASE=$VERSION.$PATCHLEVEL.$SUBLEVEL$EXTRAVERSION
 VERSION_CODE=`version $VERSION $PATCHLEVEL $SUBLEVEL`
 echo "The kernel source tree is version $SRC_RELEASE."
 if [ $VERSION_CODE -lt `version 2 0 0` ] ; then
     echo "This package requires at least a 2.0 series kernel."
-    exit 1
+    fail
 fi
 CUR_RELEASE=`uname -r`
 if [ "$SRC_RELEASE" != "$CUR_RELEASE" ] ; then
@@ -211,10 +222,12 @@ fi
 echo ""
 
 ask_str "Alternate target install directory" PREFIX
-if [ -d /lib/modules/preferred ] ; then
-    MODDIR=$PREFIX/lib/modules/preferred
-else
-    MODDIR=$PREFIX/lib/modules/$SRC_RELEASE
+if [ ! "$MODDIR" ] ; then
+    if [ -d /lib/modules/preferred ] ; then
+	MODDIR=/lib/modules/preferred
+    else
+	MODDIR=/lib/modules/$SRC_RELEASE
+    fi
 fi
 ask_str "  Module install directory" MODDIR
 
@@ -246,7 +259,7 @@ echo ""
 #=======================================================================
 
 symcheck () {
-    if $KSYMS | grep -q "$1" ; then
+    if $KSYMS | grep "$1" >/dev/null ; then
 	eval "$2=y"
     else
 	eval "$2=n"
@@ -284,10 +297,7 @@ printflag() {
     write_bool $2
 }
 
-printconfig () {
-    echo "Kernel configuration options:"
-    printflag "Symmetric multiprocessing support" CONFIG_SMP
-    printflag "PCI BIOS support" CONFIG_PCI
+tweak () {
     if [ $VERSION_CODE -ge `version 2 2 0` ] ; then
 	if [ $CONFIG_SMP = "y" ] ; then
 	    CONFIG_X86_LOCAL_APIC=y
@@ -298,10 +308,16 @@ printconfig () {
 	    write_bool CONFIG_PCI_QUIRKS
 	fi
     fi
+}
+
+printconfig () {
+    echo "Kernel configuration options:"
+    printflag "Symmetric multiprocessing support" CONFIG_SMP
+    printflag "PCI BIOS support" CONFIG_PCI
+    tweak
     printflag "Advanced Power Management (APM) support" CONFIG_APM
     printflag "SCSI support" CONFIG_SCSI
     printflag "Networking support" CONFIG_INET
-    #printflag " IPv6 support" CONFIG_IPV6
     printflag " Radio network interface support" CONFIG_NET_RADIO
     printflag " Token Ring device support" CONFIG_TR
     printflag "Module version checking" CONFIG_MODVERSIONS
@@ -336,14 +352,6 @@ case $CONF_SRC in
 	modcheck scsi_mod CONFIG_SCSI
 	modcheck serial CONFIG_SERIAL
 	symcheck register_netdev CONFIG_INET
-	#cc -o /tmp/has_ipv6 cardmgr/has_ipv6.c
-	#if /tmp/has_ipv6 ; then
-	#    CONFIG_IPV6=y
-	#else
-	#    CONFIG_IPV6=n
-	#fi
-	#rm /tmp/has_ipv6
-	#symcheck inet_proto_ops CONFIG_IPV6_MODULE
 	if [ -r /proc/net/wireless ] ; then
 	    CONFIG_NET_RADIO=y
 	else
@@ -370,14 +378,14 @@ case $CONF_SRC in
 	if [ ! -r $AUTOCONF ] ; then
 	    echo "Config file $AUTOCONF not present!"
 	    echo "    To fix, run 'make config' in $LINUX."
-	    exit 1
+	    fail
 	fi
 	echo "# Options from $AUTOCONF" >> $CONFIG
 	echo "# Options from $AUTOCONF" >> $CONFIG_MK
 	echo "/* Options from $AUTOCONF */" >> $CONFIG_H
 	echo "CHECK=\"$AUTOCONF\"" >> $CONFIG
 	echo "CKSUM=\"`cksum < $AUTOCONF`\"" >> $CONFIG
-	if grep -q "^ *SMP *= *1" $LINUX/Makefile ; then
+	if grep "^ *SMP *= *1" $LINUX/Makefile >/dev/null ; then
 	    CONFIG_SMP=y
 	else
 	    configcheck CONFIG_SMP
@@ -399,10 +407,10 @@ case $CONF_SRC in
 	echo "/* Configured manually */" >> $CONFIG_H
 	ask_bool "Symmetric multiprocessing support" CONFIG_SMP
 	ask_bool "PCI BIOS support" CONFIG_PCI
+	tweak
 	ask_bool "Advanced Power Management (APM) support" CONFIG_APM
 	ask_bool "SCSI support" CONFIG_SCSI
 	ask_bool "TCP/IP networking" CONFIG_INET
-	#ask_bool " IPv6 protocol support" CONFIG_IPV6
 	ask_bool " Radio network interface support" CONFIG_NET_RADIO
 	ask_bool " Token Ring device support" CONFIG_TR
 	ask_bool "Set version information for module symbols" \
@@ -419,7 +427,7 @@ esac
 if [ "$CONFIG_PCI" != "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
     echo "Cardbus support requires kernel PCI BIOS support!"
     echo "    To fix, re-run 'make config' and disable Cardbus support."
-    exit 1
+    fail
 fi
 
 ARCH=`uname -m`
@@ -446,7 +454,7 @@ if [ $CONF_SRC != "1" -a "$CONFIG_MODVERSIONS" = "y" ] ; then
     if [ ! -r $MODVER ] ; then
 	echo "$MODVER does not exist!"
 	echo "    To fix, run 'make dep' in $LINUX."
-	exit 1
+	fail
     fi
 else
     MODVER="../$MODVER"
@@ -454,8 +462,8 @@ fi
 
 if [ ! -r $LINUX/include/asm ] ; then
     echo "$LINUX/include/asm does not exist!"
-    echo "    To fix, do 'ln -s asm-i386 asm' in $LINUX/include."
-    exit 1
+    echo "    To fix, do 'ln -s asm-$ARCH asm' in $LINUX/include."
+    fail
 fi
 
 if [ "$CONFIG_SMP" = "y" ] ; then
@@ -480,7 +488,7 @@ fi
 if [ $VERSION_CODE -ge `version 2 1 31` -a \
      $VERSION_CODE -le `version 2 1 34` ] ; then
     echo "Kernel versions 2.1.31-33 are broken.  Upgrade to 2.1.34."
-    exit 1
+    fail
 fi
 if [ "$CONFIG_CARDBUS" = "y" -a \
      $VERSION_CODE -ge `version 2 1 90` ] ; then
@@ -520,15 +528,16 @@ else
     echo "#undef  HAS_WIRELESS_EXTENSIONS" >> $CONFIG_H
 fi
 
+SCSI=$LINUX/drivers/scsi
 if [ "$CONFIG_SCSI" = "y" ] ; then
-    if grep -q "define MODULE" ${LINUX}/drivers/scsi/aha152x.c ; then
+    if grep "define MODULE" $SCSI/aha152x.c >/dev/null ; then
 	echo "# FIX_AHA152X is not defined" >> $CONFIG_MK
     else
 	echo "FIX_AHA152X=y" >> $CONFIG_MK
     fi
     if [ "$DO_APA1480" = "y" ] ; then
 	echo "DO_APA1480=y" >> $CONFIG_MK
-	if grep -q ADAPTEC_1480A ${LINUX}/drivers/scsi/aic7xxx.c ; then
+	if grep ADAPTEC_1480A $SCSI/aic7xxx.c >/dev/null ; then
 	    echo "# FIX_AIC7XXX is not defined" >> $CONFIG_MK
 	else
 	    echo "FIX_AIC7XXX=y" >> $CONFIG_MK
@@ -537,10 +546,10 @@ if [ "$CONFIG_SCSI" = "y" ] ; then
 fi
 
 if [ "$CONFIG_CARDBUS" = "y" ] ; then
-    if grep -q CARDBUS ${LINUX}/drivers/net/tulip.c ; then
+    if grep CARDBUS ${LINUX}/drivers/net/tulip.c >/dev/null ; then
 	echo DO_TULIP_CB=y >> $CONFIG_MK
     fi
-    if grep -q CARDBUS ${LINUX}/drivers/net/epic100.c ; then
+    if grep CARDBUS ${LINUX}/drivers/net/epic100.c >/dev/null ; then
 	echo DO_EPIC_CB=y >> $CONFIG_MK
     fi
 fi
@@ -554,26 +563,26 @@ if [ ! -x /sbin/insmod -o ! -x /sbin/rmmod -o ! -x /sbin/lsmod ] ; then
     echo "    To fix, you should build and install the latest set" \
          "of module tools,"
     echo "    available from FTP sites listed in the HOWTO."
-    exit 1
+    fail
 fi
 
 MOD_RELEASE=`/sbin/insmod -V 2>&1 | \
-    sed -n -e 's/.*[Vv]ersion \([0-9][0-9.]*\)/\1/p'`
+    sed -n -e 's/.*[Vv]ersion \([0-9][0-9.]*[0-9]\).*/\1/p'`
 echo "Your module utilities are version $MOD_RELEASE."
 X=`echo $MOD_RELEASE | sed -e 's/\./ /g'`
 MOD_CODE=`version $X`
 if [ $VERSION_CODE -ge `version 2 1 85` ] ; then
-    NEED=`version 2 1 85`
+    NEED=`version 2 1 85` ; T=2.1.85
 elif [ $VERSION_CODE -ge `version 2 1 18` ] ; then
-    NEED=`version 2 1 23`
+    NEED=`version 2 1 23` ; T=2.1.23
 else
-    NEED=`version 2 0 0`
+    NEED=`version 2 0 0` ; T=2.0.0
 fi
 
 if [ $NEED -gt $MOD_CODE ] ; then
     echo "Your module utilities are too old for this kernel!"
-    echo "    To fix, upgrade to at least version $NEED."
-    exit 1
+    echo "    To fix, upgrade to at least version $T."
+    fail
 fi
 
 #=======================================================================
@@ -617,7 +626,7 @@ if [ "$PREFIX" = "" ] ; then
 	fi
     else
 	echo "It looks like you have a BSD-ish init file setup."
-	if ! grep -q rc.pcmcia /etc/rc.d/rc.S ; then
+	if ! grep rc.pcmcia /etc/rc.d/rc.S >/dev/null ; then
 	    echo "    You'll need to edit /etc/rc.d/rc.S to invoke" \
 		 "/etc/rc.d/rc.pcmcia"
 	    echo "    so that PCMCIA services will start at boot time."
@@ -646,8 +655,11 @@ if [ -r /usr/include/X11/Xlib.h -o \
     for f in /usr/{X11/,X11R6/,local/,}lib/libforms.{so,a} ; do
 	if [ -r $f ] ; then break ; fi
     done
-    if [ -r $f ] ; then
-	echo "$f found."
+    for g in /usr/{include,X11R6/include}/forms.h ; do
+	if [ -r $g ] ; then break ; fi
+    done
+    if [ -r $f -a -r $g ] ; then
+	echo "$f and $g found."
 	HAS_FORMS=y
     else
 	echo "Forms library not installed."
@@ -681,3 +693,6 @@ echo "#endif /* _PCMCIA_CONFIG_H */" >> $CONFIG_H
 mv $CONFIG config.out
 
 touch .prereq.ok
+
+echo ""
+echo "Configuration successful."

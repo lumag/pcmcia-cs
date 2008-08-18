@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.15 1999/01/18 08:21:30
+    ide_cs.c 1.16 1999/05/17 04:40:27
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -50,7 +50,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.15 1999/01/18 08:21:30 (David Hinds)";
+"ide_cs.c 1.16 1999/05/17 04:40:27 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -231,7 +231,7 @@ void ide_config(dev_link_t *link)
     config_info_t conf;
     cistpl_cftable_entry_t *cfg = &parse.cftable_entry;
     cistpl_cftable_entry_t dflt = { 0 };
-    int i, last_ret, last_fn, hd, io_base, ctl_base;
+    int i, pass, last_ret, last_fn, hd, io_base, ctl_base;
 
     handle = link->handle;
     info = link->priv;
@@ -254,7 +254,7 @@ void ide_config(dev_link_t *link)
     /* Not sure if this is right... look up the current Vcc */
     CS_CHECK(GetConfigurationInfo, handle, &conf);
     
-    io_base = ctl_base = 0;
+    pass = io_base = ctl_base = 0;
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
     CS_CHECK(GetFirstTuple, handle, &tuple);
@@ -266,7 +266,7 @@ void ide_config(dev_link_t *link)
 	    link->conf.Vcc = cfg->vcc.param[CISTPL_POWER_VNOM]/10000;
 	else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM))
 	    link->conf.Vcc = dflt.vcc.param[CISTPL_POWER_VNOM]/10000;
-	if (link->conf.Vcc != conf.Vcc)
+	if ((!pass) && (link->conf.Vcc != conf.Vcc))
 	    goto next_entry;
 	
 	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
@@ -302,7 +302,12 @@ void ide_config(dev_link_t *link)
 	
     next_entry:
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
-	CS_CHECK(GetNextTuple, handle, &tuple);
+	if (pass) {
+	    CS_CHECK(GetNextTuple, handle, &tuple);
+	} else if (CardServices(GetNextTuple, handle, &tuple) != 0) {
+	    CS_CHECK(GetFirstTuple, handle, &tuple);
+	    pass++;
+	}
     }
     
     CS_CHECK(RequestIRQ, handle, &link->irq);

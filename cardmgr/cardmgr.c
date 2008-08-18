@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.121 1999/02/06 07:16:17
+    cardmgr.c 1.124 1999/05/14 16:40:49
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -56,7 +56,7 @@ typedef struct socket_info_t {
     int			fd;
     int			state;
     card_info_t		*card;
-    bind_info_t		*bind[MAX_FUNCTIONS];
+    bind_info_t		*bind[MAX_BINDINGS];
     char		*mtd[2*CISTPL_MAX_DEVICES];
 } socket_info_t;
 
@@ -156,7 +156,9 @@ int open_dev(dev_t dev, int mode)
 	return -1;
     if (mknod(fn, mode, dev) != 0)
 	return -1;
-    fd = open(fn, (mode & S_IWRITE) ? O_RDWR: O_RDONLY);
+    fd = open(fn, (mode&S_IWRITE)?O_RDWR:O_RDONLY);
+    if (fd < 0)
+	fd = open(fn, O_NONBLOCK|((mode&S_IWRITE)?O_RDWR:O_RDONLY));
     unlink(fn);
     return fd;
 }
@@ -310,7 +312,7 @@ static void write_stab(void)
 	    fprintf(f, "Socket %d: unsupported card\n", i);
 	else {
 	    fprintf(f, "Socket %d: %s\n", i, s->card->name);
-	    for (j = 0; j < s->card->functions; j++)
+	    for (j = 0; j < s->card->bindings; j++)
 		for (k = 0, bind = s->bind[j];
 		     bind != NULL;
 		     k++, bind = bind->next) {
@@ -841,22 +843,22 @@ static void do_insert(int sn)
     dev = card->device;
 
     /* Set up MTD's */
-    for (i = 0; i < card->functions; i++)
+    for (i = 0; i < card->bindings; i++)
 	if (dev[i]->needs_mtd)
 	    break;
-    if (i < card->functions)
+    if (i < card->bindings)
 	bind_mtd(sn);
 
 #ifdef __linux__
     /* Install kernel modules */
-    for (i = 0; i < card->functions; i++) {
+    for (i = 0; i < card->bindings; i++) {
 	for (j = 0; j < dev[i]->modules; j++)
 	    install_module(dev[i]->module[j], dev[i]->opts[j]);
     }
 #endif
     
     /* Bind drivers by their dev_info identifiers */
-    for (i = 0; i < card->functions; i++) {
+    for (i = 0; i < card->bindings; i++) {
 	bind = calloc(1, sizeof(bind_info_t));
 	strcpy((char *)bind->dev_info, (char *)dev[i]->dev_info);
 	if (strcmp(bind->dev_info, "cb_enabler") == 0)
@@ -912,7 +914,7 @@ static void do_insert(int sn)
     }
 
     /* Run "start" commands */
-    for (i = ret = 0; i < card->functions; i++)
+    for (i = ret = 0; i < card->bindings; i++)
 	if (dev[i]->class)
 	    ret |= execute_on_all("start", dev[i]->class, sn, i);
     if (ret)
@@ -937,7 +939,7 @@ static int do_check(int sn)
     
     /* Run "check" commands */
     dev = card->device;
-    for (i = 0; i < card->functions; i++) {
+    for (i = 0; i < card->bindings; i++) {
 	if (dev[i]->class) {
 	    ret = execute_on_all("check", dev[i]->class, sn, i);
 	    if (ret != 0)
@@ -965,14 +967,14 @@ static void do_remove(int sn)
     
     /* Run "stop" commands */
     dev = card->device;
-    for (i = 0; i < card->functions; i++) {
+    for (i = 0; i < card->bindings; i++) {
 	if (dev[i]->class) {
 	    execute_on_all("stop", dev[i]->class, sn, i);
 	}
     }
 
     /* unbind driver instances */
-    for (i = 0; i < card->functions; i++) {
+    for (i = 0; i < card->bindings; i++) {
 	if (s->bind[i]) {
 	    if (ioctl(s->fd, DS_UNBIND_REQUEST, s->bind[i]) != 0)
 		syslog(LOG_INFO, "unbind '%s' from socket %d failed: %m",
@@ -993,13 +995,15 @@ static void do_remove(int sn)
     }
 
     /* remove kernel modules in inverse order */
-    for (i = 0; i < card->functions; i++) {
+    for (i = 0; i < card->bindings; i++) {
 	for (j = dev[i]->modules-1; j >= 0; j--)
 	    remove_module(dev[i]->module[j]);
     }
     /* Remove any MTD's bound to this socket */
-    for (i = 0; (s->mtd[i] != NULL); i++)
+    for (i = 0; (s->mtd[i] != NULL); i++) {
 	remove_module(s->mtd[i]);
+	s->mtd[i] = NULL;
+    }
 
 done:
     beep(BEEP_TIME, BEEP_OK);
@@ -1020,7 +1024,7 @@ static void do_suspend(int sn)
     if (card == NULL)
 	return;
     dev = card->device;
-    for (i = 0; i < card->functions; i++) {
+    for (i = 0; i < card->bindings; i++) {
 	if (dev[i]->class) {
 	    ret = execute_on_all("suspend", dev[i]->class, sn, i);
 	    if (ret != 0)
@@ -1042,7 +1046,7 @@ static void do_resume(int sn)
     if (card == NULL)
 	return;
     dev = card->device;
-    for (i = 0; i < card->functions; i++) {
+    for (i = 0; i < card->bindings; i++) {
 	if (dev[i]->class) {
 	    ret = execute_on_all("resume", dev[i]->class, sn, i);
 	    if (ret != 0)

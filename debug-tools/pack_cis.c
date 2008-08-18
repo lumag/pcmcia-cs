@@ -3,7 +3,7 @@
     A utility to convert a plain text description of a Card
     Information Structure into its packed binary representation.
 
-    pack_cis.c 1.7 1998/09/25 21:44:46
+    pack_cis.c 1.9 1999/05/03 02:43:29
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -59,8 +59,10 @@ static int pack_power(cistpl_power_t *pwr, u_char *b)
     u_char m, e, x, *c = b;
     *c = pwr->present; c++;
     for (i = 0; i < 7; i++) {
+	if (!(pwr->present & (1<<i)))
+	    continue;
 	tmp = pwr->param[i];
-	for (e = 0; ((tmp % 10) == 0) || (tmp > 999); e++)
+	for (e = 1; ((tmp % 10) == 0) || (tmp > 999); e++)
 	    tmp /= 10;
 	if (tmp < 100) {
 	    if (tmp < 10) { tmp *= 10; e--; }
@@ -70,6 +72,7 @@ static int pack_power(cistpl_power_t *pwr, u_char *b)
 	    x = 0;
 	}
 	if (tmp >= 100) {
+	    e++;
 	    x = (tmp/10) - ((tmp/10) % 10);
 	    for (m = 0; m < 16; m++)
 		if (mantissa[m] == x) break;
@@ -155,7 +158,6 @@ static int pack_irq(cistpl_irq_t *p, u_char *b)
 static void pack_cftable(cistpl_cftable_entry_t *p, u_char *b)
 {
     u_char *c;
-    b[0] = CISTPL_CFTABLE_ENTRY;
     b[2] = p->index | 0x80;
     if (p->flags & CISTPL_CFTABLE_DEFAULT)
 	b[2] |= 0x40;
@@ -192,6 +194,48 @@ static void pack_cftable(cistpl_cftable_entry_t *p, u_char *b)
 
 /*======================================================================
 
+    Routines for packing device info tuples
+    
+======================================================================*/
+
+static int pack_speed(u_int speed, u_char *b)
+{
+    u_char e, m, *c = b;
+    switch (speed) {
+    case 0:	*c |= 0; c++; break;
+    case 250:	*c |= 1; c++; break;
+    case 200:	*c |= 2; c++; break;
+    case 150:	*c |= 3; c++; break;
+    case 100:	*c |= 4; c++; break;
+    default:
+	*c |= 7; c++;
+	for (e = 1; speed > 80; e++)
+	    speed /= 10;
+	for (m = 0; m < 15; m++)
+	    if (mantissa[m] >= speed) break;
+	*c = ((m+1)<<3) | e; c++;
+    }
+    return c-b;
+}
+
+static void pack_device(cistpl_device_t *d, u_char *b)
+{
+    u_int i, sz;
+    u_char e, *c = b+2;
+    for (i = 0; i < d->ndev; i++) {
+	*c = (d->dev[i].type<<4);
+	c += pack_speed(d->dev[i].speed, c);
+	sz = d->dev[i].size/512;
+	for (e = 0; sz > 32; e++)
+	    sz /= 4;
+	*c = (e & 7) | ((sz-1) << 3); c++;
+    }
+    *c = 0xff; c++;
+    b[1] = c-b-2;
+}
+
+/*======================================================================
+
     For now, I only implement a subset of tuples types, intended to be
     enough to handle most IO-oriented cards.
     
@@ -206,8 +250,12 @@ static int pack_tuple(tuple_info_t *t, u_char *b)
     *b = t->type;
     switch (t->type) {
     case CISTPL_DEVICE:
-	/* Fake null device tuple */
-	b[1] = 3; b[2] = 0; b[3] = 0; b[4] = 0xff;
+	if (p) {
+	    pack_device(&p->device, b);
+	} else {
+	    /* Fake null device tuple */
+	    b[1] = 3; b[2] = 0; b[3] = 0; b[4] = 0xff;
+	}
 	break;
     case CISTPL_MANFID:
 	b[1] = 4;
@@ -312,7 +360,8 @@ static int pack_cis(tuple_info_t *t, u_char *b)
     tuple_info_t device = { CISTPL_DEVICE, NULL, NULL };
     tuple_info_t nolink = { CISTPL_NO_LINK, NULL, NULL };
     tuple_info_t end = { CISTPL_END, NULL, NULL };
-    n = pack_tuple(&device, b);
+    if (t->type != CISTPL_DEVICE)
+	n = pack_tuple(&device, b);
     while (t) {
 	n += pack_tuple(t, b+n);
 	t = t->next;
@@ -336,10 +385,8 @@ int main(int argc, char *argv[])
     int n;
     FILE *f;
 
-    while ((optch = getopt(argc, argv, "vo:")) != -1) {
+    while ((optch = getopt(argc, argv, "o:")) != -1) {
 	switch (optch) {
-	case 'v':
-	    break;
 	case 'o':
 	    out = strdup(optarg); break;
 	default:
@@ -347,7 +394,7 @@ int main(int argc, char *argv[])
 	}
     }
     if (errflg || (optind < argc-1)) {
-	fprintf(stderr, "usage: %s [-v] [-o outfile] [infile]",
+	fprintf(stderr, "usage: %s [-o outfile] [infile]\n",
 		argv[0]);
 	exit(EXIT_FAILURE);
     }

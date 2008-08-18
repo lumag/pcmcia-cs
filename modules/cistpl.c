@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.59 1999/02/06 07:16:34
+    cistpl.c 1.63 1999/04/27 15:54:07
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -38,6 +38,7 @@
 #endif
 
 #include <pcmcia/cs_types.h>
+#include <pcmcia/bus_ops.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/bulkmem.h>
@@ -94,11 +95,14 @@ void read_cis_mem(socket_info_t *s, int attr, u_int addr,
     for (; len > 0; sys = s->cis_virt) {
 	s->ss_entry(s->sock, SS_SetMemMap, mem);
 	DEBUG(3,  ("cs:  %#2.2x %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
-		   readb(sys), readb(sys+inc), readb(sys+2*inc),
-		   readb(sys+3*inc), readb(sys+4*inc)));
+		   bus_readb(s->cap.bus, sys),
+		   bus_readb(s->cap.bus, sys+inc),
+		   bus_readb(s->cap.bus, sys+2*inc),
+		   bus_readb(s->cap.bus, sys+3*inc),
+		   bus_readb(s->cap.bus, sys+4*inc)));
 	for ( ; len > 0; len--, ((u_char *)ptr)++, sys += inc) {
 	    if (sys == s->cis_virt+s->cap.map_size) break;
-	    *(u_char *)ptr = readb(sys);
+	    *(u_char *)ptr = bus_readb(s->cap.bus, sys);
 	}
 	mem->card_start += s->cap.map_size;
     }
@@ -122,7 +126,7 @@ void write_cis_mem(socket_info_t *s, int attr, u_int addr,
 	s->ss_entry(s->sock, SS_SetMemMap, mem);
 	for ( ; len > 0; len--, ((u_char *)ptr)++, sys += inc) {
 	    if (sys == s->cis_virt+s->cap.map_size) break;
-	    writeb(*(u_char *)ptr, sys);
+	    bus_writeb(s->cap.bus, *(u_char *)ptr, sys);
 	}
 	mem->card_start += s->cap.map_size;
     }
@@ -145,17 +149,18 @@ static int cis_readable(u_long base)
     int ret;
     vs->cis_mem.sys_start = base;
     vs->cis_mem.sys_stop = base+vs->cap.map_size-1;
-    vs->cis_virt = ioremap(base, vs->cap.map_size);
+    vs->cis_virt = bus_ioremap(vs->cap.bus, base, vs->cap.map_size);
     ret = validate_cis(vs->clients, &info1);
     /* invalidate mapping and CIS cache */
-    iounmap(vs->cis_virt); vs->cis_used = 0;
+    bus_iounmap(vs->cap.bus, vs->cis_virt); vs->cis_used = 0;
     if ((ret != 0) || (info1.Chains == 0))
 	return 0;
     vs->cis_mem.sys_start = base+vs->cap.map_size;
     vs->cis_mem.sys_stop = base+2*vs->cap.map_size-1;
-    vs->cis_virt = ioremap(base+vs->cap.map_size, vs->cap.map_size);
+    vs->cis_virt = bus_ioremap(vs->cap.bus, base+vs->cap.map_size,
+			       vs->cap.map_size);
     ret = validate_cis(vs->clients, &info2);
-    iounmap(vs->cis_virt); vs->cis_used = 0;
+    bus_iounmap(vs->cap.bus, vs->cis_virt); vs->cis_used = 0;
     return ((ret == 0) && (info1.Chains == info2.Chains));
 }
 
@@ -165,18 +170,18 @@ static int checksum(u_long base)
     int i, a, b, d;
     vs->cis_mem.sys_start = base;
     vs->cis_mem.sys_stop = base+vs->cap.map_size-1;
-    vs->cis_virt = ioremap(base, vs->cap.map_size);
+    vs->cis_virt = bus_ioremap(vs->cap.bus, base, vs->cap.map_size);
     vs->cis_mem.card_start = 0;
     vs->cis_mem.flags = MAP_ACTIVE;
     vs->ss_entry(vs->sock, SS_SetMemMap, &vs->cis_mem);
     /* Don't bother checking every word... */
     a = 0; b = -1;
     for (i = 0; i < vs->cap.map_size; i += 44) {
-	d = readl(vs->cis_virt+i);
+	d = bus_readl(vs->cap.bus, vs->cis_virt+i);
 	a += d; b &= d;
     }
-    iounmap(vs->cis_virt);
-    return (b == -1) ? -1 : abs(a);
+    bus_iounmap(vs->cap.bus, vs->cis_virt);
+    return (b == -1) ? -1 : (a>>1);
 }
 
 static int checksum_match(u_long base)
@@ -188,7 +193,7 @@ static int checksum_match(u_long base)
 int setup_cis_mem(socket_info_t *s)
 {
     if (s->cis_mem.sys_start == 0) {
-	int low = !(s->cap.features & SS_HAS_PAGE_REGS);
+	int low = !(s->cap.features & SS_CAP_PAGE_REGS);
 	vs = s;
 	validate_mem(cis_readable, checksum_match, low);
 	s->cis_mem.sys_start = 0;
@@ -199,7 +204,8 @@ int setup_cis_mem(socket_info_t *s)
 	    return CS_OUT_OF_RESOURCE;
 	}
 	s->cis_mem.sys_stop = s->cis_mem.sys_start+s->cap.map_size-1;
-	s->cis_virt = ioremap(s->cis_mem.sys_start, s->cap.map_size);
+	s->cis_virt = bus_ioremap(s->cap.bus, s->cis_mem.sys_start,
+				  s->cap.map_size);
     }
     return 0;
 }
@@ -208,7 +214,7 @@ void release_cis_mem(socket_info_t *s)
 {
     if (s->cis_mem.sys_start != 0) {
 	release_mem_region(s->cis_mem.sys_start, s->cap.map_size);
-	iounmap(s->cis_virt);
+	bus_iounmap(s->cap.bus, s->cis_virt);
 	s->cis_mem.sys_start = 0;
     }
 }
@@ -353,16 +359,13 @@ int get_first_tuple(client_handle_t handle, tuple_t *tuple)
 	pcibios_read_config_dword(s->cap.cardbus, 0, 0x28, &ptr);
 	tuple->CISOffset = ptr & ~7;
 	SPACE(tuple->Flags) = (ptr & 7);
-    } else {
+    } else
+#endif
+    {
 	/* Assume presence of a LONGLINK_C to address 0 */
 	tuple->CISOffset = tuple->LinkOffset = 0;
 	SPACE(tuple->Flags) = HAS_LINK(tuple->Flags) = 1;
     }
-#else
-    /* Assume presence of a LONGLINK_C to address 0 */
-    tuple->CISOffset = tuple->LinkOffset = 0;
-    SPACE(tuple->Flags) = HAS_LINK(tuple->Flags) = 1;
-#endif
     if (!(s->state & SOCKET_CARDBUS) && (s->functions > 1) &&
 	!(tuple->Attributes & TUPLE_RETURN_COMMON)) {
 	cisdata_t req = tuple->DesiredTuple;
@@ -1334,7 +1337,7 @@ int read_tuple(client_handle_t handle, cisdata_t code, void *parse)
 int validate_cis(client_handle_t handle, cisinfo_t *info)
 {
     tuple_t tuple;
-    cisparse_t parse;
+    cisparse_t p;
     int ret, reserved, errors;
     
     if (CHECK_HANDLE(handle))
@@ -1351,13 +1354,14 @@ int validate_cis(client_handle_t handle, cisinfo_t *info)
     if (tuple.TupleCode != CISTPL_DEVICE)
 	errors++;
     /* All cards should have a MANFID tuple */
-    if (read_tuple(handle, CISTPL_MANFID, &parse) != CS_SUCCESS)
+    if (read_tuple(handle, CISTPL_MANFID, &p) != CS_SUCCESS)
 	errors++;
     /* All cards should have either a VERS_1 or a VERS_2 tuple.  But
        at worst, we'll accept a CFTABLE_ENTRY that parses. */
-    if ((read_tuple(handle, CISTPL_VERS_1, &parse) != CS_SUCCESS) &&
-	(read_tuple(handle, CISTPL_VERS_2, &parse) != CS_SUCCESS) &&
-	(read_tuple(handle, CISTPL_CFTABLE_ENTRY, &parse) != CS_SUCCESS))
+    if ((read_tuple(handle, CISTPL_VERS_1, &p) != CS_SUCCESS) &&
+	(read_tuple(handle, CISTPL_VERS_2, &p) != CS_SUCCESS) &&
+	(read_tuple(handle, CISTPL_CFTABLE_ENTRY, &p) != CS_SUCCESS) &&
+	(read_tuple(handle, CISTPL_CFTABLE_ENTRY_CB, &p) != CS_SUCCESS))
 	errors++;
     if (errors > 1)
 	return CS_SUCCESS;

@@ -29,11 +29,28 @@
 
 /* ------------------------ SPECIFIC NOTES ------------------------ */
 /*
+ * Web page
+ * --------
+ *	I try to maintain a web page with the Wireless LAN Howto at :
+ *		http://www-uk.hpl.hp.com/people/jt/Linux/Wavelan.html
+ *
+ * Debugging and options
+ * ---------------------
+ *	You will find below a set of '#define" allowing a very fine control
+ *	on the driver behaviour and the debug messages printed.
+ *	The main options are :
+ *	o WAVELAN_ROAMING, for the experimental roaming support.
+ *	o SET_PSA_CRC, to have your card correctly recognised by
+ *	  an access point and the Point-to-Point diagnostic tool.
+ *	o USE_PSA_CONFIG, to read configuration from the PSA (EEprom)
+ *	  (otherwise we always start afresh with some defaults)
+ *
  * wavelan_cs.o is darn too big
  * -------------------------
  *	That's true ! There is a very simple way to reduce the driver
  *	object by 33% (yes !). Comment out the following line :
  *		#include <linux/wireless.h>
+ *	Other compile options can also reduce the size of it...
  *
  * MAC address and hardware detection :
  * ----------------------------------
@@ -284,6 +301,37 @@
  *	- increase timeout in config code for picky hardware
  *	- mask unused bits in status (Wireless Extensions)
  *
+ * Changes integrated by Justin Seger <jseger@MIT.EDU> & David Hinds :
+ * -----------------------------------------------------------------
+ *	- Roaming "hack" from Joe Finney <joe@comp.lancs.ac.uk>
+ *	- PSA CRC code from Bob Gray <rgray@bald.cs.dartmouth.edu>
+ *	- Better initialisation of the i82593 controller
+ *	  from Joseph K. O'Sullivan <josullvn+@cs.cmu.edu>
+ *
+ * Changes made for release in 3.0.10 :
+ * ----------------------------------
+ *	- Fix eject "hang" of the driver under 2.2.X :
+ *		o create wv_flush_stale_links()
+ *		o Rename wavelan_release to wv_pcmcia_release & move up
+ *		o move unregister_netdev to wavelan_detach()
+ *		o wavelan_release() no longer call wavelan_detach()
+ *		o Supress "release" timer
+ *		o Other cleanups & fixes
+ *	- New MAC address in the probe
+ *	- Reorg PSA_CRC code (endian neutral & cleaner)
+ *	- Correct initialisation of the i82593 from Lucent manual
+ *	- Put back the watchdog, with larger timeout
+ *	- TRANSMIT_NO_CRC is a "normal" error, so recover from it
+ *	  from Derrick J Brashear <shadow@dementia.org>
+ *	- Better handling of TX and RX normal failure conditions
+ *	- #ifdef out all the roaming code
+ *	- Add ESSID & "AP current address" ioctl stubs
+ *	- General cleanup of the code
+ *
+ * Wishes & dreams:
+ * ----------------
+ *	- Cleanup and integrate the roaming code
+ *	  (std debug, set DomainID, decay avg and co...)
  */
 
 /***************************** INCLUDES *****************************/
@@ -329,11 +377,85 @@
 
 #include "wavelan.h"	/* Others bits of the hardware */
 
+/************************** DRIVER OPTIONS **************************/
+/*
+ * `#define' or `#undef' the following constant to change the behaviour
+ * of the driver...
+ */
+#undef WAVELAN_ROAMING		/* Include experimental roaming code */
+#undef SET_PSA_CRC		/* Set the CRC in PSA (slower) */
+#define USE_PSA_CONFIG		/* Use info from the PSA */
+#undef STRUCT_CHECK		/* Verify padding of structures */
+#undef EEPROM_IS_PROTECTED	/* Doesn't seem to be necessary */
+#define MULTICAST_AVOID		/* Avoid extra multicast (I'm sceptical) */
+#undef SET_MAC_ADDRESS		/* Experimental */
+
+#ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
+/* Warning : these stuff will slow down the driver... */
+#define WIRELESS_SPY		/* Enable spying addresses */
+#undef HISTOGRAM		/* Enable histogram of sig level... */
+#endif
+
+/****************************** DEBUG ******************************/
+
+#undef DEBUG_MODULE_TRACE	/* Module insertion/removal */
+#undef DEBUG_CALLBACK_TRACE	/* Calls made by Linux */
+#undef DEBUG_INTERRUPT_TRACE	/* Calls to handler */
+#undef DEBUG_INTERRUPT_INFO	/* type of interrupt & so on */
+#define DEBUG_INTERRUPT_ERROR	/* problems */
+#undef DEBUG_CONFIG_TRACE	/* Trace the config functions */
+#undef DEBUG_CONFIG_INFO	/* What's going on... */
+#define DEBUG_CONFIG_ERRORS	/* Errors on configuration */
+#undef DEBUG_TX_TRACE		/* Transmission calls */
+#undef DEBUG_TX_INFO		/* Header of the transmited packet */
+#undef DEBUG_TX_FAIL		/* Normal failure conditions */
+#define DEBUG_TX_ERROR		/* Unexpected conditions */
+#undef DEBUG_RX_TRACE		/* Transmission calls */
+#undef DEBUG_RX_INFO		/* Header of the transmited packet */
+#undef DEBUG_RX_FAIL		/* Normal failure conditions */
+#define DEBUG_RX_ERROR		/* Unexpected conditions */
+#undef DEBUG_PACKET_DUMP	32	/* Dump packet on the screen */
+#undef DEBUG_IOCTL_TRACE	/* Misc call by Linux */
+#undef DEBUG_IOCTL_INFO		/* Various debug info */
+#define DEBUG_IOCTL_ERROR	/* What's going wrong */
+#define DEBUG_BASIC_SHOW	/* Show basic startup info */
+#undef DEBUG_VERSION_SHOW	/* Print version info */
+#undef DEBUG_PSA_SHOW		/* Dump psa to screen */
+#undef DEBUG_MMC_SHOW		/* Dump mmc to screen */
+#undef DEBUG_SHOW_UNUSED	/* Show also unused fields */
+#undef DEBUG_I82593_SHOW	/* Show i82593 status */
+#undef DEBUG_DEVICE_SHOW	/* Show device parameters */
+
+/************************ CONSTANTS & MACROS ************************/
+
+#ifdef DEBUG_VERSION_SHOW
+static const char *version = "wavelan_cs.c : v19 (wireless extensions) 14/5/99\n";
+#endif
+
+/* Watchdog temporisation */
+#define	WATCHDOG_JIFFIES	256	/* TODO: express in HZ. */
+
+/* Fix a bug in some old wireless extension definitions */
+#ifndef IW_ESSID_MAX_SIZE
+#define IW_ESSID_MAX_SIZE	32
+#endif
+
+/* ------------------------ PRIVATE IOCTL ------------------------ */
+
+#define SIOCSIPQTHR	SIOCDEVPRIVATE		/* Set quality threshold */
+#define SIOCGIPQTHR	SIOCDEVPRIVATE + 1	/* Get quality threshold */
+#define SIOCSIPROAM     SIOCDEVPRIVATE + 2      /* Set roaming state */
+#define SIOCGIPROAM     SIOCDEVPRIVATE + 3      /* Get roaming state */
+
+#define SIOCSIPHISTO	SIOCDEVPRIVATE + 6	/* Set histogram ranges */
+#define SIOCGIPHISTO	SIOCDEVPRIVATE + 7	/* Get histogram values */
+
 /*************************** WaveLAN Roaming  **************************/
-#define WAVELAN_ROAMING_DEBUG	 2	/* 1 = Trace of handover decisions */
+#ifdef WAVELAN_ROAMING		/* Conditional compile, see above in options */
+
+#define WAVELAN_ROAMING_DEBUG	 0	/* 1 = Trace of handover decisions */
 					/* 2 = Info on each beacon rcvd... */
 #define MAX_WAVEPOINTS		7	/* Max visible at one time */
-#define WAVELAN_HIGH_COVERAGE         /* For environments with many stations */
 #define WAVEPOINT_HISTORY	5	/* SNR sample history slow search */
 #define WAVEPOINT_FAST_HISTORY	2	/* SNR sample history fast search */
 #define SEARCH_THRESH_LOW	10	/* SNR to enter cell search */
@@ -378,68 +500,7 @@ struct wavepoint_table
   unsigned char		locked;		/* Table lock */
 };
 
-/****************************** DEBUG ******************************/
-
-#undef DEBUG_MODULE_TRACE	/* Module insertion/removal */
-#undef DEBUG_CALLBACK_TRACE	/* Calls made by Linux */
-#undef DEBUG_INTERRUPT_TRACE	/* Calls to handler */
-#undef DEBUG_INTERRUPT_INFO	/* type of interrupt & so on */
-#define DEBUG_INTERRUPT_ERROR	/* problems */
-#undef DEBUG_CONFIG_TRACE	/* Trace the config functions */
-#undef DEBUG_CONFIG_INFO	/* What's going on... */
-#define DEBUG_CONFIG_ERRORS	/* Errors on configuration */
-#undef DEBUG_TX_TRACE		/* Transmission calls */
-#undef DEBUG_TX_INFO		/* Header of the transmited packet */
-#define DEBUG_TX_ERROR		/* unexpected conditions */
-#undef DEBUG_RX_TRACE		/* Transmission calls */
-#undef DEBUG_RX_INFO		/* Header of the transmited packet */
-#undef DEBUG_RX_ERROR		/* unexpected conditions */
-#undef DEBUG_PACKET_DUMP	16	/* Dump packet on the screen */
-#undef DEBUG_IOCTL_TRACE	/* Misc call by Linux */
-#undef DEBUG_IOCTL_INFO		/* Various debug info */
-#define DEBUG_IOCTL_ERROR	/* What's going wrong */
-#define DEBUG_BASIC_SHOW	/* Show basic startup info */
-#undef DEBUG_VERSION_SHOW	/* Print version info */
-#undef DEBUG_PSA_SHOW		/* Dump psa to screen */
-#undef DEBUG_MMC_SHOW		/* Dump mmc to screen */
-#undef DEBUG_SHOW_UNUSED	/* Show also unused fields */
-#undef DEBUG_I82593_SHOW	/* Show i82593 status */
-#undef DEBUG_DEVICE_SHOW	/* Show device parameters */
-
-/* Options : */
-#define USE_PSA_CONFIG		/* Use info from the PSA */
-#define IGNORE_NORMAL_XMIT_ERRS	/* Don't bother with normal conditions */
-#undef STRUCT_CHECK		/* Verify padding of structures */
-#undef PSA_CRC			/* Check CRC in PSA */
-#undef OLDIES			/* Old code (to redo) */
-#undef RECORD_SNR		/* To redo */
-#undef EEPROM_IS_PROTECTED	/* Doesn't seem to be necessary */
-#define MULTICAST_AVOID		/* Avoid extra multicast (I'm sceptical) */
-
-#ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
-/* Warning : these stuff will slow down the driver... */
-#define WIRELESS_SPY		/* Enable spying addresses */
-#undef HISTOGRAM		/* Enable histogram of sig level... */
-#endif
-
-/************************ CONSTANTS & MACROS ************************/
-
-#ifdef DEBUG_VERSION_SHOW
-static const char *version = "wavelan_cs.c : v17 (wireless extensions) 20/5/97\n";
-#endif
-
-/* Watchdog temporisation */
-#define	WATCHDOG_JIFFIES	32	/* TODO: express in HZ. */
-
-/* ------------------------ PRIVATE IOCTL ------------------------ */
-
-#define SIOCSIPQTHR	SIOCDEVPRIVATE		/* Set quality threshold */
-#define SIOCGIPQTHR	SIOCDEVPRIVATE + 1	/* Get quality threshold */
-#define SIOCSIPROAM     SIOCDEVPRIVATE + 2      /* Set roaming state */
-#define SIOCGIPROAM     SIOCDEVPRIVATE + 3      /* Get roaming state */
-
-#define SIOCSIPHISTO	SIOCDEVPRIVATE + 6	/* Set histogram ranges */
-#define SIOCGIPHISTO	SIOCDEVPRIVATE + 7	/* Get histogram values */
+#endif	/* WAVELAN_ROAMING */
 
 /****************************** TYPES ******************************/
 
@@ -497,14 +558,19 @@ struct net_local
   u_char	his_range[16];		/* Boundaries of interval ]n-1; n] */
   u_long	his_sum[16];		/* Sum in interval */
 #endif	/* HISTOGRAM */
+#ifdef WAVELAN_ROAMING
+  u_long	domain_id;	/* Domain ID we lock on for roaming */
+  int		filter_domains;	/* Check Domain ID of beacon found */
  struct wavepoint_table	wavepoint_table;	/* Table of visible WavePoints*/
   wavepoint_history *	curr_point;		/* Current wavepoint */
   int			cell_search;		/* Searching for new cell? */
   struct timer_list	cell_timer;		/* Garbage collection */
+#endif	/* WAVELAN_ROAMING */
 };
 
 /**************************** PROTOTYPES ****************************/
 
+#ifdef WAVELAN_ROAMING
 /* ---------------------- ROAMING SUBROUTINES -----------------------*/
 
 wavepoint_history *wl_roam_check(unsigned short nwid, net_local *lp);
@@ -517,6 +583,7 @@ void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp);
 void wv_nwid_filter(unsigned char mode, net_local *lp);
 void wv_roam_init(struct device *dev);
 void wv_roam_cleanup(struct device *dev);
+#endif	/* WAVELAN_ROAMING */
 
 /* ----------------------- MISC SUBROUTINES ------------------------ */
 static inline unsigned long	/* flags */
@@ -623,6 +690,9 @@ static inline void
 	wv_hw_reset(device *);	/* Same, + start receiver unit */
 static inline int
 	wv_pcmcia_config(dev_link_t *);	/* Configure the pcmcia interface */
+static void
+	wv_pcmcia_release(u_long),	/* Remove a device */
+	wv_flush_stale_links(void);	/* "detach" all possible devices */
 /* ---------------------- INTERRUPT HANDLING ---------------------- */
 static void
 wavelan_interrupt IRQ(int,	/* Interrupt handler */
@@ -635,8 +705,6 @@ static int
 	wavelan_open(device *),		/* Open the device */
 	wavelan_close(device *),	/* Close the device */
 	wavelan_init(device *);		/* Do nothing */
-static void
-	wavelan_release(u_long);	/* Remove a device */
 static dev_link_t *
 	wavelan_attach(void);		/* Create a new device */
 static void
@@ -668,14 +736,16 @@ static int 	irq_list[4] = { -1 };
 /* Shared memory speed, in ns */
 static int	mem_speed = 0;
 
-/* Enable roaming mode? */
-static int	do_roaming=1;
-
 /* New module interface */
 MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
 MODULE_PARM(mem_speed, "i");
+
+#ifdef WAVELAN_ROAMING		/* Conditional compile, see above in options */
+/* Enable roaming mode? */
+static int	do_roaming=1;
 MODULE_PARM(do_roaming, "i");
+#endif	/* WAVELAN_ROAMING */
 
 #endif	/* WAVELAN_CS_H */
 

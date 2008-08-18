@@ -260,6 +260,24 @@ static void set_rx_mode(struct device *dev);
 static int s9k_config(struct device *dev, struct ifmap *map);
 static void smc_reset(struct device *dev);
 
+/*======================================================================
+
+    This bit of code is used to avoid unregistering network devices
+    at inappropriate times.  2.2 and later kernels are fairly picky
+    about when this can happen.
+    
+======================================================================*/
+
+static void flush_stale_links(void)
+{
+    dev_link_t *link, *next;
+    for (link = dev_list; link; link = next) {
+	next = link->next;
+	if (link->state & DEV_STALE_LINK)
+	    smc91c92_detach(link);
+    }
+}
+
 /*====================================================================*/
 
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -292,6 +310,7 @@ static dev_link_t *smc91c92_attach(void)
     int i, ret;
 
     DEBUG(0, "smc91c92_attach()\n");
+    flush_stale_links();
     
     /* Create new ethernet device */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
@@ -399,6 +418,8 @@ static void smc91c92_detach(dev_link_t *link)
     *linkp = link->next;
     if (link->priv) {
 	struct device *dev = link->priv;
+	if (link->dev != NULL)
+	    unregister_netdev(dev);
 	if (dev->priv)
 	    kfree_s(dev->priv, sizeof(struct smc_private));
 	kfree_s(link->priv, sizeof(struct device));
@@ -959,10 +980,6 @@ static void smc91c92_release(u_long arg)
 	return;
     }
     
-    if (link->dev)
-	unregister_netdev(dev);
-    link->dev = NULL;
-    
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
@@ -973,8 +990,6 @@ static void smc91c92_release(u_long arg)
     }
     
     link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
-    if (link->state & DEV_STALE_LINK)
-	smc91c92_detach(link);
 
 } /* smc91c92_release */
 

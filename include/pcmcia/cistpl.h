@@ -1,5 +1,5 @@
 /*
- * cistpl.h 1.27 1998/09/30 18:08:46
+ * cistpl.h 1.28 1999/02/21 06:24:01
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -170,24 +170,25 @@ typedef struct cistpl_funce_t {
 
 ======================================================================*/
 
-#define CISTPL_FUNCE_SERIAL		0x00
-#define CISTPL_FUNCE_SERIAL_DATA	0x08
-#define CISTPL_FUNCE_SERIAL_FAX		0x09
-#define CISTPL_FUNCE_SERIAL_VOICE	0x0a
-#define CISTPL_FUNCE_CAP		0x01
-#define CISTPL_FUNCE_CAP_DATA		0x05
-#define CISTPL_FUNCE_CAP_FAX		0x06
-#define CISTPL_FUNCE_CAP_VOICE		0x07
-#define CISTPL_FUNCE_SERV_DATA		0x02
-#define CISTPL_FUNCE_SERV_FAX_1		0x13
-#define CISTPL_FUNCE_SERV_FAX_2		0x23
-#define CISTPL_FUNCE_SERV_FAX_3		0x33
-#define CISTPL_FUNCE_SERV_VOICE		0x84
+#define CISTPL_FUNCE_SERIAL_IF		0x00
+#define CISTPL_FUNCE_SERIAL_CAP		0x01
+#define CISTPL_FUNCE_SERIAL_SERV_DATA	0x02
+#define CISTPL_FUNCE_SERIAL_SERV_FAX	0x03
+#define CISTPL_FUNCE_SERIAL_SERV_VOICE	0x04
+#define CISTPL_FUNCE_SERIAL_CAP_DATA	0x05
+#define CISTPL_FUNCE_SERIAL_CAP_FAX	0x06
+#define CISTPL_FUNCE_SERIAL_CAP_VOICE	0x07
+#define CISTPL_FUNCE_SERIAL_IF_DATA	0x08
+#define CISTPL_FUNCE_SERIAL_IF_FAX	0x09
+#define CISTPL_FUNCE_SERIAL_IF_VOICE	0x0a
 
 /* UART identification */
 #define CISTPL_SERIAL_UART_8250		0x00
 #define CISTPL_SERIAL_UART_16450	0x01
 #define CISTPL_SERIAL_UART_16550	0x02
+#define CISTPL_SERIAL_UART_8251		0x03
+#define CISTPL_SERIAL_UART_8530		0x04
+#define CISTPL_SERIAL_UART_85230	0x05
 
 /* UART capabilities */
 #define CISTPL_SERIAL_UART_SPACE	0x01
@@ -211,9 +212,37 @@ typedef struct cistpl_serial_t {
 typedef struct cistpl_modem_cap_t {
     u_char	flow;
     u_char	cmd_buf;
-    u_int	rcv_buf:24;
-    u_int	xmit_buf:24;
+    u_char	rcv_buf_0, rcv_buf_1, rcv_buf_2;
+    u_char	xmit_buf_0, xmit_buf_1, xmit_buf_2;
 } cistpl_modem_cap_t;
+
+#define CISTPL_SERIAL_MOD_103		0x01
+#define CISTPL_SERIAL_MOD_V21		0x02
+#define CISTPL_SERIAL_MOD_V23		0x04
+#define CISTPL_SERIAL_MOD_V22		0x08
+#define CISTPL_SERIAL_MOD_212A		0x10
+#define CISTPL_SERIAL_MOD_V22BIS	0x20
+#define CISTPL_SERIAL_MOD_V26		0x40
+#define CISTPL_SERIAL_MOD_V26BIS	0x80
+#define CISTPL_SERIAL_MOD_V27BIS	0x01
+#define CISTPL_SERIAL_MOD_V29		0x02
+#define CISTPL_SERIAL_MOD_V32		0x04
+#define CISTPL_SERIAL_MOD_V32BIS	0x08
+#define CISTPL_SERIAL_MOD_V34		0x10
+
+#define CISTPL_SERIAL_ERR_MNP2_4	0x01
+#define CISTPL_SERIAL_ERR_V42_LAPM	0x02
+
+#define CISTPL_SERIAL_CMPR_V42BIS	0x01
+#define CISTPL_SERIAL_CMPR_MNP5		0x02
+
+#define CISTPL_SERIAL_CMD_AT1		0x01
+#define CISTPL_SERIAL_CMD_AT2		0x02
+#define CISTPL_SERIAL_CMD_AT3		0x04
+#define CISTPL_SERIAL_CMD_MNP_AT	0x08
+#define CISTPL_SERIAL_CMD_V25BIS	0x10
+#define CISTPL_SERIAL_CMD_V25A		0x20
+#define CISTPL_SERIAL_CMD_DMCL		0x40
 
 typedef struct cistpl_data_serv_t {
     u_char	max_data_0;

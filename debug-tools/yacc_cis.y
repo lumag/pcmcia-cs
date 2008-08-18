@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_cis.y 1.6 1998/09/25 21:45:00
+ * yacc_cis.y 1.7 1999/02/20 06:35:21
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -196,38 +196,38 @@ config:	  CONFIG BASE NUMBER MASK NUMBER  LAST_INDEX NUMBER
 
 pwr:	  VNOM VOLTAGE
 		{
-		    $$.present |= 1<<CISTPL_POWER_VNOM;
-		    $$.param[CISTPL_POWER_VNOM] = $2;
+		    $$.present = CISTPL_POWER_VNOM;
+		    $$.param[0] = $2;
 		}
 	| VMIN VOLTAGE
 		{
-		    $$.present |= 1<<CISTPL_POWER_VMIN;
-		    $$.param[CISTPL_POWER_VMIN] = $2;
+		    $$.present = CISTPL_POWER_VMIN;
+		    $$.param[0] = $2;
 		}
 	| VMAX VOLTAGE
 		{
-		    $$.present |= 1<<CISTPL_POWER_VMAX;
-		    $$.param[CISTPL_POWER_VMAX] = $2;
+		    $$.present = CISTPL_POWER_VMAX;
+		    $$.param[0] = $2;
 		}
 	| ISTATIC CURRENT
 		{
-		    $$.present |= 1<<CISTPL_POWER_ISTATIC;
-		    $$.param[CISTPL_POWER_ISTATIC] = $2;
+		    $$.present = CISTPL_POWER_ISTATIC;
+		    $$.param[0] = $2;
 		}
 	| IAVG CURRENT
 		{
-		    $$.present |= 1<<CISTPL_POWER_IAVG;
-		    $$.param[CISTPL_POWER_IAVG] = $2 * 1000;
+		    $$.present = CISTPL_POWER_IAVG;
+		    $$.param[0] = $2;
 		}
 	| IPEAK CURRENT
 		{
-		    $$.present |= 1<<CISTPL_POWER_IPEAK;
-		    $$.param[CISTPL_POWER_IPEAK] = $2;
+		    $$.present = CISTPL_POWER_IPEAK;
+		    $$.param[0] = $2;
 		}
 	| IDOWN CURRENT
 		{
-		    $$.present |= 1<<CISTPL_POWER_IDOWN;
-		    $$.param[CISTPL_POWER_IDOWN] = $2;
+		    $$.present = CISTPL_POWER_IDOWN;
+		    $$.param[0] = $2;
 		}
 	;
 
@@ -236,6 +236,10 @@ pwrlist:  /* nothing */
 		    $$.present = 0;
 		}
 	| pwrlist pwr
+		{
+		    $$.present |= 1<<($2.present);
+		    $$.param[$2.present] = $2.param[0];
+		}
 	;
 
 timing:	  cftab TIMING

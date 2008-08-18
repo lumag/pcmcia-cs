@@ -6,7 +6,7 @@
     As written, it will function as a sort of generic point enabler,
     configuring any card as that card's CIS specifies.
     
-    dummy_cs.c 1.10 1999/02/13 06:47:20
+    dummy_cs.c 1.12 1999/05/02 16:46:09
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -42,6 +42,7 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
+#include <pcmcia/bus_ops.h>
 
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
@@ -55,7 +56,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"dummy_cs.c 1.10 1999/02/13 06:47:20 (David Hinds)";
+"dummy_cs.c 1.12 1999/05/02 16:46:09 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -145,11 +146,16 @@ static dev_link_t *dev_list = NULL;
    "stopped" due to a power management event, or card ejection.  The
    device IO routines can use a flag like this to throttle IO to a
    card that is not ready to accept it.
+
+   The bus_operations pointer is used on platforms for which we need
+   to use special socket-specific versions of normal IO primitives
+   (inb, outb, readb, writeb, etc) for card IO.
 */
    
 typedef struct local_info_t {
-    dev_node_t	node;
-    int		stop;
+    dev_node_t		node;
+    int			stop;
+    struct bus_operations *bus;
 } local_info_t;
 
 /*====================================================================*/
@@ -416,6 +422,7 @@ static void dummy_config(dev_link_t *link)
 	    cistpl_mem_t *mem =
 		(cfg->mem.nwin) ? &cfg->mem : &dflt.mem;
 	    req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
+	    req.Attributes |= WIN_ENABLE;
 	    req.Base = mem->win[0].host_addr;
 	    req.Size = mem->win[0].len;
 	    req.AccessSpeed = 0;
@@ -547,7 +554,8 @@ static int dummy_event(event_t event, int priority,
 		       event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-
+    local_info_t *dev = link->priv;
+    
     DEBUG(1, "dummy_event(0x%06x)\n", event);
     
     switch (event) {
@@ -561,6 +569,7 @@ static int dummy_event(event_t event, int priority,
 	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	dev->bus = args->bus;
 	dummy_config(link);
 	break;
     case CS_EVENT_PM_SUSPEND:
@@ -568,7 +577,7 @@ static int dummy_event(event_t event, int priority,
 	/* Fall through... */
     case CS_EVENT_RESET_PHYSICAL:
 	/* Mark the device as stopped, to block IO until later */
-	((local_info_t *)link->priv)->stop = 1;
+	dev->stop = 1;
 	if (link->state & DEV_CONFIG)
 	    CardServices(ReleaseConfiguration, link->handle);
 	break;
@@ -578,7 +587,7 @@ static int dummy_event(event_t event, int priority,
     case CS_EVENT_CARD_RESET:
 	if (link->state & DEV_CONFIG)
 	    CardServices(RequestConfiguration, link->handle, &link->conf);
-	((local_info_t *)link->priv)->stop = 0;
+	dev->stop = 0;
 	/*
 	  In a normal driver, additional code may go here to restore
 	  the device state and restart IO. 

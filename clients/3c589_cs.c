@@ -4,7 +4,7 @@
     
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    3c589_cs.c 1.104 1998/04/19 11:51:03
+    3c589_cs.c 1.122 1999/05/14 17:30:54
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -52,6 +52,7 @@
    if you want to understand driver details. */
 /* Offsets from base I/O address. */
 #define EL3_DATA	0x00
+#define EL3_TIMER	0x0a
 #define EL3_CMD		0x0e
 #define EL3_STATUS	0x0e
 #define ID_PORT		0x100
@@ -74,7 +75,8 @@ enum c509cmd {
 enum c509status {
     IntLatch = 0x0001, AdapterFailure = 0x0002, TxComplete = 0x0004,
     TxAvailable = 0x0008, RxComplete = 0x0010, RxEarly = 0x0020,
-    IntReq = 0x0040, StatsFull = 0x0080, CmdBusy = 0x1000 };
+    IntReq = 0x0040, StatsFull = 0x0080, CmdBusy = 0x1000
+};
 
 /* The SetRxFilter command accepts the following classes: */
 enum RxFilter {
@@ -98,8 +100,11 @@ enum RxFilter {
 struct el3_private {
     dev_node_t node;
     struct net_device_stats stats;
-    int probe_port;
-    int flipped;
+    /* For transceiver monitoring */
+    struct timer_list media;
+    u_short	media_status;
+    u_short	fast_poll;
+    u_long	last_irq;
 };
 
 static char *if_names[] = { "Auto", "10baseT", "10base2", "AUI" };
@@ -109,7 +114,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.111 1998/12/24 20:33:34 (David Hinds)";
+"3c589_cs.c 1.122 1999/05/14 17:30:54 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -138,7 +143,7 @@ static int tc589_event(event_t event, int priority,
 
 static ushort read_eeprom(short ioaddr, int index);
 static void tc589_reset(struct device *dev);
-static void check_if_port(struct device *dev);
+static void media_check(u_long arg);
 static int el3_config(struct device *dev, struct ifmap *map);
 static int el3_open(struct device *dev);
 static int el3_start_xmit(struct sk_buff *skb, struct device *dev);
@@ -156,6 +161,24 @@ static dev_link_t *tc589_attach(void);
 static void tc589_detach(dev_link_t *);
 
 static dev_link_t *dev_list = NULL;
+
+/*======================================================================
+
+    This bit of code is used to avoid unregistering network devices
+    at inappropriate times.  2.2 and later kernels are fairly picky
+    about when this can happen.
+    
+======================================================================*/
+
+static void flush_stale_links(void)
+{
+    dev_link_t *link, *next;
+    for (link = dev_list; link; link = next) {
+	next = link->next;
+	if (link->state & DEV_STALE_LINK)
+	    tc589_detach(link);
+    }
+}
 
 /*====================================================================*/
 
@@ -193,7 +216,8 @@ static dev_link_t *tc589_attach(void)
     int i, ret;
 
     DEBUG(0, "3c589_attach()\n");
-
+    flush_stale_links();
+    
     /* Create new ethernet device */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
     memset(link, 0, sizeof(struct dev_link_t));
@@ -303,6 +327,8 @@ static void tc589_detach(dev_link_t *link)
     *linkp = link->next;
     if (link->priv) {
 	struct device *dev = link->priv;
+	if (link->dev != NULL)
+	    unregister_netdev(dev);
 	if (dev->priv)
 	    kfree_s(dev->priv, sizeof(struct el3_private));
 	kfree_s(link->priv, sizeof(struct device));
@@ -331,6 +357,7 @@ static void tc589_config(dev_link_t *link)
     u_short buf[32];
     int last_fn, last_ret, i, j, multi = 0;
     short ioaddr, *phys_addr;
+    char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
     
     handle = link->handle;
     dev = link->priv;
@@ -418,19 +445,14 @@ static void tc589_config(dev_link_t *link)
     else
 	printk(KERN_NOTICE "3c589_cs: invalid if_port requested\n");
     
-    /* This is vital: the transceiver used must be set in the resource
-       configuration register.  It took me many hours to discover this. */
-    switch (dev->if_port) {
-    case 0: case 1: outw(0, ioaddr + 6); break;
-    case 2: outw(3<<14, ioaddr + 6); break;
-    case 3: outw(1<<14, ioaddr + 6); break;
-    }
-    
     printk(KERN_INFO "%s: 3Com 3c%s, port %#3lx, irq %d, %s port, "
 	   "hw_addr ", dev->name, (multi ? "562" : "589"),
 	   dev->base_addr, dev->irq, if_names[dev->if_port]);
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+    i = inl(ioaddr);
+    printk(KERN_INFO "  %dK FIFO split %s Rx:Tx\n",
+	   (i & 7) ? 32 : 8, ram_split[(i >> 16) & 3]);
     return;
 
 cs_failed:
@@ -452,7 +474,6 @@ failed:
 static void tc589_release(u_long arg)
 {
     dev_link_t *link = (dev_link_t *)arg;
-    struct device *dev = link->priv;
 
     DEBUG(0, "3c589_release(0x%p)\n", link);
     
@@ -466,13 +487,8 @@ static void tc589_release(u_long arg)
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
-    if (link->dev)
-	unregister_netdev(dev);
-    link->dev = NULL;
     
-    link->state &= ~DEV_CONFIG;
-    if (link->state & DEV_STALE_LINK)
-	tc589_detach(link);
+    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
     
 } /* tc589_release */
 
@@ -535,15 +551,73 @@ static int tc589_event(event_t event, int priority,
 
 /*====================================================================*/
 
-/* Read a word from the EEPROM using the regular EEPROM access register.
-   Assume that we are in register window zero.
- */
+/*
+  Use this for commands that may take time to finish
+*/
+static void wait_for_completion(struct device *dev, int cmd)
+{
+    int i = 100;
+    outw(cmd, dev->base_addr + EL3_CMD);
+    while (--i > 0)
+	if (!(inw(dev->base_addr + EL3_STATUS) & 0x1000)) break;
+    if (i == 0)
+	printk(KERN_NOTICE "%s: command 0x%04x did not complete!\n",
+	       dev->name, cmd);
+}
+
+/*
+  Read a word from the EEPROM using the regular EEPROM access register.
+  Assume that we are in register window zero.
+*/
 static ushort read_eeprom(short ioaddr, int index)
 {
+    int i;
     outw(EEPROM_READ + index, ioaddr + 10);
-    /* Pause for at least 162 us. for the read to take place. */
-    udelay(300L);
+    /* Reading the eeprom takes 162 us */
+    for (i = 1620; i >= 0; i--)
+	if ((inw(ioaddr + 10) & 0x8000) == 0)
+	    break;
     return inw(ioaddr + 12);
+}
+
+/*
+  Set transceiver type, perhaps to something other than what the user
+  specified in dev->if_port.
+*/
+static void tc589_set_xcvr(struct device *dev, int if_port)
+{
+    struct el3_private *lp = (struct el3_private *)dev->priv;
+    ushort ioaddr = dev->base_addr;
+    
+    EL3WINDOW(0);
+    switch (if_port) {
+    case 0: case 1: outw(0, ioaddr + 6); break;
+    case 2: outw(3<<14, ioaddr + 6); break;
+    case 3: outw(1<<14, ioaddr + 6); break;
+    }
+    /* On PCMCIA, this just turns on the LED */
+    outw((if_port == 2) ? StartCoax : StopCoax, ioaddr + EL3_CMD);
+    /* 10baseT interface, enable link beat and jabber check. */
+    EL3WINDOW(4);
+    outw((if_port < 2) ? MEDIA_TP : 0, ioaddr + WN4_MEDIA);
+    EL3WINDOW(1);
+    lp->media_status = (if_port < 2) ? 0x8800 : 0x4800;
+    lp->last_irq = jiffies;
+}
+
+static void dump_status(struct device *dev)
+{
+    int ioaddr = dev->base_addr;
+    EL3WINDOW(1);
+    printk(KERN_INFO "  irq status %04x, rx status %04x, tx status "
+	   "%02x  tx free %04x\n", inw(ioaddr+EL3_STATUS),
+	   inw(ioaddr+RX_STATUS), inb(ioaddr+TX_STATUS),
+	   inw(ioaddr+TX_FREE));
+    EL3WINDOW(4);
+    printk(KERN_INFO "  diagnostics: fifo %04x net %04x ethernet %04x"
+	   " media %04x\n", inw(ioaddr+0x04), inw(ioaddr+0x06),
+	   inw(ioaddr+0x08), inw(ioaddr+0x0a));
+    EL3WINDOW(1);
 }
 
 /* Reset and restore all of the 3c589 registers. */
@@ -554,27 +628,15 @@ static void tc589_reset(struct device *dev)
     
     EL3WINDOW(0);
     outw(0x0001, ioaddr + 4);			/* Activate board. */ 
-    switch (dev->if_port) {			/* Set the xcvr */
-    case 0: case 1: outw(0, ioaddr + 6); break;
-    case 2: outw(3<<14, ioaddr + 6); break;
-    case 3: outw(1<<14, ioaddr + 6); break;
-    }
     outw(0x3f00, ioaddr + 8);			/* Set the IRQ line. */
     
     /* Set the station address in window 2. */
     EL3WINDOW(2);
     for (i = 0; i < 6; i++)
 	outb(dev->dev_addr[i], ioaddr + i);
-    
-    if (dev->if_port == 2)
-	/* Start the thinnet transceiver. We should really wait 50ms...*/
-	outw(StartCoax, ioaddr + EL3_CMD);
-    else if (dev->if_port < 2) {
-	/* 10baseT interface, enabled link beat and jabber check. */
-	EL3WINDOW(4);
-	outw(inw(ioaddr + WN4_MEDIA) | MEDIA_TP, ioaddr + WN4_MEDIA);
-    }
 
+    tc589_set_xcvr(dev, dev->if_port);
+    
     /* Switch to the stats window, and clear all stats by reading. */
     outw(StatsDisable, ioaddr + EL3_CMD);
     EL3WINDOW(6);
@@ -596,19 +658,18 @@ static void tc589_reset(struct device *dev)
     /* Ack all pending events, and set active indicator mask. */
     outw(AckIntr | IntLatch | TxAvailable | RxEarly | IntReq,
 	 ioaddr + EL3_CMD);
-    outw(SetIntrEnb | IntLatch | TxAvailable | RxComplete | StatsFull,
-	 ioaddr + EL3_CMD);
+    outw(SetIntrEnb | IntLatch | TxAvailable | RxComplete | StatsFull
+	 | AdapterFailure, ioaddr + EL3_CMD);
 }
 
 static int el3_config(struct device *dev, struct ifmap *map)
 {
-    struct el3_private *lp = (struct el3_private *)dev->priv;
     if ((map->port != (u_char)(-1)) && (map->port != dev->if_port)) {
 	if (map->port <= 3) {
-	    lp->probe_port = 0;
 	    dev->if_port = map->port;
 	    printk(KERN_INFO "%s: switched to %s port\n",
 		   dev->name, if_names[dev->if_port]);
+	    tc589_set_xcvr(dev, dev->if_port);
 	} else
 	    return -EINVAL;
     }
@@ -618,7 +679,6 @@ static int el3_config(struct device *dev, struct ifmap *map)
 static int el3_open(struct device *dev)
 {
     struct el3_private *lp = (struct el3_private *)dev->priv;
-    int ioaddr = dev->base_addr;
     dev_link_t *link;
     
     for (link = dev_list; link; link = link->next)
@@ -628,19 +688,56 @@ static int el3_open(struct device *dev)
 
     link->open++;
     MOD_INC_USE_COUNT;
-
-    EL3WINDOW(0);
-    
     dev->interrupt = 0; dev->tbusy = 0; dev->start = 1;
-    if (dev->if_port == 0) {
-	lp->probe_port = 15; lp->flipped = 0;
-    }
+    
     tc589_reset(dev);
+    lp->media.function = &media_check;
+    lp->media.data = (u_long)dev;
+    lp->media.expires = RUN_AT(HZ);
+    add_timer(&lp->media);
 
-    DEBUG(2, "%s: opened, status %4.4x.\n",
-	  dev->name, inw(ioaddr + EL3_STATUS));
+    DEBUG(1, "%s: opened, status %4.4x.\n",
+	  dev->name, inw(dev->base_addr + EL3_STATUS));
     
     return 0;					/* Always succeed */
+}
+
+static void el3_tx_timeout(struct device *dev)
+{
+    struct el3_private *lp = (struct el3_private *)dev->priv;
+    int ioaddr = dev->base_addr;
+    
+    printk(KERN_NOTICE "%s: Transmit timed out!\n", dev->name);
+    dump_status(dev);
+    lp->stats.tx_errors++;
+    dev->trans_start = jiffies;
+    /* Issue TX_RESET and TX_START commands. */
+    wait_for_completion(dev, TxReset);
+    outw(TxEnable, ioaddr + EL3_CMD);
+    dev->tbusy = 0;
+}
+
+static void pop_tx_status(struct device *dev)
+{
+    struct el3_private *lp = (struct el3_private *)dev->priv;
+    int ioaddr = dev->base_addr;
+    int i;
+    
+    /* Clear the Tx status stack. */
+    for (i = 32; i > 0; i--) {
+	u_char tx_status = inb(ioaddr + TX_STATUS);
+	if (!(tx_status & 0x84)) break;
+	/* reset transmitter on jabber error or underrun */
+	if (tx_status & 0x30)
+	    wait_for_completion(dev, TxReset);
+	if (tx_status & 0x38) {
+	    DEBUG(1, "%s: transmit error: status 0x%02x\n",
+		  dev->name, tx_status);
+	    outw(TxEnable, ioaddr + EL3_CMD);
+	    lp->stats.tx_aborted_errors++;
+	}
+	outb(0x00, ioaddr + TX_STATUS); /* Pop the status stack. */
+    }
 }
 
 static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
@@ -650,19 +747,9 @@ static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
 
     /* Transmitter timeout, serious problems. */
     if (dev->tbusy) {
-	int tickssofar = jiffies - dev->trans_start;
-	if (tickssofar < TX_TIMEOUT)
+	if (jiffies - dev->trans_start < TX_TIMEOUT)
 	    return 1;
-	printk(KERN_NOTICE "%s: transmit timed out, Tx_status %2.2x "
-	       "status %4.4x Tx FIFO room %d.", dev->name,
-	       inb(ioaddr + TX_STATUS), inw(ioaddr + EL3_STATUS),
-	       inw(ioaddr + TX_FREE));
-	lp->stats.tx_errors++;
-	dev->trans_start = jiffies;
-	/* Issue TX_RESET and TX_START commands. */
-	outw(TxReset, ioaddr + EL3_CMD);
-	outw(TxEnable, ioaddr + EL3_CMD);
-	dev->tbusy = 0;
+	el3_tx_timeout(dev);
     }
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,25))
@@ -678,26 +765,6 @@ static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
 	  "status %4.4x.\n", dev->name, (long)skb->len,
 	  inw(ioaddr + EL3_STATUS));
 
-#ifdef PCMCIA_DEBUG
-    {	/* Error-checking code, delete someday. */
-	ushort status = inw(ioaddr + EL3_STATUS);
-	if (status & 0x0003 		/* IRQ line active, missed one. */
-	    && inw(ioaddr + EL3_STATUS) & 3) { 		/* Make sure. */
-	    printk(KERN_NOTICE "%s: missed interrupt, status then %04x"
-		   " now %04x  Tx %2.2x Rx %4.4x.\n", dev->name, status,
-		   inw(ioaddr + EL3_STATUS), inb(ioaddr + TX_STATUS),
-		   inw(ioaddr + RX_STATUS));
-	    if (status & 0x0002) /* Adaptor failure */
-		tc589_reset(dev);
-	    /* Fake interrupt trigger by masking, acknowledge interrupts. */
-	    outw(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
-	    outw(AckIntr | IntLatch | TxAvailable | RxEarly | IntReq,
-		 ioaddr + EL3_CMD);
-	    outw(SetStatusEnb | 0xff, ioaddr + EL3_CMD);
-	}
-    }
-#endif
-    
     /* Avoid timer-based retransmission conflicts. */
     if (test_and_set_bit(0, (void*)&dev->tbusy) != 0)
 	printk(KERN_NOTICE "%s: transmitter access conflict.\n",
@@ -720,23 +787,8 @@ static int el3_start_xmit(struct sk_buff *skb, struct device *dev)
 	    outw(SetTxThreshold + 1536, ioaddr + EL3_CMD);
     }
 
-    DEV_KFREE_SKB (skb);
-    
-    /* Clear the Tx status stack. */
-    {
-	short tx_status;
-	int i = 4;
-	
-	while ((--i > 0) && (tx_status = inb(ioaddr + TX_STATUS)) > 0) {
-	    if (tx_status & 0x38) lp->stats.tx_aborted_errors++;
-	    if (tx_status & 0x30) outw(TxReset, ioaddr + EL3_CMD);
-	    if (tx_status & 0x3C) outw(TxEnable, ioaddr + EL3_CMD);
-	    outb(0x00, ioaddr + TX_STATUS); /* Pop the status stack. */
-	}
-    }
-
-    if (lp->probe_port)
-	check_if_port(dev);
+    DEV_KFREE_SKB(skb);
+    pop_tx_status(dev);
     
     return 0;
 }
@@ -783,6 +835,9 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 	    mark_bh(NET_BH);
 	}
 	
+	if (status & TxComplete)
+	    pop_tx_status(dev);
+
 	if (status & (AdapterFailure | RxEarly | StatsFull)) {
 	    /* Handle all uncommon interrupts. */
 	    if (status & StatsFull)		/* Empty statistics. */
@@ -792,10 +847,23 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 		outw(AckIntr | RxEarly, ioaddr + EL3_CMD);
 	    }
 	    if (status & AdapterFailure) {
-		/* Adapter failure requires Rx reset and reinit. */
-		outw(RxReset, ioaddr + EL3_CMD);
-		set_multicast_list(dev);
-		outw(RxEnable, ioaddr + EL3_CMD); /* Re-enable the receiver. */
+		u16 fifo_diag;
+		EL3WINDOW(4);
+		fifo_diag = inw(ioaddr + 4);
+		EL3WINDOW(1);
+		printk(KERN_NOTICE "%s: adapter failure, FIFO diagnostic"
+		       " register %04x.\n", dev->name, fifo_diag);
+		if (fifo_diag & 0x0400) {
+		    /* Tx overrun */
+		    wait_for_completion(dev, TxReset);
+		    outw(TxEnable, ioaddr + EL3_CMD);
+		}
+		if (fifo_diag & 0x2000) {
+		    /* Rx underrun */
+		    wait_for_completion(dev, RxReset);
+		    set_multicast_list(dev);
+		    outw(RxEnable, ioaddr + EL3_CMD);
+		}
 		outw(AckIntr | AdapterFailure, ioaddr + EL3_CMD);
 	    }
 	}
@@ -809,11 +877,9 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
 	}
 	/* Acknowledge the IRQ. */
 	outw(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
-
-	if (lp->probe_port)
-	    check_if_port(dev);
     }
 
+    lp->last_irq = jiffies;
 #ifdef PCMCIA_DEBUG
     DEBUG(3, "%s: exiting interrupt, status %4.4x.\n",
 	  dev->name, inw(ioaddr + EL3_STATUS));
@@ -822,56 +888,73 @@ static void el3_interrupt IRQ(int irq, void *dev_id, struct pt_regs *regs)
     return;
 }
 
-/* Check for a transceiver mismatch.  We should get carrier errors when
-   there is a mismatch. */
-
-static void check_if_port(struct device *dev)
+static void media_check(u_long arg)
 {
+    struct device *dev = (struct device *)(arg);
     struct el3_private *lp = (struct el3_private *)dev->priv;
     int ioaddr = dev->base_addr;
-    static volatile int in_check = 0;
-    int carrier, tx_packets, rx_packets;
-    long flags;
+    u_short media;
+    u_long flags;
 
-    /* We don't want this to get interrupted! */
-    save_flags(flags);
-    cli();
-    if (in_check) {
-	restore_flags(flags);
+    if (dev->start == 0) return;
+    
+    EL3WINDOW(1);
+    /* Check for pending interrupt with expired latency timer: with
+       this, we can limp along even if the interrupt is blocked */
+    if ((inw(ioaddr + EL3_STATUS) & IntLatch) &&
+	(inb(ioaddr + EL3_TIMER) == 0xff)) {
+	if (!lp->fast_poll)
+	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+	el3_interrupt IRQ(dev->irq, dev, NULL);
+	lp->fast_poll = HZ;
+    }
+    if (lp->fast_poll) {
+	lp->fast_poll--;
+	lp->media.expires = RUN_AT(2);
+	add_timer(&lp->media);
 	return;
     }
-    in_check = 1;
-    /* Turn off statistics updates while reading. */
-    outw(StatsDisable, ioaddr + EL3_CMD);
-    /* Switch to the stats window, and read carrier errors. */
-    EL3WINDOW(6);
-    carrier = inb(ioaddr + 0);
-    tx_packets = inb(ioaddr + 6);
-    rx_packets = inb(ioaddr + 7);
-    lp->stats.tx_carrier_errors += carrier;
-    lp->stats.rx_packets += rx_packets;
-    lp->stats.tx_packets += tx_packets;
-    /* Back to window 1, and turn statistics back on. */
-    EL3WINDOW(1);
-    outw(StatsEnable, ioaddr + EL3_CMD);
-    restore_flags(flags);
     
-    if (carrier) {
-	dev->if_port = 2;
-	tc589_reset(dev);
-    } else {
-	if (rx_packets + tx_packets > 0) {
-	    if (dev->if_port == 0) dev->if_port = 1;
-	    printk(KERN_INFO "%s: autodetected %s\n",
-		   dev->name, if_names[dev->if_port]);
-	    lp->probe_port = 1;
-	} else if (lp->probe_port == 1) {
-	    printk(KERN_INFO "%s: network cable problem?\n",
-		   dev->name);
+    save_flags(flags);
+    cli();
+    EL3WINDOW(4);
+    media = inw(ioaddr+WN4_MEDIA) & 0xc810;
+
+    /* Ignore collisions unless we've had no irq's recently */
+    if (jiffies - lp->last_irq < HZ)
+	media &= ~0x0010;
+    if (media != lp->media_status) {
+	if ((media & lp->media_status & 0x8000) &&
+	    ((lp->media_status ^ media) & 0x0800))
+	    printk(KERN_INFO "%s: %s link beat\n", dev->name,
+		   (lp->media_status & 0x0800 ? "lost" : "found"));
+	else if ((media & lp->media_status & 0x4000) &&
+		 ((lp->media_status ^ media) & 0x0010))
+	    printk(KERN_INFO "%s: cable %s\n", dev->name,
+		   (lp->media_status & 0x0010 ? "fixed" : "problem"));
+	if (dev->if_port == 0) {
+	    if (media & 0x8000) {
+		if (media & 0x0800)
+		    printk(KERN_INFO "%s: flipped to 10baseT\n",
+			   dev->name);
+		else
+		    tc589_set_xcvr(dev, 2);
+	    }
+	    if (media & 0x4000) {
+		if (media & 0x0010)
+		    tc589_set_xcvr(dev, 1);
+		else
+		    printk(KERN_INFO "%s: flipped to 10base2\n",
+			   dev->name);
+	    }
 	}
+	lp->media_status = media;
     }
-    lp->probe_port--;
-    in_check = 0;
+    
+    EL3WINDOW(1);
+    restore_flags(flags);
+    lp->media.expires = RUN_AT(HZ);
+    add_timer(&lp->media);
 }
 
 static struct net_device_stats *el3_get_stats(struct device *dev)
@@ -891,11 +974,12 @@ static struct net_device_stats *el3_get_stats(struct device *dev)
     return &lp->stats;
 }
 
-/*  Update statistics.  We change to register window 6, so this should be run
-    single-threaded if the device is active. This is expected to be a rare
-    operation, and it's simpler for the rest of the driver to assume that
-    window 1 is always valid rather than use a special window-state variable.
- */
+/*
+  Update statistics.  We change to register window 6, so this should be run
+  single-threaded if the device is active. This is expected to be a rare
+  operation, and it's simpler for the rest of the driver to assume that
+  window 1 is always valid rather than use a special window-state variable.
+*/
 static void update_stats(int ioaddr, struct device *dev)
 {
     struct el3_private *lp = (struct el3_private *)dev->priv;
@@ -926,12 +1010,13 @@ static int el3_rx(struct device *dev)
 {
     struct el3_private *lp = (struct el3_private *)dev->priv;
     int ioaddr = dev->base_addr;
-    int boguscnt = 10;
+    int worklimit = 32;
     short rx_status;
     
     DEBUG(3, "%s: in rx_packet(), status %4.4x, rx_status %4.4x.\n",
 	  dev->name, inw(ioaddr+EL3_STATUS), inw(ioaddr+RX_STATUS));
-    while ((rx_status = inw(ioaddr + RX_STATUS)) > 0) {
+    while (!((rx_status = inw(ioaddr + RX_STATUS)) & 0x8000) &&
+	   (--worklimit >= 0)) {
 	if (rx_status & 0x4000) { /* Error, update stats. */
 	    short error = rx_status & 0x3800;
 	    lp->stats.rx_errors++;
@@ -960,29 +1045,25 @@ static int el3_rx(struct device *dev)
 		skb->protocol = eth_type_trans(skb, dev);
 		
 		netif_rx(skb);
-		outw(RxDiscard, ioaddr + EL3_CMD); /* Pop top Rx packet. */
 		lp->stats.rx_packets++;
 #if (LINUX_VERSION_CODE >= VERSION(2,1,25))
 		lp->stats.rx_bytes += skb->len;
 #endif
-		continue;
-	    } else
+	    } else {
 		DEBUG(1, "%s: couldn't allocate a sk_buff of"
 		      " size %d.\n", dev->name, pkt_len);
+		lp->stats.rx_dropped++;
+	    }
 	}
-	lp->stats.rx_dropped++;
-	outw(RxDiscard, ioaddr + EL3_CMD); /* Rx discard */
-	while (--boguscnt > 0 && inw(ioaddr + EL3_STATUS) & 0x1000)
-	    DEBUG(0, "    Waiting for 3c589 to discard packet,"
-		  " status %x.\n", inw(ioaddr + EL3_STATUS));
-	if (--boguscnt < 0)
-	    break;
+	/* Pop the top of the Rx FIFO */
+	wait_for_completion(dev, RxDiscard);
     }
-    
+    if (worklimit == 0)
+	printk(KERN_NOTICE "%s: too much work in el3_rx!\n", dev->name);
     return 0;
 }
 
-/* Set or clear the multicast filter for this adaptor.
+/* Set or clear the multicast filter for this adapter.
    num_addrs == -1	Promiscuous mode, receive all packets
    num_addrs == 0	Normal mode, clear multicast list
    num_addrs > 0	Multicast mode, receive normal and MC packets, and do
@@ -1024,7 +1105,7 @@ static int el3_close(struct device *dev)
     if (link == NULL)
 	return -ENODEV;
     
-    DEBUG(2, "%s: shutting down ethercard.\n", dev->name);
+    DEBUG(1, "%s: shutting down ethercard.\n", dev->name);
 
     if (DEV_OK(link)) {
 	/* Turn off statistics ASAP.  We update lp->stats below. */
@@ -1055,6 +1136,7 @@ static int el3_close(struct device *dev)
 
     link->open--;
     dev->start = 0;
+    del_timer(&((struct el3_private *)dev->priv)->media);
     if (link->state & DEV_STALE_CONFIG) {
 	link->release.expires = RUN_AT(HZ/20);
 	link->state |= DEV_RELEASE_PENDING;

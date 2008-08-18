@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" pcnet_cs.4 1.10 1999/02/08 08:02:03
+.\" pcnet_cs.4 1.11 1999/04/27 16:41:21
 .\"
-.TH PCNET_CS 4 "1999/02/08 08:02:03" "pcmcia-cs"
+.TH PCNET_CS 4 "1999/04/27 16:41:21" "pcmcia-cs"
 .SH NAME
 pcnet_cs \- Generic NS8390-based PCMCIA Ethernet Driver
 .SH SYNOPSIS
@@ -11,8 +11,6 @@ pcnet_cs \- Generic NS8390-based PCMCIA Ethernet Driver
 .RB [ irq_list=\c
 .IR i,j,... ]
 .RB [ if_port=\c
-.IR n ]
-.RB [ use_shmem=\c
 .IR n ]
 .RB [ use_big_buf=\c
 .IR n ]
@@ -28,7 +26,8 @@ pcnet_cs \- Generic NS8390-based PCMCIA Ethernet Driver
 .B Pcnet_cs
 is a driver for all NS8390-based PCMCIA ethernet cards.  It can use
 either polled IO or a shared memory window to exchange data with the
-card.  It replaces the
+card.  The driver first tests for a shared memory buffer, falling
+back on polled IO if the memory test fails.  It replaces the
 .B de650_cs
 and
 .B ibmcc_cs
@@ -52,12 +51,6 @@ Specifies the set of interrupts that may be allocated by this driver.
 Selects the transceiver type, for Socket EA and IBM CCAE cards.  1 is
 10baseT (twisted pair), and 2 is 10base2 (BNC, or thin net).  The
 default is 1 (10baseT).
-.TP
-.BI use_shmem= n
-Selects whether to use shared memory (if 1) or polled IO (if 0) to
-access the card.  If unset, then the default
-is to choose based on the card type (shared memory for IBM
-CCAE and friends, polled IO for all others).
 .TP
 .BI use_big_buf= n
 For Socket EA cards, a flag indicating if the driver should use the

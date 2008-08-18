@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/02/16 01:33:11
+		Last updated: 1999/05/15 08:12:10
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -25,11 +25,12 @@ Ethernet cards:
 	CONTEC C-NET(PC)C
 	Eagle NE200 Ethernet
 	Eiger Labs EPX-10BT, EPX-ET 10BT, EPX-ET 10TZ
-	Fujitsu FMV-J181, FMV-J182, FMV-J182A, Towa LA501
+	Fujitsu FMV-J181, FMV-J182A, FMV-J183
+	Fujitsu Towa LA501, FMV-1080, FM50N-183
 	Hitachi HT-4840-11 EtherCard
 	NextCom NC5310
-	RATOC REX-9822, REX-5588A/W
-	TDK LAC-CD02x, LAK-CD021, LAK-CD022A, LAK-CD021AX Ethernet
+	RATOC REX-9822, REX-5588A/W, REX-R280
+	TDK LAC-CD02x, LAK-CD021, LAK-CD022A, LAK-CD021AX, LAK-CD021BX
 
 	[nmclan_cs driver]
 	New Media EthernetLAN
@@ -37,7 +38,9 @@ Ethernet cards:
 
 	[pcnet_cs driver]
 	Accton EN2212, EN2216 EtherCard
+	Accton SOHO BASIC EN220
 	Addtron Ethernet
+	AIBrain EPCM-T
 	Allied Telesis CentreCOM CE6001, LA-PCM
 	AmbiCom AMB8002
 	AnyCom ECO Ethernet
@@ -45,7 +48,7 @@ Ethernet cards:
 	Argosy EN210
 	Asante FriendlyNet
 	AST 1082 Ethernet
-	Billionton LNT-10TB
+	Billionton LNT-10TB, LNT-10TN
 	California Access LAN Adapter
 	CeLAN EPCMCIA
 	CNet CN30BC, CN40BC Ethernet
@@ -53,6 +56,8 @@ Ethernet cards:
 	Compex LinkPort Ethernet
 	COMPU-SHACK BASEline Ethernet
 	Connectware LANdingGear Adapter
+	Corega Ether PCC-T, PCM-T
+	CyQ've ELA-010 10baseT
 	Danpex EN-6200P2 Ethernet
 	Datatrek NetCard
 	Dayna Communications CommuniCard E
@@ -63,7 +68,7 @@ Ethernet cards:
 	Edimax Technology Ethernet Combo
 	EFA InfoExpress 205, 207 Combo
 	Eiger Labs EPX-ET10T2 Combo
-	ELECOM Laneed LD-CDWA, LD-CDX, LD-CDNIA, LD-CDY
+	ELECOM Laneed LD-CDWA, LD-CDX, LD-CDNIA, LD-CDY, LD-CDF
 	EP-210 Ethernet
 	Epson Ethernet
 	EtherPRIME Ethernet
@@ -74,16 +79,16 @@ Ethernet cards:
 	Genius ME3000II Ethernet
 	Grey Cell Ethernet
 	GVC NIC-2000P Ethernet Combo
-	Hypertec HyperEnet
+	Hypertec HyperNet
 	IBM CreditCard Ethernet Adapter
 	IC-Card Ethernet
 	Infotel IN650ct Ethernet
-	I-O Data PCLA/T, PCLA/TE
+	IO DATA PCLA/T, PCLA/TE
 	Katron PE-520 Ethernet
 	KingMax Technology EN10-T2 Ethernet
-	Kingston KNE-PCM/M, KNE-PC2
+	Kingston KNE-PCM/M, KNE-PC2, KNE-PC2T
 	KTI PE-520 Plus
-	LANEED Ethernet
+	LANEED LD-CDW Ethernet
 	LanPro EP4000A
 	Lantech Ethernet
 	Linksys EtherCard
@@ -91,17 +96,19 @@ Ethernet cards:
 	Longshine ShineNet LCS-8534TB Ethernet
 	Macnica ME-1 Ethernet
 	Maxtech PCN2000 Ethernet
-	Melco LPC-TJ, LPC-TS
+	Melco LPC-TJ, LPC-TS, LPC-T, LPC2-T
+	Midori LANNER LT-PCMT
 	NDC Instant-Link
 	Network General "Sniffer"
 	New Media LanSurfer
 	Novell/National NE4100 InfoMover
 	OvisLink Ethernet
 	Panasonic CF-VEL211P-B
-	Planet SmartCOM 2000, 3500
+	Planet SmartCOM 2000, 3500, ENW-3501-T, ENW-3502-T
 	Pretec Ethernet
 	PreMax PE-200 Ethernet
 	Proteon Ethernet
+	Psion Gold Card Ethernet
 	Relia RE2408T Ethernet
 	Reliasys 2400A Ethernet
 	RPTI EP400, EP401 Ethernet
@@ -131,26 +138,34 @@ Ethernet cards:
 Fast Ethernet (10/100baseT) adapters:
 
 	[3c574_cs driver: driver is buggy]
-	3Com 3c574TX
+	3Com 3c574TX, 3CCFE574BT
 
 	[pcnet_cs driver]
 	Abocom LinkMate FE1000
 	AnyCom ECO Ethernet 10/100
 	Apollo Fast Ethernet
 	COMPU-SHACK FASTline 10/100
+	Corega FastEther PCC-TX
 	D-Link DFE-650
 	EXP ThinLan 100
 	Fiberline Fast Ethernet
+	Hamlet FE1000 10/100
+	IO DATA PCET/TX
+	KTI KF-C16
 	Level One EPC-0100TB
 	Linksys EtherFast 10/100
+	Logitec LPM-LN100TX
+	Melco LPC2-TX
 	Microcom TravelCard 10/100
 	Micronet EtherFast Adapter
 	NetGear FA410TXC
+	Planet FNW-3600T
 
 	[xirc2ps_cs driver]
+	Accton Fast EtherCard-16
 	Compaq Netelligent 10/100
 	Intel EtherExpress PRO/100 [ 16-bit, NOT 32-bit ]
-	Toshiba Advanced Network 10/100
+	Toshiba IPC5008A, Advanced Network 10/100
 	Xircom CreditCard CE3 [ beware: new cards may not work ]
 
 	[3c575_cb driver: experimental!]
@@ -160,8 +175,11 @@ Fast Ethernet (10/100baseT) adapters:
 	Ositech Seven of Spades CardBus
 
 	[tulip_cb driver: requires a 2.2 kernel, experimental!]
+	Accton EN2220 CardBus
+	AmbiCom AMB8100
+	LevelOne FPC-0101TX 10/100Mbps CardBus
 	Linksys EtherFast CardBus
-	TDK NetworkFlyer LAK-CB100X CardBus
+	TDK NetworkFlyer LAK-CB100X, LAK-CB100AX CardBus
 
 Token-ring adapters:
 
@@ -176,7 +194,6 @@ Wireless network adapters:
 	[wavelan_cs driver]
 	AT&T / NCR / Lucent WaveLAN version 2.0
 	DEC RoamAbout/DS
-	[ The WaveLAN/IEEE is NOT supported ]
 
 	[netwave_cs driver]
 	Xircom CreditCard Netwave
@@ -192,6 +209,8 @@ Modem and serial cards:
 	supported. ]
 
 	Advantech COMpad-32/85 dual serial
+	Argosy dual serial
+	Black Box I114A RS-422/485
 	Omega Engineering QSP-100
 	Quatech, IOTech dual RS-232 cards
 	Quatech quad RS-232 card
@@ -231,23 +250,25 @@ SCSI adapters:
 	Simple Technologies SCSI
 
 	[qlogic_cs driver]
-	Eiger Labs SCSI
+	Eiger Labs SCSI			[ only cards w/FCC ID LXL... ]
+	Epson SC200
 	MACNICA mPS110, mPS110-LP SCSI
+	Midori CN-SC43
 	NEC PC-9801N-J03R
 	Qlogic FastSCSI
 	Panasonic KXL-D740, KXL-DN740A, KXL-DN740A-NB 4X CD-ROM
 	Raven CD-Note 4X
 	RATOC REX-9530 SCSI-2
-	Toshiba NWB0107ABK, SCSC200B
+	Toshiba NWB0107ABK, SCSC200A, SCSC200B
 
 	[not sure which driver]
 	Digital SCSI II adapter
-	IO-DATA PCSC-II, PCSC-II-L
-	IO-DATA CDG-PX44/PCSC CD-ROM
+	IO DATA PCSC-II, PCSC-II-L
+	IO DATA CDG-PX44/PCSC CD-ROM
 	Logitec LPM-SCSI2
 	Logitec LCD-601 CD-ROM
 	Melco IFC-SC2, IFC-DC
-	Pioneer PCP-PR1W CD-ROM
+	Pioneer PCP-PR1W, PCP-PR2W CD-ROM
 	Taxan ICD-400PN
 
 	[apa1480_cb driver -- works for kernels 2.1.90-2.1.124, and
@@ -267,25 +288,28 @@ Multifunction ethernet/modem cards:
 	[pcnet_cs driver]
 	Accton UE2218
 	ActionTec ComNet 33.6
+	AnyCom Fast Ethernet + 56K Combo
 	Dayna Communicard
 	D-Link DME336T, DMF560TX
 	Grey Cell GCS3400
 	GVC LAN modem
 	IBM Home and Away
 	IBM Home and Away 28.8
-	IO-Data PCEM-336T
+	IO DATA PCEM-336T
 	Linksys LANmodem 28.8, 33.6
-	Olicom GoCard 33.6 Eth/Modem
+	Linksys EtherFast LANmodem 56K
 	PREMAX LAN modem
 	Psion V.34 Gold Card
 	Psion Gold Card Netglobal 56K+10Mb 
 	Rover ComboCard 33.6
+	TDK 3000/3400/5670
+	Telecom Device SuperSocket LM336
 
 	[smc91c92_cs driver]
 	Gateway Telepath Combo
 	Megahertz/U.S. Robotics EM1144, EM3288, EM3336
 	Motorola Mariner
-	Ositech Jack of Diamonds
+	Ositech Jack of Diamonds, Jack of Hearts
 
 	[xirc2ps_cs driver]
 	Compaq Microcom CPQ550 Modem + 10/100 LAN
@@ -305,6 +329,15 @@ ATA/IDE card drives:
 	The very old Western Digital 40MB drives are not supported,
 	because they do not conform to the PCMCIA ATA specification.
 
+ATA/IDE Interface Cards:
+
+	Microtech International XpressDock
+	DataStor Technology PCMCIA ATA/ATAPI Card
+	Creo DNBoy
+	GREYSTONE DD-25
+	Shining Technology DitiDISK 250PE
+	Sicon Periperal Micro Mate
+
 ATA/IDE CD-ROM adapters:
 
 	Argosy EIDE CD-ROM
@@ -317,8 +350,12 @@ ATA/IDE CD-ROM adapters:
 	H45 Technologies Quick 2X CD-ROM
 	H45 Technologies QuickCD 16X
 	IBM Max 20X CD-ROM
-	IO-DATA CDP-TX4/PCIDE, CDP-TX6/PCIDE, CDV-HDN6/PCIDE
-	IO-DATA CDP-TX10/PCIDE, CDP-FX24/CBIDE, MOP-230/PCIDE
+	IO DATA CDP-TX4/PCIDE, CDP-TX6/PCIDE, CDV-HDN6/PCIDE
+	IO DATA CDP-TX10/PCIDE, CDP-FX24/CBIDE, MOP-230/PCIDE
+	IO DATA HDP-1G/PCIDE, HDP-1.6G/PCIDE
+	Microtech International MicroCD
+	Microtech Mii Zip 100
+	NOVAC NV-CD410
 	Sony PCGA-CD5 CD-ROM
 	TEAC IDE Card/II
 
@@ -327,14 +364,18 @@ separate packages.  The drivers are not included in the base PCMCIA
 package for maintenance reasons: they are for less common cards and I
 cannot test them.
 
-	[iscc_cs driver]
-	IBM Smart Capture
-	RATOC REX-9590
-	  (Koji Okamura <oka@ec.kyushu-u.ac.jp>)
+	[airo_cs driver]
+	Aironet PC4500, PC4800 wireless network adapters
+	  (Ben Reed <breed@almaden.ibm.com>)
+
+	[asplus_cs driver]
+	Netwave AirSurfer Plus wireless network adapter
+	  http://ipoint.vlsi.uiuc.edu/wireless/asplus.html
+	  (Jay Moorman <jrmoorma@uiuc.edu>)
 
 	[cs89x0_cs driver]
 	IBM EtherJet
-	  (Danilo Beuche <danili@cs.tu-berlin.de>)
+	  (Danilo Beuche <danili@cs.uni-magdeburg.de>)
 
 	[elsa_cs driver]
 	Elsa MicroLink ISDN adapter
@@ -344,22 +385,18 @@ cannot test them.
 	Y-E Data FlashBuster floppy drive adapter
 	  (David Bateman <dbateman@eng.uts.edu.au>)
 
+	[iscc_cs driver]
+	IBM Smart Capture
+	RATOC REX-9590
+	  (Koji Okamura <oka@ec.kyushu-u.ac.jp>)
+
 	[mpsuni_cs driver]
 	MPS ISLINEnote ISDN adapter
 	  (Detlef Glaschick <glaschick@mps-software.de>)
 
-	[asplus_cs driver]
-	Netwave AirSurfer Plus
-	  http://ipoint.vlsi.uiuc.edu/wireless/asplus.html
-	  (Jay Moorman <jrmoorma@uiuc.edu>)
-
 	[sedl_cs driver]
 	Sedlbauer Speed Star ISDN adapter
 	  (Marcus Niemann <niemann@www-bib.fh-bielefeld.de>)
-
-	[teles_cs driver]
-	Teles ISDN adapter
-	  (Christof Petig <ea0141@uni-wuppertal.de>)
 
 	[sym53c500_cs driver]
 	New Media Bus Toaster SCSI [ new version ]
@@ -367,28 +404,50 @@ cannot test them.
 	SIMA TECH SCSI9000
 	  (Tim Corner <tcorner@via.at>)
 
+	[teles_cs driver]
+	Teles ISDN adapter
+	  (Christof Petig <ea0141@uni-wuppertal.de>)
+
 	[ss5136dn_cs driver]
 	SST 5136-DN-PC DeviceNet Interface
 	  http://www.gnofn.org/~marksu/dn5136man.html
 	  (Mark Sutton <Mark.Sutton@laitram.com>)
+
+	[wavelan2_cs driver]
+	Lucent WaveLAN/IEEE wireless network adapter
+	  (Lucent Technologies <betasupport@wavelan.com>)
 
 	GemPlus GPR400 Smart Card Reader
 	  http://www.linuxnet.com/smartcard/code.html
 	  (Wolf Geldmacher <wgeldmacher@paus.ch>)
 
 	Harris PRISM/AM79C930 IEEE 802.11 wireless LAN
-	  http://www.absoval.com/linux
+	Nokia/InTalk ST-500A
+	Samsung MagicWave SWL-1000N
+	Zoom Telephonics ZoomAir 4000
+	  http://www.absoval.com/linux-wlan
 	  (Mark Mathews <mark@absoval.com>)
 
 	National Instruments DAQcard700
 	  ftp://ftp.rtlinux.org/pub/rtlinux/sources/DAQCard700/
 	  (Oleg Subbotin)
 
+	Raylink Wireless Network
+	  http://world.std.com/~corey/raylink.html
+	  (Corey Thomas <corey@world.std.com>)
+
+	Silicom SPE ethernet, SEM EtherModem, SES EtherSerial
+	  http://www.silicom.co.il/linux.htm
+	
+	WaveLAN/IEEE wireless network adapter
+	  http://www.fasta.fh-dortmund.de/users/andy/wvlan
+	  (Andreas Neuhaus <andy@fasta.fh-dortmund.de>)
+	
 People are working on the following cards:
 
 	Roland SCP-55 MIDI (Toshiaki Nakatsu <ir9k-nkt@asahi-net.or.jp>)
 	CyberRom CD-ROM (David Rowntree <rowntree@dircon.co.uk>)
-	IO Data PCSC-II (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)
+	IO DATA PCSC-II (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)
 	Macnica mPS-1x0 (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)
 	TView Preso (Brenden Tuck <friar@zendragon.com>)
 	Proxim RangeLAN/2 (Jim Duchek <jimducheck@primary.net>
@@ -403,13 +462,12 @@ list have been there for a very long time, so please do not send me
 email just to ask if their status has changed.
 
 	Adaptec/Trantor APA-460 SlimSCSI
+	Eiger Labs SCSI w/FCC ID K36...
 	New Media .WAVjammer and all other sound cards
 	New Media LiveWire+
 	Nikon CoolPix100
 	Panasonic KXL-D720, KXL-D745, KXL-D783
 	SMC 8016 EliteCard
-	Telxon/Aironet wireless adapters
-	WaveLAN/IEEE
 	Xircom CE II Ethernet/Modem
 	Xircom CE-10BT Ethernet
 

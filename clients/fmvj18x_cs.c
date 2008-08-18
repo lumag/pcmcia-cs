@@ -244,6 +244,24 @@ typedef struct local_info_t {
 #define INTR_OFF             0x0d /* LAN controler ignores interrupts */
 #define INTR_ON              0x1d /* LAN controler will catch interrupts */
 
+/*======================================================================
+
+    This bit of code is used to avoid unregistering network devices
+    at inappropriate times.  2.2 and later kernels are fairly picky
+    about when this can happen.
+    
+======================================================================*/
+
+static void flush_stale_links(void)
+{
+    dev_link_t *link, *next;
+    for (link = dev_list; link; link = next) {
+	next = link->next;
+	if (link->state & DEV_STALE_LINK)
+	    fmvj18x_detach(link);
+    }
+}
+
 /*====================================================================*/
 
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -262,6 +280,7 @@ static dev_link_t *fmvj18x_attach(void)
     int i, ret;
     
     DEBUG(0, "fmvj18x_attach()\n");
+    flush_stale_links();
 
     /* Initialize the dev_link_t structure */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
@@ -370,6 +389,8 @@ static void fmvj18x_detach(dev_link_t *link)
     *linkp = link->next;
     if (link->priv) {
 	struct device *dev = link->priv;
+	if (link->dev != NULL)
+	    unregister_netdev(dev);
 	if (dev->priv) 
 	    kfree_s(dev->priv, sizeof(local_info_t));
 	kfree_s(dev, sizeof(struct device));
@@ -544,7 +565,6 @@ failed:
 static void fmvj18x_release(u_long arg)
 {
     dev_link_t *link = (dev_link_t *)arg;
-    struct device *dev = link->priv;
 
     DEBUG(0, "fmvj18x_release(0x%p)\n", link);
 
@@ -559,20 +579,13 @@ static void fmvj18x_release(u_long arg)
 	return;
     }
 
-    /* Unlink the device chain */
-    if (link->dev)
-	unregister_netdev(dev);
-    link->dev = NULL;
-    
     /* Don't bother checking to see if these succeed or not */
     CardServices(ReleaseWindow, link->win);
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
-    link->state &= ~DEV_CONFIG;
     
-    if (link->state & DEV_STALE_LINK)
-	fmvj18x_detach(link);
+    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
     
 } /* fmvj18x_release */
 

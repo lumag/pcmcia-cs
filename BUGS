@@ -1,30 +1,61 @@
-Known problems with the 3.0.9 PCMCIA release
-============================================
+Known problems with the 3.0.10 PCMCIA release
+=============================================
+
+o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
+  on some systems, but not on others, due to PCI BIOS bugs.  Also, it
+  is harder to diagnose problems, because /proc/bus/pccard is not
+  available with these kernels.
 
 o The token ring driver tweaks a problem in the memory management
   code.  To work around the problem, remove all high memory windows
   from /etc/pcmcia/config.opts.  The driver is also completely broken
-  for late 2.1 and 2.2 kernels.
+  for late 2.1 and early 2.2 kernels.  A fix is in 2.2.7.
 
 o Megahertz EM3288 cards drop interrupts if the modem and ethernet are
   used simultaneously.  No known fix.
+  
+  Prognosis: Unlikely to be fixed, since these cards are old and we
+  are unlikely to ever get more complete tech info.
 
 o The 3c574_cs driver is unstable.  Sometimes it works, sometimes
   cards do not respond at all.  This also affects the network side of
   3CCFEM556B cards.
+  
+  Prognosis: 3Com seems to want to help, but has been slow to come
+  through.  I expect it to be fixed eventually, but I've been saying
+  that for more than a year now.
 
 o None of the CardBus drivers or SCSI drivers implement suspend/resume
   handling.
+  
+  Prognosis: CardBus Network cards will probably be fixed eventually,
+  but it has not been a high priority.  SCSI drivers are less likely
+  to be fixed since we're more dependent on kernel code.
 
 o The apa1480_cb driver only works for 2.1.90-2.1.124, or 2.1.132 and
-  later kernels.
+  later kernels.  And actually, in later kernels, it still seems
+  broken for some device types.
+  
+  Prognosis: should be fixed in the near future, but we're dependent
+  on updates of the kernel aic7xxx driver.
 
 o Automatic determination of PCI interrupt routing for CardBus bridges
   is unreliable, so by default, we don't use PCI interrupts at all.
-
+  
+  Prognosis: this is a difficult issue due to the lack of proper plug
+  and play support in the Linux kernel.  Without that, safe resource
+  allocation for hot swappable devices will always be a problem.
+  
 o Interrupt routing on O2Micro CardBus bridges seems to have problems.
   Toshiba ToPIC97 bridges also seem to have problems, particularly
   with Cardbus cards.
+
+  Prognosis: for the ToPIC problem, Toshiba does not seem willing
+  and/or able to provide adequate help, so I've mostly given up on
+  it.  For both the O2Micro and ToPIC problems, fixes would require
+  someone with device driver experience and the relevant hardware to
+  work on it: data sheets are available, and I can make suggestions of
+  things to try, but I can't debug the problems by email.
 
 o Newer Ositech Jack of Diamonds cards don't work.
 
