@@ -11,6 +11,11 @@
 # of the extended device address
 #
 
+if [ `basename $0` != 'network' ] ; then
+    echo "Invalid invocation: this script should not be executed directly"
+    exit 1
+fi
+
 # Load site-specific settings
 if [ -r ./wireless.opts ] ; then
     . ./wireless.opts

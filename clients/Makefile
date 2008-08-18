@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
 #
-# Makefile 1.137 2001/07/03 01:55:57
+# Makefile 1.138 2002/06/29 05:49:24
 #
 
 # Include site dependent options and kernel configuration
@@ -22,6 +22,7 @@ MODULES = serial_cs.o memory_cs.o ftl_cs.o dummy_cs.o \
 EXTRA   =
 I_EXTRA =
 
+ifndef CONFIG_PCMCIA
 ifdef CONFIG_CARDBUS
 SRCS    += memory_cb.c serial_cb.c
 MODULES += memory_cb.o serial_cb.o
@@ -45,6 +46,7 @@ endif
 ifdef CONFIG_IEEE1394
 SRCS    += pcilynx_stub.c pcilynx.c ohci1394_stub.c ohci1394.c
 MODULES += pcilynx_cb.o ohci1394_cb.o
+endif
 endif
 endif
 

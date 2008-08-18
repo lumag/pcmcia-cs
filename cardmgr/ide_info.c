@@ -2,7 +2,7 @@
 
     Utility to look up information about IDE devices
 
-    ide_info.c 1.14 2002/05/22 05:04:19
+    ide_info.c 1.15 2002/06/16 19:21:58
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -44,7 +44,7 @@
 #include <linux/types.h>
 #include <linux/hdreg.h>
 
-#if (__BYTE_ORDER == _BIG_ENDIAN)
+#if (__BYTE_ORDER == __BIG_ENDIAN)
 #define flip16(n)       (n)
 #else
 #define flip16(n) ((((n)&0x00ff)<<8) | (((n)&0xff00)>>8))

@@ -1,3 +1,19 @@
+[23-Jul-02] Version 3.2.0
+-- Some documentation updates.
+-- Renamed "probe" to "pcic_probe", added "-k" option which, with
+   "-m", produces module names for the kernel PCMCIA subsystem.
+-- Changed cardmgr to use "wordexp" instead of "glob" with glibc, for
+   parsing the "source" command in config files.
+-- Tweaked header files to make k_compat.h superfluous.
+-- A bunch of minor updates to sync up with Debian.
+-- Fixed short-packet handling bug in orinoco_cs and wvlan_cs.
+-- Fixed broken fix for cardmgr "-f" handling introduced in 3.1.34.
+-- Fixed ide_cs breakage introduced in 3.1.34 for some cards.
+-- Fixed cardmgr to properly report unsupported cards in stab file.
+-- Fixed i82365 module breakage from 3.1.34 when PCI is disabled.
+-- Fixed /proc/pci handling for cardbus cards w/ 2.4 kernels.
+-- Fixed big-endian bug in ide_info.
+
 [09-Jun-02] Version 3.1.34
 -- Minor Configure script updates.
 -- Improved config file error reporting for cardmgr.

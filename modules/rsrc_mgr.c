@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.87 2001/10/09 00:09:44
+    rsrc_mgr.c 1.88 2002/06/29 06:23:09
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -31,9 +31,7 @@
     
 ======================================================================*/
 
-#include <pcmcia/config.h>
 #define __NO_VERSION__
-#include <pcmcia/k_compat.h>
 
 #include <linux/config.h>
 #include <linux/module.h>
@@ -620,7 +618,7 @@ int find_mem_region(u_long *base, u_long num, u_long align,
 
 #ifdef CONFIG_ISA
 
-static void fake_irq IRQ(int i, void *d, struct pt_regs *r) { }
+static void fake_irq(int i, void *d, struct pt_regs *r) { }
 static inline int check_irq(int irq)
 {
     if (request_irq(irq, fake_irq, 0, "bogus", NULL) != 0)

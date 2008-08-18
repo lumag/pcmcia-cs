@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.134 2002/05/04 05:48:53
+    serial_cs.c 1.136 2002/06/29 06:27:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -30,9 +30,6 @@
     file under either the MPL or the GPL.
     
 ======================================================================*/
-
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -82,7 +79,7 @@ INT_MODULE_PARM(buggy_uart, 0);		/* Skip strict UART tests? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.134 2002/05/04 05:48:53 (David Hinds)";
+"serial_cs.c 1.136 2002/06/29 06:27:37 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -101,6 +98,7 @@ static multi_id_t multi_id[] = {
     { MANFID_OMEGA, PRODID_OMEGA_QSP_100, 4 },
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D1, 2 },
+    { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D2, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_QUAD_RS232, 4 },
     { MANFID_QUATECH, PRODID_QUATECH_DUAL_RS422, 2 },
     { MANFID_QUATECH, PRODID_QUATECH_QUAD_RS422, 4 },

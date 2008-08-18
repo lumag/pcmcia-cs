@@ -2,6 +2,7 @@
 #define _COMPAT_MODULE_H
 
 #include <linux/version.h>
+#include <linux/kernel.h>
 #include_next <linux/module.h>
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,1,18))

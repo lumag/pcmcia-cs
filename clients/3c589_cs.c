@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    3c589_cs.c 1.164 2002/05/04 05:51:22
+    3c589_cs.c 1.165 2002/06/29 06:27:37
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -16,9 +16,6 @@
     Donald Becker may be reached at becker@scyld.com
 
 ======================================================================*/
-
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -137,7 +134,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.164 2002/05/04 05:51:22 (David Hinds)";
+"3c589_cs.c 1.165 2002/06/29 06:27:37 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

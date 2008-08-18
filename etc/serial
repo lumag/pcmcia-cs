@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.41 2002/05/12 18:07:29 (David Hinds)
+# serial 1.42 2002/06/25 06:15:10 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -49,11 +49,13 @@ case "$ACTION" in
 	    ln -s /dev/$CALLOUT $LINK
 	fi
     fi
-    # Workaround for serial driver bug
-    IRQ=`setserial /dev/$DEVICE | sed -e 's/.*IRQ: //'`
-    setserial /dev/$DEVICE irq 0 ; setserial /dev/$DEVICE irq $IRQ
-    if [ -n "$SERIAL_OPTS" ] ; then
-	log setserial /dev/$DEVICE $SERIAL_OPTS
+    if [ -x /bin/setserial ] ; then
+	# Workaround for serial driver bug
+	IRQ=`setserial /dev/$DEVICE | sed -e 's/.*IRQ: //'`
+	setserial /dev/$DEVICE irq 0 ; setserial /dev/$DEVICE irq $IRQ
+	if [ -n "$SERIAL_OPTS" ] ; then
+	    log setserial /dev/$DEVICE $SERIAL_OPTS
+	fi
     fi
     if [ -n "$INITTAB" ] ; then
 	echo "S$NR:12345:respawn:$INITTAB $DEVICE" >> /etc/inittab

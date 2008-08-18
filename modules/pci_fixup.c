@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.28 2001/08/06 01:29:28
+    pci_fixup.c 1.31 2002/07/02 07:54:47
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -11,9 +11,7 @@
 
 ======================================================================*/
 
-#include <pcmcia/config.h>
 #define __NO_VERSION__
-#include <pcmcia/k_compat.h>
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -250,13 +248,15 @@ static u8 cyrix_link(struct pci_dev *router, u8 link)
 {
     u8 pirq;
     /* link should be 1, 2, 3, 4 */
-    pci_read_config_byte(router, 0x5c + ((link-1)>>1), &pirq);
+    link--;
+    pci_read_config_byte(router, 0x5c + (link>>1), &pirq);
     return ((link & 1) ? pirq >> 4 : pirq & 15);
 }
 
 static void cyrix_init(struct pci_dev *router, u8 link, u8 irq)
 {
     u8 pirq;
+    link--;
     pci_read_config_byte(router, 0x5c + (link>>1), &pirq);
     pirq &= (link & 1) ? 0x0f : 0xf0;
     pirq |= (link & 1) ? (irq << 4) : (irq & 15);

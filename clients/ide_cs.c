@@ -2,7 +2,7 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide_cs.c 1.38 2002/05/04 05:52:04
+    ide_cs.c 1.40 2002/06/29 06:39:00
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -30,9 +30,6 @@
     file under either the MPL or the GPL.
     
 ======================================================================*/
-
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -78,7 +75,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"ide_cs.c 1.38 2002/05/04 05:52:04 (David Hinds)";
+"ide_cs.c 1.40 2002/06/29 06:39:00 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -241,7 +238,7 @@ void ide_config(dev_link_t *link)
     config_info_t conf;
     cistpl_cftable_entry_t *cfg = &parse.cftable_entry;
     cistpl_cftable_entry_t dflt = { 0 };
-    int i, pass, last_ret, last_fn, hd, io_base, ctl_base, is_kme;
+    int i, pass, last_ret, last_fn, hd, io_base, ctl_base, is_kme = 0;
 
     DEBUG(0, "ide_config(0x%p)\n", link);
     
@@ -256,11 +253,11 @@ void ide_config(dev_link_t *link)
     link->conf.Present = parse.config.rmask[0];
 
     tuple.DesiredTuple = CISTPL_MANFID;
-    CS_CHECK(GetFirstTuple, handle, &tuple);
-    CS_CHECK(GetTupleData, handle, &tuple);
-    CS_CHECK(ParseTuple, handle, &tuple, &parse);
-    is_kme = ((parse.manfid.manf == MANFID_KME) &&
-	      (parse.manfid.card == PRODID_KME_KXLC005));
+    if (!CardServices(GetFirstTuple, handle, &tuple) &&
+	!CardServices(GetTupleData, handle, &tuple) &&
+	!CardServices(ParseTuple, handle, &tuple, &parse))
+	is_kme = ((parse.manfid.manf == MANFID_KME) &&
+		  (parse.manfid.card == PRODID_KME_KXLC005));
 
     /* Configure card */
     link->state |= DEV_CONFIG;

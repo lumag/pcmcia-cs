@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2002/05/25 05:09:42
+		Last updated: 2002/07/21 04:14:09
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -64,6 +64,7 @@ Ethernet cards:
 	Asante FriendlyNet	[ new cards seem to not work!! ]
 	AST 1082 Ethernet
 	Atelco ethernet
+	Belkin F5D5020
 	Billionton LNT-10TB, LNT-10TN
 	Buffalo LPC2-CLT
 	CADMUS Micro LNT-10T2C
@@ -295,6 +296,7 @@ Fast Ethernet (10/100baseT) adapters:
 	PLANET ENW-3502-FC
 	PrimeXpress Fast Ethernet
 	RATOC REX-CB80
+	Siemens SpeedStream SS1012
 	Silicom Fast Ethernet
 	SMC EZ CardBus 10/100 Ethernet
 	SVEC FD606 10/100 Ethernet
@@ -356,6 +358,7 @@ Wireless network adapters:
 	Netgear MA401RA
 	PLANEX GeoWave/GW-CF110
 	Proxim Harmony 802.11b
+	Safeway Wireless
 	Samsung 11Mbps WLAN
 	[ PrismII based cards: limited functionality ]
 	Addtron AWP-100
@@ -370,6 +373,7 @@ Wireless network adapters:
 	Linksys WPC11 Instant Wireless
 	Netgear MA401
 	SMC2632W
+	Efficient SpeedStream SS1021
 	ZCOMAX AirRunner/XI=300
 
 Modem and serial cards:
@@ -385,6 +389,7 @@ Modem and serial cards:
 
 	[serial_cs driver] [x86,axp,ppc,smp]
 	Advantech COMpad-32/85 dual port, COMpad-32/85B-4 quad port
+	Anycom ECO II dual serial
 	Argosy dual serial
 	Black Box I114A RS-422/485
 	Brain Boxes 2-Port RS-232

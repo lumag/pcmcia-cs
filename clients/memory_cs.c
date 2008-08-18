@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.86 2002/05/09 15:40:48
+    memory_cs.c 1.87 2002/06/29 06:27:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -35,9 +35,6 @@
     file under either the MPL or the GPL.
     
 ======================================================================*/
-
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -100,7 +97,7 @@ INT_MODULE_PARM(force_size, 0);		/* force SRAM card size? */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.86 2002/05/09 15:40:48 (David Hinds)";
+"memory_cs.c 1.87 2002/06/29 06:27:37 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

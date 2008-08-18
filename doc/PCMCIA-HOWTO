@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dahinds@users.sourceforge.net.
-  v2.101, 06 May 2002
+  v2.102, 04 July 2002
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -1087,10 +1087,14 @@
   0xd000).  Be sure to add the extra digit back when making changes to
   config.opts.
 
+  Changing BIOS settings affecting how devices are mapped can sometimes
+  be useful.  Try changing settings for BIOS shadowing, or "Plug and
+  Play OS support".
+
   In unusual cases, a memory probe failure can indicate a timing
   register setup problem with the host controller.  See the ``Startup
   options'' section for information about dealing with common timing
-  problems.
+  problems.  This really only applies to ISA-to-PCMCIA bus bridges.
 
   +o  cs: warning: no high memory space available!
 
@@ -1171,13 +1175,13 @@
 
   +o  One of the following messages will appear in the system log:
 
-       RequestIO: Resource in use
-       RequestIRQ: Resource in use
-       RequestWindow: Resource in use
-       GetNextTuple: No more items
-       could not allocate nn IO ports for CardBus socket n
-       could not allocate nnK memory for CardBus socket n
-       could not allocate interrupt for CardBus socket n
+  RequestIO: Resource in use
+  RequestIRQ: Resource in use
+  RequestWindow: Resource in use
+  GetNextTuple: No more items
+  could not allocate nn IO ports for CardBus socket n
+  could not allocate nnK memory for CardBus socket n
+  could not allocate interrupt for CardBus socket n
 
   Interrupt starvation often indicates a problem with the interrupt
   probe (see ``Interrupt scan failures'').  In some cases, the probe
@@ -1282,7 +1286,6 @@
   beep indicates that a card was identified, but could not be configured
   for some reason.  One low beep indicates that a card could not be
   identified.
-
   The cardmgr daemon configures cards based on a database of known card
   types kept in /etc/pcmcia/config.  This file describes the various
   client drivers, then describes how to identify various cards, and
@@ -1293,6 +1296,7 @@
 
   Cardmgr records device information for each socket in
   /var/lib/pcmcia/stab.  Here is a sample stab listing:
+
        Socket 0: Adaptec APA-1460 SlimSCSI
        0       scsi    aha152x_cs      0       sda     8       0
        0       scsi    aha152x_cs      1       scd0    11      0
@@ -1328,12 +1332,12 @@
 
   Or ``cardctl ident'', to get card identification information:
 
-       Socket 0:
-         no product info available
-       Socket 1:
-         product info: "LINKSYS", "PCMLM336", "A", "0040052D6400"
-         manfid: 0x0143, 0xc0ab
-         function: 0 (multifunction)
+  Socket 0:
+    no product info available
+  Socket 1:
+    product info: "LINKSYS", "PCMLM336", "A", "0040052D6400"
+    manfid: 0x0143, 0xc0ab
+    function: 0 (multifunction)
 
   The ``cardctl suspend'' and ``cardctl resume'' commands can be used to
   shut down a card without unloading its associated drivers.  The
@@ -1754,16 +1758,16 @@
   one modem, you may want to specify different settings based on socket
   position, as in:
 
-  case "$ADDRESS" in
-  *,0,*)
-      # Options for modem in socket 0
-      LINK=/dev/modem0
-      ;;
-  *,1,*)
-      # Options for modem in socket 1
-      LINK=/dev/modem1
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,0,*)
+           # Options for modem in socket 0
+           LINK=/dev/modem0
+           ;;
+       *,1,*)
+           # Options for modem in socket 1
+           LINK=/dev/modem1
+           ;;
+       esac
 
   If a PCMCIA modem is already configured when Linux boots, it may be
   incorrectly identified as an ordinary built-in serial port.  This is
@@ -1803,11 +1807,11 @@
 
   For example:
 
-       case "$ADDRESS" in
-       *,*,*,*)
-           LINK="/dev/modem"
-           SERIAL_OPTS=""
-           INITTAB="/sbin/getty"
+  case "$ADDRESS" in
+  *,*,*,*)
+      LINK="/dev/modem"
+      SERIAL_OPTS=""
+      INITTAB="/sbin/getty"
 
   44..44..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
 
@@ -2068,36 +2072,36 @@
   For example, here is a script for configuring a disk device at SCSI ID
   3, with two partitions, and a CD-ROM at SCSI ID 6:
 
-       case "$ADDRESS" in
-       *,sd,*,0,3,0)
-           # This device has two partitions...
-           PARTS="1 2"
-           ;;
-       *,sd,*,0,3,0,1)
-           # Options for partition 1:
-           #  update /etc/fstab, and mount an ext2 fs on /usr1
-           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="ext2"
-           OPTS=""
-           MOUNTPT="/usr1"
-           ;;
-       *,sd,*,0,3,0,2)
-           # Options for partition 2:
-           #  update /etc/fstab, and mount an MS-DOS fs on /usr2
-           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-           FSTYPE="msdos"
-           OPTS=""
-           MOUNTPT="/usr2"
-           ;;
-       *,sr,*,0,6,0)
-           # Options for CD-ROM at SCSI ID 6
-           PARTS=""
-           DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
-           FSTYPE="iso9660"
-           OPTS="ro"
-           MOUNTPT="/cdrom"
-           ;;
-       esac
+  case "$ADDRESS" in
+  *,sd,*,0,3,0)
+      # This device has two partitions...
+      PARTS="1 2"
+      ;;
+  *,sd,*,0,3,0,1)
+      # Options for partition 1:
+      #  update /etc/fstab, and mount an ext2 fs on /usr1
+      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="ext2"
+      OPTS=""
+      MOUNTPT="/usr1"
+      ;;
+  *,sd,*,0,3,0,2)
+      # Options for partition 2:
+      #  update /etc/fstab, and mount an MS-DOS fs on /usr2
+      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+      FSTYPE="msdos"
+      OPTS=""
+      MOUNTPT="/usr2"
+      ;;
+  *,sr,*,0,6,0)
+      # Options for CD-ROM at SCSI ID 6
+      PARTS=""
+      DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
+      FSTYPE="iso9660"
+      OPTS="ro"
+      MOUNTPT="/cdrom"
+      ;;
+  esac
 
   44..66..22..  CCoommmmeennttss aabboouutt ssppeecciiffiicc ccaarrddss
 
@@ -2125,7 +2129,7 @@
      frequent source of trouble with tape drives.  To disable this
      ``feature,'' add the following to /etc/pcmcia/config.opts:
 
-       module "aha152x_cs" opts "reconnect=0"
+  module "aha152x_cs" opts "reconnect=0"
 
   +o  Also with the aha152x_cs driver, certain devices seem to require a
      longer startup delay, controlled via the reset_delay module
@@ -2153,6 +2157,7 @@
      drivers for your devices (i.e., disk, tape, CD-ROM, and/or
      generic).  If a top-level driver is missing, devices of that type
      will be ignored.
+
   44..77..  PPCCMMCCIIAA mmeemmoorryy ccaarrddss
 
   The memory_cs driver handles all types of memory cards, as well as
@@ -2216,6 +2221,7 @@
         true, then ``cardctl eject'' will shut down a device even if it
         is busy.  If NO_FUSER is true, then the script will not try to
         kill processes using an ejected device.
+
   Here is an example of a script that will automatically mount memory
   cards based on which socket they are inserted into:
 
@@ -2608,6 +2614,7 @@
   interrupt assignment.  If it does not, then resolve that problem
   first, then return here if the symptoms persist.  Next, experiment
   with different values for the irq_mode parameter.
+
   55..22..44..  NNoo PPCCII iinntteerrrruupptt aassssiiggnnmmeenntt;; vvaalliidd rroouuttiinngg ttaabbllee
 
   Symptoms:
@@ -2690,7 +2697,6 @@
   In this example, the second ``case'' clause will select for both the
   ``home'' and ``default'' schemes.  So, if the scheme is unset for any
   reason, it will default to the ``home'' setup.
-
   Now, to select between the two sets of settings, run either:
 
        cardctl scheme home
@@ -2819,13 +2825,13 @@
   files for lilo to a clean floppy.  In the following example, we assume
   that the desired PCMCIA root device is /dev/sda1:
 
-  mke2fs /dev/fd0
-  mount /dev/fd0 /mnt
-  mkdir /mnt/etc /mnt/boot /mnt/dev
-  cp -a /dev/fd0 /dev/sda1 /mnt/dev
-  cp [kernel-image] /mnt/vmlinuz
-  cp /boot/boot.b /mnt/boot/boot.b
-  gzip < [initrd-image] > /mnt/initrd
+       mke2fs /dev/fd0
+       mount /dev/fd0 /mnt
+       mkdir /mnt/etc /mnt/boot /mnt/dev
+       cp -a /dev/fd0 /dev/sda1 /mnt/dev
+       cp [kernel-image] /mnt/vmlinuz
+       cp /boot/boot.b /mnt/boot/boot.b
+       gzip < [initrd-image] > /mnt/initrd
 
   Create /mnt/etc/lilo.conf with the contents:
 
@@ -2915,6 +2921,7 @@
   card, cardmgr will normally record some identification information in
   the system log that can be used to construct the config entry.  This
   information can also be displayed with the ``cardctl ident'' command.
+
   Here is an example of how cardmgr will report an unsupported card in
   /usr/adm/messages.
 
@@ -2930,9 +2937,9 @@
 
   or using the more compact product ID codes:
 
-       card "Megahertz XJ2288 V.34 Fax Modem"
-         manfid 0x0101, 0x1234
-         bind "serial_cs"
+  card "Megahertz XJ2288 V.34 Fax Modem"
+    manfid 0x0101, 0x1234
+    bind "serial_cs"
 
   You can use ``*'' to match strings that don't need to match exactly,
   like version numbers.  When making new config entries, be careful to
@@ -3216,7 +3223,6 @@
   can only be interpreted using the data sheets for the PCMCIA host
   controller.  Its contents may depend on how the drivers were
   configured, but may include all or some of the following:
-
      /proc/bus/pccard/{irq,ioport,memory}
         If present, these files contain resource allocation information
         to supplement the normal kernel resource tables.  Recent
@@ -3335,7 +3341,6 @@
   with the 3.1.6 release, cardmgr will automatically process any *.conf
   files installed in /etc/pcmcia, so installation of contributed drivers
   should no longer require hand editing configuration files.
-
   I will accept client drivers prepared according to this specification
   and place them in the /pub/pcmcia-cs/contrib directory on
   projects.sourceforge.net.  The README in this directory will describe

@@ -2,7 +2,7 @@
 
     A direct memory interface driver for CardBus cards
 
-    memory_cb.c 1.21 2001/10/13 00:08:52
+    memory_cb.c 1.22 2002/06/29 06:27:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -30,9 +30,6 @@
     file under either the MPL or the GPL.
     
 ======================================================================*/
-
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -62,7 +59,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cb.c 1.21 2001/10/13 00:08:52 (David Hinds)";
+"memory_cb.c 1.22 2002/06/29 06:27:37 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

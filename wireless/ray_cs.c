@@ -22,9 +22,6 @@
  * 
 =============================================================================*/
 
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -319,7 +316,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.32 2002/05/07 05:13:36 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.33 2002/06/29 06:39:33 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)

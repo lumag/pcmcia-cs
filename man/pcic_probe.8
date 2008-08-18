@@ -1,0 +1,41 @@
+.\" Copyright (C) 2002 David A. Hinds -- dahinds@users.sourceforge.net
+.\" pcic_probe.8 1.1 2002/07/17 06:39:20
+.\"
+.TH PCIC_PROBE 8 "2002/07/17 06:39:20" "pcmcia-cs"
+.SH NAME
+pcic_probe \- PCMCIA interface controller probe
+.SH SYNOPSIS
+.B pcic_probe
+[\fB-v\fR]
+[\fB-m\fR]
+[\fB-k\fR]
+[\fB\-t \fItcic_base\fR]
+
+.SH DESCRIPTION
+The \fBpcic_probe\fR command scans a system for various types of
+PCMCIA bridge devices.  It probes for PCI-based PC Card and CardBus
+bridges, as well as several types of ISA-bus bridges, where
+appropriate.
+
+.SH OPTIONS
+.TP
+.B \-v
+Generates more verbose output during ISA bus probes.
+.TP
+.B \-m
+Outputs the kernel module name for the socket driver for the first
+identified controller.
+.TP
+.B \-k
+Used with \fB-m\fR, specifies that module names should be generated
+for use with the kernel PCMCIA subsystem, rather than for the
+standalone pcmcia-cs modules.
+.TP
+\fB\-t \fItcic_base\fR
+Specifies the base IO port of a Databook TCIC ISA-PCMCIA bridge.  The
+default is 0x240.
+
+.SH AUTHOR
+David Hinds \- dahinds@users.sourceforge.net
+
+

@@ -11,10 +11,6 @@
  */
 
 #include <linux/config.h>
-#ifdef  __IN_PCMCIA_PACKAGE__
-#include <pcmcia/k_compat.h>
-#endif /* __IN_PCMCIA_PACKAGE__ */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

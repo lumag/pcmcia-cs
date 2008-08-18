@@ -4,9 +4,7 @@
  * Written by David Hinds, dahinds@users.sourceforge.net
  */
 
-#include <pcmcia/config.h>
 #define __NO_VERSION__
-#include <pcmcia/k_compat.h>
 
 #include <linux/config.h>
 #include <linux/module.h>

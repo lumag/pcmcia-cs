@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_config.l 1.41 2002/05/16 05:51:04
+ * lex_config.l 1.42 2002/07/02 07:55:27
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -37,7 +37,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <syslog.h>
+#ifdef __GLIBC__
+#include <wordexp.h>
+#else
 #include <glob.h>
+#endif
 #define src 1
 
 #include <pcmcia/cs_types.h>
@@ -64,7 +68,7 @@ str	\"([^"]|\\.)*\"
 
 source		BEGIN(src); return SOURCE;
 <src>[ \t]*	/* skip */ ;
-<src>[^ \t\n]+	do_source(yytext); BEGIN(INITIAL);
+<src>[^\n]+	do_source(yytext); BEGIN(INITIAL);
 <<EOF>>		if (do_eof()) yyterminate();
 
 \n		current_lineno++;
@@ -154,7 +158,11 @@ struct source_stack {
     char		*filename;
     int			lineno, fileno;
     FILE		*file;
+#ifdef __GLIBC__
+    wordexp_t		word;
+#else
     glob_t		glob;
+#endif
 } source_stack[MAX_SOURCE_DEPTH];
 static int source_stack_ptr = 0;
 static int parse_env = 0;
@@ -162,8 +170,13 @@ static int parse_env = 0;
 static int get_glob(void)
 {
     struct source_stack *s = &source_stack[source_stack_ptr];
+#ifdef __GLIBC__
+    while (s->fileno < s->word.we_wordc) {
+	char *fn = s->word.we_wordv[s->fileno];
+#else
     while (s->fileno < s->glob.gl_pathc) {
 	char *fn = s->glob.gl_pathv[s->fileno];
+#endif
 	s->file = fopen(fn, "r");
 	if (s->file == NULL) {
 	    if (strpbrk(fn, "?*[") == NULL)
@@ -189,7 +202,11 @@ static void do_source(char *fn)
 	syslog(LOG_INFO, "source depth limit exceeded");
 	return;
     }
+#ifdef __GLIBC__
+    wordexp(fn, &s->word, 0);
+#else
     glob(fn, GLOB_NOCHECK, NULL, &s->glob);
+#endif
     s->fileno = 0;
     s->buffer = YY_CURRENT_BUFFER;
     s->lineno = current_lineno;

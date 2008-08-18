@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.174 2002/06/01 16:33:58
+    cardmgr.c 1.176 2002/07/03 06:45:54
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -524,6 +524,7 @@ static card_info_t *lookup_card(int ns)
 	if (one_pass) return NULL;
 	beep(BEEP_TIME, BEEP_ERR);
 	log_card_info(vers, &manfid, &funcid, &pci_id);
+	write_stab();
 	return NULL;
     } else {
 	card = blank_card;
@@ -1208,7 +1209,7 @@ static void fork_now(void)
 {
     int ret;
     if ((ret = fork()) > 0)
-	exit(0);
+	_exit(0);
     if (ret == -1)
 	syslog(LOG_ERR, "forking: %m");
     if (setsid() < 0)
@@ -1473,9 +1474,7 @@ int main(int argc, char *argv[])
 	if (one_pass)
 	    exit(EXIT_SUCCESS);
 	if (delay_fork) {
-	    atexit(NULL);
 	    fork_now();
-	    atexit(&done);
 	    write_pid();
 	    delay_fork = 0;
 	}

@@ -218,17 +218,7 @@
  *		First tests with card functions.
  */
 
-#include <linux/config.h>
 #include <linux/version.h>
-#ifndef KERNEL_VERSION
-#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
-#endif
-
-#ifdef __IN_PCMCIA_PACKAGE__
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
-#endif
-
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -2558,6 +2548,18 @@ void wvlan_rx (struct net_device *dev, int len)
 	// HCF-light doesn't support that.
 	if (local->ifb.IFB_RxStat == 0x2000 || local->ifb.IFB_RxStat == 0x4000)
 	{
+		// We copy len-12-sizeof(snap_header) bytes below.  Make sure we
+		// don't accidentally copy a negative count of bytes.
+		if (len < (12+sizeof(snap_header)))
+		{
+			DEV_KFREE_SKB(skb);
+			printk(KERN_WARNING "%s: %s dropping short packet\n",
+				dev_info, dev->name);
+			local->stats.rx_length_errors++;
+			local->stats.rx_dropped++;
+			return;
+		}
+
 		hcf_get_data(&local->ifb, 0, p, 12);
 		hcf_get_data(&local->ifb, 12+sizeof(snap_header), p+12, len-12-sizeof(snap_header));
 		skb_trim(skb, len-sizeof(snap_header));

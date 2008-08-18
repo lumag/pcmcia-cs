@@ -1,8 +1,8 @@
 /*======================================================================
 
-    PCMCIA controller probe
+    PCMCIA bridge device probe
 
-    probe.c 1.57 2002/02/28 03:58:34
+    pcic_probe.c 1.1 2002/07/17 06:27:30
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -47,57 +47,57 @@
 
 typedef struct {
     u_short	vendor, device;
-    char	*tag;
+    char	*modname;
     char	*name;
 } pci_id_t;
 
 pci_id_t pci_id[] = {
-    { 0x1013, 0x1100, "Cirrus Logic CL 6729", "Cirrus PD6729" },
-    { 0x1013, 0x1110, "Cirrus Logic PD 6832", "Cirrus PD6832" },
-    { 0x10b3, 0xb106, "SMC 34C90", "SMC 34C90" },
-    { 0x1180, 0x0465, "Ricoh RL5C465", "Ricoh RL5C465" },
-    { 0x1180, 0x0466, "Ricoh RL5C466", "Ricoh RL5C466" },
-    { 0x1180, 0x0475, "Ricoh RL5C475", "Ricoh RL5C475" },
-    { 0x1180, 0x0476, "Ricoh RL5C476", "Ricoh RL5C476" },
-    { 0x1180, 0x0478, "Ricoh RL5C478", "Ricoh RL5C478" },
-    { 0x104c, 0xac12, "Texas Instruments PCI1130", "TI 1130" },
-    { 0x104c, 0xac13, "Texas Instruments PCI1031", "TI 1031" },
-    { 0x104c, 0xac15, "Texas Instruments PCI1131", "TI 1131" },
-    { 0x104c, 0xac1a, "Texas Instruments PCI1210", "TI 1210" },
-    { 0x104c, 0xac1e, "Texas Instruments PCI1211", "TI 1211" },
-    { 0x104c, 0xac17, "Texas Instruments PCI1220", "TI 1220" },
-    { 0x104c, 0xac19, "Texas Instruments PCI1221", "TI 1221" },
-    { 0x104c, 0xac1c, "Texas Instruments PCI1225", "TI 1225" },
-    { 0x104c, 0xac16, "Texas Instruments PCI1250", "TI 1250A" },
-    { 0x104c, 0xac1d, "Texas Instruments PCI1251A", "TI 1251A" },
-    { 0x104c, 0xac1f, "Texas Instruments PCI1251B", "TI 1251B" },
-    { 0x104c, 0xac50, "Texas Instruments PCI1410", "TI 1410" },
-    { 0x104c, 0xac51, "Texas Instruments PCI1420", "TI 1420" },
-    { 0x104c, 0xac1b, "Texas Instruments PCI1450", "TI 1450" },
-    { 0x104c, 0xac52, "Texas Instruments PCI1451", "TI 1451" },
-    { 0x104c, 0xac41, "Texas Instruments PCI4410", "TI 4410" },
-    { 0x104c, 0xac40, "Texas Instruments PCI4450", "TI 4450" },
-    { 0x104c, 0xac42, "Texas Instruments PCI4451", "TI 4451" },
-    { 0x1217, 0x6729, "O2 Micro 6729", "O2Micro OZ6729" },
-    { 0x1217, 0x673a, "O2 Micro 6730", "O2Micro OZ6730" },
-    { 0x1217, 0x6832, "O2 Micro 6832/6833", "O2Micro OZ6832/OZ6833" },
-    { 0x1217, 0x6836, "O2 Micro 6836/6860", "O2Micro OZ6836/OZ6860" },
-    { 0x1217, 0x6872, "O2 Micro 6812", "O2Micro OZ6812" },
-    { 0x1217, 0x6925, "O2 Micro 6922", "O2Micro OZ6922" },
-    { 0x1217, 0x6933, "O2 Micro 6933", "O2Micro OZ6933" },
-    { 0x1217, 0x6972, "O2 Micro 6912", "O2Micro OZ6912" },
-    { 0x1179, 0x0603, "Toshiba ToPIC95-A", "Toshiba ToPIC95-A" },
-    { 0x1179, 0x060a, "Toshiba ToPIC95-B", "Toshiba ToPIC95-B" },
-    { 0x1179, 0x060f, "Toshiba ToPIC97", "Toshiba ToPIC97" },
-    { 0x1179, 0x0617, "Toshiba ToPIC100", "Toshiba ToPIC100" },
-    { 0x119b, 0x1221, "Omega Micro 82C092G", "Omega Micro 82C092G" },
-    { 0x8086, 0x1221, "Intel 82092AA", "Intel 82092AA" }
+    { 0x1013, 0x1100, "i82365", "Cirrus Logic CL 6729" },
+    { 0x1013, 0x1110, "yenta_socket", "Cirrus Logic PD 6832" },
+    { 0x10b3, 0xb106, "yenta_socket", "SMC 34C90" },
+    { 0x1180, 0x0465, "yenta_socket", "Ricoh RL5C465" },
+    { 0x1180, 0x0466, "yenta_socket", "Ricoh RL5C466" },
+    { 0x1180, 0x0475, "yenta_socket", "Ricoh RL5C475" },
+    { 0x1180, 0x0476, "yenta_socket", "Ricoh RL5C476" },
+    { 0x1180, 0x0478, "yenta_socket", "Ricoh RL5C478" },
+    { 0x104c, 0xac12, "yenta_socket", "Texas Instruments PCI1130" }, 
+    { 0x104c, 0xac13, "yenta_socket", "Texas Instruments PCI1031" }, 
+    { 0x104c, 0xac15, "yenta_socket", "Texas Instruments PCI1131" }, 
+    { 0x104c, 0xac1a, "yenta_socket", "Texas Instruments PCI1210" }, 
+    { 0x104c, 0xac1e, "yenta_socket", "Texas Instruments PCI1211" }, 
+    { 0x104c, 0xac17, "yenta_socket", "Texas Instruments PCI1220" }, 
+    { 0x104c, 0xac19, "yenta_socket", "Texas Instruments PCI1221" }, 
+    { 0x104c, 0xac1c, "yenta_socket", "Texas Instruments PCI1225" }, 
+    { 0x104c, 0xac16, "yenta_socket", "Texas Instruments PCI1250" }, 
+    { 0x104c, 0xac1d, "yenta_socket", "Texas Instruments PCI1251A" }, 
+    { 0x104c, 0xac1f, "yenta_socket", "Texas Instruments PCI1251B" }, 
+    { 0x104c, 0xac50, "yenta_socket", "Texas Instruments PCI1410" }, 
+    { 0x104c, 0xac51, "yenta_socket", "Texas Instruments PCI1420" }, 
+    { 0x104c, 0xac1b, "yenta_socket", "Texas Instruments PCI1450" }, 
+    { 0x104c, 0xac52, "yenta_socket", "Texas Instruments PCI1451" }, 
+    { 0x104c, 0xac41, "yenta_socket", "Texas Instruments PCI4410" }, 
+    { 0x104c, 0xac40, "yenta_socket", "Texas Instruments PCI4450" }, 
+    { 0x104c, 0xac42, "yenta_socket", "Texas Instruments PCI4451" }, 
+    { 0x1217, 0x6729, "i82365", "O2 Micro 6729" }, 
+    { 0x1217, 0x673a, "i82365", "O2 Micro 6730" }, 
+    { 0x1217, 0x6832, "yenta_socket", "O2 Micro 6832/6833" }, 
+    { 0x1217, 0x6836, "yenta_socket", "O2 Micro 6836/6860" }, 
+    { 0x1217, 0x6872, "yenta_socket", "O2 Micro 6812" }, 
+    { 0x1217, 0x6925, "yenta_socket", "O2 Micro 6922" }, 
+    { 0x1217, 0x6933, "yenta_socket", "O2 Micro 6933" }, 
+    { 0x1217, 0x6972, "yenta_socket", "O2 Micro 6912" }, 
+    { 0x1179, 0x0603, "i82365", "Toshiba ToPIC95-A" }, 
+    { 0x1179, 0x060a, "yenta_socket", "Toshiba ToPIC95-B" }, 
+    { 0x1179, 0x060f, "yenta_socket", "Toshiba ToPIC97" }, 
+    { 0x1179, 0x0617, "yenta_socket", "Toshiba ToPIC100" }, 
+    { 0x119b, 0x1221, "i82365", "Omega Micro 82C092G" }, 
+    { 0x8086, 0x1221, "i82092", "Intel 82092AA" }, 
 };
 #define PCI_COUNT (sizeof(pci_id)/sizeof(pci_id_t))
 
-static int pci_probe(int verbose, int module)
+static int pci_probe(int verbose, int module, int kernel_mode)
 {
-    char s[256], *t, *name = NULL;
+    char s[256], *t, *name = NULL, *modname = "i82365";
     u_int device, vendor, i;
     FILE *f;
     
@@ -113,6 +113,8 @@ static int pci_probe(int verbose, int module)
 		    (device == pci_id[i].device)) break;
 	    if (i < PCI_COUNT) {
 		name = pci_id[i].name;
+		if (kernel_mode)
+		    modname = pci_id[i].modname;
 		break;
 	    }
 	}
@@ -128,14 +130,18 @@ static int pci_probe(int verbose, int module)
 			(device == pci_id[i].device)) break;
 	    } else
 		for (i = 0; i < PCI_COUNT; i++)
-		    if (strstr(s, pci_id[i].tag) != NULL) break;
+		    if (strstr(s, pci_id[i].name) != NULL) break;
 	    if (i != PCI_COUNT) {
 		name = pci_id[i].name;
+		if (kernel_mode)
+		    modname = pci_id[i].modname;
 		break;
 	    } else {
 		t = strstr(s, "CardBus bridge");
 		if (t != NULL) {
 		    name = t + 16;
+		    if (kernel_mode)
+			modname = "yenta_socket";
 		    t = strchr(s, '(');
 		    t[-1] = '\0';
 		    break;
@@ -146,7 +152,7 @@ static int pci_probe(int verbose, int module)
     
     if (name) {
 	if (module)
-	    printf("i82365\n");
+	    printf("%s\n", modname);
 	else
 	    printf("%s found, 2 sockets.\n", name);
 	return 0;
@@ -432,10 +438,10 @@ int main(int argc, char *argv[])
 {
     int optch, errflg;
     extern char *optarg;
-    int verbose = 0, module = 0;
-    
+    int verbose = 0, module = 0, kernel_mode = 0;
+
     errflg = 0;
-    while ((optch = getopt(argc, argv, "t:vxm")) != -1) {
+    while ((optch = getopt(argc, argv, "t:kvm")) != -1) {
 	switch (optch) {
 #ifdef CONFIG_ISA
 	case 't':
@@ -445,17 +451,19 @@ int main(int argc, char *argv[])
 	    verbose = 1; break;
 	case 'm':
 	    module = 1; break;
+	case 'k':
+	    kernel_mode = 1; break;
 	default:
 	    errflg = 1; break;
 	}
     }
     if (errflg || (optind < argc)) {
-	fprintf(stderr, "usage: %s [-t tcic_base] [-v] [-m]\n", argv[0]);
+	fprintf(stderr, "usage: %s [-t tcic_base] [-k] [-v] [-m]\n", argv[0]);
 	exit(EXIT_FAILURE);
     }
 
 #ifdef CONFIG_PCI
-    if (pci_probe(verbose, module) == 0)
+    if (pci_probe(verbose, module, kernel_mode) == 0)
 	exit(EXIT_SUCCESS);
 #endif
 #ifdef CONFIG_ISA

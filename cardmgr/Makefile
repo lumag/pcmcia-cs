@@ -1,5 +1,5 @@
 #
-# cardmgr/Makefile 1.85 2001/02/07 00:41:40 (David Hinds)
+# cardmgr/Makefile 1.86 2002/07/17 06:27:26 (David Hinds)
 #
 
 # Include site dependent options
@@ -9,7 +9,7 @@ CFLAGS = -O -Wall -Wstrict-prototypes -pipe
 CPPFLAGS += -I../modules
 CC = $(UCC) $(UFLAGS)
 
-SRCS  = cardmgr.c cardctl.c yacc_config.c lex_config.c probe.c
+SRCS  = cardmgr.c cardctl.c yacc_config.c lex_config.c pcic_probe.c
 TOOLS = cardmgr cardctl
 
 ifdef CONFIG_INET
@@ -35,7 +35,7 @@ I_EXTRA += install-cardinfo
 endif
 
 ifdef CONFIG_ISA
-PROBE = probe
+PROBE = pcic_probe
 ifdef PREFIX
 I_EXTRA += install-probe
 endif
@@ -45,7 +45,7 @@ all:	$(SRCS) $(TOOLS) $(EXTRA) $(PROBE)
 
 clean:
 	rm -f core core.* *.o *.s *.a *~ .depend .depfiles/*.d
-	rm -f $(TOOLS) $(EXTRA) probe
+	rm -f $(TOOLS) $(EXTRA) pcic_probe
 
 cardmgr: cardmgr.o yacc_config.o lex_config.o
 
@@ -64,9 +64,9 @@ install-cardinfo: cardinfo
 	cp -f cardinfo $(PREFIX)/usr/X11R6/bin
 	chmod u+s $(PREFIX)/usr/X11R6/bin/cardinfo
 
-install-probe: probe
+install-probe: pcic_probe
 	@mkdir -p $(PREFIX)/sbin
-	cp -f probe $(PREFIX)/sbin
+	cp -f pcic_probe $(PREFIX)/sbin
 
 install: $(TOOLS) $(I_EXTRA)
 	@mkdir -p $(PREFIX)/sbin

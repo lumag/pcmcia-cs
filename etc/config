@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.202 2002/05/25 05:09:42 (David Hinds)
+# config 1.205 2002/07/21 04:14:01 (David Hinds)
 #
 
 # config.opts is now included at the very end.  In general, it is a
@@ -187,6 +187,10 @@ card "Arowana Ethernet"
 
 card "Asante FriendlyNet Ethernet"
   version "ASANTE", "FriendlyNet PC Card"
+  bind "pcnet_cs"
+
+card "Belkin F5D5020 Ethernet"
+  version "Belkin", "F5D5020-PCMCIA-Network-Card"
   bind "pcnet_cs"
 
 card "Billionton LNT-10TB"
@@ -490,6 +494,11 @@ card "Linksys NP10T Ethernet"
   manfid 0x0149, 0xc1ab
   bind "pcnet_cs"
 
+card "LinkSys Network Everywhere NP100"
+  version "Network Everywhere", "Fast Ethernet 10/100 PC Card"
+  #manfid: 0x0149, 0xc1ab
+  bind "pcnet_cs"
+
 card "Longshine ShineNet LCS-8534 Ethernet"
   version "LONGSHINE", "PCMCIA Ethernet Card"
   bind "pcnet_cs"
@@ -556,7 +565,7 @@ card "New Media BASICS Ethernet"
 
 card "New Media LanSurfer"
   manfid 0x0057, 0x0021
-  bind "pcnet_cs"
+  bind "pcnet_cs", "serial_cs"
 
 card "NextCom NC5310 Ethernet"
   version "NextComK.K.", "NC5310 Ver1.0        "
@@ -585,6 +594,11 @@ card "NE2000 Compatible Ethernet"
 
 card "NE2000 Compatible Ethernet"
   version "PCMCIA", "PCMCIA-ETHERNET-CARD", "UE2620"
+  bind "pcnet_cs"
+
+card "NE2000 Compatible CF Ethernet"
+  version "Ethernet", "CF Size PC Card"
+  manfid 0x0149, 0xc1ab
   bind "pcnet_cs"
 
 card "NDC Instant-Link Ethernet"
@@ -888,6 +902,11 @@ card "Linksys EtherFast 10/100 Fast Ethernet"
   #manfid 0x0149, 0xc1ab
   bind "pcnet_cs"
 
+card "Linksys EtherFast PCMPC100 V2 Fast Ethernet"
+  version "Linksys", "EtherFast 10/100 PC Card (PCMPC100 V2)"
+  #manfid 0x0149, 0xc1ab
+  bind "pcnet_cs"
+
 card "Linksys EtherFast PCMPC100 V3 Fast Ethernet"
   version "Linksys", "EtherFast 10/100 PC Card (PCMPC100 V3)"
   #manfid 0x0149, 0xc1ab
@@ -994,6 +1013,11 @@ card "Xircom CompactCard Ethernet"
   version "Xircom", "*", "CFE-10"
   bind "pcnet_cs"
 
+card "DynaLink 10/100Base Fast Ethernet"
+  version "PCMCIA", "FastEthernet"
+  #manfid 0x021b, 0x0202
+  bind "pcnet_cs"
+
 card "Xircom CE3-10/100 Fast Ethernet"
   version "Xircom", "*", "CE3-10/100"
   bind "xirc2ps_cs"
@@ -1004,6 +1028,10 @@ card "Xircom RealPort2 10/100 Fast Ethernet"
 
 card "Xircom XE2000 10/100 Fast Ethernet"
   version "Xircom", "*", "XE2000"
+  bind "xirc2ps_cs"
+
+card "Xircom XE2000 10/100 Fast Ethernet"
+  manfid 0x0105, 0x010a
   bind "xirc2ps_cs"
 
 #
@@ -1129,8 +1157,17 @@ card "RayLink PC Card WLAN Adapter"
   manfid 0x01a6, 0x0000
   bind "ray_cs"
 
+card "Safeway 802.11b Wireless Adapter"
+  manfid 0xd601, 0x0002
+  bind "orinoco_cs"
+
 card "SAMSUNG 11Mbps WLAN Card"
   version "SAMSUNG", "11Mbps WLAN Card"
+  bind "orinoco_cs"
+
+card "SpeedStream SS1021 Wireless Adapter"
+  #version "Siemens", "SpeedStream Wireless PCMCIA"
+  manfid 0x02ac, 0x0002
   bind "orinoco_cs"
 
 card "Xircom CreditCard Netwave"
@@ -1144,6 +1181,11 @@ card "Xircom Wireless Network Adapter"
 card "ZCOMAX AirRunner/XI-300"
   #version "ZCOMAX", "AirRunner/XI-300"
   manfid 0xd601, 0x0002
+  bind "orinoco_cs"
+
+card "AirWay 802.11 Adapter (PCMCIA)"
+  #version "AirWay", "802.11 Adapter (PCMCIA)"
+  manfid 0x0261, 0x0002
   bind "orinoco_cs"
 
 #
@@ -1292,6 +1334,10 @@ card "Omega Engineering QSP-100"
 
 card "Quatech Dual RS-232"
   version "Quatech Inc", "PCMCIA Dual RS-232 Serial Port Card"
+  bind "serial_cs"
+
+card "Quatech Dual RS-232"
+  manfid 0x0137, 0x0052
   bind "serial_cs"
 
 card "Quatech Quad RS-232"
@@ -2079,6 +2125,10 @@ card "PrimeXPress 10/100 Fast Ethernet"
 
 card "RATOC REX-CB80 Fast Ethernet"
   version "RATOC Systems,Inc.", "CardBus LAN 01"
+  bind "tulip_cb"
+
+card "Siemens SpeedStream SS1012 Fast Ethernet"
+  manfid 0x02ac, 0x1012
   bind "tulip_cb"
 
 card "Silicom Fast Ethernet"

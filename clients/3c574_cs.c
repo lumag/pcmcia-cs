@@ -67,9 +67,6 @@ earlier 3Com products.
 
 */
 
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -127,7 +124,7 @@ INT_MODULE_PARM(auto_polarity, 1);
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c574_cs.c 1.67 2002/05/04 05:51:22 Donald Becker/David Hinds, becker@scyld.com.\n";
+"3c574_cs.c 1.68 2002/06/29 06:27:37 Donald Becker/David Hinds, becker@scyld.com.\n";
 #else
 #define DEBUG(n, args...)
 #endif

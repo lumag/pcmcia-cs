@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dahinds@users.sourceforge.net.
-  v2.31, 04 May 2002
+  v2.32, 19 July 2002
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -1821,7 +1821,7 @@
      CISREG_ESR
         The Extended Status Register.
 
-     CISREG_IOBASE0..CISREG_IOBASE3
+     CISREG_IOBASE_0..CISREG_IOBASE_3
         The I/O Base Registers.
 
      CISREG_IOSIZE

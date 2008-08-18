@@ -3160,7 +3160,7 @@ void cleanup_module( void )
 #ifndef IW_ENCODE_NOKEY
 #define IW_ENCODE_NOKEY         0x0800  /* Key is write only, so not present */
 #define IW_ENCODE_MODE  (IW_ENCODE_DISABLED | IW_ENCODE_RESTRICTED | IW_ENCODE_OPEN)
-#endif IW_ENCODE_NOKEY
+#endif /* IW_ENCODE_NOKEY */
 #endif /* WIRELESS_EXT */
 
 /*

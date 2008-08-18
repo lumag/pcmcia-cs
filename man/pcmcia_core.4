@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" pcmcia_core.4 1.25 2000/08/30 20:23:01
+.\" pcmcia_core.4 1.26 2002/07/10 05:08:16
 .\"
-.TH PCMCIA_CORE 4 "2000/08/30 20:23:01" "pcmcia-cs"
+.TH PCMCIA_CORE 4 "2002/07/10 05:08:16" "pcmcia-cs"
 .SH NAME
 pcmcia_core \- PCMCIA Card Services core module
 
@@ -107,6 +107,11 @@ conflicts with other devices unknown to Linux.  The default is 1
 A flag indicating if Card Services should probe memory windows for
 conflicts with ROM extensions or memory-mapped devices.  The default
 is 1 (true).
+
+.SH CardBus bridge configuration settings
+The following module parameters are only available under pre-2.4.*
+kernels.  Under 2.4.* kernels, we rely on the kernel's PCI subsystem
+to set up the bridge correctly.
 .TP
 .BI cb_mem_base= n
 Sets the base address to use for memory mapping CardBus bridge

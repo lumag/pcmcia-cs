@@ -2,7 +2,7 @@
 
     A simple MTD for accessing static RAM
 
-    sram_mtd.c 1.54 2001/10/13 00:08:53
+    sram_mtd.c 1.55 2002/06/29 06:27:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -30,9 +30,6 @@
     file under either the MPL or the GPL.
     
 ======================================================================*/
-
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -74,7 +71,7 @@ INT_MODULE_PARM(mem_speed, 0);			/* in ns */
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) do { if (pc_debug>(n)) printk(KERN_INFO args); } while (0)
 static char *version =
-"sram_mtd.c 1.54 2001/10/13 00:08:53 (David Hinds)";
+"sram_mtd.c 1.55 2002/06/29 06:27:37 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif

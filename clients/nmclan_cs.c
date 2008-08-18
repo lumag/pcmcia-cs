@@ -119,9 +119,6 @@ Conditional Compilation Options
 Include Files
 ---------------------------------------------------------------------------- */
 
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

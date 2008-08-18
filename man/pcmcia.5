@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
-.\" pcmcia.5 1.28 2001/06/20 04:28:08
+.\" pcmcia.5 1.29 2002/07/13 18:11:04
 .\"
-.TH PCMCIA 5 "2001/06/20 04:28:08" "pcmcia-cs"
+.TH PCMCIA 5 "2002/07/13 18:11:04" "pcmcia-cs"
 .SH NAME
 /etc/pcmcia/config \- PCMCIA card configuration database
 
@@ -193,6 +193,23 @@ region "Intel Series 2 Flash"
 .sp
 specifies that the \fBiflash2_mtd\fR driver will be loaded based on a
 JEDEC match.
+
+.SH Including definitions from other files
+The \fBsource\fR command can be used to include configuration
+information from other files.  The default config file specifies:
+.sp
+.RS
+.nf
+source ./*.conf
+source ./config.opts
+.RE
+.fi
+.sp
+The arguments for the \fBsource\fR command are evaluated using normal
+filename wildcard expansion rules.  Where available, the \fBsource\fR
+command is implemented using the \fBwordexp\fR library function, which
+also implements environment variable expansion, arithmatic expansion,
+and command substitution.
 
 .SH BUGS
 The \fBreserve\fR keyword has not actually been implemented in a

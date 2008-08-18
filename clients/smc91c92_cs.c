@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
-    smc91c92_cs.c 1.117 2002/05/04 05:51:22
+    smc91c92_cs.c 1.118 2002/06/29 06:27:37
     
     This driver contains code written by Donald Becker
     (becker@scyld.com), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -24,9 +24,6 @@
     the GNU General Public License, incorporated herein by reference.
 
 ======================================================================*/
-
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
 
 #include <linux/module.h>
 #include <linux/kernel.h>

@@ -11,7 +11,7 @@
 
     Copyright (C) 2001 David A. Hinds -- dahinds@users.sourceforge.net
 
-    axnet_cs.c 1.27 2002/05/04 05:51:12
+    axnet_cs.c 1.28 2002/06/29 06:27:37
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -23,9 +23,6 @@
     Donald Becker may be reached at becker@scyld.com
 
 ======================================================================*/
-
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -86,7 +83,7 @@ MODULE_PARM(irq_list, "1-4i");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"axnet_cs.c 1.27 2002/05/04 05:51:12 (David Hinds)";
+"axnet_cs.c 1.28 2002/06/29 06:27:37 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

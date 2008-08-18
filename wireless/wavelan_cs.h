@@ -402,12 +402,6 @@
 
 /***************************** INCLUDES *****************************/
 
-//#define IN_KERNEL_SOURCE
-#ifndef IN_KERNEL_SOURCE		/* David : check this out ! */
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
-#endif	/* IN_KERNEL_SOURCE */
-
 /* Linux headers that we need */
 #include <linux/config.h>
 #include <linux/module.h>

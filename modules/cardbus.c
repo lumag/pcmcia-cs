@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.83 2001/12/20 13:48:59
+    cardbus.c 1.85 2002/06/29 06:23:09
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -36,9 +36,7 @@
     
 ======================================================================*/
 
-#include <pcmcia/config.h>
 #define __NO_VERSION__
-#include <pcmcia/k_compat.h>
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -377,7 +375,7 @@ int cb_alloc(socket_info_t *s)
 #ifdef NEW_LINUX_PCI
 	c[i].dev.hdr_type = hdr;
 #endif
-#if defined(HAS_PROC_BUS) && !defined(NEWER_LINUX_PCI)
+#ifdef HAS_PROC_BUS
 	pci_proc_attach_device(&c[i].dev);
 #endif
     }

@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.281 2002/06/09 20:48:10
+    cs.c 1.283 2002/06/29 06:23:09
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -30,9 +30,6 @@
     file under either the MPL or the GPL.
     
 ======================================================================*/
-
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -135,7 +132,7 @@ INT_MODULE_PARM(do_pnp, 1);
 #ifdef PCMCIA_DEBUG
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 static const char *version =
-"cs.c 1.281 2002/06/09 20:48:10 (David Hinds)";
+"cs.c 1.283 2002/06/29 06:23:09 (David Hinds)";
 #endif
 
 /*====================================================================*/
@@ -1167,7 +1164,7 @@ static int get_next_window(window_handle_t *win, win_req_t *req)
     
 ======================================================================*/
 
-static int get_status(client_handle_t handle, cs_status_t *status)
+static int cs_get_status(client_handle_t handle, cs_status_t *status)
 {
     socket_info_t *s;
     config_t *c;
@@ -1229,7 +1226,7 @@ static int get_status(client_handle_t handle, cs_status_t *status)
     status->CardState |=
 	(val & SS_READY) ? CS_EVENT_READY_CHANGE : 0;
     return CS_SUCCESS;
-} /* get_status */
+} /* cs_get_status */
 
 /*======================================================================
 
@@ -2185,7 +2182,7 @@ int CardServices(int func, void *a1, void *a2, void *a3)
     case GetNextTuple:
 	return get_next_tuple(a1, a2); break;
     case GetStatus:
-	return get_status(a1, a2); break;
+	return cs_get_status(a1, a2); break;
     case GetTupleData:
 	return get_tuple_data(a1, a2); break;
     case MapMemPage:

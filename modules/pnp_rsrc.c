@@ -1,6 +1,4 @@
-#include <pcmcia/config.h>
 #define __NO_VERSION__
-#include <pcmcia/k_compat.h>
 
 #include <linux/module.h>
 #include <linux/kernel.h>

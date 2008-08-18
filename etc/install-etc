@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# etc/install-etc 1.18 2001/12/03 03:02:10 (David Hinds)
+# etc/install-etc 1.19 2002/07/17 06:41:49 (David Hinds)
 #
 # This handles updating the PCMCIA startup and device configuration
 # scripts.  I used to do this in the Makefile, but it is really much
@@ -10,7 +10,8 @@
 . ../config.out
 
 if [ $1 ] ; then PREFIX=$1 ; fi
-PROBE=../cardmgr/probe
+PROBE=../cardmgr/pcic_probe
+if [ "CONFIG_PCMCIA" = "y" ] ; then PK=-k ; else PK= ; fi
 ETC=$PREFIX/etc/pcmcia
 
 install_clients ()
@@ -59,7 +60,7 @@ install_sysv ()
 	    echo "-> Creating PCMCIA options file $CFG"
 	    echo PCMCIA=yes > $CFG
 	    PCIC=i82365
-	    if [ -x $PROBE ] ; then PCIC=`$PROBE -m` ; fi
+	    if [ -x $PROBE ] ; then PCIC=`$PROBE -m $PK` ; fi
 	    echo "PCIC=$PCIC" >> $CFG
 	    echo "PCIC_OPTS=" >> $CFG
 	    echo "CORE_OPTS=" >> $CFG
@@ -108,7 +109,7 @@ install_bsd ()
     echo "-> Installing PCMCIA startup script as $BSD"
     mkdir -p $PREFIX/etc/rc.d
     if [ -x $PROBE ] ; then
-	PCIC=`$PROBE -m`
+	PCIC=`$PROBE -m $PK`
 	sed -e "s/=i82365/=$PCIC/" rc.pcmcia > $BSD
     else
 	cp rc.pcmcia $BSD

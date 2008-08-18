@@ -52,9 +52,6 @@
 
 ======================================================================*/
 
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
-
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>

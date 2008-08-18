@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.97 2001/10/04 03:33:49
+    cistpl.c 1.98 2002/06/29 06:23:09
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -31,9 +31,7 @@
     
 ======================================================================*/
 
-#include <pcmcia/config.h>
 #define __NO_VERSION__
-#include <pcmcia/k_compat.h>
 
 #include <linux/config.h>
 #include <linux/module.h>

@@ -27,16 +27,16 @@
  *
  */
 
-#include <pcmcia/config.h>
 #define __NO_VERSION__
-#include <pcmcia/k_compat.h>
 
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/linkage.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <linux/pnp_bios.h>
 #include <linux/spinlock.h>
+#include <linux/sched.h>
 #include <asm/page.h>
 #include <asm/system.h>
 #include <asm/desc.h>

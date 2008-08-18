@@ -27,9 +27,6 @@
 ======================================================================*/
 
 #include <linux/config.h>
-#ifdef __IN_PCMCIA_PACKAGE__
-#include <pcmcia/k_compat.h>
-#else
 #ifndef __KERNEL__
 #define __KERNEL__
 #endif
@@ -43,7 +40,6 @@
 #include <linux/modversions.h>
 #endif   
 
-#endif 
 #include <linux/kernel.h>
 #include <linux/module.h>
 

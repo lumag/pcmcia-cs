@@ -2,7 +2,7 @@
 
     PC Card Driver Services
     
-    ds.c 1.113 2002/02/17 23:31:03
+    ds.c 1.114 2002/06/29 06:23:09
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -30,9 +30,6 @@
     file under either the MPL or the GPL.
     
 ======================================================================*/
-
-#include <pcmcia/config.h>
-#include <pcmcia/k_compat.h>
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -72,7 +69,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"ds.c 1.113 2002/02/17 23:31:03 (David Hinds)";
+"ds.c 1.114 2002/06/29 06:23:09 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif

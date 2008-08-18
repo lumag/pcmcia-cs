@@ -23,10 +23,12 @@ listed in their regular driver categories; thus, PCMCIA network
 drivers are in a submenu of network drivers, and PCMCIA serial drivers
 are in a submenu of character drivers.
 
-The CardBus socket driver in the 2.4 tree is the "yenta_socket"
-driver.  It is selected by the CONFIG_CARDBUS option.  In your PCMCIA 
-startup options, this driver should be specified in place of the old
-i82365 driver.  The kernel version of the i82365 driver, selected by
+In the standalone pcmcia-cs drivers, the i82365 module supports both
+ISA-to-PCMCIA, PCI-to-PCMCIA, and PCI-to-CardBus bridges.  The CardBus
+socket driver in the 2.4 tree is the "yenta_socket" driver.  It is
+selected by the CONFIG_CARDBUS option.  In your PCMCIA startup
+options, this driver should be specified in place of the i82365
+driver.  The kernel version of the i82365 driver, selected by
 CONFIG_I82365, only supports ISA-to-PCMCIA bridges.  PCI-to-PCMCIA
 bridges that are not CardBus capable, like the Cirrus PD6729, are not
 supported at all by the kernel PCMCIA drivers.
