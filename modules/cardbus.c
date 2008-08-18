@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.69 2000/02/10 23:24:55
+    cardbus.c 1.70 2000/03/07 22:54:36
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -356,8 +356,8 @@ int cb_alloc(socket_info_t *s)
 	c[i].dev.bus = s->cap.cb_bus;
 	c[i].dev.devfn = i;
 #ifdef NEWER_LINUX_PCI
-	list_add(&c[i].dev.bus_list, &s->cap.cb_bus->devices); 
-	list_add(&c[i].dev.global_list, &pci_devices);
+	list_add_tail(&c[i].dev.bus_list, &s->cap.cb_bus->devices); 
+	list_add_tail(&c[i].dev.global_list, &pci_devices);
 #else
 	if (i < fn-1) {
 	    c[i].dev.sibling = c[i].dev.next = &c[i+1].dev;
@@ -395,12 +395,8 @@ void cb_free(socket_info_t *s)
 #ifdef NEW_LINUX_PCI
 #ifdef NEWER_LINUX_PCI
 	int i;
-	for (i = 0; i < s->functions; i++) {
-	    list_del(&c[0].dev.global_list);
-#if defined(CONFIG_PROC_FS) && !defined(NEWER_LINUX_PCI)
-	    pci_proc_detach_device(&c[i].dev);
-#endif
-	}
+	for (i = 0; i < s->functions; i++)
+	    list_del(&c[i].dev.global_list);
 	INIT_LIST_HEAD(&s->cap.cb_bus->devices);
 #else
 	struct pci_dev **p, *q;

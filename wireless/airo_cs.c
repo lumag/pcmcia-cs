@@ -1,12 +1,6 @@
 /*======================================================================
 
-    A dummy PCMCIA client driver
-
-    This is provided as an example of how to write an IO card client.
-    As written, it will function as a sort of generic point enabler,
-    configuring any card as that card's CIS specifies.
-    
-    dummy_cs.c 1.10 1999/02/13 06:47:20
+    Aironet driver for 4500 and 4800 series cards
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -18,16 +12,43 @@
     implied. See the License for the specific language governing
     rights and limitations under the License.
 
-    The initial developer of the original code is David A. Hinds
+    This code was developed by Benjamin Reed <breed@almaden.ibm.com>
+    including portions of which come from the Aironet PC4500
+    Developer's Reference Manual and used with permission.  Copyright
+    (C) 1999 Benjamin Reed.  All Rights Reserved.  Permission to use
+    code in the Developer's manual was granted for this driver by
+    Aironet.
+
+    In addition this module was derived from dummy_cs.
+    The initial developer of dummy_cs is David A. Hinds
     <dhinds@hyper.stanford.edu>.  Portions created by David A. Hinds
-    are Copyright (C) 1998 David A. Hinds.  All Rights Reserved.
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.    
     
 ======================================================================*/
-
+#define PCMCIA_DIST
+#ifdef PCMCIA_DIST
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
+#else
+#ifndef __KERNEL__
+#define __KERNEL__
+#endif
 
+#ifndef MODULE
+#define MODULE
+#endif
+
+#include <linux/autoconf.h>
+#ifdef CONFIG_MODVERSIONS
+#define MODVERSIONS
+#include <linux/modversions.h>
+#endif   
+
+#include <linux/config.h>
+#include <linux/module.h>
+#endif 
 #include <linux/kernel.h>
+
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/malloc.h>
@@ -56,7 +77,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"airo_cs.c .95 1999/06/15 06:47:20 (Benjamin Reed)";
+"airo_cs.c .99zb 2000/02/20 00:38:22 (Benjamin Reed)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -154,7 +175,6 @@ static dev_link_t *dev_list = NULL;
    
 typedef struct local_info_t {
 	dev_node_t	node;
-	int		stop;
 	struct net_device *eth_dev;
 } local_info_t;
 
@@ -481,6 +501,7 @@ static void airo_config(dev_link_t *link)
 	((local_info_t*)link->priv)->eth_dev = 
 		init_airo_card( link->irq.AssignedIRQ,
 				link->io.BasePort1 );
+	if (!((local_info_t*)link->priv)->eth_dev) goto cs_failed;
 	
 	/*
 	  At this point, the dev_node_t structure(s) need to be
@@ -580,6 +601,7 @@ static int airo_event(event_t event, int priority,
 		      event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
+	local_info_t *local = link->priv;
 	
 	DEBUG(1, "airo_event(0x%06x)\n", event);
 	
@@ -587,13 +609,9 @@ static int airo_event(event_t event, int priority,
 	case CS_EVENT_CARD_REMOVAL:
 		link->state &= ~DEV_PRESENT;
 		if (link->state & DEV_CONFIG) {
-			((local_info_t *)link->priv)->stop = 1;
-			if ( ((local_info_t*)link->priv)->eth_dev ) {
-				((local_info_t*)link->priv)->eth_dev->tbusy = 1;
-				((local_info_t*)link->priv)->eth_dev->start = 0;
-			}
+			netif_device_detach(local->eth_dev);
 			link->state |= DEV_RELEASE_PENDING;
-			link->release.expires = RUN_AT(HZ/20);
+			link->release.expires = jiffies + (HZ/20);
 			add_timer(&link->release);
 		}
 		break;
@@ -605,28 +623,20 @@ static int airo_event(event_t event, int priority,
 		link->state |= DEV_SUSPEND;
 		/* Fall through... */
 	case CS_EVENT_RESET_PHYSICAL:
-		/* Mark the device as stopped, to block IO until later */
-		((local_info_t *)link->priv)->stop = 1;
-		((local_info_t*)link->priv)->eth_dev->tbusy = 1;
-		((local_info_t*)link->priv)->eth_dev->start = 0;
-		if (link->state & DEV_CONFIG)
+		if (link->state & DEV_CONFIG) {
+			netif_device_detach(local->eth_dev);
 			CardServices(ReleaseConfiguration, link->handle);
+		}
 		break;
 	case CS_EVENT_PM_RESUME:
 		link->state &= ~DEV_SUSPEND;
 		/* Fall through... */
 	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG)
+		if (link->state & DEV_CONFIG) {
 			CardServices(RequestConfiguration, link->handle, &link->conf);
-		((local_info_t *)link->priv)->stop = 0;
-		
-		if ( ((local_info_t*)link->priv)->eth_dev ) {
-			reset_airo_card( ((local_info_t*)link->priv)->eth_dev );
+			reset_airo_card(local->eth_dev);
+			netif_device_attach(local->eth_dev);
 		}
-		/*
-		  In a normal driver, additional code may go here to restore
-		  the device state and restart IO. 
-		*/
 		break;
 	}
 	return 0;

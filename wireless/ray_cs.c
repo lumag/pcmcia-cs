@@ -323,7 +323,7 @@ static char hop_pattern_length[] = { 1,
 };
 
 #if defined(PCMCIA_DEBUG) || defined(HAS_PROC_BUS)
-static char rcsid[] = " ray_cs.c,v 1.7 2000/02/17 23:19:01 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.8 2000/02/29 02:18:11 root Exp - Corey Thomas corey@world.std.com";
 #endif
 
 /*===========================================================================*/
@@ -332,6 +332,24 @@ static void cs_error(client_handle_t handle, int func, int ret)
     error_info_t err = { func, ret };
     CardServices(ReportError, handle, &err);
 }
+/*======================================================================
+
+    This bit of code is used to avoid unregistering network devices
+    at inappropriate times.  2.2 and later kernels are fairly picky
+    about when this can happen.
+    
+======================================================================*/
+
+static void flush_stale_links(void)
+{
+    dev_link_t *link, *next;
+    for (link = dev_list; link; link = next) {
+	next = link->next;
+	if (link->state & DEV_STALE_LINK)
+	    ray_detach(link);
+    }
+}
+
 /*=============================================================================
     ray_attach() creates an "instance" of the driver, allocating
     local data structures for one device.  The device is registered
@@ -349,6 +367,7 @@ static dev_link_t *ray_attach(void)
     struct net_device *dev;
     
     DEBUG(1, "ray_attach()\n");
+    flush_stale_links();
 
     /* Initialize the dev_link_t structure */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
@@ -384,7 +403,6 @@ static dev_link_t *ray_attach(void)
     memset(local, 0, sizeof(ray_dev_t));
     dev->priv = local;
     local->finder = link;
-    link->dev = &local->node;
     local->card_status = CARD_INSERTED;
     local->authentication_state = UNAUTHENTICATED;
     local->num_multi = 0;
@@ -408,7 +426,6 @@ static dev_link_t *ray_attach(void)
     dev->init = &ray_dev_init;
     dev->open = &ray_open;
     dev->stop = &ray_dev_close;
-    dev->tbusy = 1;
 
     /* Register with Card Services */
     link->next = dev_list;
@@ -446,7 +463,6 @@ static dev_link_t *ray_attach(void)
 static void ray_detach(dev_link_t *link)
 {
     dev_link_t **linkp;
-    struct net_device *dev;
     long flags;
 
     DEBUG(1, "ray_detach(0x%p)\n", link);
@@ -485,13 +501,13 @@ static void ray_detach(dev_link_t *link)
     /* Unlink device structure, free pieces */
     *linkp = link->next;
     if (link->priv) {
-        dev = link->priv;
+	struct net_device *dev = link->priv;
+	if (link->dev) unregister_netdev(dev);
         if (dev->priv)
-            kfree_s(dev->priv, sizeof(ray_dev_t));
-
-        kfree_s(link->priv, sizeof(struct net_device));
+            kfree(dev->priv);
+        kfree(dev);
     }
-    kfree_s(link, sizeof(struct dev_link_t));
+    kfree(link);
     DEBUG(2,"ray_cs ray_detach ending\n");
 } /* ray_detach */
 /*=============================================================================
@@ -591,18 +607,16 @@ static void ray_config(dev_link_t *link)
     DEBUG(3,"ray_config sram=%p\n",local->sram);
     DEBUG(3,"ray_config rmem=%p\n",local->rmem);
     DEBUG(3,"ray_config amem=%p\n",local->amem);
-    if (ray_init(dev) < 0) {
-        ray_release((u_long)link);
-        return;
-    }
+    if (ray_init(dev) < 0)
+	goto config_failed;
 
     i = register_netdev(dev);
     if (i != 0) {
         printk("ray_config register_netdev() failed\n");
-        ray_release((u_long)link);
-        return;
+	goto config_failed;
     }
 
+    link->dev = &local->node;
     link->state &= ~DEV_CONFIG_PENDING;
     printk(KERN_INFO "%s: RayLink, irq %d, hw_addr ",
        dev->name, dev->irq);
@@ -613,7 +627,7 @@ static void ray_config(dev_link_t *link)
 
 cs_failed:
     cs_error(link->handle, last_fn, last_ret);
-
+config_failed:
     ray_release((u_long)link);
 } /* ray_config */
 /*===========================================================================*/
@@ -718,7 +732,7 @@ static int dl_startup_params(struct net_device *dev)
     }
     local->card_status = CARD_DL_PARAM;
     /* Start kernel timer to wait for dl startup to complete. */
-    local->timer.expires = RUN_AT(HZ/2);
+    local->timer.expires = jiffies + HZ/2;
     local->timer.data = (long)local;
     local->timer.function = &verify_dl_startup;
     add_timer(&local->timer);
@@ -891,7 +905,7 @@ static void ray_release(u_long arg)
     struct net_device *dev = link->priv; 
     ray_dev_t *local = dev->priv;
     int i;
-    
+
     DEBUG(1, "ray_release(0x%p)\n", link);
     /* If the device is currently in use, we won't release until it
       is actually closed.
@@ -903,9 +917,7 @@ static void ray_release(u_long arg)
         return;
     }
     del_timer(&local->timer);
-    if (link->dev != '\0') unregister_netdev(dev);
-    /* Unlink the device chain */
-    link->dev = NULL;
+    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
 
     iounmap(local->sram);
     iounmap(local->rmem);
@@ -922,8 +934,6 @@ static void ray_release(u_long arg)
     i = CardServices(ReleaseIRQ, link->handle, &link->irq);
     if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseIRQ ret = %x\n",i);
 
-    link->state &= ~DEV_CONFIG;
-    if (link->state & DEV_STALE_LINK) ray_detach(link);
     DEBUG(2,"ray_release ending\n");
 } /* ray_release */
 /*=============================================================================
@@ -948,9 +958,10 @@ static int ray_event(event_t event, int priority,
     switch (event) {
     case CS_EVENT_CARD_REMOVAL:
         link->state &= ~DEV_PRESENT;
-        dev->tbusy = 1; dev->start = 0;
         if (link->state & DEV_CONFIG) {
-            link->release.expires = RUN_AT(HZ/20);
+	    netif_device_detach(dev);
+            link->release.expires = jiffies + HZ/20;
+	    link->state |= DEV_RELEASE_PENDING;
             add_timer(&link->release);
             del_timer(&local->timer);
         }
@@ -964,10 +975,8 @@ static int ray_event(event_t event, int priority,
         /* Fall through... */
     case CS_EVENT_RESET_PHYSICAL:
         if (link->state & DEV_CONFIG) {
-            if (link->open) {
-                dev->tbusy = 1;
-                dev->start = 0;
-            }
+            if (link->open)
+		netif_device_detach(dev);
             CardServices(ReleaseConfiguration, link->handle);
         }
         break;
@@ -979,8 +988,7 @@ static int ray_event(event_t event, int priority,
             CardServices(RequestConfiguration, link->handle, &link->conf);
             if (link->open) {
                 ray_reset(dev);
-                dev->tbusy = 0;
-                dev->start = 1;
+		netif_device_attach(dev);
             }
         }
         break;
@@ -1022,10 +1030,8 @@ void cleanup_module(void)
     DEBUG(0, "ray_cs: cleanup_module\n");
 
     unregister_pcmcia_driver(&dev_info);
-    while (dev_list != NULL) {
-        if (dev_list->state & DEV_CONFIG) ray_release((u_long)dev_list);
+    while (dev_list != NULL)
         ray_detach(dev_list);
-    }
 #ifdef HAS_PROC_BUS
     remove_proc_entry("ray_cs", &proc_root);
 #endif
@@ -1083,17 +1089,19 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
         return -1;
     }
     DEBUG(3,"ray_dev_start_xmit(skb=%p, dev=%p)\n",skb,dev);
-    if (dev->tbusy)
+#ifndef HAVE_NETIF_QUEUE
+    if (netif_running(dev))
     {
         printk(KERN_NOTICE "ray_dev_start_xmit busy\n");
         return 1;
     }
+#endif
     skb_tx_check(dev, skb);
     if (local->authentication_state == NEED_TO_AUTH) {
         DEBUG(0,"ray_cs Sending authentication request.\n");
         if (!build_auth_frame (local, local->auth_id, OPEN_AUTH_REQUEST)) {
             local->authentication_state = AUTHENTICATED;
-            dev->tbusy = 1;
+	    netif_stop_queue(dev);
             return 1;
         }
     }
@@ -1102,7 +1110,7 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
     switch (ray_hw_xmit( skb->data, length, dev, DATA_TYPE)) {
         case XMIT_NO_CCS:
         case XMIT_NEED_AUTH:
-            dev->tbusy = 1;
+	    netif_stop_queue(dev);
             return 1;
         case XMIT_NO_INTR:
         case XMIT_MSG_BAD:
@@ -1137,7 +1145,7 @@ static int ray_hw_xmit(unsigned char* data, int len, struct net_device* dev,
 	case ECCSFULL:
         DEBUG(2,"ray_hw_xmit No free tx ccs\n");
 	case ECARDGONE:
-        dev->tbusy = 1;
+	netif_stop_queue(dev);
         return XMIT_NO_CCS;
 	default:
 		break;
@@ -1181,7 +1189,8 @@ static int ray_hw_xmit(unsigned char* data, int len, struct net_device* dev,
         DEBUG(2,"ray_hw_xmit failed - ECF not ready for intr\n");
 /* TBD very inefficient to copy packet to buffer, and then not
    send it, but the alternative is to queue the messages and that
-   won't be done for a while.  Maybe set tbusy until a CCS is free?
+   won't be done for a while.  Maybe stop the tx queue until a CCS is
+   free?
 */
         writeb(CCS_BUFFER_FREE, &pccs->buffer_status);
         return XMIT_NO_INTR;
@@ -1563,13 +1572,11 @@ static iw_stats * ray_get_wireless_stats(struct net_device *	dev)
 /*===========================================================================*/
 static int ray_open(struct net_device *dev)
 {
-    dev_link_t *link;
-    ray_dev_t *local = (ray_dev_t *)dev->priv;
+    ray_dev_t *local = dev->priv;
+    dev_link_t *link = local->finder;
     
     DEBUG(1, "ray_open('%s')\n", dev->name);
 
-    for (link = dev_list; link; link = link->next)
-        if (link->priv == dev) break;
     if (!DEV_OK(link))
         return -ENODEV;
 
@@ -1577,9 +1584,9 @@ static int ray_open(struct net_device *dev)
     link->open++;
     MOD_INC_USE_COUNT;
 
-    if (sniffer) dev->tbusy = 1;
-    else         dev->tbusy = 0;
-    dev->start = 1;
+    if (sniffer) netif_stop_queue(dev);
+    else         netif_start_queue(dev);
+    netif_mark_up(dev);
 
     DEBUG(2,"ray_open ending\n");
     return 0;
@@ -1587,18 +1594,16 @@ static int ray_open(struct net_device *dev)
 /*===========================================================================*/
 static int ray_dev_close(struct net_device *dev)
 {
-    dev_link_t *link;
+    ray_dev_t *local = dev->priv;
+    dev_link_t *link = local->finder;
 
     DEBUG(1, "ray_dev_close('%s')\n", dev->name);
 
-    for (link = dev_list; link; link = link->next)
-        if (link->priv == dev) break;
-    if (link == NULL)
-        return -ENODEV;
-
-    link->open--; dev->start = 0;
+    link->open--;
+    netif_stop_queue(dev);
+    netif_mark_down(dev);
     if (link->state & DEV_STALE_CONFIG) {
-        link->release.expires = RUN_AT(HZ/20);
+        link->release.expires = jiffies + HZ/20;
         link->state |= DEV_RELEASE_PENDING;
         add_timer(&link->release);
     }
@@ -1898,8 +1903,8 @@ static void set_multicast_list(struct net_device *dev)
 static void ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
     struct net_device *dev = (struct net_device *)DEV_ID;
-    dev_link_t *link;
-    ray_dev_t *local;
+    ray_dev_t *local = dev->priv;
+    dev_link_t *link = local->finder;
     struct ccs *pccs;
     struct rcs *prcs;
     UCHAR rcsindex;
@@ -1907,14 +1912,9 @@ static void ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
     UCHAR cmd;
     UCHAR status;
 
-    if ((dev == NULL) || !dev->start)
-    return;
-
     DEBUG(4,"ray_cs: interrupt for *dev=%p\n",dev);
 
-    local = (ray_dev_t *)dev->priv;
-    link = (dev_link_t *)local->finder;
-    if ( ! (link->state & DEV_PRESENT) || link->state & DEV_SUSPEND ) {
+    if ( !DEV_OK(link) ) {
         DEBUG(2,"ray_cs interrupt from device not present or suspended.\n");
         return;
     }
@@ -1985,7 +1985,7 @@ static void ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
                 local->card_status = CARD_ACQ_FAILED;
 
                 del_timer(&local->timer);
-                local->timer.expires = RUN_AT(HZ*5);
+                local->timer.expires = jiffies + HZ*5;
                 local->timer.data = (long)local;
                 if (status == CCS_START_NETWORK) {
                     DEBUG(0,"ray_cs interrupt network \"%s\" start failed\n",\
@@ -2054,7 +2054,7 @@ static void ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
             local->card_status = CARD_ACQ_COMPLETE;
             /* do we need to clear tx buffers CCS's? */
             if (local->sparm.b4.a_network_type == ADHOC) {
-                if (!sniffer) dev->tbusy = 0;
+                if (!sniffer) netif_wake_queue(dev);
             }
             else {
                 memcpy_fromio(&local->bss_id, prcs->var.rejoin_net_complete.bssid, ADDRLEN);
@@ -2066,7 +2066,7 @@ static void ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
             break;
         case ROAMING_INITIATED:
             DEBUG(1,"ray_cs interrupt roaming initiated\n"); 
-            dev->tbusy = 1;
+	    netif_stop_queue(dev);
             local->card_status = CARD_DOING_ACQ;
             break;
         case JAPAN_CALL_SIGN_RXD:
@@ -2207,9 +2207,7 @@ static void rx_data(struct net_device *dev, struct rcs *prcs, unsigned int pkt_a
             release_frag_chain(local, prcs);
         return;
     }
-#if (LINUX_VERSION_CODE >= VERSION(1,3,0))
     skb_reserve( skb, 2);   /* Align IP on 16 byte (TBD check this)*/
-#endif
     skb->dev = dev;
 
     DEBUG(4,"ray_cs rx_data total_len = %x, rx_len = %x\n",total_len,rx_len);
@@ -2261,9 +2259,7 @@ static void rx_data(struct net_device *dev, struct rcs *prcs, unsigned int pkt_a
         release_frag_chain(local, prcs);
     }
 
-#if (LINUX_VERSION_CODE >= VERSION(1,3,0)) 
     skb->protocol = eth_type_trans(skb,dev);
-#endif
     netif_rx(skb);
 
     local->stats.rx_packets++;
@@ -2455,7 +2451,7 @@ static void authenticate(ray_dev_t *local)
     else {
         local->timer.function = &authenticate_timeout;
     }
-    local->timer.expires = RUN_AT(HZ*2);
+    local->timer.expires = jiffies + HZ*2;
     local->timer.data = (long)local;
     add_timer(&local->timer);
     local->authentication_state = AWAITING_RESPONSE;
@@ -2531,14 +2527,14 @@ static void associate(ray_dev_t *local)
         writeb(CCS_BUFFER_FREE, &(pccs++)->buffer_status);
 
         del_timer(&local->timer);
-        local->timer.expires = RUN_AT(HZ*2);
+        local->timer.expires = jiffies + HZ*2;
         local->timer.data = (long)local;
         local->timer.function = &join_net;
         add_timer(&local->timer);
         local->card_status = CARD_ASSOC_FAILED;
         return;
     }
-    if (!sniffer) dev->tbusy = 0;
+    if (!sniffer) netif_start_queue(dev);
 
 } /* end associate */
 /*===========================================================================*/
@@ -2673,7 +2669,7 @@ static int ray_cs_proc_read(char *buf, char **start, off_t offset,
     } else {
 	len += sprintf(buf + len, "No beacons received\n");
     }
-	return len;
+    return len;
 }
 
 #endif

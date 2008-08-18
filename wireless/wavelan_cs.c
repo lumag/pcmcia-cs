@@ -67,16 +67,14 @@
 /*------------------------------------------------------------------*/
 /*
  * Wrapper for disabling interrupts.
+ * (note : inline, so optimised away)
  */
-static inline unsigned long
-wv_splhi(void)
+static inline void
+wv_splhi(net_local *		lp,
+	 unsigned long *	pflags)
 {
-  unsigned long flags;
-
-  save_flags(flags);
-  cli();
-
-  return(flags);
+  spin_lock_irqsave(&lp->spinlock, *pflags);
+  /* Note : above does the cli(); itself */
 }
 
 /*------------------------------------------------------------------*/
@@ -84,9 +82,14 @@ wv_splhi(void)
  * Wrapper for re-enabling interrupts.
  */
 static inline void
-wv_splx(unsigned long	flags)
+wv_splx(net_local *		lp,
+	unsigned long *		pflags)
 {
-  restore_flags(flags);
+  spin_unlock_irqrestore(&lp->spinlock, *pflags);
+
+  /* Note : enabling interrupts on the hardware is done in wv_ru_start()
+   * via : outb(OP1_INT_ENABLE, LCCR(base));
+   */
 }
 
 /*------------------------------------------------------------------*/
@@ -581,25 +584,25 @@ void wv_roam_cleanup(struct net_device *dev)
 void wv_nwid_filter(unsigned char mode, net_local *lp)
 {
   mm_t                  m;
-  unsigned long         x;
+  unsigned long         flags;
   
 #ifdef WAVELAN_ROAMING_DEBUG
   printk(KERN_DEBUG "WaveLAN: NWID promisc %s, device %s\n",(mode==NWID_PROMISC) ? "on" : "off", lp->dev->name);
 #endif
   
   /* Disable interrupts & save flags */
-  x = wv_splhi();
+  wv_splhi(lp, &flags);
   
   m.w.mmw_loopt_sel = (mode==NWID_PROMISC) ? MMW_LOOPT_SEL_DIS_NWID : 0x00;
   mmc_write(lp->dev->base_addr, (char *)&m.w.mmw_loopt_sel - (char *)&m, (unsigned char *)&m.w.mmw_loopt_sel, 1);
   
-  /* ReEnable interrupts & restore flags */
-  wv_splx(x);
-  
   if(mode==NWID_PROMISC)
     lp->cell_search=1;
   else
-	lp->cell_search=0;
+    lp->cell_search=0;
+
+  /* ReEnable interrupts & restore flags */
+  wv_splx(lp, &flags);
 }
 
 /* Find a record in the WavePoint table matching a given NWID */
@@ -755,8 +758,8 @@ void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp)
 {
   ioaddr_t              base = lp->dev->base_addr;  
   mm_t                  m;
-  unsigned long         x;
-  
+  unsigned long         flags;
+
   if(wavepoint==lp->curr_point)          /* Sanity check... */
     {
       wv_nwid_filter(!NWID_PROMISC,lp);
@@ -768,16 +771,16 @@ void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp)
 #endif
  	
   /* Disable interrupts & save flags */
-  x = wv_splhi();
-  
+  wv_splhi(lp, &flags);
+
   m.w.mmw_netw_id_l = wavepoint->nwid & 0xFF;
   m.w.mmw_netw_id_h = (wavepoint->nwid & 0xFF00) >> 8;
   
   mmc_write(base, (char *)&m.w.mmw_netw_id_l - (char *)&m, (unsigned char *)&m.w.mmw_netw_id_l, 2);
   
   /* ReEnable interrupts & restore flags */
-  wv_splx(x);
-  
+  wv_splx(lp, &flags);
+
   wv_nwid_filter(!NWID_PROMISC,lp);
   lp->curr_point=wavepoint;
 }
@@ -856,7 +859,9 @@ static inline int WAVELAN_BEACON(unsigned char *data)
 /*------------------------------------------------------------------*/
 /*
  * Routine to synchronously send a command to the i82593 chip. 
- * Should be called with interrupts enabled.
+ * Should be called with interrupts disabled.
+ * (called by wv_packet_write(), wv_ru_stop(), wv_ru_start(),
+ *  wv_82593_config() & wv_diag())
  */
 static int
 wv_82593_cmd(device *	dev,
@@ -865,74 +870,83 @@ wv_82593_cmd(device *	dev,
 	     int	result)
 {
   ioaddr_t	base = dev->base_addr;
-  net_local *	lp = (net_local *)dev->priv;
   int		status;
+  int		wait_completed;
   long		spin;
-  u_long	opri;
 
   /* Spin until the chip finishes executing its current command (if any) */
   do
     {
-      opri = wv_splhi();
       outb(OP0_NOP | CR0_STATUS_3, LCCR(base));
       status = inb(LCSR(base));
-      wv_splx(opri);
     }
   while((status & SR3_EXEC_STATE_MASK) != SR3_EXEC_IDLE);
-
-  /* We are waiting for command completion */
-  wv_wait_completed = TRUE;
 
   /* Issue the command to the controler */
   outb(cmd, LCCR(base));
 
-  /* If we don't have to check the result of the command */
+  /* If we don't have to check the result of the command
+   * Note : this mean that the irq handler will deal with that */
   if(result == SR0_NO_RESULT)
-    {
-      wv_wait_completed = FALSE;
-      return(TRUE);
-    }
+    return(TRUE);
 
-  /* Busy wait while the LAN controller executes the command.
-   * Note : wv_wait_completed should be volatile */
-  spin = 0;
-  while(wv_wait_completed && (spin++ < 1000))
-    udelay(10);
+  /* We are waiting for command completion */
+  wait_completed = TRUE;
 
-  /* If the interrupt handler hasn't be called */
-  if(wv_wait_completed)
+  /* Busy wait while the LAN controller executes the command. */
+  spin = 1000;
+  do
     {
-      outb(OP0_NOP, LCCR(base));
+      /* Time calibration of the loop */
+      udelay(10);
+
+      /* Read the interrupt register */
+      outb(CR0_STATUS_0 | OP0_NOP, LCCR(base));
       status = inb(LCSR(base));
-      if(status & SR0_INTERRUPT)
-	{
-	  /* There was an interrupt : call the interrupt handler */
-#ifdef DEBUG_INTERRUPT_ERROR
-	  printk(KERN_WARNING "wv_82593_cmd: interrupt handler not installed or interrupt disabled\n");
-#endif
 
-	  wavelan_interrupt(dev->irq, (void *) dev,
-			    (struct pt_regs *) NULL);
-	}
-      else
+      /* Check if there was an interrupt posted */
+      if((status & SR0_INTERRUPT))
 	{
-	  wv_wait_completed = 0; /* XXX */
-#ifdef DEBUG_INTERRUPT_ERROR
-	  printk(KERN_INFO "wv_82593_cmd: %s timeout, status0 0x%02x\n",
-		 str, status);
+	  /* Acknowledge the interrupt */
+	  outb(CR0_INT_ACK | OP0_NOP, LCCR(base));
+
+	  /* Check if interrupt is a command completion */
+	  if(((status & SR0_BOTH_RX_TX) != SR0_BOTH_RX_TX) &&
+	     ((status & SR0_BOTH_RX_TX) != 0x0) &&
+	     !(status & SR0_RECEPTION))
+	    {
+	      /* Signal command completion */
+	      wait_completed = FALSE;
+	    }
+	  else
+	    {
+	      /* Note : Rx interrupts will be handled later, because we can
+	       * handle multiple Rx packets at once */
+#ifdef DEBUG_INTERRUPT_INFO
+	      printk(KERN_INFO "wv_82593_cmd: not our interrupt\n");
 #endif
-	  /* We probably should reset the controller here */
-	  return(FALSE);
+	    }
 	}
     }
+  while(wait_completed && (spin-- > 0));
 
-  /* Check the return code provided by the interrupt handler against
-   * the expected return code provided by the caller */
-  if((lp->status & SR0_EVENT_MASK) != result)
+  /* If the interrupt hasn't be posted */
+  if(wait_completed)
     {
 #ifdef DEBUG_INTERRUPT_ERROR
-      printk(KERN_INFO "wv_82593_cmd: %s failed, status0 = 0x%x\n",
-	     str, lp->status);
+      printk(KERN_INFO "wv_82593_cmd: %s timeout, status 0x%02x\n",
+	     str, status);
+#endif
+      return(FALSE);
+    }
+
+  /* Check the return code returned by the card (see above) against
+   * the expected return code provided by the caller */
+  if((status & SR0_EVENT_MASK) != result)
+    {
+#ifdef DEBUG_INTERRUPT_ERROR
+      printk(KERN_INFO "wv_82593_cmd: %s failed, status = 0x%x\n",
+	     str, status);
 #endif
       return(FALSE);
     }
@@ -948,14 +962,22 @@ wv_82593_cmd(device *	dev,
 static inline int
 wv_diag(device *	dev)
 {
+  net_local *	lp = (net_local *)dev->priv;
+  unsigned long flags;
+  int		ret = FALSE;
+
+  wv_splhi(lp, &flags);
+
   if(wv_82593_cmd(dev, "wv_diag(): diagnose",
 		  OP0_DIAGNOSE, SR0_DIAGNOSE_PASSED))
-    return(TRUE);
+    ret = TRUE;
+
+  wv_splx(lp, &flags);
 
 #ifdef DEBUG_CONFIG_ERROR
   printk(KERN_INFO "wavelan_cs: i82593 Self Test failed!\n");
 #endif
-  return(FALSE);
+  return(ret);
 } /* wv_diag */
 
 /*------------------------------------------------------------------*/
@@ -974,15 +996,6 @@ read_ringbuf(device *	dev,
   int		ring_ptr = addr;
   int		chunk_len;
   char *	buf_ptr = buf;
-
-#ifdef OLDIES
-  /* After having check skb_put (net/core/skbuff.c) in the kernel, it seem
-   * quite safe to remove this... */
-
-  /* If buf is NULL, just increment the ring buffer pointer */
-  if(buf == NULL)
-    return((ring_ptr - RX_BASE + len) % RX_SIZE + RX_BASE);
-#endif
 
   /* Get all the buffer */
   while(len > 0)
@@ -1020,20 +1033,22 @@ wv_82593_reconfig(device *	dev)
   net_local *	lp = (net_local *)dev->priv;
   dev_link_t *	link = ((net_local *) dev->priv)->link;
 
+  /* Arm the flag, will be cleard in wv_82593_config() */
+  lp->reconfig_82593 = TRUE;
+
   /* Check if we can do it now ! */
-  if(!(link->open) || (test_and_set_bit(0, (void *)&dev->tbusy) != 0))
+  if((link->open) && (netif_running(dev)) && !(netif_queue_stopped(dev)))
+    /*(test_and_set_bit(0, (void *)&dev->tbusy) != 0)*/
     {
-      lp->reconfig_82593 = TRUE;
-#ifdef DEBUG_IOCTL_INFO
-      printk(KERN_DEBUG "%s: wv_82593_reconfig(): delayed (busy = %ld, link = %d)\n",
-	     dev->name, dev->tbusy, link->open);
-#endif
+      wv_82593_config(dev);
     }
   else
     {
-      lp->reconfig_82593 = FALSE;
-      wv_82593_config(dev);
-      dev->tbusy = 0;
+#ifdef DEBUG_IOCTL_INFO
+      printk(KERN_DEBUG
+	     "%s: wv_82593_reconfig(): delayed (state = %lX, link = %d)\n",
+	     dev->name, devstate(dev), link->open);
+#endif
     }
 }
 
@@ -1198,6 +1213,8 @@ wv_mmc_show(device *	dev)
       return;
     }
 
+  wv_splhi(lp, &flags);
+
   /* Read the mmc */
   mmc_out(base, mmwoff(0, mmw_freeze), 1);
   mmc_read(base, 0, (u_char *)&m, sizeof(m));
@@ -1207,6 +1224,8 @@ wv_mmc_show(device *	dev)
   /* Don't forget to update statistics */
   lp->wstats.discard.nwid += (m.mmr_wrong_nwid_h << 8) | m.mmr_wrong_nwid_l;
 #endif	/* WIRELESS_EXT */
+
+  wv_splx(lp, &flags);
 
   printk(KERN_DEBUG "##### wavelan modem status registers: #####\n");
 #ifdef DEBUG_SHOW_UNUSED
@@ -1292,8 +1311,7 @@ static void
 wv_dev_show(device *	dev)
 {
   printk(KERN_DEBUG "dev:");
-  printk(" start=%d,", dev->start);
-  printk(" tbusy=%ld,", dev->tbusy);
+  printk(" state=%lX,", devstate(dev));
   printk(" trans_start=%ld,", dev->trans_start);
   printk(" flags=0x%x,", dev->flags);
   printk("\n");
@@ -1913,7 +1931,7 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
   struct iwreq *	wrq = (struct iwreq *) rq;
   psa_t			psa;
   mm_t			m;
-  unsigned long		x;
+  unsigned long		flags;
   int			ret = 0;
 
 #ifdef DEBUG_IOCTL_TRACE
@@ -1921,7 +1939,7 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
 #endif
 
   /* Disable interrupts & save flags */
-  x = wv_splhi();
+  wv_splhi(lp, &flags);
 
   /* Look what is the request */
   switch(cmd)
@@ -2533,7 +2551,7 @@ wavelan_ioctl(struct net_device *	dev,	/* Device on wich the ioctl apply */
     }
 
   /* ReEnable interrupts & restore flags */
-  wv_splx(x);
+  wv_splx(lp, &flags);
 
 #ifdef DEBUG_IOCTL_TRACE
   printk(KERN_DEBUG "%s: <-wavelan_ioctl()\n", dev->name);
@@ -2553,17 +2571,19 @@ wavelan_get_wireless_stats(device *	dev)
   net_local *		lp = (net_local *) dev->priv;
   mmr_t			m;
   iw_stats *		wstats;
-  unsigned long		x;
+  unsigned long		flags;
 
 #ifdef DEBUG_IOCTL_TRACE
   printk(KERN_DEBUG "%s: ->wavelan_get_wireless_stats()\n", dev->name);
 #endif
 
-  /* Disable interrupts & save flags */
-  x = wv_splhi();
-
+  /* Paranoia */
   if(lp == (net_local *) NULL)
     return (iw_stats *) NULL;
+
+  /* Disable interrupts & save flags */
+  wv_splhi(lp, &flags);
+
   wstats = &lp->wstats;
 
   /* Get data from the mmc */
@@ -2588,7 +2608,7 @@ wavelan_get_wireless_stats(device *	dev)
   wstats->discard.misc = 0L;
 
   /* ReEnable interrupts & restore flags */
-  wv_splx(x);
+  wv_splx(lp, &flags);
 
 #ifdef DEBUG_IOCTL_TRACE
   printk(KERN_DEBUG "%s: <-wavelan_get_wireless_stats()\n", dev->name);
@@ -2788,6 +2808,7 @@ wv_packet_read(device *		dev,
  * called to do the actual transfer of the card's data including the
  * ethernet header into a packet consisting of an sk_buff chain.
  * (called by wavelan_interrupt())
+ * Note : the spinlock is already grabbed for us and irq are disabled.
  */
 static inline void
 wv_packet_rcv(device *	dev)
@@ -2930,7 +2951,7 @@ wv_packet_write(device *	dev,
 {
   net_local *		lp = (net_local *) dev->priv;
   ioaddr_t		base = dev->base_addr;
-  unsigned long		x;
+  unsigned long		flags;
   int			clen = length;
   register u_short	xmtdata_base = TX_BASE;
 
@@ -2938,7 +2959,7 @@ wv_packet_write(device *	dev,
   printk(KERN_DEBUG "%s: ->wv_packet_write(%d)\n", dev->name, length);
 #endif
 
-  x = wv_splhi();
+  wv_splhi(lp, &flags);
 
   /* Check if we need some padding */
   if(clen < ETH_ZLEN)
@@ -2968,6 +2989,7 @@ wv_packet_write(device *	dev,
   /* Keep stats up to date */
   add_tx_bytes(&lp->stats, length);
 
+#ifndef HAVE_NETIF_QUEUE
   /* If watchdog not already active, activate it... */
   if(lp->watchdog.prev == (timer_list *) NULL)
     {
@@ -2975,8 +2997,9 @@ wv_packet_write(device *	dev,
       lp->watchdog.expires = jiffies + WATCHDOG_JIFFIES;
       add_timer(&lp->watchdog);
     }
+#endif
 
-  wv_splx(x); 
+  wv_splx(lp, &flags);
 
 #ifdef DEBUG_TX_INFO
   wv_packet_info((u_char *) buf, length, dev->name, "wv_packet_write");
@@ -3005,20 +3028,13 @@ wavelan_packet_xmit(struct sk_buff *	skb,
 	 (unsigned) skb);
 #endif
 
-  /* This flag indicate that the hardware can't perform a transmission.
-   * Theoritically, NET3 check it before sending a packet to the driver,
-   * but in fact it never do that and pool continuously.
-   * As the watchdog will abort too long transmissions, we are quite safe...
-   */
-  if(dev->tbusy)
-    return(1);
-
+  /* Check that skb is valid */
   skb_tx_check(dev, skb);
   
+#if (LINUX_VERSION_CODE < VERSION(2,1,79))
   /*
    * For ethernet, fill in the header.
    */
-#if (LINUX_VERSION_CODE < VERSION(2,1,79))
   skb->arp = 1;
 #endif
 
@@ -3026,26 +3042,23 @@ wavelan_packet_xmit(struct sk_buff *	skb,
    * Block a timer-based transmit from overlapping a previous transmit.
    * In other words, prevent reentering this routine.
    */
-  if(test_and_set_bit(0, (void *)&dev->tbusy) != 0)
-#ifdef DEBUG_TX_ERROR
-    printk(KERN_INFO "%s: Transmitter access conflict.\n", dev->name);
-#endif
-  else
+  netif_stop_queue(dev);
+
+  /* If somebody has asked to reconfigure the controler,
+   * we can do it now */
+  if(lp->reconfig_82593)
     {
-      /* If somebody has asked to reconfigure the controler, we can do it now */
-      if(lp->reconfig_82593)
-	{
-	  lp->reconfig_82593 = FALSE;
-	  wv_82593_config(dev);
-	}
+      wv_82593_config(dev);
+      /* Note : the configure procedure was totally synchronous,
+       * so the Tx buffer is now free */
+    }
 
 #ifdef DEBUG_TX_ERROR
-      if(skb->next)
-	printk(KERN_INFO "skb has next\n");
+	if (skb->next)
+		printk(KERN_INFO "skb has next\n");
 #endif
- 
-      wv_packet_write(dev, skb->data, skb->len);
-    }
+
+  wv_packet_write(dev, skb->data, skb->len);
 
   DEV_KFREE_SKB(skb);
 
@@ -3263,7 +3276,8 @@ static int
 wv_ru_stop(device *	dev)
 {
   ioaddr_t	base = dev->base_addr;
-  unsigned long	opri;
+  net_local *	lp = (net_local *) dev->priv;
+  unsigned long	flags;
   int		status;
   int		spin;
 
@@ -3271,35 +3285,35 @@ wv_ru_stop(device *	dev)
   printk(KERN_DEBUG "%s: ->wv_ru_stop()\n", dev->name);
 #endif
 
+  wv_splhi(lp, &flags);
+
   /* First, send the LAN controller a stop receive command */
   wv_82593_cmd(dev, "wv_graceful_shutdown(): stop-rcv",
 	       OP0_STOP_RCV, SR0_NO_RESULT);
 
   /* Then, spin until the receive unit goes idle */
-  spin = 0;
+  spin = 300;
   do
     {
       udelay(10);
-      opri = wv_splhi();
       outb(OP0_NOP | CR0_STATUS_3, LCCR(base));
       status = inb(LCSR(base));
-      wv_splx(opri);
     }
-  while(((status & SR3_RCV_STATE_MASK) != SR3_RCV_IDLE) && (spin++ < 300));
+  while(((status & SR3_RCV_STATE_MASK) != SR3_RCV_IDLE) && (spin-- > 0));
 
   /* Now, spin until the chip finishes executing its current command */
   do
     {
       udelay(10);
-      opri = wv_splhi();
       outb(OP0_NOP | CR0_STATUS_3, LCCR(base));
       status = inb(LCSR(base));
-      wv_splx(opri);
     }
-  while(((status & SR3_EXEC_STATE_MASK) != SR3_EXEC_IDLE) && (spin++ < 300));
+  while(((status & SR3_EXEC_STATE_MASK) != SR3_EXEC_IDLE) && (spin-- > 0));
+
+  wv_splx(lp, &flags);
 
   /* If there was a problem */
-  if(spin > 300)
+  if(spin <= 0)
     {
 #ifdef DEBUG_CONFIG_ERROR
       printk(KERN_INFO "%s: wv_ru_stop(): The chip doesn't want to stop...\n",
@@ -3326,6 +3340,7 @@ wv_ru_start(device *	dev)
 {
   ioaddr_t	base = dev->base_addr;
   net_local *	lp = (net_local *) dev->priv;
+  unsigned long	flags;
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: ->wv_ru_start()\n", dev->name);
@@ -3338,6 +3353,8 @@ wv_ru_start(device *	dev)
    */
   if(!wv_ru_stop(dev))
     return FALSE;
+
+  wv_splhi(lp, &flags);
 
   /* Now we know that no command is being executed. */
 
@@ -3375,16 +3392,14 @@ wv_ru_start(device *	dev)
   {
     int	status;
     int	opri;
-    int	i = 0;
+    int	spin = 10000;
 
     /* spin until the chip starts receiving */
     do
       {
-	opri = wv_splhi();
 	outb(OP0_NOP | CR0_STATUS_3, LCCR(base));
 	status = inb(LCSR(base));
-	wv_splx(opri);
-	if(i++ > 10000)
+	if(spin-- <= 0)
 	  break;
       }
     while(((status & SR3_RCV_STATE_MASK) != SR3_RCV_ACTIVE) &&
@@ -3393,6 +3408,9 @@ wv_ru_start(device *	dev)
 	   (status & SR3_RCV_STATE_MASK), i);
   }
 #endif
+
+  wv_splx(lp, &flags);
+
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: <-wv_ru_start()\n", dev->name);
 #endif
@@ -3411,6 +3429,8 @@ wv_82593_config(device *	dev)
   ioaddr_t			base = dev->base_addr;
   net_local *			lp = (net_local *) dev->priv;
   struct i82593_conf_block	cfblk;
+  unsigned long			flags;
+  int				ret = TRUE;
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: ->wv_82593_config()\n", dev->name);
@@ -3493,6 +3513,9 @@ wv_82593_config(device *	dev)
   }
 #endif
 
+  /* Disable interrupts */
+  wv_splhi(lp, &flags);
+
   /* Copy the config block to the i82593 */
   outb(TX_BASE & 0xff, PIORL(base));
   outb(((TX_BASE >> 8) & PIORH_MASK) | PIORH_SEL_TX, PIORH(base));
@@ -3505,7 +3528,7 @@ wv_82593_config(device *	dev)
   hacr_write(base, HACR_DEFAULT);
   if(!wv_82593_cmd(dev, "wv_82593_config(): configure",
 		   OP0_CONFIGURE, SR0_CONFIGURE_DONE))
-    return(FALSE);
+    ret = FALSE;
 
   /* Initialize adapter's ethernet MAC address */
   outb(TX_BASE & 0xff, PIORL(base));
@@ -3519,7 +3542,7 @@ wv_82593_config(device *	dev)
   hacr_write(base, HACR_DEFAULT);
   if(!wv_82593_cmd(dev, "wv_82593_config(): ia-setup",
 		   OP0_IA_SETUP, SR0_IA_SETUP_DONE))
-    return(FALSE);
+    ret = FALSE;
 
 #ifdef WAVELAN_ROAMING
     /* If roaming is enabled, join the "Beacon Request" multicast group... */
@@ -3556,14 +3579,20 @@ wv_82593_config(device *	dev)
       hacr_write(base, HACR_DEFAULT);
       if(!wv_82593_cmd(dev, "wv_82593_config(): mc-setup",
 		       OP0_MC_SETUP, SR0_MC_SETUP_DONE))
-	return(FALSE);
+	ret = FALSE;
       lp->mc_count = dev->mc_count;	/* remember to avoid repeated reset */
     }
+
+  /* Job done, clear the flag */
+  lp->reconfig_82593 = FALSE;
+
+  /* Re-enable interrupts */
+  wv_splx(lp, &flags);
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: <-wv_82593_config()\n", dev->name);
 #endif
-  return(TRUE);
+  return(ret);
 }
 
 /*------------------------------------------------------------------*/
@@ -3723,9 +3752,11 @@ wv_hw_reset(device *	dev)
   printk(KERN_DEBUG "%s: ->wv_hw_reset()\n", dev->name);
 #endif
 
+#ifndef HAVE_NETIF_QUEUE
   /* If watchdog was activated, kill it ! */
   if(lp->watchdog.prev != (timer_list *) NULL)
     del_timer(&lp->watchdog);
+#endif
 
   lp->nresets++;
   lp->configured = 0;
@@ -3865,7 +3896,7 @@ wv_pcmcia_config(dev_link_t *	link)
       /* Feed device with this info... */
       dev->irq = link->irq.AssignedIRQ;
       dev->base_addr = link->io.BasePort1;
-      dev->tbusy = 0;
+      netif_start_queue(dev);
 
 #ifdef DEBUG_CONFIG_INFO
       printk(KERN_DEBUG "wv_pcmcia_config: MEMSTART 0x%x IRQ %d IOPORT 0x%x\n",
@@ -3944,7 +3975,7 @@ wv_pcmcia_release(u_long	arg)	/* Address of the interface struct */
 
 /*------------------------------------------------------------------*/
 /*
- * Sometimes, netwave_detach can't be performed following a call from
+ * Sometimes, wavelan_detach can't be performed following a call from
  * cardmgr (device still open, pcmcia_release not done) and the device
  * is put in a STALE_LINK state and remains in memory.
  *
@@ -4018,6 +4049,18 @@ wavelan_interrupt(int		irq,
   lp = (net_local *) dev->priv;
   base = dev->base_addr;
 
+#ifdef DEBUG_INTERRUPT_ERROR
+  /* Check state of our spinlock (it should be cleared) */
+  if(spin_is_locked(&lp->spinlock))
+    printk(KERN_INFO
+	   "%s: wavelan_interrupt(): spinlock is already locked !!!\n",
+	   dev->name);
+#endif
+
+  /* Prevent reentrancy. It is safe because wv_splhi disable interrupts
+   * before aquiring the spinlock */
+  spin_lock(&lp->spinlock);
+
   /* Treat all pending interrupts */
   while(1)
     {
@@ -4061,8 +4104,6 @@ wavelan_interrupt(int		irq,
 	  break;
 	}
 
-      lp->status = status0;	/* Save current status (for commands) */
-
       /* ----------------- RECEIVING PACKET ----------------- */
       /*
        * When the wavelan signal the reception of a new packet,
@@ -4100,22 +4141,6 @@ wavelan_interrupt(int		irq,
        * Most likely : transmission done
        */
 
-      /* If we are already waiting elsewhere for the command to complete */
-      if(wv_wait_completed)
-	{
-#ifdef DEBUG_INTERRUPT_INFO
-	  printk(KERN_DEBUG "%s: wv_interrupt(): command completed\n",
-		 dev->name);
-#endif
-
-	  /* Signal command completion */
-	  wv_wait_completed = 0;
-
-	  /* Acknowledge the interrupt */
-	  outb(CR0_INT_ACK | OP0_NOP, LCCR(base));
-	  continue;
-    	}
-
       /* If a transmission has been done */
       if((status0 & SR0_EVENT_MASK) == SR0_TRANSMIT_DONE ||
 	 (status0 & SR0_EVENT_MASK) == SR0_RETRANSMIT_DONE ||
@@ -4127,9 +4152,11 @@ wavelan_interrupt(int		irq,
 		   dev->name);
 #endif
 
+#ifndef HAVE_NETIF_QUEUE
 	  /* If watchdog was activated, kill it ! */
 	  if(lp->watchdog.prev != (timer_list *) NULL)
 	    del_timer(&lp->watchdog);
+#endif
 
 	  /* Get transmission status */
 	  tx_status = inb(LCSR(base));
@@ -4231,7 +4258,9 @@ wavelan_interrupt(int		irq,
 #endif
 	  outb(CR0_INT_ACK | OP0_NOP, LCCR(base));	/* Acknowledge the interrupt */
     	}
-    }
+    }	/* while(1) */
+
+  spin_unlock(&lp->spinlock);
 
 #ifdef DEBUG_INTERRUPT_TRACE
   printk(KERN_DEBUG "%s: <-wavelan_interrupt()\n", dev->name);
@@ -4240,30 +4269,29 @@ wavelan_interrupt(int		irq,
 
 /*------------------------------------------------------------------*/
 /*
- * Watchdog : when we start a transmission, we set a timer in the
- * kernel.  If the transmission complete, this timer is disabled. If
- * it expire, it try to unlock the hardware.
+ * Watchdog: when we start a transmission, a timer is set for us in the
+ * kernel.  If the transmission completes, this timer is disabled. If
+ * the timer expires, we are called and we try to unlock the hardware.
  *
- * Note : this watchdog doesn't work on the same principle as the
- * watchdog in the ISA driver. I make it this way because the overhead
- * of add_timer() and del_timer() is nothing and that it avoid calling
- * the watchdog, saving some CPU... If you want to apply the same
- * watchdog to the ISA driver, you should be a bit carefull, because
- * of the many transmit buffers...
- * This watchdog is also move clever, it try to abort the current
- * command before reseting everything...
+ * Note : This watchdog is move clever than the one in the ISA driver,
+ * because it try to abort the current command before reseting
+ * everything...
+ * On the other hand, it's a bit simpler, because we don't have to
+ * deal with the multiple Tx buffers...
  */
 static void
+#ifndef HAVE_NETIF_QUEUE
 wavelan_watchdog(u_long		a)
 {
-  device *		dev;
-  net_local *		lp;
-  ioaddr_t		base;
-  int			spin;
-
-  dev = (device *) a;
-  base = dev->base_addr;
-  lp = (net_local *) dev->priv;
+  device *		dev = (device *) a;
+#else
+wavelan_watchdog(device *	dev)
+{
+#endif
+  net_local *		lp = (net_local *) dev->priv;
+  ioaddr_t		base = dev->base_addr;
+  unsigned long		flags;
+  int			aborted = FALSE;
 
 #ifdef DEBUG_INTERRUPT_TRACE
   printk(KERN_DEBUG "%s: ->wavelan_watchdog()\n", dev->name);
@@ -4274,21 +4302,21 @@ wavelan_watchdog(u_long		a)
 	 dev->name);
 #endif
 
-  /* We are waiting for command completion */
-  wv_wait_completed = TRUE;
+  wv_splhi(lp, &flags);
 
   /* Ask to abort the current command */
   outb(OP0_ABORT, LCCR(base));
 
-  /* Busy wait while the LAN controller executes the command.
-   * Note : wv_wait_completed should be volatile */
-  spin = 0;
-  while(wv_wait_completed && (spin++ < 250))
-    udelay(10);
+  /* Wait for the end of the command (a bit hackish) */
+  if(wv_82593_cmd(dev, "wavelan_watchdog(): abort",
+		  OP0_NOP | CR0_STATUS_3, SR0_EXECUTION_ABORTED))
+    aborted = TRUE;
 
-  /* If the interrupt handler hasn't be called or invalid status */
-  if((wv_wait_completed) ||
-     ((lp->status & SR0_EVENT_MASK) != SR0_EXECUTION_ABORTED))
+  /* Release spinlock here so that wv_hw_reset() can grab it */
+  wv_splx(lp, &flags);
+
+  /* Check if we were successful in aborting it */
+  if(!aborted)
     {
       /* It seem that it wasn't enough */
 #ifdef DEBUG_INTERRUPT_ERROR
@@ -4313,7 +4341,7 @@ wavelan_watchdog(u_long		a)
 #endif
 
   /* We are no more waiting for something... */
-  dev->tbusy = 0;
+  netif_wake_queue(dev);
 
 #ifdef DEBUG_INTERRUPT_TRACE
   printk(KERN_DEBUG "%s: <-wavelan_watchdog()\n", dev->name);
@@ -4366,8 +4394,10 @@ wavelan_open(device *	dev)
     return FALSE;
   if(!wv_ru_start(dev))
     wv_hw_reset(dev);		/* If problem : reset */
-  dev->start = 1;
-  dev->tbusy = 0;   
+  netif_start_queue(dev);
+#ifndef HAVE_NETIF_QUEUE
+  netif_mark_up(dev);
+#endif
 
   /* Mark the device as used */
   link->open++;
@@ -4393,7 +4423,6 @@ static int
 wavelan_close(device *	dev)
 {
   dev_link_t *	link = ((net_local *) dev->priv)->link;
-  net_local *	lp = (net_local *)dev->priv;
   ioaddr_t	base = dev->base_addr;
 
 #ifdef DEBUG_CALLBACK_TRACE
@@ -4416,18 +4445,23 @@ wavelan_close(device *	dev)
     wv_roam_cleanup(dev);
 #endif	/* WAVELAN_ROAMING */
 
-  /* If watchdog was activated, kill it ! */
-  if(lp->watchdog.prev != (timer_list *) NULL)
-    del_timer(&lp->watchdog);
+#ifndef HAVE_NETIF_QUEUE
+  {
+    /* If watchdog was activated, kill it ! */
+    net_local * lp = (net_local *)dev->priv;
+    if(lp->watchdog.prev != (timer_list *) NULL)
+      del_timer(&lp->watchdog);
+  }
+#endif
 
   link->open--;
   MOD_DEC_USE_COUNT;
 
   /* If the card is still present */
-  if(dev->start)
+  if(netif_running(dev))
     {
-      dev->tbusy = 1;
-      dev->start = 0;
+      netif_stop_queue(dev);
+      netif_mark_down(dev);
 
       /* Stop receiving new messages and wait end of transmission */
       wv_ru_stop(dev);
@@ -4529,15 +4563,16 @@ wavelan_attach(void)
   memset(lp, 0x00, sizeof(net_local));
 
   /* Init specific data */
-  wv_wait_completed = 0;
-  lp->status = FALSE;
   lp->configured = 0;
   lp->reconfig_82593 = FALSE;
   lp->nresets = 0;
+  /* Multicast stuff */
+  lp->promiscuous = 0;
+  lp->allmulticast = 0;
+  lp->mc_count = 0;
 
-  /* Set the watchdog timer */
-  lp->watchdog.function = wavelan_watchdog;
-  lp->watchdog.data = (unsigned long) dev;
+  /* Init spinlock */
+  spin_lock_init(&lp->spinlock);
 
   /* back links */
   lp->link = link;
@@ -4557,6 +4592,15 @@ wavelan_attach(void)
   dev->set_mac_address = &wavelan_set_mac_address;
 #endif	/* SET_MAC_ADDRESS */
 
+#ifdef HAVE_NETIF_QUEUE
+  /* Set the watchdog timer */
+  dev->tx_timeout	= &wavelan_watchdog;
+  dev->watchdog_timeo	= WATCHDOG_JIFFIES;
+#else
+  lp->watchdog.function = wavelan_watchdog;
+  lp->watchdog.data = (unsigned long) dev;
+#endif
+
 #ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
   dev->do_ioctl = wavelan_ioctl;	/* wireless extensions */
   dev->get_wireless_stats = wavelan_get_wireless_stats;
@@ -4565,7 +4609,6 @@ wavelan_attach(void)
   /* Other specific data */
   /* Provide storage area for device name */
   dev->name = ((net_local *)dev->priv)->node.dev_name;
-  dev->tbusy = 1;
   dev->mtu = WAVELAN_MTU;
 
   /* Register with Card Services */
@@ -4727,7 +4770,7 @@ wavelan_event(event_t		event,		/* The event received */
 	if(link->state & DEV_CONFIG)
 	  {
 	    /* Accept no more transmissions */
-      	    dev->tbusy = 1; dev->start = 0;
+	    netif_device_detach(dev);
 
 	    /* Release the card */
 	    wv_pcmcia_release((u_long) link);
@@ -4764,10 +4807,7 @@ wavelan_event(event_t		event,		/* The event received */
     	if(link->state & DEV_CONFIG)
 	  {
       	    if(link->open)
-	      {
-		dev->tbusy = 1;
-		dev->start = 0;
-	      }
+	      netif_device_detach(dev);
       	    CardServices(ReleaseConfiguration, link->handle);
 	  }
 	break;
@@ -4782,8 +4822,7 @@ wavelan_event(event_t		event,		/* The event received */
       	    if(link->open)	/* If RESET -> True, If RESUME -> False ??? */
 	      {
 		wv_hw_reset(dev);
-		dev->tbusy = 0;
-		dev->start = 1;
+		netif_device_attach(dev);
 	      }
 	  }
 	break;

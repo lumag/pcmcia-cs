@@ -1,3 +1,17 @@
+[08-Mar-00] Version 3.1.12
+-- Added "dump_pirq" utility to debug-tools.
+-- Added support for parsing PIRQ tables for VIA PCI-to-ISA bridges.
+-- Added PCI interrupt support for Cirrus PD6729-based PCI card docks.
+-- Tweaked CIS validation algorithm to be a bit less picky.
+-- Updated network drivers to use the 2.3.* softnet API's.
+-- wavelan_cs, wvlan_cs, and airo_cs driver updates.
+-- Fixed network script to not set up unnecessary default routes when
+   doing DHCP and BOOTP on a newer kernel.
+-- Fixed Configure script to better handle extraversion info for
+   current kernel, when checking kernel versions.
+-- More checking of PCI interrupts, so the i82365 module can usually 
+   usually be able to figure out if they won't work.
+
 [17-Feb-00] Version 3.1.11
 -- Changed master Makefile to not build any modules for new kernels.
 -- Added support for TI 1031 bridge.

@@ -1,5 +1,19 @@
-Known problems with the 3.1.11 PCMCIA release
+Known problems with the 3.1.12 PCMCIA release
 =============================================
+
+o There are reports that the tulip_cb module wedges when a Xircom
+  CardBus card is shut down.  I don't have a suitable card to test,
+  and can't reproduce the problem with other tulip-based cards.  I
+  don't know of a workaround at this time.
+
+o The airo_cs driver is broken for 2.3.48 and later kernels.  If you
+  get stuck trying to build this, do:
+
+    touch wireless/airo.o
+
+  APM support is also broken for the newest 2.3.* kernels.  To build
+  the standalone modules with these kernels, you'll need to disable
+  APM support with "./Configure --noapm".
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
   on some systems, but not on others, due to PCI BIOS limitations.
@@ -11,8 +25,8 @@ o The token ring driver tweaks a problem in the memory management
   from /etc/pcmcia/config.opts.  The driver is also completely broken
   for late 2.1 and early 2.2 kernels.  A fix is in 2.2.7.
 
-o Megahertz EM3288 cards drop interrupts if the modem and ethernet are
-  used simultaneously.  No known fix.
+o Megahertz EM1144, EM3288, and EM3336 cards drop interrupts if the
+  modem and ethernet are used simultaneously.
   
   Prognosis: Unlikely to be fixed, since these cards are old and we
   are unlikely to ever get more complete tech info.
@@ -84,11 +98,10 @@ o The 2.3.6 kernel update broke the PCMCIA parport_cs driver.
 
 o Some 2.3.* kernels may make mistakes when autoconfiguring CardBus
   bridges.  Specifically, the kernel may memory map bridges at invalid
-  addresses.
+  addresses.  The i82365 driver complains about a "Bad bridge mapping".
 
-  Prognosis: the PCI driver layer is taking on a job that it can't
-  quite handle yet.  There is no trivial workaround, other than 
-  reverting to a 2.2.* kernel.
+  Prognosis: either upgrade to a newer 2.3.* kernel if possible, or
+  revert to a 2.2.* kernel.
 
 o Xircom CBEM support in the tulip_cb driver seems to be extremely
   unreliable.  A wide range of symptoms are reported, ranging from no
@@ -101,3 +114,13 @@ o Xircom CBEM support in the tulip_cb driver seems to be extremely
   can try to characterize what the revision differences might be, this
   is not going to get fixed.
 
+  Setting the card to promiscuous mode ("ifconfig eth0 promisc") seems
+  to help in some cases.
+
+o With some PCI host bridges, the PCMCIA subsystem is not able to
+  determine the PCI interrupt routing for CardBus bridges.  For some
+  types of bridges, this means that we can't configure interrupts for
+  CardBus cards at all.
+
+  Prognosis: this should get fixed soon.  If your BIOS has an option
+  for "PnP OS support", try changing that.

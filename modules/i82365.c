@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.293 2000/02/14 23:01:29
+    i82365.c 1.298 2000/03/07 23:39:23
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.293 2000/02/14 23:01:29 (David Hinds)";
+"i82365.c 1.298 2000/03/07 23:39:23 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -104,19 +104,6 @@ static pci_module_info *pci;
 typedef void irq_ret_t;
 #define _request_irq(i, h, f, n) request_irq(i, h, f, n, socket)
 #define _free_irq(i, h) free_irq(i, socket)
-static void irq_count(int, void *, struct pt_regs *);
-static int _check_irq(int irq, int flags)
-{
-#ifdef CONFIG_PNP_BIOS
-    extern int check_pnp_irq(int);
-    if ((flags != SA_SHIRQ) && check_pnp_irq(irq))
-	return -1;
-#endif
-    if (request_irq(irq, irq_count, flags, "x", irq_count) != 0)
-	return -1;
-    free_irq(irq, irq_count);
-    return 0;
-}
 #endif
 
 MODULE_AUTHOR("David Hinds <dhinds@pcmcia.sourceforge.org>");
@@ -184,7 +171,7 @@ INT_MODULE_PARM(pci_int, 1);		/* PCI IO card irqs? */
 /*====================================================================*/
 
 typedef struct cirrus_state_t {
-    u_char		misc1, misc2;
+    u_char		misc1, misc2, ectl1;
     u_char		timer[6];
 } cirrus_state_t;
 
@@ -223,6 +210,7 @@ typedef struct socket_info_t {
     struct proc_dir_entry *proc;
 #endif
 #ifdef CONFIG_PCI
+    u_char		pci_irq_code;
     u_short		vendor, device;
     u_char		revision, bus, devfn;
     u_short		bcr;
@@ -246,9 +234,6 @@ static socket_info_t socket[8] = {
     { 0, }, /* ... */
 };
 
-/* Default ISA interrupt mask */
-#define I365_MASK	0xdeb8	/* irq 15,14,12,11,10,9,7,5,4,3 */
-
 #ifdef CONFIG_ISA
 static int grab_irq;
 #ifdef USE_SPIN_LOCKS
@@ -268,23 +253,6 @@ static struct timer_list poll_timer;
 #define flip(v,b,f) (v = ((f)<0) ? v : ((f) ? ((v)|(b)) : ((v)&(~b))))
 
 /*====================================================================*/
-
-#ifndef PCI_VENDOR_ID_INTEL
-#define PCI_VENDOR_ID_INTEL		0x8086
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_82092AA_0
-#define PCI_DEVICE_ID_INTEL_82092AA_0	0x1221
-#endif
-#ifndef PCI_VENDOR_ID_OMEGA
-#define PCI_VENDOR_ID_OMEGA		0x119b
-#endif
-#ifndef PCI_DEVICE_ID_OMEGA_82C092G
-#define PCI_DEVICE_ID_OMEGA_82C092G	0x1221
-#endif
-
-/* Default settings for PCI command configuration register */
-#define CMD_DFLT (PCI_COMMAND_IO|PCI_COMMAND_MEMORY| \
-		  PCI_COMMAND_MASTER|PCI_COMMAND_WAIT)
 
 /* Some PCI shortcuts */
 
@@ -476,6 +444,21 @@ static void i365_set_pair(socket_info_t *s, u_short reg, u_short data)
     
 ======================================================================*/
 
+static int __init get_pci_irq(socket_info_t *s)
+{
+    u8 irq;
+#ifdef __BEOS__
+    pci_readb(s, PCI_INTERRUPT_LINE, &irq);
+#else
+    irq = pci_find_slot(s->bus, s->devfn)->irq;
+#endif
+    if ((irq == 0) && (pci_csc || pci_int))
+	irq = pci_irq_list[s - socket];
+    if (irq >= NR_IRQS) irq = 0;
+    s->cap.pci_irq = irq;
+    return irq;
+}
+
 static void __init cirrus_get_state(socket_info_t *s)
 {
     cirrus_state_t *p = &s->state.cirrus;
@@ -484,6 +467,8 @@ static void __init cirrus_get_state(socket_info_t *s)
     p->misc1 = i365_get(s, PD67_MISC_CTL_1);
     p->misc1 &= (PD67_MC1_MEDIA_ENA | PD67_MC1_INPACK_ENA);
     p->misc2 = i365_get(s, PD67_MISC_CTL_2);
+    if (s->flags & IS_PCI)
+	p->ectl1 = pd67_ext_get(s, PD67_EXT_CTL_1);
     for (i = 0; i < 6; i++)
 	p->timer[i] = i365_get(s, PD67_TIME_SETUP(0)+i);
 }
@@ -500,6 +485,8 @@ static void cirrus_set_state(socket_info_t *s)
     misc = i365_get(s, PD67_MISC_CTL_1);
     misc &= ~(PD67_MC1_MEDIA_ENA | PD67_MC1_INPACK_ENA);
     i365_set(s, PD67_MISC_CTL_1, misc | p->misc1);
+    if (s->flags & IS_PCI)
+	pd67_ext_set(s, PD67_EXT_CTL_1, p->ectl1);
     for (i = 0; i < 6; i++)
 	i365_set(s, PD67_TIME_SETUP(0)+i, p->timer[i]);
 }
@@ -544,9 +531,19 @@ static u_int __init cirrus_set_opts(socket_info_t *s, char *buf)
 #ifdef CONFIG_PCI
     } else {
 	p->misc1 &= ~PD67_MC1_MEDIA_ENA;
+	p->misc1 &= ~(PD67_MC1_PULSE_MGMT | PD67_MC1_PULSE_IRQ);
+	p->ectl1 &= ~(PD67_EC1_INV_MGMT_IRQ | PD67_EC1_INV_CARD_IRQ);
 	flip(p->misc2, PD67_MC2_FAST_PCI, fast_pci);
 	if (p->misc2 & PD67_MC2_IRQ15_RI)
 	    mask &= (s->type == IS_PD6730) ? ~0x0400 : ~0x8000;
+	if ((s->flags & IS_PCI) && (irq_mode == 1) && get_pci_irq(s)) {
+	    /* Configure PD6729 bridge for PCI interrupts */
+	    p->ectl1 |= PD67_EC1_INV_MGMT_IRQ | PD67_EC1_INV_CARD_IRQ;
+	    s->pci_irq_code = 3; /* PCI INTA = "irq 3" */
+	    buf += strlen(buf);
+	    sprintf(buf, " [pci irq %d]", s->cap.pci_irq);
+	    mask = 0;
+	}
 #endif
     }
     if (!(s->flags & IS_VIA)) {
@@ -883,19 +880,31 @@ static u_int __init o2micro_set_opts(socket_info_t *s, char *buf)
     if (s->flags & IS_CARDBUS) {
 	p->mode_d &= ~O2_MODE_D_W97_IRQ;
 	p->mode_e &= ~O2_MODE_E_MHPG_DMA;
-	p->mhpg |= O2_MHPG_CINT_ENA | O2_MHPG_CSC_ENA;
-	p->mhpg &= ~O2_MHPG_CHANNEL;
+	p->mhpg = O2_MHPG_CINT_ENA | O2_MHPG_CSC_ENA;
 	if (s->revision == 0x34)
 	    p->mode_c = 0x20;
     } else {
 	if (p->mode_b & O2_MODE_B_IRQ15_RI) mask &= ~0x8000;
     }
-    sprintf(buf, " [a %02x] [b %02x] [c %02x] [d %02x]",
-	    p->mode_a, p->mode_b, p->mode_c, p->mode_d);
+    if (p->mode_b & O2_MODE_B_IRQ15_RI)
+	strcat(buf, " [ring]");
+    if (irq_mode != -1)
+	p->mode_d = irq_mode;
+    if (p->mode_d & O2_MODE_D_ISA_IRQ) {
+	strcat(buf, " [pci+isa]");
+    } else {
+	switch (p->mode_d & O2_MODE_D_IRQ_MODE) {
+	case O2_MODE_D_IRQ_PCPCI:
+	    strcat(buf, " [pc/pci]"); break;
+	case O2_MODE_D_IRQ_PCIWAY:
+	    strcat(buf, " [pci/way]"); break;
+	case O2_MODE_D_IRQ_PCI:
+	    strcat(buf, " [pci only]"); break;
+	}
+    }
     if (s->flags & IS_CARDBUS) {
-	buf += strlen(buf);
-	sprintf(buf, " [mhpg %02x] [fifo %02x] [e %02x]",
-		p->mhpg, p->fifo, p->mode_e);
+	if (p->mode_d & O2_MODE_D_W97_IRQ)
+	    strcat(buf, " [win97]");
     }
     return mask;
 }
@@ -962,6 +971,10 @@ static u_int __init topic_set_opts(socket_info_t *s, char *buf)
     
 ======================================================================*/
 
+/* Default settings for PCI command configuration register */
+#define CMD_DFLT (PCI_COMMAND_IO|PCI_COMMAND_MEMORY| \
+		  PCI_COMMAND_MASTER|PCI_COMMAND_WAIT)
+
 #ifdef CONFIG_PCI
 
 static void __init cb_get_state(socket_info_t *s)
@@ -972,17 +985,7 @@ static void __init cb_get_state(socket_info_t *s)
     pci_readb(s, CB_CARDBUS_BUS, &s->cap.cardbus);
     pci_readb(s, CB_SUBORD_BUS, &s->sub_bus);
     pci_readw(s, CB_BRIDGE_CONTROL, &s->bcr);
-#ifdef __BEOS__
-    pci_readb(s, PCI_INTERRUPT_LINE, &s->cap.pci_irq);
-#else
-    {
-	struct pci_dev *pdev = pci_find_slot(s->bus, s->devfn);
-	s->cap.pci_irq = (pdev) ? pdev->irq : 0;
-    }
-#endif
-    if ((s->cap.pci_irq == 0) && (pci_csc || pci_int))
-	s->cap.pci_irq = pci_irq_list[s - socket];
-    if (s->cap.pci_irq >= NR_IRQS) s->cap.pci_irq = 0;
+    get_pci_irq(s);
 }
 
 static void cb_set_state(socket_info_t *s)
@@ -1197,40 +1200,64 @@ static u_int __init set_bridge_opts(socket_info_t *s, u_short ns)
     
 ======================================================================*/
 
-static volatile u_int irq_hits;
-static socket_info_t *irq_sock = socket;
+static volatile u_int irq_hits, irq_shared;
+static volatile socket_info_t *irq_sock;
 
 static irq_ret_t irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
 {
+    irq_hits++;
+#ifndef __BEOS__
+    DEBUG(2, "-> hit on irq %d\n", irq);
+#endif
+    if (!irq_shared && (irq_hits > 1)) {
+	printk(KERN_INFO "    PCI irq %d seems to be wedged!\n", irq);
+	disable_irq(irq);
+	return (irq_ret_t)0;
+    }
 #ifdef CONFIG_PCI
     if (irq_sock->flags & IS_CARDBUS) {
 	cb_writel(irq_sock, CB_SOCKET_EVENT, -1);
     } else
 #endif
-    i365_get(irq_sock, I365_CSC);
-    irq_hits++;
-#ifndef __BEOS__
-    DEBUG(2, "-> hit on irq %d\n", irq);
-#endif
+    i365_get((socket_info_t *)irq_sock, I365_CSC);
     return (irq_ret_t)1;
 }
 
-#ifdef CONFIG_ISA
-
-static u_int __init test_irq(socket_info_t *s, int irq)
+#ifdef __LINUX__
+static int _check_irq(int irq, int flags)
 {
 #ifdef CONFIG_PNP_BIOS
     extern int check_pnp_irq(int);
-    if (check_pnp_irq(irq)) return 1;
+    if ((flags != SA_SHIRQ) && check_pnp_irq(irq))
+	return -1;
+#endif
+    if (request_irq(irq, irq_count, flags, "x", irq_count) != 0)
+	return -1;
+    free_irq(irq, irq_count);
+    return 0;
+}
 #endif
 
-    DEBUG(2, "  testing ISA irq %d\n", irq);
-    if (_request_irq(irq, irq_count, 0, "scan") != 0)
-	return 1;
-    irq_hits = 0; irq_sock = s;
+static u_int __init test_irq(socket_info_t *s, int irq, int pci)
+{
+    u_char csc = (pci) ? 0 : irq;
+
+#ifdef CONFIG_PNP_BIOS
+    extern int check_pnp_irq(int);
+    if (!pci && check_pnp_irq(irq)) return 1;
+#endif
+
+    DEBUG(2, "  testing %s irq %d\n", pci ? "PCI" : "ISA", irq);
+    irq_sock = s; irq_shared = irq_hits = 0;
+    if (_request_irq(irq, irq_count, 0, "scan")) {
+	irq_shared++;
+	if (!pci || _request_irq(irq, irq_count, SA_SHIRQ, "scan"))
+	    return 1;
+    }
+    irq_hits = 0;
     __set_current_state(TASK_UNINTERRUPTIBLE);
     schedule_timeout(HZ/100);
-    if (irq_hits) {
+    if (irq_hits && !irq_shared) {
 	_free_irq(irq, irq_count);
 	DEBUG(2, "    spurious hit!\n");
 	return 1;
@@ -1240,7 +1267,7 @@ static u_int __init test_irq(socket_info_t *s, int irq)
 #ifdef CONFIG_PCI
     if (s->flags & IS_CARDBUS) {
 	cb_writel(s, CB_SOCKET_EVENT, -1);
-	i365_set(s, I365_CSCINT, I365_CSC_STSCHG | (irq << 4));
+	i365_set(s, I365_CSCINT, I365_CSC_STSCHG | (csc << 4));
 	cb_writel(s, CB_SOCKET_EVENT, -1);
 	cb_writel(s, CB_SOCKET_MASK, CB_SM_CSTSCHG);
 	cb_writel(s, CB_SOCKET_FORCE, CB_SE_CSTSCHG);
@@ -1250,7 +1277,7 @@ static u_int __init test_irq(socket_info_t *s, int irq)
     } else
 #endif
     {
-	i365_set(s, I365_CSCINT, I365_CSC_DETECT | (irq << 4));
+	i365_set(s, I365_CSCINT, I365_CSC_DETECT | (csc << 4));
 	i365_bset(s, I365_GENCTL, I365_CTL_SW_IRQ);
 	udelay(1000);
     }
@@ -1261,9 +1288,10 @@ static u_int __init test_irq(socket_info_t *s, int irq)
     i365_set(s, I365_CSCINT, 0);
     DEBUG(2, "    hits = %d\n", irq_hits);
     
-    return (irq_hits != 1);
+    return irq_shared ? (irq_hits == 0) : (irq_hits != 1);
 }
 
+#ifdef CONFIG_ISA
 static u_int __init isa_scan(socket_info_t *s, u_int mask0)
 {
     u_int mask1 = 0;
@@ -1277,10 +1305,10 @@ static u_int __init isa_scan(socket_info_t *s, u_int mask0)
 	set_bridge_state(s);
 	i365_set(s, I365_CSCINT, 0);
 	for (i = 0; i < 16; i++)
-	    if ((mask0 & (1 << i)) && (test_irq(s, i) == 0))
+	    if ((mask0 & (1 << i)) && (test_irq(s, i, 0) == 0))
 		mask1 |= (1 << i);
 	for (i = 0; i < 16; i++)
-	    if ((mask1 & (1 << i)) && (test_irq(s, i) != 0))
+	    if ((mask1 & (1 << i)) && (test_irq(s, i, 0) != 0))
 		mask1 ^= (1 << i);
     }
     
@@ -1305,8 +1333,32 @@ static u_int __init isa_scan(socket_info_t *s, u_int mask0)
     
     return mask1;
 }
-
 #endif /* CONFIG_ISA */
+
+#ifdef CONFIG_PCI
+static int __init pci_scan(socket_info_t *s)
+{
+    int ret;
+    if (!(s->flags & IS_CARDBUS)) {
+	/* for PCI-to-PCMCIA bridges, just check for wedged irq */
+	irq_hits = 0;
+	if (_request_irq(s->cap.pci_irq, irq_count, 0, "scan"))
+	    return 1;
+	udelay(50);
+	_free_irq(s->cap.pci_irq, irq_count);
+	return (!irq_hits);
+    }
+    cb_set_irq_mode(s, 1, 0);
+    set_bridge_state(s);
+    i365_set(s, I365_CSCINT, 0);
+    ret = ((test_irq(s, s->cap.pci_irq, 1) == 0) &&
+	   (test_irq(s, s->cap.pci_irq, 1) == 0));
+    if (!ret)
+	printk(KERN_INFO "    PCI irq %d test failed\n",
+	       s->cap.pci_irq);
+    return ret;
+}
+#endif /* CONFIG_PCI */
 
 /*====================================================================*/
 
@@ -1441,35 +1493,39 @@ static void __init add_pcic(int ns, int type)
 	       s->ioaddr, s->psock*0x40);
 
 #ifdef CONFIG_ISA
-    /* Set host options, build basic interrupt mask */
     if (irq_list[0] == -1)
 	mask = irq_mask;
     else
 	for (i = mask = 0; i < 16; i++)
 	    mask |= (1<<irq_list[i]);
 #endif
-    mask &= I365_MASK & set_bridge_opts(s, ns);
-#ifdef CONFIG_ISA
-    /* Scan for ISA interrupts */
-    mask = isa_scan(s, mask);
-#else
-    printk(KERN_INFO "    PCI card interrupts,");
-#endif
-    
+    /* Set host options, build basic interrupt mask */
+    mask &= I365_ISA_IRQ_MASK & set_bridge_opts(s, ns);
+
 #ifdef CONFIG_PCI
     /* Can we use PCI interrupts for card status changes? */
-    if (pci_csc && s->cap.pci_irq) {
+    if (pci_csc) {
 	for (i = 0; i < ns; i++)
-	    if (_check_irq(s[i].cap.pci_irq, SA_SHIRQ)) break;
-	if (i == ns) {
-	    use_pci = 1;
-	    printk(" PCI status changes\n");
-	}
+	    if (!s[i].cap.pci_irq || !pci_scan(&s[i])) break;
+	use_pci = (i == ns);
     }
 #endif
-    
 #ifdef CONFIG_ISA
-    /* Poll if only two interrupts available */
+    /* Scan, report ISA card interrupts */
+    if (mask)
+	mask = isa_scan(s, mask);
+#endif
+
+#ifdef CONFIG_PCI
+    if (!mask)
+	printk(use_pci ? KERN_INFO "    PCI card interrupts," :
+	       KERN_INFO "    No interrupts!! ");
+    if (use_pci)
+	printk(" PCI status changes\n");
+#endif
+
+#ifdef CONFIG_ISA
+    /* Poll if only two sensible interrupts available */
     if (!use_pci && !poll_interval) {
 	u_int tmp = (mask & 0xff20);
 	tmp = tmp & (tmp-1);
@@ -1480,14 +1536,12 @@ static void __init add_pcic(int ns, int type)
     if (!use_pci && !grab_irq && (cs_irq || !poll_interval)) {
 	/* Avoid irq 12 unless it is explicitly requested */
 	u_int cs_mask = mask & ((cs_irq) ? (1<<cs_irq) : ~(1<<12));
-	for (cs_irq = 15; cs_irq > 0; cs_irq--)
-	    if ((cs_mask & (1 << cs_irq)) &&
-		(_check_irq(cs_irq, 0) == 0))
-		break;
-	if (cs_irq) {
+	for (isa_irq = 15; isa_irq > 0; isa_irq--)
+	    if (cs_mask & (1 << isa_irq)) break;
+	if (isa_irq) {
 	    grab_irq = 1;
-	    isa_irq = cs_irq;
-	    printk(" status change on irq %d\n", cs_irq);
+	    cs_irq = isa_irq;
+	    printk(" status change on irq %d\n", isa_irq);
 	}
     }
 #endif
@@ -1495,8 +1549,7 @@ static void __init add_pcic(int ns, int type)
     if (!use_pci && !isa_irq) {
 	if (poll_interval == 0)
 	    poll_interval = HZ;
-	printk(" polling interval = %d ms\n",
-	       poll_interval * 1000 / HZ);
+	printk(" polling interval = %d ms\n", poll_interval*1000/HZ);
     }
     
     /* Update socket interrupt information, capabilities */
@@ -1504,6 +1557,8 @@ static void __init add_pcic(int ns, int type)
 	s[i].cap.features |= SS_CAP_PCCARD;
 	s[i].cap.map_size = 0x1000;
 	s[i].cap.irq_mask = mask;
+	if (!use_pci)
+	    s[i].cap.pci_irq = 0;
 	if (pci_int && s[i].cap.pci_irq)
 	    s[i].cap.irq_mask |= (1 << s[i].cap.pci_irq);
 	s[i].cs_irq = isa_irq;
@@ -1964,15 +2019,15 @@ static int i365_set_socket(socket_info_t *s, socket_state_t *state)
     
     /* First set global controller options */
 #ifdef CONFIG_PCI
-    if ((s->flags & IS_CARDBUS) && s->cap.pci_irq)
+    if (s->cap.pci_irq)
 	cb_set_irq_mode(s, pci_csc, (s->cap.pci_irq == state->io_irq));
     s->bcr &= ~CB_BCR_CB_RESET;
 #endif
     set_bridge_state(s);
     
     /* IO card, RESET flag, IO interrupt */
-    reg = s->intr;
-    if (state->io_irq != s->cap.pci_irq) reg |= state->io_irq;
+    reg = s->intr | ((state->io_irq == s->cap.pci_irq) ?
+		     s->pci_irq_code : state->io_irq);
     reg |= (state->flags & SS_RESET) ? 0 : I365_PC_RESET;
     reg |= (state->flags & SS_IOCARD) ? I365_PC_IOCARD : 0;
     i365_set(s, I365_INTCTL, reg);
@@ -2050,7 +2105,7 @@ static int i365_set_socket(socket_info_t *s, socket_state_t *state)
 	i365_set(s, I365_POWER, reg);
 
     /* Card status change interrupt mask */
-    reg = s->cs_irq << 4;
+    reg = (s->cap.pci_irq ? s->pci_irq_code : s->cs_irq) << 4;
     if (state->csc_mask & SS_DETECT) reg |= I365_CSC_DETECT;
     if (state->flags & SS_IOCARD) {
 	if (state->csc_mask & SS_STSCHG) reg |= I365_CSC_STSCHG;
@@ -2229,7 +2284,7 @@ static int i365_set_mem_map(socket_info_t *s, struct pccard_mem_map *mem)
 
 /*======================================================================
 
-    All the stuff that is strictly for Cardbus cards goes here.
+    The few things that are strictly for Cardbus cards goes here.
 
 ======================================================================*/
 
@@ -2276,8 +2331,7 @@ static int cb_set_socket(socket_info_t *s, socket_state_t *state)
     
     /* First set global controller options */
     if (s->cap.pci_irq)
-	cb_set_irq_mode(s, pci_csc,
-			(s->cap.pci_irq == state->io_irq));
+	cb_set_irq_mode(s, pci_csc, (s->cap.pci_irq == state->io_irq));
     s->bcr &= ~CB_BCR_CB_RESET;
     s->bcr |= (state->flags & SS_RESET) ? CB_BCR_CB_RESET : 0;
     set_bridge_state(s);

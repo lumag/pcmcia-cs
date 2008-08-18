@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    pcnet_cs.c 1.112 2000/02/11 01:24:44
+    pcnet_cs.c 1.113 2000/02/28 23:02:28
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.112 2000/02/11 01:24:44 (David Hinds)";
+"pcnet_cs.c 1.113 2000/02/28 23:02:28 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -318,7 +318,6 @@ static dev_link_t *pcnet_attach(void)
     dev->open = &pcnet_open;
     dev->stop = &pcnet_close;
     dev->set_config = &set_config;
-    dev->tbusy = 1;
 
     /* Register with Card Services */
     link->next = dev_list;
@@ -689,7 +688,6 @@ static void pcnet_config(dev_link_t *link)
     } else {
 	dev->if_port = 0;
     }
-    dev->tbusy = 0;
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "pcnet_cs: register_netdev() failed\n");
 	goto failed;
@@ -814,7 +812,7 @@ static int pcnet_event(event_t event, int priority,
     case CS_EVENT_CARD_REMOVAL:
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
-	    info->dev.tbusy = 1; info->dev.start = 0;
+	    netif_device_detach(&info->dev);
 	    link->release.expires = jiffies + HZ/20;
 	    link->state |= DEV_RELEASE_PENDING;
 	    add_timer(&link->release);
@@ -829,9 +827,8 @@ static int pcnet_event(event_t event, int priority,
 	/* Fall through... */
     case CS_EVENT_RESET_PHYSICAL:
 	if (link->state & DEV_CONFIG) {
-	    if (link->open) {
-		info->dev.tbusy = 1; info->dev.start = 0;
-	    }
+	    if (link->open)
+		netif_device_detach(&info->dev);
 	    CardServices(ReleaseConfiguration, link->handle);
 	}
 	break;
@@ -844,7 +841,7 @@ static int pcnet_event(event_t event, int priority,
 	    if (link->open) {
 		pcnet_reset_8390(&info->dev);
 		NS8390_init(&info->dev, 1);
-		info->dev.tbusy = 0; info->dev.start = 1;
+		netif_device_attach(&info->dev);
 	    }
 	}
 	break;
@@ -911,7 +908,9 @@ static int pcnet_close(struct net_device *dev)
 
     free_irq(dev->irq, dev);
     
-    link->open--; dev->start = 0;
+    link->open--;
+    netif_stop_queue(dev);
+    netif_mark_down(dev);
     del_timer(&info->watchdog);
     if (link->state & DEV_STALE_CONFIG) {
 	link->release.expires = jiffies + HZ/20;
@@ -987,7 +986,7 @@ static void ei_watchdog(u_long arg)
     struct net_device *dev = &info->dev;
     ioaddr_t nic_base = dev->base_addr;
 
-    if (dev->start == 0) goto reschedule;
+    if (!netif_device_present(dev)) goto reschedule;
 
     /* Check for pending interrupt with expired latency timer: with
        this, we can limp along even if the interrupt is blocked */

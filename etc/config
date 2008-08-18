@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.111 2000/02/11 04:43:10 (David Hinds)
+# config 1.113 2000/03/04 00:45:07 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -549,6 +549,10 @@ card "Psion Gold Card Ethernet"
   version "Psion Dacom", "Gold Card Ethernet"
   bind "pcnet_cs"
 
+card "Psion Gold Card Netglobal Ethernet"
+  version "Psion", "10Mb Ethernet"
+  bind "smc91c92_cs"
+
 card "RATOC Ethernet"
   version "PCMCIA LAN MBH10304  ES"
   bind "fmvj18x_cs"
@@ -650,6 +654,10 @@ card "Accton Fast EtherCard-16"
   manfid 0x01bf, 0x010a
   bind "xirc2ps_cs"
 
+card "AmbiCom AMB8110 Fast Ethernet"
+  manfid 0x021b, 0x0202
+  bind "pcnet_cs"
+
 card "AnyCom ECO 10/100 Fast Ethernet"
   version "AnyCom", "ECO Ethernet 10/100"
   bind "pcnet_cs"
@@ -747,6 +755,10 @@ card "Toshiba 10/100 Fast Ethernet"
 #  manfid 0x0186, 0x0100
 #  bind "smc91c92_cs"
 
+card "WiseCom WC-PC400 Fast Ethernet"
+  manfid 0x8a01, 0xc1ab
+  bind "smc91c92_cs"
+
 card "Xircom CE3-10/100 Fast Ethernet"
   version "Xircom", "*", "CE3-10/100"
   bind "xirc2ps_cs"
@@ -782,8 +794,8 @@ card "Lucent Technologies WaveLAN/IEEE Adapter"
   version "Lucent Technologies", "WaveLAN/IEEE"
   bind "wvlan_cs"
 
-card "Melco WLI-PCM-L11"
-  manfid 0x0156, 0x0002
+card "MELCO WLI-PCM-L11"
+  version "MELCO", "WLI-PCM-L11"
   bind "wvlan_cs"
 
 card "NCR WaveLAN Adapter"
@@ -1327,7 +1339,7 @@ card "Telecom Device SuperSocket LM336 Ethernet/Modem"
 
 card "Xircom CE II Ethernet/Modem"
   version "Xircom", "CreditCard Ethernet+Modem II"
-  bind "serial_cs"
+  bind "xirc2ps_cs", "serial_cs"
 
 card "Xircom CEM28 Ethernet/Modem"
   version "Xircom", "*", "CEM28"
@@ -1394,6 +1406,10 @@ card "Generic ATAPI CD-ROM"
 
 card "IBM Max Portable CD-ROM"
   manfid 0x00a4, 0x002d
+  bind "ide_cs"
+
+card "IBM Portable Drive Bay"
+  version "PCMCIA", "IDE CARD", "F1"
   bind "ide_cs"
 
 card "IO DATA CDP-TX/PCIDE"

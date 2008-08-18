@@ -38,7 +38,7 @@
 *
 * FILE	 : mdd.h
 *
-* DATE   : 2000/01/06 23:30:53   1.2
+* DATE   : 2000/02/28 23:09:38   1.3
 *
 * AUTHOR : Nico Valster
 *
@@ -65,6 +65,9 @@ needed to build the C-part, e.g. for the DOS ODI driver
 
 /****************************************************************************
 wvlan_mdd.h,v
+Revision 1.3  2000/02/28 23:09:38  root
+*** empty log message ***
+
 Revision 1.2  2000/01/06 23:30:53  root
 *** empty log message ***
 
@@ -143,6 +146,7 @@ Initial revision
 /****************************** General define ***************************************************************/
 
 #define MAC_ADDR_SIZE			6
+#define GROUP_ADDR_SIZE			(32 * MAC_ADDR_SIZE)
 #define STAT_NAME_SIZE			32
 
 
@@ -253,6 +257,8 @@ typedef enum  { /*hcf_action_cmd*/
 #define CFG_CNF_MAX_SLEEP_DURATION		0xFC0C		//[STA] Maximum sleep time for ESS PM
 #define CFG_CNF_HOLDOVER_DURATION		0xFC0D		//[STA] Holdover time for ESS PM
 #define CFG_CNF_OWN_NAME				0xFC0E		//Identification text for diagnostic purposes
+
+#define CFG_CNF_ENCRYPTION				0xFC20		//select en/de-cryption of Tx/Rx messages
 	
 	
 //	NETWORK PARAMETERS, DYNAMIC CONFIGURATION ENTITIES
@@ -262,6 +268,9 @@ typedef enum  { /*hcf_action_cmd*/
 #define CFG_RTS_THRH					0xFC83		//[STA] Frame length used for RTS/CTS handshake
 #define CFG_TX_RATE_CONTROL				0xFC84		//[STA] Data rate control for message transmission
 #define CFG_PROMISCUOUS_MODE			0xFC85		//[STA] Switch for Promiscuous mode reception On/Off
+
+#define CFG_CNF_DEFAULT_KEYS			0xFCB0		//defines set of encryption keys
+#define CFG_CNF_TX_KEY_ID			0xFCB1		//select key for encryption of Tx messages
 	
 
 //	BEHAVIOR PARAMETERS	
@@ -365,6 +374,17 @@ typedef LTV_STRCT FAR *	LTVP;
 #define COMP_ID_DUI		05				//Driver			- Utility	I/F
 #define COMP_ID_HSI		06				//H/W               - Driver	I/F
 
+typedef struct KEY_STRCT {
+	hcf_16	len;			//length of key
+	hcf_8	key[14];		//encryption key
+} KEY_STRCT;
+
+typedef struct CFG_CNF_DEFAULT_KEYS_STRCT {	//CFG_CNF_DEFAULT_KEYS (0xFCB0) defines set of encrypti
+	hcf_16		len;		//default length of RID
+	hcf_16		typ;		//RID identification as defined by Hermes
+	KEY_STRCT	key[4];		//encryption keys
+} CFG_CNF_DEFAULT_KEYS_STRCT;
+
 
 typedef struct CFG_REG_DOMAINS_STRCT {	//CFG_REG_DOMAINS (0xFD11) List of intended regulatory domains.
 	hcf_16	len;					//length of RID
@@ -425,6 +445,11 @@ typedef struct CFG_MAC_ADDR_STRCT{			//0xFC01	[STA] MAC Address of this node.
 	hcf_16	mac_addr[3];
 }CFG_MAC_ADDR_STRCT;
 
+typedef struct CFG_GROUP_ADDR_STRCT{			//0xFC80	//[STA] Multicast MAC Addresses for
+	hcf_16	len;					//default length of RID
+	hcf_16	typ;					//RID identification as defined by Hermes
+	hcf_16	mac_addr[GROUP_ADDR_SIZE/6][3];
+}CFG_GROUP_ADDR_STRCT;
 
 
 typedef struct CFG_ID_STRCT {				//0xFC02	[STA] Service Set identification for connection.

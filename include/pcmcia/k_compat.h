@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.108 2000/02/17 23:18:11
+ * k_compat.h 1.113 2000/03/01 23:50:09
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -295,12 +295,12 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 #define skb_tx_check(dev, skb) \
     do { if (skb == NULL) { dev_tint(dev); return 0; } \
     if (skb->len <= 0) return 0; } while (0)
-#define add_rx_bytes(stats, n) do { int x; x = (n); } while (0)
-#define add_tx_bytes(stats, n) do { int x; x = (n); } while (0)
+#define add_rx_bytes(stats, n)	do { int x; x = (n); } while (0)
+#define add_tx_bytes(stats, n)	do { int x; x = (n); } while (0)
 #else
-#define skb_tx_check(dev, skb) do { } while (0)
-#define add_rx_bytes(stats, n) do { (stats)->rx_bytes += n; } while (0)
-#define add_tx_bytes(stats, n) do { (stats)->tx_bytes += n; } while (0)
+#define skb_tx_check(dev, skb)	do { } while (0)
+#define add_rx_bytes(stats, n)	do { (stats)->rx_bytes += n; } while (0)
+#define add_tx_bytes(stats, n)	do { (stats)->tx_bytes += n; } while (0)
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,3,43))
@@ -308,6 +308,25 @@ extern void release_mem_region(unsigned long base, unsigned long num);
 #define netif_start_queue(dev) clear_bit(0, (void *)&(dev)->tbusy)
 #define netif_wake_queue(dev) \
     do { netif_start_queue(dev); mark_bh(NET_BH); } while (0)
+#define netif_device_attach(dev) \
+    do { (dev)->start = 1; netif_start_queue(dev); } while (0)
+#define netif_device_detach(dev) \
+    do { (dev)->start = 0; netif_stop_queue(dev); } while (0)
+#define netif_device_present(dev) ((dev)->start)
+#define netif_running(dev) ((dev)->start)
+#define netif_mark_up(dev) do { (dev)->start = 1; } while (0)
+#define netif_mark_down(dev) do { (dev)->start = 0; } while (0)
+#define netif_queue_stopped(dev) ((dev)->tbusy)
+#define tx_timeout_check(dev, tx_timeout) \
+    do { if (test_and_set_bit(0, (void *)&(dev)->tbusy) != 0) { \
+	if (jiffies - (dev)->trans_start < TX_TIMEOUT) return 1; \
+	tx_timeout(dev); \
+    } } while (0)
+#define dev_kfree_skb_irq(skb)	dev_kfree_skb(skb)
+#else
+#define netif_mark_up(dev)	do { } while (0)
+#define netif_mark_down(dev)	do { } while (0)
+#define tx_timeout_check(dev, handler) do { } while (0)
 #endif
 
 #endif /* _LINUX_K_COMPAT_H */

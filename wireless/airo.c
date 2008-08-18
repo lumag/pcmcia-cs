@@ -179,19 +179,33 @@ char *statsLabels[] = {
 #endif
 
 
-/* These two variables are for insmod, since it seems that the rates
+/* These variables are for insmod, since it seems that the rates
    can only be set in setup_card.  Rates should be a comma separated
    (no spaces) list of rates (up to 8). */
 
-int rates[8] = {0,0,0,0,0,0,0,0};
-int basic_rate = 0;
-char *ssids[3] = {0,0,0};
+static int rates[8] = {0,0,0,0,0,0,0,0};
+static int basic_rate = 0;
+static char *ssids[3] = {0,0,0};
 
-int io[4]={ 0,};
-int irq[4]={ 0,};
+static int io[4]={ 0,};
+static int irq[4]={ 0,};
 
-int auto_wep = 0; /* If set, it tries to figure out the wep mode */
+static int auto_wep = 0; /* If set, it tries to figure out the wep mode */
+static int aux_bap = 0; /* Checks to see if the aux ports are needed to read
+                           the bap, needed on some older cards and buses. */   
 
+#if (LINUX_VERSION_CODE < 0x2032b)
+#define netif_stop_queue(dev) do { (dev)->tbusy = 1; } while (0)
+#define netif_start_queue(dev) do { (dev)->tbusy = 0; } while (0)
+#define netif_wake_queue(dev) \
+    do { (dev)->tbusy = 0; mark_bh(NET_BH); } while (0)
+#define netif_mark_up(dev) do { (dev)->start = 1; } while (0)
+#define netif_mark_down(dev) do { (dev)->start = 0; } while (0)
+#define netif_device_present(dev) ((dev)->start)
+#else
+#define netif_mark_up(dev) do { } while (0)
+#define netif_mark_down(dev) do { } while (0)
+#endif
 
 #if (LINUX_VERSION_CODE > 0x20155)
 /* new kernel */
@@ -201,22 +215,18 @@ MODULE_PARM(basic_rate,"i");
 MODULE_PARM(rates,"1-8i");
 MODULE_PARM(ssids,"1-3s");
 MODULE_PARM(auto_wep,"i");
-/*
- *  Im pretty lazy about the locking.  In theory having just one lock for the
- *  whole driver should be okay, but I should actually have one driver for
- *  each interface.  Since there will probably be only one interface this isnt
- *  a big deal.  Once I know it works, I will put the lock in the airo_priv
- *  structure.
- */
+MODULE_PARM(auto_bap,"i");
+
 #include <asm/uaccess.h>
-#define DO_SPIN_LOCK
-// This line will generate a warning on uniprocessor machines, just ignore
-static spinlock_t xxx_lock = SPIN_LOCK_UNLOCKED;
 
 #define KFREE_SKB(a,b)  dev_kfree_skb(a)
 #define PROC_REGISTER(a,b) proc_register(a,b)
 #else 
 /* old kernel */
+#define SPIN_LOCK_UNLOCKED 0
+#define spinlock_t int
+#define spin_lock_irqsave(x, y) save_flags(y); cli()
+#define spin_lock_irqrestore(x, y) restore_flags(y)
 #define le32_to_cpu(x) (x)
 #define cpu_to_le32(x) (x)
 #define le16_to_cpu(x) (x)
@@ -225,18 +235,15 @@ static spinlock_t xxx_lock = SPIN_LOCK_UNLOCKED;
 #define net_device_stats enet_statistics
 #define KFREE_SKB(a,b)  dev_kfree_skb(a,b)
 #define PROC_REGISTER(a,b) proc_register_dynamic(a,b)
-#endif 
+#endif
 #if (LINUX_VERSION_CODE < 0x020311)
 #define PROC_UNREGISTER(root, entry) proc_unregister(root, (entry)->low_ino)
 #else
-#define PROC_UNREGISTER(root, entry) remove_proc_entry((entry)->name, root)
+#define PROC_REGISTER(root, entry) error
+#define PROC_UNREGISTER(root, entry) error
 #endif
 #if (LINUX_VERSION_CODE < 0x02030e)
 #define net_device device
-#endif
-#ifndef HAS_NETIF_QUEUE
-#define netif_wake_queue(dev) \
-	do { dev->tbusy = 0; mark_bh(NET_BH); } while (0)
 #endif
 
 #define min(x,y) ((x<y)?x:y)
@@ -262,6 +269,7 @@ static int do8bitIO = 0;
 #define CMD_TRANSMIT 0x000b
 #define HOSTSLEEP 0x85
 #define CMD_SETMODE 0x0009
+#define CMD_ENABLEAUX 0x0111
 
 /* Registers */
 #define COMMAND 0x00
@@ -282,11 +290,17 @@ static int do8bitIO = 0;
 #define EVSTAT 0x30
 #define EVINTEN 0x32
 #define EVACK 0x34
-#define TXCOMPLFID 0x24
+#define SWS0 0x28
+#define SWS1 0x2a
+#define SWS2 0x2c
+#define SWS3 0x2e
+#define AUXPAGE 0x3A
+#define AUXOFF 0x3C
+#define AUXDATA 0x3E
 
 /* BAP selectors */
-#define BAP0 0
-#define BAP1 2
+#define BAP0 0 // Used for receiving packets
+#define BAP1 2 // Used for xmiting packets and working with RIDS
 
 /* Flags */
 #define COMMAND_BUSY 0x8000
@@ -490,6 +504,11 @@ typedef struct {
 	u16 hopsToBackbone;
 	u16 apTotalLoad;
 	u16 generatedLoad;
+	u16 accumulatedArl;
+	u16 signalQuality;
+	u16 currentXmitRate;
+	u16 apDevExtensions;
+	u16 normalizedSignalStrength;
 } StatusRid;
 
 typedef struct {
@@ -530,7 +549,7 @@ typedef struct {
 #define BUSY_FID 0x10000
 
 static char *version =
-"airo.c 0.98so 1900(:^)/01/09 03:26:30 (Benjamin Reed)";
+"airo.c 0.99ze 2000/02/26 12:43:17 (Benjamin Reed)";
 
 struct airo_info;
 
@@ -542,8 +561,10 @@ static void enable_interrupts(struct airo_info*);
 static void disable_interrupts(struct airo_info*);
 static u16 issuecommand(struct airo_info*, Cmd *pCmd, Resp *pRsp);
 static int bap_setup(struct airo_info*, u16 rid, u16 offset, int whichbap);
-static int bap_read(struct airo_info*, u16 *pu16Dst, int bytelen, 
-		    int whichbap);
+static int aux_bap_read(struct airo_info*, u16 *pu16Dst, int bytelen, 
+			int whichbap);
+static int fast_bap_read(struct airo_info*, u16 *pu16Dst, int bytelen, 
+			 int whichbap);
 static int bap_write(struct airo_info*, const u16 *pu16Src, int bytelen,
 		     int whichbap);
 static int PC4500_accessrid(struct airo_info*, u16 rid, u16 accmd);
@@ -556,8 +577,8 @@ static u16 transmit_allocate(struct airo_info*, int lenPayload);
 static int transmit_802_3_packet(struct airo_info*, u16 TxFid, char
 				 *pPacket, int len);
 
-static void airo_interrupt( int irq, void* dev_id, struct pt_regs *regs);
-
+static void airo_interrupt( int irq, void* dev_id, struct pt_regs
+			    *regs);
 struct airo_info {
 	struct net_device_stats	stats;
 	int open;
@@ -571,7 +592,7 @@ struct airo_info {
 	ConfigRid config;
 	u16 authtype;
 	struct timer_list timer;
-	u16 rateFreq;
+#if (LINUX_VERSION_CODE < 0x20311)
 	struct proc_dir_entry proc_entry;
 	struct proc_dir_entry proc_statsdelta_entry;
 	struct proc_dir_entry proc_stats_entry;
@@ -579,11 +600,25 @@ struct airo_info {
 	struct proc_dir_entry proc_config_entry;
 	struct proc_dir_entry proc_SSID_entry;
 	struct proc_dir_entry proc_wepkey_entry;
+#else
+	struct proc_dir_entry *proc_entry;
+#endif
 	struct airo_info *next;
+        spinlock_t bap0_lock;
+        spinlock_t bap1_lock;
+        spinlock_t aux_lock;
+        spinlock_t cmd_lock;
         int flags;
 #define FLAG_PROMISC 0x01
 #define FLAG_RADIO_OFF 0x02
+	int (*bap_read)(struct airo_info*, u16 *pu16Dst, int bytelen, 
+		int whichbap);
 };
+
+static inline int bap_read(struct airo_info *ai, u16 *pu16Dst, int bytelen, 
+			   int whichbap) {
+	return ai->bap_read(ai, pu16Dst, bytelen, whichbap);
+}
 
 static int setup_proc_entry( struct net_device *dev,
 			     struct airo_info *apriv );
@@ -603,8 +638,9 @@ static int airo_open(struct net_device *dev) {
 		enable_interrupts(info);
 	}
 	info->open++;
-	
-	dev->tbusy = 0; dev->start = 1;
+
+	netif_start_queue(dev);
+	netif_mark_up(dev);
 	
 	return 0;
 }
@@ -619,38 +655,24 @@ static int airo_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 	struct airo_info *priv = (struct airo_info*)dev->priv;
 	u32 *fids = priv->fids;
 	
-#ifdef DO_SPIN_LOCK
-	spin_lock_irqsave(&xxx_lock, flags);
-#else
-	save_flags(flags);
-	cli();
-#endif
-	
-	if ( dev->tbusy ) {
-		retval = -EBUSY;
-		goto tx_done;
+	if ( skb == NULL ) {
+		printk( KERN_ERR "airo:  skb == NULL!!!\n" );
+		return 0;
 	}
 	
 	/* Find a vacant FID */
+	spin_lock_irqsave(&priv->bap1_lock, flags);
 	for( i = 0; i < MAX_FIDS; i++ ) {
 		if ( !( fids[i] & 0xffff0000 ) ) break;
 	}
-	
 	if ( i == MAX_FIDS ) {
-		dev->tbusy = 1;
+                netif_stop_queue(dev);
 		retval = -EBUSY;
 		goto tx_done;
-	}
-	
-	if ( skb == NULL ) {
-		printk( KERN_INFO "skb == NULL!!!\n" );
-		return 0;
 	}
 	
 	len = ETH_ZLEN < skb->len ? skb->len : ETH_ZLEN; /* check min length*/
 	buffer = skb->data;
-	
-	
 	
 	status = transmit_802_3_packet( priv, 
 					fids[i],
@@ -664,11 +686,7 @@ static int airo_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 		((struct airo_info*)dev->priv)->stats.tx_errors++;
 	}
  tx_done:
-#ifdef DO_SPIN_LOCK
-	spin_unlock_irqrestore(&xxx_lock, flags);
-#else
-	restore_flags(flags);
-#endif
+	spin_unlock_irqrestore(&priv->bap1_lock, flags);
 	KFREE_SKB( skb, FREE_WRITE );
 	return 0;
 }
@@ -693,11 +711,21 @@ static int private_ioctl(struct net_device *dev, struct ifreq *rq,
 	return 0;
 }
 
+static int airo_change_mtu(struct net_device *dev, int new_mtu)
+{
+	if ((new_mtu < 68) || (new_mtu > 2400))
+		return -EINVAL;
+	dev->mtu = new_mtu;
+	return 0;
+}
+
+
 static int airo_close(struct net_device *dev) { 
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	ai->open--;
+	netif_stop_queue(dev);
+	netif_mark_down(dev);
 	if ( !ai->open ) {
-		dev->start = 0;
 		disable_interrupts( ai );
 	}
 	MOD_DEC_USE_COUNT;
@@ -741,6 +769,10 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 	memset(dev->priv, 0, sizeof(struct airo_info));
 	ai = (struct airo_info *)dev->priv;
         ai->dev = dev;
+	ai->bap0_lock = SPIN_LOCK_UNLOCKED;
+	ai->bap1_lock = SPIN_LOCK_UNLOCKED;
+	ai->aux_lock = SPIN_LOCK_UNLOCKED;
+	ai->cmd_lock = SPIN_LOCK_UNLOCKED;
 	add_airo_dev( dev ); 
 	
 	/* The Airo-specific entries in the device structure. */
@@ -750,17 +782,17 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 	dev->do_ioctl = &private_ioctl;
 	dev->name = ((struct airo_info *)dev->priv)->name;
 	ether_setup(dev);
+	dev->change_mtu = &airo_change_mtu;
 	dev->init = &airo_init;
 	dev->open = &airo_open;
 	dev->stop = &airo_close;
-	dev->tbusy = 1;
-	
+	netif_stop_queue(dev);
 	dev->irq = irq;
 	dev->base_addr = port;
 	
 	if ( request_irq( dev->irq, airo_interrupt, 
 			  SA_SHIRQ | SA_INTERRUPT, dev->name, dev ) ) {
-		printk(KERN_ERR "airo_common: register interrupt %d failed\n", irq );
+		printk(KERN_ERR "airo: register interrupt %d failed\n", irq );
 	}
 	request_region( dev->base_addr, 64, dev->name );
 	
@@ -770,10 +802,10 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 	if ( setup_card( ai, dev->dev_addr, 
 			 &((struct airo_info*)dev->priv)->config) 
 	     != SUCCESS ) {
-		printk( KERN_INFO "Aironet MAC could not be enabled\n" );
+		printk( KERN_ERR "airo: MAC could not be enabled\n" );
 		goto init_undo;
 	} else {
-		printk( KERN_INFO "Aironet MAC enabled %s %x:%x:%x:%x:%x:%x\n",
+		printk( KERN_INFO "airo: MAC enabled %s %x:%x:%x:%x:%x:%x\n",
 			dev->name,
 			dev->dev_addr[0],
 			dev->dev_addr[1],
@@ -789,18 +821,18 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 	}
 	
 	if (register_netdev(dev) != 0) {
-		printk(KERN_ERR "airo_common: register_netdev() failed\n");
+		printk(KERN_ERR "airo: register_netdev() failed\n");
 		goto init_undo;
 	}
 	((struct airo_info*)dev->priv)->registered = 1;
 	
 	setup_proc_entry( dev, (struct airo_info*)dev->priv );
 	
-	dev->tbusy = 0;
+	netif_start_queue(dev);
 	return dev;
  init_undo:
 	stop_airo_card( dev );
-	return dev;
+	return 0;
 }
 
 int reset_airo_card( struct net_device *dev ) {
@@ -809,10 +841,10 @@ int reset_airo_card( struct net_device *dev ) {
 
 	if ( setup_card(ai, dev->dev_addr,
 			&(ai)->config) != SUCCESS ) {
-		printk( KERN_INFO "Aironet MAC could not be enabled\n" );
+		printk( KERN_ERR "airo: MAC could not be enabled\n" );
 		return -1;
 	} else {
-		printk( KERN_INFO "Aironet MAC enabled %s %x:%x:%x:%x:%x:%x\n",
+		printk( KERN_INFO "airo: MAC enabled %s %x:%x:%x:%x:%x:%x\n",
 			dev->name,
 			dev->dev_addr[0],
 			dev->dev_addr[1],
@@ -828,7 +860,7 @@ int reset_airo_card( struct net_device *dev ) {
 		}
 	}
 	enable_interrupts( ai );
-	dev->tbusy = 0; dev->start = 1;
+	netif_start_queue(dev);
 	return 0;
 }
 
@@ -841,7 +873,7 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 	u16 savedInterrupts;
 	
 
-	if ((dev == NULL) || !dev->start )
+	if (!netif_device_present(dev))
 		return;
 	
 	status = IN4500( apriv, EVSTAT );
@@ -895,15 +927,12 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 	/* Check to see if there is something to recieve */
 	if ( status & EV_RX  ) {
 		struct sk_buff *skb;
+		int flags;
+
 		fid = IN4500( apriv, RXFID );
 
-		/* Get the bit rate */
-		bap_setup( apriv, fid, 0x0a, BAP0 );
-		bap_read( apriv, &apriv->rateFreq, 
-			  sizeof(apriv->rateFreq), BAP0 );
-		apriv->rateFreq = le16_to_cpu(apriv->rateFreq);
-	      
 		/* Get the packet length */
+	        spin_lock_irqsave(&apriv->bap0_lock, flags);
 		bap_setup( apriv, fid, 0x36, BAP0 );
 		bap_read( apriv, &len, sizeof(len), BAP0 );
 
@@ -916,8 +945,8 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 			apriv->stats.rx_length_errors++;
 #endif
 			apriv->stats.rx_errors++;
-			printk( KERN_INFO 
-				"Bad size %d\n", len );
+			printk( KERN_ERR 
+				"airo: Bad size %d\n", len );
 		} else {
 			skb = dev_alloc_skb( len + 2 );
 			if ( !skb ) {
@@ -925,6 +954,7 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 			} else {
 				char *buffer;
 				buffer = skb_put( skb, len );
+		                bap_setup( apriv, fid, 0x36+sizeof(len), BAP0 );
 				bap_read( apriv, (u16*)buffer, len, BAP0 );
 				apriv->stats.rx_packets++;
 #if LINUX_VERSION_CODE > 0x20127
@@ -933,35 +963,40 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 				skb->dev = dev;
 				skb->ip_summed = CHECKSUM_NONE;
 				skb->protocol = eth_type_trans( skb, dev );
+
 				netif_rx( skb );
 			}
 		}
+		spin_unlock_irqrestore(&apriv->bap0_lock, flags);
 	}
 
 	/* Check to see if a packet has been transmitted */
 	if (  status & ( EV_TX|EV_TXEXC ) ) {
 		int i;
 		int len = 0;
+		int full = 1;
+		int index = -1;
 		
 		fid = IN4500(apriv, TXCOMPLFID);
 		
 		for( i = 0; i < MAX_FIDS; i++ ) {
+			if (!(apriv->fids[i] & 0xffff0000)) full = 0;
 			if ( ( apriv->fids[i] & 0xffff ) == fid ) {
 				len = apriv->fids[i] >> 16;
+				index = i;
 				/* Set up to be used again */
 				apriv->fids[i] &= 0xffff; 
-				netif_wake_queue(dev);
-				break;
 			}
 		}
-		if ( i == MAX_FIDS ) {
-			printk( KERN_INFO 
-				"Unallocated FID was used to xmit\n" );
+		if (full) netif_wake_queue(dev);
+		if (index==-1) {
+			printk( KERN_ERR
+				"airo: Unallocated FID was used to xmit\n" );
 		}
 		if ( status & EV_TX ) {
 			apriv->stats.tx_packets++;
 #if LINUX_VERSION_CODE > 0x20127
-			if( i != MAX_FIDS) 
+			if(index!=-1)
 				apriv->stats.tx_bytes += len;
 #endif
 		} else {
@@ -969,8 +1004,8 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 		}
 	}
 	if ( status & ~STATUS_INTS ) 
-		printk( KERN_INFO 
-			"Got weird status %x\n", 
+		printk( KERN_WARNING 
+			"airo: Got weird status %x\n", 
 			status & ~STATUS_INTS );
 	OUT4500( apriv, EVACK, status & STATUS_INTS );
 	OUT4500( apriv, EVINTEN, savedInterrupts );
@@ -985,6 +1020,8 @@ static void airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
 
 /*
  *  This was originally written for the 4500, hence the name
+ *  NOTE:  If use with 8bit mode and SMP bad things will happen!
+ *         Why would some one do 8 bit IO in an SMP machine?!?
  */
 static void OUT4500( struct airo_info *ai, u16 reg, u16 val ) {
 	val = cpu_to_le16(val);
@@ -1074,6 +1111,19 @@ static u16 setup_card(struct airo_info *ai, u8 *mac,
 		return ERROR;
 	}
 	
+	// Let's figure out if we need to use the AUX port
+	cmd.cmd = CMD_ENABLEAUX;
+	if (issuecommand(ai, &cmd, &rsp) != SUCCESS) {
+		printk(KERN_ERR "airo: Error checking for AUX port\n");
+		return ERROR;
+	}
+	if (!aux_bap || rsp.status & 0xff00) {
+		ai->bap_read = fast_bap_read;
+		printk(KERN_DEBUG "airo: Doing fast bap_reads\n");
+	} else {
+		ai->bap_read = aux_bap_read;
+		printk(KERN_DEBUG "airo: Doing AUX bap_reads\n");
+	}
 	if ( config->len ) {
 		cfg = *config;
 	} else {
@@ -1134,8 +1184,8 @@ static u16 setup_card(struct airo_info *ai, u8 *mac,
 		int reason = rsp.rsp0;
 		int badRidNumber = rsp.rsp1;
 		int badRidOffset = rsp.rsp2;
-		printk( KERN_INFO 
-			"Bad MAC enable reason = %x, rid = %x, offset = %d\n",
+		printk( KERN_ERR 
+			"airo: Bad MAC enable reason = %x, rid = %x, offset = %d\n",
 			reason,
 			badRidNumber,
 			badRidOffset );
@@ -1147,7 +1197,10 @@ static u16 setup_card(struct airo_info *ai, u8 *mac,
 static u16 issuecommand(struct airo_info *ai, Cmd *pCmd, Resp *pRsp) {
         // Im really paranoid about letting it run forever!
 	int max_tries = 600000;  
+        int rc = SUCCESS;
+	int flags;
 
+	spin_lock_irqsave(&ai->cmd_lock, flags);
 	OUT4500(ai, PARAM0, pCmd->parm0);
 	OUT4500(ai, PARAM1, pCmd->parm1);
 	OUT4500(ai, PARAM2, pCmd->parm2);
@@ -1160,9 +1213,10 @@ static u16 issuecommand(struct airo_info *ai, Cmd *pCmd, Resp *pRsp) {
 		}
 	}
 	if ( max_tries == -1 ) {
-		printk( KERN_INFO 
-			"Max tries exceeded when issueing command\n" );
-		return ERROR;
+		printk( KERN_ERR 
+			"airo: Max tries exceeded when issueing command\n" );
+                rc = ERROR;
+                goto done;
 	}
 	// command completed
 	pRsp->status = IN4500(ai, STATUS);
@@ -1176,11 +1230,14 @@ static u16 issuecommand(struct airo_info *ai, Cmd *pCmd, Resp *pRsp) {
 	}
 	// acknowledge processing the status/response
 	OUT4500(ai, EVACK, EV_CMD);
-	return SUCCESS;
+done:
+	spin_unlock_irqrestore(&ai->cmd_lock, flags);
+	return rc;
 }
 
 /* Sets up the bap to start exchange data.  whichbap should
- * be one of the BAP0 or BAP1 defines */
+ * be one of the BAP0 or BAP1 defines.  Locks should be held before
+ * calling! */
 static int bap_setup(struct airo_info *ai, u16 rid, u16 offset, int whichbap )
 {
 	int timeout = 50;
@@ -1198,15 +1255,15 @@ static int bap_setup(struct airo_info *ai, u16 rid, u16 offset, int whichbap )
 			}
 		} else if ( status & BAP_ERR ) {
 			/* invalid rid or offset */
-			printk( KERN_INFO "BAP error %x %d\n", 
+			printk( KERN_ERR "airo: BAP error %x %d\n", 
 				status, whichbap );
 			return ERROR;
 		} else if (status & BAP_DONE) { // success
 			return SUCCESS;
 		}
 		if ( !(max_tries--) ) {
-			printk( KERN_INFO 
-				"BAP setup error too many retries\n" );
+			printk( KERN_ERR 
+				"airo: BAP setup error too many retries\n" );
 			return ERROR;
 		}
 		// -- PC4500 missed it, try again
@@ -1216,9 +1273,62 @@ static int bap_setup(struct airo_info *ai, u16 rid, u16 offset, int whichbap )
 	}
 }
 
+/* should only be called by aux_bap_read.  This aux function and the
+   following use concepts not documented in the developers guide.  I
+   got them from a patch given to my by Aironet */
+static u16 aux_setup(struct airo_info *ai, u16 page,
+		     u16 offset, u16 *len)
+{
+	u16 next;
+
+	OUT4500(ai, AUXPAGE, page);
+	OUT4500(ai, AUXOFF, 0);
+	next = IN4500(ai, AUXDATA);
+	*len = IN4500(ai, AUXDATA)&0xff;
+	if (offset != 4) OUT4500(ai, AUXOFF, offset);
+	return next;
+}
+
 /* requires call to bap_setup() first */
-static int bap_read(struct airo_info *ai, u16 *pu16Dst, int bytelen, 
-		    int whichbap)
+static int aux_bap_read(struct airo_info *ai, u16 *pu16Dst,
+		     int bytelen, int whichbap) 
+{
+	u16 len;
+	u16 page;
+	u16 offset;
+	u16 next;
+	int words;
+	int i;
+	int flags;
+
+	spin_lock_irqsave(&ai->aux_lock, flags);
+	page = IN4500(ai, SWS0+whichbap);
+	offset = IN4500(ai, SWS2+whichbap);
+	next = aux_setup(ai, page, offset, &len);
+	words = (bytelen+1)>>1;
+
+	for (i=0; i<words;) {
+		int count;
+		count = (len>>1) < (words-i) ? (len>>1) : (words-i);
+		if ( !do8bitIO ) 
+			insw( ai->dev->base_addr+DATA0+whichbap, 
+			      pu16Dst+i,count );
+		else
+			insb( ai->dev->base_addr+DATA0+whichbap, 
+			      pu16Dst+i, count << 1 );
+		i += count;
+		if (i<words) {
+			next = aux_setup(ai, next, 4, &len);
+		}
+	}
+	spin_unlock_irqrestore(&ai->aux_lock, flags);
+	return SUCCESS;
+}
+
+
+/* requires call to bap_setup() first */
+static int fast_bap_read(struct airo_info *ai, u16 *pu16Dst, 
+			 int bytelen, int whichbap)
 {
 	bytelen = (bytelen + 1) & (~1); // round up to even value
 	if ( !do8bitIO ) 
@@ -1259,27 +1369,44 @@ static int PC4500_accessrid(struct airo_info *ai, u16 rid, u16 accmd)
 }
 
 /*  Note, that we are using BAP1 which is also used by transmit, so
- *  make sure this isnt called when a transmit is happening */
+ *  we must get a lock. */
 static int PC4500_readrid(struct airo_info *ai, u16 rid, void *pBuf, int len)
 {
 	u16 status;
-	if ( (status = PC4500_accessrid(ai, rid, CMD_ACCESS)) != SUCCESS)
-		return status;
-	if (bap_setup(ai, rid, 0, BAP1) != SUCCESS) return ERROR;
+        int flags;
+        int rc = SUCCESS;
+
+	spin_lock_irqsave(&ai->bap1_lock, flags);
+	if ( (status = PC4500_accessrid(ai, rid, CMD_ACCESS)) != SUCCESS) {
+                rc = status;
+                goto done;
+        }
+	if (bap_setup(ai, rid, 0, BAP1) != SUCCESS) {
+		rc = status;
+                goto done;
+        }
 	// read the rid length field
 	bap_read(ai, pBuf, 2, BAP1);
 	// length for remaining part of rid
 	len = min(len, le16_to_cpu(*(u16*)pBuf)) - 2;
 	
 	if ( len <= 2 ) {
-		printk( KERN_INFO 
-			"Rid %x has a length of %d which is too short\n",
+		printk( KERN_ERR 
+			"airo: Rid %x has a length of %d which is too short\n",
 			(int)rid,
 			(int)len );
-		return -1;
+		rc = ERROR;
+                goto done;
 	}
 	// read remainder of the rid
-	return bap_read(ai, ((u16*)pBuf)+1, len, BAP1);
+	if (bap_setup(ai, rid, 2, BAP1) != SUCCESS) {
+                rc = ERROR;
+                goto done;
+        }
+	rc = bap_read(ai, ((u16*)pBuf)+1, len, BAP1);
+done:
+	spin_unlock_irqrestore(&ai->bap1_lock, flags);
+	return rc;
 }
 
 /*  Note, that we are using BAP1 which is also used by transmit, so
@@ -1288,14 +1415,26 @@ static int PC4500_writerid(struct airo_info *ai, u16 rid,
 			   const void *pBuf, int len)
 {
 	u16 status;
+        int flags;
+	int rc = SUCCESS;
+
+	spin_lock_irqsave(&ai->bap1_lock, flags);
 	// --- first access so that we can write the rid data
-	if ( (status = PC4500_accessrid(ai, rid, CMD_ACCESS)) != 0)
-		return status;
+	if ( (status = PC4500_accessrid(ai, rid, CMD_ACCESS)) != 0) {
+                rc = status;
+                goto done;
+        }
 	// --- now write the rid data
-	if (bap_setup(ai, rid, 0, BAP1) != SUCCESS) return ERROR;
+	if (bap_setup(ai, rid, 0, BAP1) != SUCCESS) {
+                rc = ERROR;
+                goto done;
+        }
 	bap_write(ai, pBuf, len, BAP1);
 	// ---now commit the rid data
-	return PC4500_accessrid(ai, rid, 0x100|CMD_ACCESS);
+	rc = PC4500_accessrid(ai, rid, 0x100|CMD_ACCESS);
+done:
+	spin_unlock_irqrestore(&ai->bap1_lock, flags);
+        return rc;
 }
 
 /* Allocates a FID to be used for transmitting packets.  We only use
@@ -1306,6 +1445,7 @@ static u16 transmit_allocate(struct airo_info *ai, int lenPayload)
 	Resp rsp;
 	u16 txFid;
 	u16 txControl;
+        int flags;
 
 	cmd.cmd = CMD_ALLOCATETX;
 	cmd.parm0 = lenPayload;
@@ -1326,14 +1466,17 @@ static u16 transmit_allocate(struct airo_info *ai, int lenPayload)
 	 *  releasing the fid. */
 	txControl = TXCTL_TXOK | TXCTL_TXEX | TXCTL_802_3
 		| TXCTL_ETHERNET | TXCTL_NORELEASE;
+	spin_lock_irqsave(&ai->bap1_lock, flags);
 	if (bap_setup(ai, txFid, 0x0008, BAP1) != SUCCESS) return ERROR;
 	bap_write(ai, &txControl, sizeof(txControl), BAP1);
+	spin_unlock_irqrestore(&ai->bap1_lock, flags);
 
 	return txFid;
 }
 
 /* In general BAP1 is dedicated to transmiting packets.  However,
-   since we need a BAP when accessing RIDs, we also use BAP1 for that */
+   since we need a BAP when accessing RIDs, we also use BAP1 for that.
+   Make sure the BAP1 spinlock is held when this is called. */
 static int transmit_802_3_packet(struct airo_info *ai, u16 txFid, 
 				 char *pPacket, int len)
 {
@@ -1342,7 +1485,7 @@ static int transmit_802_3_packet(struct airo_info *ai, u16 txFid,
 	Resp rsp;
 	
 	if (len < 12) {
-		printk( KERN_INFO "Short packet %d\n", len );
+		printk( KERN_WARNING "Short packet %d\n", len );
 		return ERROR;
 	}
 	
@@ -1407,75 +1550,63 @@ static int proc_wepkey_open( struct inode *inode, struct file *file );
 
 
 static struct file_operations proc_statsdelta_ops = {
-	read:		proc_read,
-	open:		proc_statsdelta_open,
-	release:	proc_close
+	read:           proc_read,
+	open:           proc_statsdelta_open,
+	release:        proc_close
 };
 
 static struct inode_operations proc_inode_statsdelta_ops = {
-	&proc_statsdelta_ops,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+	&proc_statsdelta_ops};
 
 static struct file_operations proc_stats_ops = {
-	read:		proc_read,
-	open:		proc_stats_open,
-	release:	proc_close
+	read:           proc_read,
+	open:           proc_stats_open,
+	release:        proc_close
 };
 
 static struct inode_operations proc_inode_stats_ops = {
-	&proc_stats_ops,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+	&proc_stats_ops};
 
 static struct file_operations proc_status_ops = {
-	read:		proc_read,
-	open:		proc_status_open,
-	release:	proc_close
+	read:            proc_read,
+	open:            proc_status_open,
+	release:         proc_close
 };
 
 static struct inode_operations proc_inode_status_ops = {
-	&proc_status_ops,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+	&proc_status_ops};
 
 static struct file_operations proc_SSID_ops = {
-	read:		proc_read,
-	write:		proc_write,
-	open:		proc_SSID_open,
-	release:	proc_close
+	read:          proc_read,
+	write:         proc_write,
+	open:          proc_SSID_open,
+	release:       proc_close
 };
 
 static struct inode_operations proc_inode_SSID_ops = {
-	&proc_SSID_ops,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+	&proc_SSID_ops};
 
 static struct file_operations proc_config_ops = {
-	read:		proc_read,
-	write:		proc_write,
-	open:		proc_config_open,
-	release:	proc_close
+	read:          proc_read,
+	write:         proc_write,
+	open:          proc_config_open,
+	release:       proc_close
 };
 
 static struct inode_operations proc_inode_config_ops = {
-	&proc_config_ops,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+	&proc_config_ops};
 
 static struct file_operations proc_wepkey_ops = {
-	read:		proc_read,
-	write:		proc_write,
-	open:		proc_wepkey_open,
-	release:	proc_close
+	read:          proc_read,
+	write:         proc_write,
+	open:          proc_wepkey_open,
+	release:       proc_close
 };
 
 static struct inode_operations proc_inode_wepkey_ops = {
-	&proc_wepkey_ops,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+	&proc_wepkey_ops};
 
-#if (LINUX_VERSION_CODE > 0x20155)
+#if ((LINUX_VERSION_CODE > 0x20155) && (LINUX_VERSION_CODE < 0x20311))
 /*
  * We need to do reference counting here.  When the inode is first used,
  * this will be called with fill non-zero.  When it is released this
@@ -1508,6 +1639,7 @@ static struct inode_operations airo_inode_ops = {
 	NULL, // lookup
 };
 
+#if (LINUX_VERSION_CODE < 0x20311)
 static struct proc_dir_entry airo_entry = {
 	0,
 	7,
@@ -1522,7 +1654,11 @@ static struct proc_dir_entry airo_entry = {
 	airo_fill_inode
 #endif
 };
+#else
+static struct proc_dir_entry *airo_entry = 0;
+#endif
 
+#if (LINUX_VERSION_CODE < 0x20311)
 static struct proc_dir_entry wepkey_entry = {
 	0, 6, "WepKey",
 	S_IFREG | S_IWUSR, 2, 0, 0,
@@ -1564,6 +1700,7 @@ static struct proc_dir_entry config_entry = {
 	13,
 	&proc_inode_config_ops, NULL
 };
+#endif
 
 struct proc_data {
 	int release_buffer;
@@ -1575,6 +1712,7 @@ struct proc_data {
 	void (*on_close) (struct inode *, struct file *);
 };
 
+#if (LINUX_VERSION_CODE < 0x20311)
 static int setup_proc_entry( struct net_device *dev,
 			     struct airo_info *apriv ) {
 	/* First setup the device directory */
@@ -1583,7 +1721,7 @@ static int setup_proc_entry( struct net_device *dev,
 	apriv->proc_entry.name = dev->name;
 	apriv->proc_entry.mode = S_IFDIR | S_IRUGO | S_IXUGO;
 	apriv->proc_entry.nlink = 2;
-	apriv->proc_entry.ops = airo_entry.ops;
+	apriv->proc_entry.ops = 0; //airo_entry.ops;
 	PROC_REGISTER( &airo_entry, &apriv->proc_entry );
 	
 	/* Setup the StatsDelta */
@@ -1642,6 +1780,72 @@ static int takedown_proc_entry( struct net_device *dev,
 	PROC_UNREGISTER( &airo_entry, &apriv->proc_entry );
 	return 0;
 }
+#else
+static int setup_proc_entry( struct net_device *dev,
+			     struct airo_info *apriv ) {
+	struct proc_dir_entry *entry;
+	/* First setup the device directory */
+	apriv->proc_entry = create_proc_entry(dev->name,
+					      S_IFDIR|S_IRUGO|S_IXUGO,
+					      airo_entry);
+	/* Setup the StatsDelta */
+	entry = create_proc_entry("StatsDelta",
+				  S_IFREG | S_IRUGO | S_IWUSR,
+				  apriv->proc_entry);
+	entry->data = dev;
+	entry->ops = &proc_inode_statsdelta_ops;
+	
+	/* Setup the Stats */
+	entry = create_proc_entry("Stats",
+				  S_IFREG | S_IRUGO,
+				  apriv->proc_entry);
+	entry->data = dev;
+	entry->ops = &proc_inode_stats_ops;
+	
+	/* Setup the Status */
+	entry = create_proc_entry("Status",
+				  S_IFREG | S_IRUGO,
+				  apriv->proc_entry);
+	entry->data = dev;
+	entry->ops = &proc_inode_status_ops;
+	
+	/* Setup the Config */
+	entry = create_proc_entry("Config",
+				  S_IFREG | S_IRUGO | S_IWUGO,
+				  apriv->proc_entry);
+	entry->data = dev;
+	entry->ops = &proc_inode_config_ops;
+
+	/* Setup the SSID */
+	entry = create_proc_entry("SSID",
+				  S_IFREG | S_IRUGO | S_IWUGO,
+				  apriv->proc_entry);
+	entry->data = dev;
+	entry->ops = &proc_inode_SSID_ops;
+
+	/* Setup the WepKey */
+	entry = create_proc_entry("WepKey",
+				  S_IFREG | S_IWUSR,
+				  apriv->proc_entry);
+	entry->data = dev;
+	entry->ops = &proc_inode_wepkey_ops;
+
+	return 0;
+}
+
+static int takedown_proc_entry( struct net_device *dev,
+				struct airo_info *apriv ) {
+	if ( !apriv->proc_entry->namelen ) return 0;
+	remove_proc_entry("Stats",apriv->proc_entry);
+	remove_proc_entry("StatsDelta",apriv->proc_entry);
+	remove_proc_entry("Status",apriv->proc_entry);
+	remove_proc_entry("Config",apriv->proc_entry);
+	remove_proc_entry("SSID",apriv->proc_entry);
+	remove_proc_entry("WepKey",apriv->proc_entry);
+	remove_proc_entry(dev->name,airo_entry);
+	return 0;
+}
+#endif
 
 /*
  *  What we want from the proc_fs is to be able to efficiently read
@@ -1738,7 +1942,6 @@ static int proc_write( struct inode *inode,
 
 static int proc_status_open( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
-	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
 	struct net_device *dev = dp->data;
 	struct airo_info *apriv = (struct airo_info *)dev->priv;
@@ -1754,27 +1957,16 @@ static int proc_status_open( struct inode *inode, struct file *file ) {
 	data = (struct proc_data *)file->private_data;
 	data->rbuffer = kmalloc( 2048, GFP_KERNEL );
 	
-#ifdef DO_SPIN_LOCK
-	spin_lock_irqsave(&xxx_lock, flags);
-#else
-	save_flags(flags);
-	cli();
-#endif
-	
 	PC4500_readrid(apriv, 0xFF50, &status_rid,
 		       sizeof(status_rid));
 	PC4500_readrid(apriv, 0xFF00, &cap_rid,
 		       sizeof(cap_rid));
-#ifdef DO_SPIN_LOCK
-	spin_unlock_irqrestore(&xxx_lock, flags);
-#else
-	restore_flags(flags);
-#endif
 	
 	sprintf( data->rbuffer, "Mode: %x\n"
-		 "Signal: %d\n"
-		 "SSID: %-*s\n"
-		 "AP: %-16s\n"
+		 "Signal Strength: %d\n"
+		 "Signal Quality: %d\n"
+		 "SSID: %-.*s\n"
+		 "AP: %-.16s\n"
 		 "Freq: %d\n"
 		 "BitRate: %dmbs\n"
 		 "Driver Version: %s\n"
@@ -1783,12 +1975,13 @@ static int proc_status_open( struct inode *inode, struct file *file ) {
 		 "Software Version: %x\nSoftware Subversion: %x\n"
 		 "Boot block version: %x\n",
 		 (int)le16_to_cpu(status_rid.mode),
-		 (int)le16_to_cpu(status_rid.sigQuality),
+		 (int)le16_to_cpu(status_rid.normalizedSignalStrength),
+		 (int)le16_to_cpu(status_rid.signalQuality),
 		 (int)status_rid.SSIDlen,
 		 status_rid.SSID,
 		 status_rid.apName,
-		 (int)(apriv->rateFreq >> 8 ),
-		 (int)((apriv->rateFreq & 0xff)/2),
+		 (int)le16_to_cpu(status_rid.channel),
+		 (int)le16_to_cpu(status_rid.currentXmitRate)/2,
 		 version,
 		 cap_rid.prodName,
 		 cap_rid.manName,
@@ -1820,7 +2013,6 @@ static int proc_stats_rid_open( struct inode *inode,
 				struct file *file,
 				u16 rid ) {
 	struct proc_data *data;
-	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
 	struct net_device *dev = dp->data;
 	struct airo_info *apriv = (struct airo_info *)dev->priv;
@@ -1837,28 +2029,16 @@ static int proc_stats_rid_open( struct inode *inode,
 	data = (struct proc_data *)file->private_data;
 	data->rbuffer = kmalloc( 4096, GFP_KERNEL );
 	
-#ifdef DO_SPIN_LOCK
-	spin_lock_irqsave(&xxx_lock, flags);
-#else
-	save_flags(flags);
-	cli();
-#endif
-	
 	PC4500_readrid(apriv, rid, buffer,
 		       sizeof(buffer));
-#ifdef DO_SPIN_LOCK
-	spin_unlock_irqrestore(&xxx_lock, flags);
-#else
-	restore_flags(flags);
-#endif
-	
+
         j = 0;
 	for(i=0; (int)statsLabels[i]!=-1 && 
 		    i*4<le16_to_cpu(*(u16*)buffer); i++){
                 if (!statsLabels[i]) continue;
 		if (j+strlen(statsLabels[i])+16>4096) {
 			printk(KERN_WARNING
-			       "Potentially disasterous buffer overflow averted!\n");
+			       "airo: Potentially disasterous buffer overflow averted!\n");
 			break;
 		}
 		j+=sprintf( data->rbuffer+j, "%s: %d\n",statsLabels[i],
@@ -1866,7 +2046,7 @@ static int proc_stats_rid_open( struct inode *inode,
         }
 	if (i*4>=le16_to_cpu(*(u16*)buffer)){
 		printk(KERN_WARNING
-		       "Got a short rid\n");
+		       "airo: Got a short rid\n");
 	}
 	data->readlen = j;
 	return 0;
@@ -1888,7 +2068,6 @@ static int get_dec_u16( char *buffer, int *start, int limit ) {
 
 static void proc_config_on_close( struct inode *inode, struct file *file ) {
 	struct proc_data *data = file->private_data;
-	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
 	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
@@ -1900,12 +2079,6 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 	if ( !data->writelen ) return;
 	dp = (struct proc_dir_entry *) inode->u.generic_ip;
 	
-#ifdef DO_SPIN_LOCK
-	spin_lock_irqsave(&xxx_lock, flags);
-#else
-	save_flags(flags);
-	cli();
-#endif
 	memset(&cmd, 0, sizeof(Cmd));
 	cmd.cmd = MAC_DISABLE; // disable in case already enabled
 	issuecommand(ai, &cmd, &rsp);
@@ -2050,10 +2223,10 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			case 'c':  config.modulation=MOD_CCK; break;
 			case 'm':  config.modulation=MOD_MOK; break;
 			default:
-				printk( KERN_WARNING "Unknown modulation\n" );
+				printk( KERN_WARNING "airo: Unknown modulation\n" );
 			}
 		} else {
-			printk( KERN_INFO "Couldn't figure out %s\n", line );
+			printk( KERN_WARNING "Couldn't figure out %s\n", line );
 		}
 		while( line[0] && line[0] != '\n' ) line++;
 		if ( line[0] ) line++;
@@ -2062,16 +2235,10 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 	PC4500_writerid(ai, RID_CONFIG, &config,
 			sizeof(config));
 	enable_MAC(ai, &rsp);
-#ifdef DO_SPIN_LOCK
-	spin_unlock_irqrestore(&xxx_lock, flags);
-#else
-	restore_flags(flags);
-#endif
 }
 
 static int proc_config_open( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
-	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
 	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
@@ -2091,19 +2258,8 @@ static int proc_config_open( struct inode *inode, struct file *file ) {
 	data->maxwritelen = 2048;
 	data->on_close = proc_config_on_close;
 	
-#ifdef DO_SPIN_LOCK
-	spin_lock_irqsave(&xxx_lock, flags);
-#else
-	save_flags(flags);
-	cli();
-#endif
 	PC4500_readrid(ai, RID_ACTUALCONFIG, &config,
 		       sizeof(config));
-#ifdef DO_SPIN_LOCK
-	spin_unlock_irqrestore(&xxx_lock, flags);
-#else
-	restore_flags(flags);
-#endif
 	
 	i = sprintf( data->rbuffer, 
 		     "Mode: %s\n"
@@ -2177,7 +2333,7 @@ static void proc_SSID_on_close( struct inode *inode, struct file *file ) {
 	
 	for( i = 0; i < 3; i++ ) {
 		int j;
-		for( j = 0; j+offset < data->writelen && j < 16 &&
+		for( j = 0; j+offset < data->writelen && j < 32 &&
 			     data->wbuffer[offset+j] != '\n'; j++ ) {
 			SSID_rid.ssids[i].ssid[j] = data->wbuffer[offset+j];
 		}
@@ -2195,40 +2351,32 @@ static void proc_SSID_on_close( struct inode *inode, struct file *file ) {
 static int do_writerid( struct airo_info *ai, u16 rid, const void *rid_data,
 			int len ) {
 	int rc;
-	unsigned long flags;
 	Cmd cmd;
 	Resp rsp;
 	
-#ifdef DO_SPIN_LOCK
-	spin_lock_irqsave(&xxx_lock, flags);
-#else
-	save_flags(flags);
-	cli();
-#endif
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd = MAC_DISABLE; // disable in case already enabled
 	issuecommand(ai, &cmd, &rsp);
 	rc = PC4500_writerid(ai, 
 			     rid, rid_data, len);
 	enable_MAC(ai, &rsp);
-#ifdef DO_SPIN_LOCK
-	spin_unlock_irqrestore(&xxx_lock, flags);
-#else
-	restore_flags(flags);
-#endif
 	return rc;
 }
 
 static int set_wep_key(struct airo_info *ai, const char *key, u16 keylen ) {
 	static const unsigned char macaddr[6] = { 0x01, 0, 0, 0, 0, 0 };
 	WepKeyRid wkr;
+        int rc;
+
 	wkr.len = cpu_to_le16(sizeof(wkr));
 	wkr.kindex = cpu_to_le16(0);
-	wkr.klen = cpu_to_le16(5);
-	memcpy( wkr.key, key, 5 );
+	wkr.klen = cpu_to_le16(keylen);
+	memcpy( wkr.key, key, keylen );
 	memcpy( wkr.mac, macaddr, 6 );
-	do_writerid(ai, RID_WEP_TEMP, &wkr, sizeof(wkr));
-	do_writerid(ai, RID_WEP_PERM, &wkr, sizeof(wkr));
+	rc = do_writerid(ai, RID_WEP_TEMP, &wkr, sizeof(wkr));
+        if (rc!=SUCCESS) printk(KERN_ERR "airo:  WEP_TEMP set %x\n", rc); 
+	rc = do_writerid(ai, RID_WEP_PERM, &wkr, sizeof(wkr));
+        if (rc!=SUCCESS) printk(KERN_ERR "airo:  WEP_PERM set %x\n", rc);
 	return 0;
 }
 
@@ -2245,7 +2393,7 @@ static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
 	int i;
-	char key[5];
+	char key[16];
 
 	memset(key, 0, sizeof(key));
 	
@@ -2253,7 +2401,7 @@ static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 	data = (struct proc_data *)file->private_data;
 	if ( !data->writelen ) return;
 	
-	for( i = 0; i < 15 && data->wbuffer[i]; i++ ) {
+	for( i = 0; i < 16*3 && data->wbuffer[i]; i++ ) {
 		switch(i%3) {
 		case 0:
 			key[i/3] = hexVal(data->wbuffer[i])<<4;
@@ -2263,12 +2411,11 @@ static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 			break;
 		}
 	}
-	set_wep_key(ai, key, sizeof(key));
+	set_wep_key(ai, key, i/3);
 }
 
 static int proc_wepkey_open( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
-	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
 	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
@@ -2290,32 +2437,15 @@ static int proc_wepkey_open( struct inode *inode, struct file *file ) {
 	memset( data->wbuffer, 0, 80 );
 	data->on_close = proc_wepkey_on_close;
 	
-#ifdef DO_SPIN_LOCK
-	spin_lock_irqsave(&xxx_lock, flags);
-#else
-	save_flags(flags);
-	cli();
-#endif
 	PC4500_readrid(ai, RID_WEP_PERM, &wkr, sizeof(wkr));
-#ifdef DO_SPIN_LOCK
-	spin_unlock_irqrestore(&xxx_lock, flags);
-#else
-	restore_flags(flags);
-#endif
 	ptr = data->rbuffer;
-	sprintf( ptr, "%02x:%02x:%02x:%02x:%02x\n",
-		 wkr.key[0],
-		 wkr.key[1],
-		 wkr.key[2],
-		 wkr.key[3],
-		 wkr.key[4] );
+	sprintf(ptr, "The wep key cannot be read\n");
 	data->readlen = strlen( data->rbuffer );
 	return 0;
 }
 
 static int proc_SSID_open( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
-	unsigned long flags;
 	struct proc_dir_entry *dp = inode->u.generic_ip;
 	struct net_device *dev = dp->data;
 	struct airo_info *ai = (struct airo_info*)dev->priv;
@@ -2337,24 +2467,13 @@ static int proc_SSID_open( struct inode *inode, struct file *file ) {
 	memset( data->wbuffer, 0, 33*3 );
 	data->on_close = proc_SSID_on_close;
 	
-#ifdef DO_SPIN_LOCK
-	spin_lock_irqsave(&xxx_lock, flags);
-#else
-	save_flags(flags);
-	cli();
-#endif
 	PC4500_readrid(ai, RID_SSID, 
 		       &SSID_rid, sizeof( SSID_rid ));
-#ifdef DO_SPIN_LOCK
-	spin_unlock_irqrestore(&xxx_lock, flags);
-#else
-	restore_flags(flags);
-#endif
 	ptr = data->rbuffer;
 	for( i = 0; i < 3; i++ ) {
 		int j;
 		if ( !SSID_rid.ssids[i].len ) break;
-		for( j = 0; j < 16 && 
+		for( j = 0; j < 32 && 
 			     j < le16_to_cpu(SSID_rid.ssids[i].len) && 
 			     SSID_rid.ssids[i].ssid[j]; j++ ) {
 			*ptr++ = SSID_rid.ssids[i].ssid[j]; 
@@ -2448,7 +2567,7 @@ static void add_airo_dev( struct net_device *dev ) {
 	struct net_device_list *node =
 		(struct net_device_list*)kmalloc( sizeof( *node ), GFP_KERNEL );
 	if ( !node ) {
-		printk( KERN_WARNING "airo_pci:  Out of memory\n" );
+		printk( KERN_ERR "airo_pci:  Out of memory\n" );
 	} else {
 		if ( auto_wep ) {
 			struct timer_list *timer = 
@@ -2481,14 +2600,22 @@ int init_module( void )
 	int i;
 	
 #if (LINUX_VERSION_CODE > 0x20155)
+#if (LINUX_VERSION_CODE < 0x20311)
 	airo_entry.ops->lookup = 
 		proc_net->ops->lookup;
 	airo_entry.ops->default_file_ops->readdir = 
 		proc_net->ops->default_file_ops->readdir;
+#endif
 #else
 	airo_entry.ops = proc_net.ops;
 #endif
+#if (LINUX_VERSION_CODE > 0x20311)
+	airo_entry = create_proc_entry("aironet",
+				       S_IFDIR | S_IRUGO,
+				       proc_root_driver);
+#else
 	PROC_REGISTER( &proc_root, &airo_entry );
+#endif
 	
 	for( i = 0; i < 4 && io[i] && irq[i]; i++ ) {
 		printk( KERN_INFO 
@@ -2508,11 +2635,13 @@ int init_module( void )
 						     dev))) {
 				init_airo_card( dev->irq, 
 #if (LINUX_VERSION_CODE < 0x2030d)
-						dev->base_address[2] & PCI_BASE_ADDRESS_IO_MASK
+						dev->base_address[2] & 
+						PCI_BASE_ADDRESS_IO_MASK
 #else
 						dev->resource[2].start
 #endif
-			); }
+					);
+			}
 #else
 			int j;
 			unsigned char bus, fun;
@@ -2539,10 +2668,14 @@ int init_module( void )
 void cleanup_module( void )
 {
 	while( airo_devices ) {
-		printk( KERN_WARNING "Unregistering %s\n", airo_devices->dev->name );
+		printk( KERN_INFO "airo: Unregistering %s\n", airo_devices->dev->name );
 		stop_airo_card( airo_devices->dev );
 	}
+#if (LINUX_VERSION_CODE < 0x20311)
 	PROC_UNREGISTER( &proc_root, &airo_entry );
+#else
+	remove_proc_entry("aironet", proc_root_driver);
+#endif
 }
 
   

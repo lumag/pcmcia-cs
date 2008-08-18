@@ -88,8 +88,6 @@ static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
 /* Kernel compatibility defines, some common to David Hinds' PCMCIA package.
    This is only in the support-all-kernels source code. */
 
-#define RUN_AT(x) (jiffies + (x))
-
 #include <linux/delay.h>
 
 #if (LINUX_VERSION_CODE <= 0x20100)
@@ -125,9 +123,30 @@ static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
 #if LINUX_VERSION_CODE < 0x2030e
 #define net_device device
 #endif
-#if ! defined(HAS_NETIF_QUEUE)
+#ifndef HAVE_NETIF_QUEUE
+#define netif_stop_queue(dev) set_bit(0, (void *)&(dev)->tbusy)
+#define netif_start_queue(dev) clear_bit(0, (void *)&(dev)->tbusy)
 #define netif_wake_queue(dev) \
-	do { dev->tbusy = 0; mark_bh(NET_BH); } while (0)
+    do { netif_start_queue(dev); mark_bh(NET_BH); } while (0)
+#define netif_device_attach(dev) \
+    do { (dev)->start = 1; netif_start_queue(dev); } while (0)
+#define netif_device_detach(dev) \
+    do { (dev)->start = 0; netif_stop_queue(dev); } while (0)
+#define netif_device_present(dev) ((dev)->start)
+#define netif_running(dev) ((dev)->start)
+#define netif_mark_up(dev) do { (dev)->start = 1; } while (0)
+#define netif_mark_down(dev) do { (dev)->start = 0; } while (0)
+#define netif_queue_stopped(dev) ((dev)->tbusy)
+#define tx_timeout_check(dev, tx_timeout) \
+    do { if (test_and_set_bit(0, (void *)&(dev)->tbusy) != 0) { \
+	if (jiffies - (dev)->trans_start < TX_TIMEOUT) return 1; \
+	tx_timeout(dev); \
+    } } while (0)
+#define dev_kfree_skb_irq(skb) dev_kfree_skb(skb)
+#else
+#define tx_timeout_check(dev, handler) netif_stop_queue(dev)
+#define netif_mark_up(dev) do { } while (0)
+#define netif_mark_down(dev) do { } while (0)
 #endif
 
 #if defined(MODULE) && LINUX_VERSION_CODE > 0x20115
@@ -216,10 +235,10 @@ copying cost of copying a frame to a correctly-sized skbuff.
 
 
 IIIC. Synchronization
-The driver runs as two independent, single-threaded flows of control.  One
-is the send-packet routine, which enforces single-threaded use by the
-dev->tbusy flag.  The other thread is the interrupt handler, which is single
-threaded by the hardware and other software.
+The driver runs as two independent, single-threaded flows of control.
+One is the send-packet routine, which is single threaded by the tx
+queue system.  The other thread is the interrupt handler, which is
+single threaded by the hardware and other software.
 
 IV. Notes
 
@@ -538,6 +557,7 @@ static void set_rx_mode(struct net_device *dev);
 static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void acpi_wake(int pci_bus, int pci_devfn);
 static void acpi_set_WOL(struct net_device *dev);
+static void vortex_tx_timeout(struct net_device *dev);
 
 
 /* This driver uses 'options' to pass the media type, full-duplex flag, etc. */
@@ -630,6 +650,7 @@ static void vortex_detach(dev_node_t *node)
 	}
 	if (dev && dev->priv) {
 		struct vortex_private *vp = dev->priv;
+		netif_device_detach(dev);
 		if (vp->open) vortex_down(dev);
 		vp->reap = 1;
 		kfree(node);
@@ -647,6 +668,7 @@ static void vortex_suspend(dev_node_t *node)
 	}
 	if (dev && dev->priv) {
 		struct vortex_private *vp = (struct vortex_private *)dev->priv;
+		netif_device_detach(dev);
 		if (vp->open) vortex_down(dev);
 	}
 }
@@ -662,6 +684,7 @@ static void vortex_resume(dev_node_t *node)
 	if (dev && dev->priv) {
 		struct vortex_private *vp = (struct vortex_private *)dev->priv;
 		if (vp->open) vortex_up(dev);
+		netif_device_attach(dev);
 	}
 }
 
@@ -1036,6 +1059,10 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 	dev->get_stats = &vortex_get_stats;
 	dev->do_ioctl = &vortex_ioctl;
 	dev->set_multicast_list = &set_rx_mode;
+#ifdef HAVE_NETIF_QUEUE
+	dev->tx_timeout = vortex_tx_timeout;
+	dev->watchdog_timeo = TX_TIMEOUT;
+#endif
 
 	return dev;
 }
@@ -1087,7 +1114,7 @@ vortex_up(struct net_device *dev)
 		dev->if_port = vp->default_media;
 
 	init_timer(&vp->timer);
-	vp->timer.expires = RUN_AT(media_tbl[dev->if_port].wait);
+	vp->timer.expires = jiffies + media_tbl[dev->if_port].wait;
 	vp->timer.data = (unsigned long)dev;
 	vp->timer.function = &vortex_timer;		/* timer handler */
 	add_timer(&vp->timer);
@@ -1205,9 +1232,6 @@ vortex_up(struct net_device *dev)
 	set_rx_mode(dev);
 	outw(StatsEnable, ioaddr + EL3_CMD); /* Turn on statistics. */
 
-	dev->tbusy = 0;
-	dev->start = 1;
-
 	outw(RxEnable, ioaddr + EL3_CMD); /* Enable the receiver. */
 	outw(TxEnable, ioaddr + EL3_CMD); /* Enable transmitter. */
 	/* Allow status bits to be seen. */
@@ -1266,6 +1290,8 @@ vortex_open(struct net_device *dev)
 
 	vortex_up(dev);
 	vp->open = 1;
+	netif_start_queue(dev);
+	netif_mark_up(dev);
 	MOD_INC_USE_COUNT;
 
 	return 0;
@@ -1369,7 +1395,7 @@ static void vortex_timer(unsigned long data)
 	  printk(KERN_DEBUG "%s: Media selection timer finished, %s.\n",
 			 dev->name, media_tbl[dev->if_port].name);
 
-	vp->timer.expires = RUN_AT(next_tick);
+	vp->timer.expires = jiffies + next_tick;
 	add_timer(&vp->timer);
 	if (vp->deferred)
 		outw(FakeIntr, ioaddr + EL3_CMD);
@@ -1424,7 +1450,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 				 ioaddr + DownListPtr);
 		if (vp->tx_full && (vp->cur_tx - vp->dirty_tx <= TX_RING_SIZE - 1)) {
 			vp->tx_full = 0;
-			clear_bit(0, (void*)&dev->tbusy);
+			netif_start_queue(dev);
 		}
 		outb(PKT_BUF_SZ>>8, ioaddr + TxFreeThreshold);
 		outw(DownUnstall, ioaddr + EL3_CMD);
@@ -1526,11 +1552,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 
-	if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
-		if (jiffies - dev->trans_start >= TX_TIMEOUT)
-			vortex_tx_timeout(dev);
-		return 1;
-	}
+	tx_timeout_check(dev, vortex_tx_timeout);
 
 	/* Put out the doubleword header... */
 	outl(skb->len, ioaddr + TX_FIFO);
@@ -1540,13 +1562,13 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		outw((skb->len + 3) & ~3, ioaddr + Wn7_MasterLen);
 		vp->tx_skb = skb;
 		outw(StartDMADown, ioaddr + EL3_CMD);
-		/* dev->tbusy will be cleared at the DMADone interrupt. */
+		/* queue will be restarted at the DMADone interrupt. */
 	} else {
 		/* ... and the packet rounded to a doubleword. */
 		outsl(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
 		DEV_FREE_SKB(skb);
 		if (inw(ioaddr + TxFree) > 1536) {
-			clear_bit(0, (void*)&dev->tbusy);
+			netif_start_queue(dev);
 		} else
 			/* Interrupt us when the FIFO has room for max-sized packet. */
 			outw(SetTxThreshold + (1536>>2), ioaddr + EL3_CMD);
@@ -1583,11 +1605,9 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 
-	if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
-		if (jiffies - dev->trans_start >= TX_TIMEOUT)
-			vortex_tx_timeout(dev);
-		return 1;
-	} else {
+	tx_timeout_check(dev, vortex_tx_timeout);
+
+	{
 		/* Calculate the next Tx descriptor entry. */
 		int entry = vp->cur_tx % TX_RING_SIZE;
 		struct boom_tx_desc *prev_entry =
@@ -1628,7 +1648,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #if defined(tx_interrupt_mitigation)
 			prev_entry->status &= cpu_to_le32(~TxIntrUploaded);
 #endif
-			clear_bit(0, (void*)&dev->tbusy);
+			netif_start_queue(dev);
 		}
 		dev->trans_start = jiffies;
 		return 0;
@@ -1687,7 +1707,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 					virt_to_bus(&vp->tx_ring[entry]))
 					break;			/* It still hasn't been processed. */
 				if (vp->tx_skbuff[entry]) {
-					DEV_FREE_SKB(vp->tx_skbuff[entry]);
+					dev_kfree_skb_irq(vp->tx_skbuff[entry]);
 					vp->tx_skbuff[entry] = 0;
 				}
 				/* vp->stats.tx_packets++;  Counted below. */
@@ -1702,7 +1722,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (status & DMADone) {
 			if (inw(ioaddr + Wn7_MasterStatus) & 0x1000) {
 				outw(0x1000, ioaddr + Wn7_MasterStatus); /* Ack the event. */
-				DEV_FREE_SKB(vp->tx_skb); /* Release the transfered buffer */
+				dev_kfree_skb_irq(vp->tx_skb); /* Release the tx buffer */
 				if (inw(ioaddr + TxFree) > 1536) {
 					netif_wake_queue(dev);
 				} else /* Interrupt when FIFO has room for max-sized packet. */
@@ -1728,7 +1748,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			} while ((status = inw(ioaddr + EL3_CMD)) & IntLatch);
 			/* The timer will reenable interrupts. */
 			del_timer(&vp->timer);
-			vp->timer.expires = RUN_AT(1);
+			vp->timer.expires = jiffies + 1;
 			add_timer(&vp->timer);
 			break;
 		}
@@ -1914,9 +1934,6 @@ vortex_down(struct net_device *dev)
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 
-	dev->start = 0;
-	dev->tbusy = 1;
-
 	del_timer(&vp->timer);
 
 	/* Turn off statistics ASAP.  We update vp->stats below. */
@@ -1949,8 +1966,11 @@ vortex_close(struct net_device *dev)
 	long ioaddr = dev->base_addr;
 	int i;
 
-	if (dev->start)
+	if (netif_device_present(dev)) {
+		netif_stop_queue(dev);
+		netif_mark_down(dev);
 		vortex_down(dev);
+	}
 
 	if (vortex_debug > 1) {
 		printk(KERN_DEBUG"%s: vortex_close() status %4.4x, Tx status %2.2x.\n",
@@ -1990,7 +2010,7 @@ static struct net_device_stats *vortex_get_stats(struct net_device *dev)
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	unsigned long flags;
 
-	if (dev->start) {
+	if (netif_device_present(dev)) {
 		save_flags(flags);
 		cli();
 		update_stats(dev->base_addr, dev);

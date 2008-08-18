@@ -1,5 +1,5 @@
 /*
- * o2micro.h 1.13 1999/10/25 20:03:34
+ * o2micro.h 1.14 2000/03/01 00:57:43
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -96,6 +96,9 @@
 
 #define O2_MODE_D		0x3b
 #define  O2_MODE_D_IRQ_MODE	0x03
+#define  O2_MODE_D_IRQ_PCPCI	0x00
+#define  O2_MODE_D_IRQ_PCIWAY	0x02
+#define  O2_MODE_D_IRQ_PCI	0x03
 #define  O2_MODE_D_PCI_CLKRUN	0x04
 #define  O2_MODE_D_CB_CLKRUN	0x08
 #define  O2_MODE_D_SKT_ACTV	0x20

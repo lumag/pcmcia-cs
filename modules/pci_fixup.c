@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.7 2000/02/14 23:01:08
+    pci_fixup.c 1.10 2000/03/08 00:29:36
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -199,6 +199,14 @@ static u8 i82371_init(struct pci_dev *router, struct pirq_pin *pin)
     return irq;
 }
 
+static u8 via_link(struct pci_dev *router, u8 link)
+{
+    u8 pirq = 0;
+    if (link < 6)
+	pci_read_config_byte(router, 0x55 + (link>>1), &pirq);
+    return (link & 1) ? (pirq >> 4) : (pirq & 15);
+}
+
 /*
   A table of all the PCI interrupt routers for which we know how to
   interpret the link bytes.  For now, there isn't much to it.
@@ -207,14 +215,24 @@ static u8 i82371_init(struct pci_dev *router, struct pirq_pin *pin)
 #ifndef PCI_DEVICE_ID_INTEL_82371FB_0
 #define PCI_DEVICE_ID_INTEL_82371FB_0 0x122e
 #endif
+#ifndef PCI_DEVICE_ID_VIA_82C596
+#define PCI_DEVICE_ID_VIA_82C596 0x0596
+#endif
+#ifndef PCI_DEVICE_ID_VIA_82C686
+#define PCI_DEVICE_ID_VIA_82C686 0x0686
+#endif
+
+#define ID(a,b) PCI_VENDOR_ID_##a,PCI_DEVICE_ID_##a##_##b
 
 struct {
     u16 vendor, device;
     u8 (*xlate_link)(struct pci_dev *, u8);
 } irq_router[] = {
-    { PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371FB_0, &i82371_link },
-    { PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371SB_0, &i82371_link },
-    { PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0, &i82371_link },
+    { ID(INTEL, 82371FB_0), &i82371_link },
+    { ID(INTEL, 82371SB_0), &i82371_link },
+    { ID(INTEL, 82371AB_0), &i82371_link },
+    { ID(VIA, 82C596), &via_link },
+    { ID(VIA, 82C686), &via_link }
 };
 #define ROUTER_COUNT (sizeof(irq_router)/sizeof(irq_router[0]))
 
@@ -369,8 +387,11 @@ static void setup_cb_bridge(struct pci_dev *dev)
 #endif
 
     /* Map the CardBus bridge registers, if needed */
+    pci_write_config_dword(dev, CB_LEGACY_MODE_BASE, 0);
     pci_read_config_dword(dev, PCI_BASE_ADDRESS_0, &phys);
     if ((phys == 0) || (cb_mem_base[0] != 0)) {
+	/* Make sure the bridge is awake so we can test it */
+	pci_set_power_state(dev, 0);
 	for (i = 0; i < sizeof(cb_mem_base)/sizeof(u_int); i++) {
 	    phys = cb_mem_base[i];
 	    if (phys == 0) continue;
@@ -420,10 +441,10 @@ static void setup_cb_bridge_irq(struct pci_dev *dev)
 
 int pci_enable_device(struct pci_dev *dev)
 {
+    pci_write_config_word(dev, PCI_COMMAND, CMD_DFLT);
     if ((dev->class >> 8) == PCI_CLASS_BRIDGE_CARDBUS) {
 	setup_cb_bridge(dev);
     }
-    pci_write_config_word(dev, PCI_COMMAND, CMD_DFLT);
 #ifdef __i386__
     /* In certain cases, if the interrupt can be deduced, but was
        unrouted when the pirq table was scanned, we'll try to set it

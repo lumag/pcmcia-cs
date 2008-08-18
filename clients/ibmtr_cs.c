@@ -246,8 +246,6 @@ static dev_link_t *ibmtr_attach(void)
     dev->name = info->node.dev_name;
 #endif
 
-    dev->tbusy = 1; 
-
     /* Register with Card Services */
     link->next = dev_list;
     dev_list = link;
@@ -434,8 +432,6 @@ static void ibmtr_config(dev_link_t *link)
         Adapters Technical Reference"  SC30-3585 for this info.  */
     ibmtr_hw_setup(dev);
 
-    dev->tbusy = 0;
-
 #if (LINUX_VERSION_CODE <= VERSION(2,1,16))
     i = register_netdev(dev);
 #else
@@ -529,7 +525,7 @@ static int ibmtr_event(event_t event, int priority,
     case CS_EVENT_CARD_REMOVAL:
         link->state &= ~DEV_PRESENT;
         if (link->state & DEV_CONFIG) {
-            dev->tbusy = 1; dev->start = 0;
+	    netif_device_detach(dev);
             link->release.expires = jiffies + HZ/20;
             link->state |= DEV_RELEASE_PENDING;
             add_timer(&link->release);
@@ -544,9 +540,8 @@ static int ibmtr_event(event_t event, int priority,
         /* Fall through... */
     case CS_EVENT_RESET_PHYSICAL:
         if (link->state & DEV_CONFIG) {
-            if (link->open) {
-                dev->tbusy = 1; dev->start = 0;
-            }
+            if (link->open)
+		netif_device_detach(dev);
             CardServices(ReleaseConfiguration, link->handle);
         }
         break;
@@ -558,7 +553,7 @@ static int ibmtr_event(event_t event, int priority,
             CardServices(RequestConfiguration, link->handle, &link->conf);
             if (link->open) {
 		(dev->init)(dev);
-                dev->tbusy = 0; dev->start = 1;
+		netif_device_attach(dev);
             }
         }
         break;

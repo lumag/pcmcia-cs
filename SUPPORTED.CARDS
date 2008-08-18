@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/02/18 01:24:13
+		Last updated: 2000/03/04 00:45:34
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -51,6 +51,7 @@ Ethernet cards:
 	AnyCom ECO Ethernet
 	Apollo RE450CT
 	Argosy EN210
+	Ark Sky-Link Express PA2100
 	Arowana RE 450 Ethernet
 	Asante FriendlyNet	[ new cards seem to not work!! ]
 	AST 1082 Ethernet
@@ -108,6 +109,7 @@ Ethernet cards:
 	Maxtech PCN2000 Ethernet
 	Melco LPC-TJ, LPC-TS, LPC-T, LPC2-T
 	Microdyne NE4200 Ethernet
+	Micronet SP122
 	Midori LANNER LT-PCMT
 	NDC Instant-Link
 	NEC PC-9801N-J12
@@ -121,7 +123,7 @@ Ethernet cards:
 	Pretec Ethernet
 	PreMax PE-200 Ethernet
 	Proteon Ethernet
-	Psion Gold Card Ethernet
+	Psion Gold Card Ethernet, Gold Card Netglobal Ethernet
 	Relia RE2408T Ethernet
 	Reliasys 2400A Ethernet
 	RPTI EP400, EP401, 1625B Ethernet
@@ -283,9 +285,10 @@ Modem and serial cards:
 
 	[ The following cards are WinModems and are NOT supported ]
 	3Com/Megahertz 3CXM356/3CCM356, 3CXM656/3CCM656
-	3Com/Noteworthy 3CXM056-BNW
 	3Com/USRobotics 3014a
+	Abocom FM560CB
 	Billionton 56K HSP
+	Com1 Platinum MC221 Discovery 56K
 	Compaq 192
 	Megahertz XJ/CC2560
 	Motorola Montana
@@ -437,6 +440,7 @@ ATA/IDE Interface Cards:
 	DataStor Technology PCMCIA ATA/ATAPI Card
 	Creo DNBoy
 	GREYSTONE DD-25
+	IBM Portable Drive Bay		[ only CD-ROM tested ]
 	Shining Technology CitiDISK 250PE
 	Sicon Periperal Micro Mate
 
@@ -461,14 +465,14 @@ ATA/IDE CD-ROM adapters:
 	Microtech International MicroCD
 	Microtech Mii Zip 100
 	NOVAC NV-CD410
-	Sony PCGA-CD5 CD-ROM
+	Sony PCGA-CD5, PCGA-CD51 CD-ROM
 	TEAC IDE Card/II
 
 The following cards have contributed drivers which are distributed as
 separate packages.  The drivers are not included in the base PCMCIA
 package for maintenance reasons: they are for less common cards and I
-cannot test them.  All are available on the Linux PCMCIA FTP site, in
-/pub/pcmcia/contrib.
+cannot test them.  Most are available on the Linux PCMCIA FTP site, at
+ftp://sourceforge.org/pcmcia/contrib; some have their own web sites.
 
 	[asplus_cs driver]
 	Netwave AirSurfer Plus wireless network adapter
@@ -478,6 +482,11 @@ cannot test them.  All are available on the Linux PCMCIA FTP site, in
 	[cs89x0_cs driver]
 	IBM EtherJet
 	  (Danilo Beuche <danili@cs.uni-magdeburg.de>)
+
+	[das16s driver]
+	Computer Boards PCM-DAS16s/16 ADC
+	  ftp://fsmlabs.com/pub/rtlinux/
+	  (Steve Rosenbluth <stever@la.creatureshop.henson.com>)
 
 	[elsa_cs driver]
 	Elsa MicroLink ISDN adapter

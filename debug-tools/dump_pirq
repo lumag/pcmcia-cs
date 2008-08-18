@@ -1,0 +1,108 @@
+#!/usr/bin/perl
+#
+# dump_pirq 1.2 2000/03/08 19:46:58
+#
+# A utility to parse the BIOS PCI IRQ Routing Table
+#
+# Copyright (C) 2000 David A. Hinds -- dhinds@pcmcia.sourceforge.org
+#
+
+# Grab the BIOS from 0xf0000-0xfffff
+open(IN, "/dev/mem") || die;
+seek(IN, 0xf0000, 0) || die;
+die if (read(IN, $buf, 0x10000) != 0x10000);
+close(IN);
+
+# Look for PIR signature string
+$p = index($buf, "\$PIR");
+if ($p < 0) {
+    printf "No interrupt routing information found.";
+    exit;
+}
+
+# Parse the interrupt table header
+($minor,$major,$size,$rbus,$rdev,$mask,$cvd,$mini) =
+    unpack "CCSCCSLL", substr($buf, $p+4, 16);
+
+sub dev {
+    my($devfn) = @_;
+    sprintf "%02x.%d", ($devfn>>3), ($devfn&7);
+}
+
+printf "Interrupt routing table found at address 0xf%04x:\n", $p;
+printf "  Version $major.$minor, size 0x%04x\n", $size;
+printf "  Interrupt router is device %02x:%s\n", $rbus, dev($rdev);
+printf "  PCI exclusive interrupt mask: 0x%04x\n", $mask;
+if ($cvd) {
+    printf("  Compatible router: vendor 0x%04x device 0x%04x\n",
+	   ($cvd & 0xffff), ($cvd >> 16));
+}
+
+sub row {
+    my($tag, $link, $mask) = @_;
+    if ($link != 0) {
+	printf "  INT$tag: link 0x%02x, irq mask 0x%04x\n", $link, $mask;
+    }
+}
+
+$ofs = 32;
+while ($ofs < $size) {
+    # Parse a table entry describing a single PCI device
+    ($bus, $devfn, $la, $ma, $lb, $mb, $lc, $mc, $ld, $md, $slot) =
+	unpack "CCCSCSCSCSC", substr($buf, $p+$ofs, 15);
+    printf "\nDevice %02x:%s (slot $slot):\n", $bus, dev($devfn);
+    row("A", $la, $ma); row("B", $lb, $mb);
+    row("C", $lc, $mc); row("D", $ld, $md);
+    $ofs += 16;
+}
+
+# The link values in the interrupt routing table are implementation
+# dependent.  Here, we'll try to interpret the link values for some
+# known PCI bridge types.
+
+$rf = sprintf "/proc/bus/pci/%02x/%s", $rbus, dev($rdev);
+open(IN, $rf);
+if (read(IN, $buf, 0x100) != 0x100) {
+    print "\nCould not read router info from $rf.\n";
+    exit;
+}
+close(IN);
+
+print "\nInterrupt router: ";
+$vd = unpack "L", substr($buf, 0, 4);
+
+%pIIx = (0x122e8086, "82371FB PIIX",
+	 0x70008086, "82371SB PIIX3",
+	 0x71108086, "82371AB PIIX4/PIIX4E");
+
+%via = (0x05961106, "82C596",
+	0x06861106, "82C686");
+
+if ((defined $pIIx{$vd}) || (defined $pIIx{$cvd})) {
+
+    @p = unpack "CCCC", substr($buf, 0x60, 4);
+    $name = (defined $pIIx{$vd}) ? $pIIx{$vd} : $pIIx{$cvd};
+    printf "Intel $name PCI-to-ISA bridge\n";
+    for ($i = 0; $i < 4; $i++) {
+	printf "  PIRQ%d (link 0x%02x): ", $i+1, 0x60+$i;
+	print (($p[$i] < 16) ? "irq $p[$i]\n" : "unrouted\n");
+    }
+
+} elsif ((defined $via{$vd}) || (defined $via{$cvd})) {
+
+    @p = unpack "CCC", substr($buf, 0x55, 3);
+    $name = (defined $via{$vd}) ? $via{$vd} : $via{$cvd};
+    printf "VIA $name PCI-to-ISA bridge\n";
+    %tag = (1, "A", 2, "B", 3, "C", 5, "D");
+    foreach $link (1,2,3,5) {
+	$irq = ($link & 1) ? ($p[$link>>1] >> 4) : ($p[$link>>1] & 15);
+	print "  PIRQ$tag{$link} (link 0x0$link): ";
+	print ($irq ? "irq $irq\n" : "unrouted\n");
+    }
+
+} else {
+
+    printf("unknown vendor 0x%04x device 0x%04x\n",
+	   ($vd & 0xffff), ($vd >> 16));
+
+}

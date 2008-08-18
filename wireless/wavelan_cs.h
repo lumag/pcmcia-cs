@@ -34,6 +34,25 @@
  *	I try to maintain a web page with the Wireless LAN Howto at :
  *	    http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Wavelan.html
  *
+ * SMP
+ * ---
+ *	We now *should* be SMP compliant.
+ *	I don't have a SMP box to verify that (my Pentium 133 is not), so
+ *	someone has to certify that from me.
+ *	Anyway, I spent enough time chasing interrupt re-entrancy during
+ *	errors or reconfigure, and I designed the locked/unlocked sections
+ *	of the driver with great care, and with the recent addition of
+ *	the spinlock (thanks to the new API), we should be quite close to
+ *	the truth.
+ *	The SMP/IRQ locking is quite coarse and conservative (i.e. not fast),
+ *	but better safe than sorry (especially at 2 Mb/s ;-).
+ *
+ *	I have also looked into disabling only our interrupt on the card
+ *	(via HACR) instead of all interrupts in the processor (via cli),
+ *	so that other driver are not impacted, and it look like it's
+ *	possible, but it's very tricky to do right (full of races). As
+ *	the gain would be mostly for SMP systems, it can wait...
+ *
  * Debugging and options
  * ---------------------
  *	You will find below a set of '#define" allowing a very fine control
@@ -158,8 +177,8 @@
  *
  *    This software was originally developed under Linux 1.2.3
  *	(Slackware 2.0 distribution).
- *    And then under Linux 2.0.x (Debian 1.1 - pcmcia 2.8.18-23) with
- *	HP OmniBook 4000 & 5500.
+ *    And then under Linux 2.0.x (Debian 1.1 -> 2.2 - pcmcia 2.8.18+)
+ *	with an HP OmniBook 4000 and then a 5500.
  *
  *    It is based on other device drivers and information either written
  *    or supplied by:
@@ -349,6 +368,22 @@
  *	- Fix check for root permission (break instead of exit)
  *	- New nwid & encoding setting (Wireless Extension 9)
  *
+ * Changes made for release in 3.1.12 :
+ * ----------------------------------
+ *	- reworked wv_82593_cmd to avoid using the IRQ handler and doing
+ *	  ugly things with interrupts.
+ *	- Add IRQ protection in 82593_config/ru_start/ru_stop/watchdog
+ *	- Update to new network API (softnet - 2.3.43) :
+ *		o replace dev->tbusy (David + me)
+ *		o replace dev->tstart (David + me)
+ *		o remove dev->interrupt (David)
+ *		o add SMP locking via spinlock in splxx (me)
+ *		o add spinlock in interrupt handler (me)
+ *		o use kernel watchdog instead of ours (me)
+ *		o verify that all the changes make sense and work (me)
+ *	- Re-sync kernel/pcmcia versions (not much actually)
+ *	- A few other cleanups (David & me)...
+ *
  * Wishes & dreams:
  * ----------------
  *	- Cleanup and integrate the roaming code
@@ -357,8 +392,11 @@
 
 /***************************** INCLUDES *****************************/
 
+#undef IN_KERNEL_SOURCE
+#ifndef IN_KERNEL_SOURCE		/* David : check this out ! */
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
+#endif	/* IN_KERNEL_SOURCE */
 
 /* Linux headers that we need */
 #include <linux/config.h>
@@ -385,9 +423,15 @@
 #include <linux/ioport.h>
 #include <linux/fcntl.h>
 
+#ifdef IN_KERNEL_SOURCE		/* David : check this out ! */
+#ifdef CONFIG_NET_PCMCIA_RADIO
+#include <linux/wireless.h>		/* Wireless extensions */
+#endif	/* CONFIG_NET_PCMCIA_RADIO */
+#else	/* IN_KERNEL_SOURCE */
 #ifdef HAS_WIRELESS_EXTENSIONS
 #include <linux/wireless.h>		/* Wireless extensions */
-#endif
+#endif	/* HAS_WIRELESS_EXTENSIONS */
+#endif	/* IN_KERNEL_SOURCE */
 
 /* Pcmcia headers that we need */
 #include <pcmcia/cs_types.h>
@@ -401,6 +445,33 @@
 #include "i82593.h"	/* Definitions for the Intel chip */
 
 #include "wavelan.h"	/* Others bits of the hardware */
+
+/*********************** KERNEL COMPATIBILITY ***********************/
+/* Hyde some uglyness... */
+
+/* These are also useful...
+ */
+#ifndef HAVE_NETIF_QUEUE
+#define devstate(dev)			((dev->tbusy) | (dev->start << 1))
+#define devstart(dev)			(dev->start = 1)
+#define devstop(dev)			(dev->start = 0)
+#else	/* 2.3.47 */
+#define devstate(dev)			(dev->state)
+#define devstart(dev)			(1)
+#define devstop(dev)			(0)
+#endif	/* 2.3.47 */
+
+/* I've also defined spinlock to appear in 2.2.0, but in my legendary
+ * lazyness, I didn't check if it was really the case. Oups !
+ * David : how can you not have defined spin_lock_init() ?
+ */
+#if (LINUX_VERSION_CODE < VERSION(2,2,0))
+typedef int spinlock_t;
+#define spin_lock_init(s)		{}
+#endif	/* 2.2.0 */
+#ifndef HAVE_NETIF_QUEUE
+#define spin_is_locked(s)		0
+#endif	/* 2.3.47 */
 
 /************************** DRIVER OPTIONS **************************/
 /*
@@ -455,7 +526,7 @@
 /************************ CONSTANTS & MACROS ************************/
 
 #ifdef DEBUG_VERSION_SHOW
-static const char *version = "wavelan_cs.c : v21 (wireless extensions) 18/10/99\n";
+static const char *version = "wavelan_cs.c : v22 (wireless extensions) 23/02/00\n";
 #endif
 
 /* Watchdog temporisation */
@@ -555,6 +626,7 @@ struct net_local
 {
   dev_node_t 	node;		/* ???? What is this stuff ???? */
   device *	dev;		/* Reverse link... */
+  spinlock_t	spinlock;	/* Serialize access to the hardware (SMP) */
   dev_link_t *	link;		/* pcmcia structure */
   en_stats	stats;		/* Ethernet interface statistics */
   int		nresets;	/* Number of hw resets */
@@ -563,9 +635,10 @@ struct net_local
   u_char	promiscuous;	/* Promiscuous mode */
   u_char	allmulticast;	/* All Multicast mode */
   int		mc_count;	/* Number of multicast addresses */
+#ifndef HAVE_NETIF_QUEUE
   timer_list	watchdog;	/* To avoid blocking state */
+#endif	/* 2.3.47 */
 
-  u_char        status;		/* Current i82593 status */
   int   	stop;		/* Current i82593 Stop Hit Register */
   int   	rfp;		/* Last DMA machine receive pointer */
   int		overrunning;	/* Receiver overrun flag */
@@ -612,12 +685,14 @@ void wv_roam_cleanup(struct net_device *dev);
 #endif	/* WAVELAN_ROAMING */
 
 /* ----------------------- MISC SUBROUTINES ------------------------ */
-static inline unsigned long	/* flags */
-	wv_splhi(void);		/* Disable interrupts */
 static inline void
-	wv_splx(unsigned long);	/* ReEnable interrupts : flags */
+	wv_splhi(net_local *,		/* Disable interrupts */
+		 unsigned long *);	/* flags */
+static inline void
+	wv_splx(net_local *,		/* ReEnable interrupts */
+		unsigned long *);	/* flags */
 static void
-	cs_error(client_handle_t, /* Report error to cardmgr */
+	cs_error(client_handle_t,	/* Report error to cardmgr */
 		 int,
 		 int);
 /* ----------------- MODEM MANAGEMENT SUBROUTINES ----------------- */
@@ -725,7 +800,11 @@ wavelan_interrupt(int,	/* Interrupt handler */
 		  void *,
 		  struct pt_regs *);
 static void
+#ifdef HAVE_NETIF_QUEUE
+	wavelan_watchdog(device *);	/* Transmission watchdog */
+#else
 	wavelan_watchdog(u_long);	/* Transmission watchdog */
+#endif
 /* ------------------- CONFIGURATION CALLBACKS ------------------- */
 static int
 	wavelan_open(device *),		/* Open the device */
@@ -744,10 +823,6 @@ static int
 
 static dev_info_t dev_info = "wavelan_cs";
 static dev_link_t *dev_list = NULL;	/* Linked list of devices */
-
-/* WARNING : the following variable MUST be volatile
- * It is used by wv_82593_cmd to syncronise with wavelan_interrupt */ 
-static volatile int	wv_wait_completed = 0;
 
 /*
  * Parameters that can be set with 'insmod'

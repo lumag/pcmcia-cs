@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.63 2000/02/09 03:12:42 (David Hinds)
+# network 1.66 2000/02/28 23:09:20 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -31,6 +31,17 @@ stop_fn () { return; }
 
 RESOLV=/etc/resolv.conf
 
+match () { case $1 in $2) return 0; ;; *) return 1; ;; esac ; }
+bootp_setup ()
+{
+    if match `uname -r` "2.[2-9].*" ; then
+	/sbin/ifconfig $DEVICE up
+    else
+	/sbin/ifconfig $DEVICE up 0.0.0.0
+	/sbin/route add default dev $DEVICE netmask 0.0.0.0
+    fi
+}
+
 case "$ACTION" in
 
 'start')
@@ -40,12 +51,10 @@ case "$ACTION" in
     if is_true $PUMP ; then
 	/sbin/pump -i $DEVICE
     elif is_true $BOOTP ; then
-	/sbin/ifconfig $DEVICE up 0.0.0.0
-	/sbin/route add default dev $DEVICE
+	bootp_setup
 	if [ -x /sbin/bootpc ] ; then
 	    eval `/sbin/bootpc --bootfile '' --returniffail \
 		--timeoutwait 10 --dev $DEVICE`
-	    /sbin/route del default
 	    /sbin/ifconfig $DEVICE down
 	    if [ "$GATEWAYS" ] ; then
 		set - $GATEWAYS ; GATEWAY=$1
@@ -56,8 +65,7 @@ case "$ACTION" in
 	    exit 1
 	fi
     elif is_true $DHCP ; then
-	/sbin/ifconfig $DEVICE up 0.0.0.0
-	/sbin/route add default dev $DEVICE
+	bootp_setup
 	if [ -x /sbin/dhcpcd ] ; then
 	    # This is a version check: I know it looks weird
 	    if /sbin/dhcpcd -XYZZY 2>&1 | grep -q DHCP ; then
@@ -89,11 +97,12 @@ case "$ACTION" in
 
     if [ "$IPADDR" ] ; then
 	# Basic network setup
+	NM=${NETMASK:+netmask $NETMASK}
 	BC=${BROADCAST:+broadcast $BROADCAST}
-	/sbin/ifconfig $DEVICE up $IPADDR netmask $NETMASK $BC
+	/sbin/ifconfig $DEVICE up $IPADDR $NM $BC
 	if [ "$NETWORK" ] ; then
 	    /sbin/ifuser $DEVICE $NETWORK || \
-		/sbin/route add -net $NETWORK netmask $NETMASK dev $DEVICE
+		/sbin/route add -net $NETWORK $NM dev $DEVICE
 	elif [ "$GATEWAY" ] ; then
 	    /sbin/ifuser $DEVICE $GATEWAY || \
 		/sbin/route add $GATEWAY $DEVICE

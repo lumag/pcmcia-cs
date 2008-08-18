@@ -98,14 +98,14 @@ static int pci_claim_resources(void)
     u16 cmd, tmp;
 #endif
     char *name;
-    
-    for (r = 0, dev=pci_devices; dev; dev=dev->next, r++) ;
+
+    r = 0; pci_for_each_dev(dev) r++;
     name = pci_names = kmalloc(r*12, GFP_KERNEL);
     if (!name) return -ENOMEM;
     
     save_flags(flags);
     cli();
-    for (dev=pci_devices; dev; dev=dev->next, name += 12) {
+    pci_for_each_dev(dev) {
 	if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL)
 	    continue;
 	sprintf(name, "pci %02x:%02x.%1x", dev->bus->number,
@@ -150,6 +150,7 @@ static int pci_claim_resources(void)
 	}
 	pci_write_config_word(dev, PCI_COMMAND, cmd);
 #endif
+	name += 12;
     }
     restore_flags(flags);
     return 0;

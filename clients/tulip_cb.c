@@ -178,9 +178,30 @@ MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");
 #if ! defined(CAP_NET_ADMIN)
 #define capable(CAP_XXX) (suser())
 #endif
-#if ! defined(HAS_NETIF_QUEUE)
+#ifndef HAVE_NETIF_QUEUE
+#define netif_stop_queue(dev) set_bit(0, (void *)&(dev)->tbusy)
+#define netif_start_queue(dev) clear_bit(0, (void *)&(dev)->tbusy)
 #define netif_wake_queue(dev) \
-	do { dev->tbusy = 0; mark_bh(NET_BH); } while (0)
+    do { netif_start_queue(dev); mark_bh(NET_BH); } while (0)
+#define netif_device_attach(dev) \
+    do { (dev)->start = 1; netif_start_queue(dev); } while (0)
+#define netif_device_detach(dev) \
+    do { (dev)->start = 0; netif_stop_queue(dev); } while (0)
+#define netif_device_present(dev) ((dev)->start)
+#define netif_running(dev) ((dev)->start)
+#define netif_mark_up(dev) do { (dev)->start = 1; } while (0)
+#define netif_mark_down(dev) do { (dev)->start = 0; } while (0)
+#define netif_queue_stopped(dev) ((dev)->tbusy)
+#define tx_timeout_check(dev, tx_timeout) \
+    do { if (test_and_set_bit(0, (void *)&(dev)->tbusy) != 0) { \
+	if (jiffies - (dev)->trans_start < TX_TIMEOUT) return 1; \
+	tx_timeout(dev); \
+    } } while (0)
+#define dev_kfree_skb_irq(skb) dev_kfree_skb(skb)
+#else
+#define tx_timeout_check(dev, handler) netif_stop_queue(dev)
+#define netif_mark_up(dev) do { } while (0)
+#define netif_mark_down(dev) do { } while (0)
 #endif
 
 /* Condensed operations for readability. */
@@ -250,22 +271,22 @@ has the beneficial effect of aligning the IP header and preloading the
 cache.
 
 IIIC. Synchronization
-The driver runs as two independent, single-threaded flows of control.  One
-is the send-packet routine, which enforces single-threaded use by the
-dev->tbusy flag.  The other thread is the interrupt handler, which is single
-threaded by the hardware and other software.
+The driver runs as two independent, single-threaded flows of control.
+One is the send-packet routine, which is single threaded by the tx
+queue layer.  The other thread is the interrupt handler, which is
+single threaded by the hardware and other software.
 
-The send packet thread has partial control over the Tx ring and 'dev->tbusy'
-flag.  It sets the tbusy flag whenever it's queuing a Tx packet. If the next
-queue slot is empty, it clears the tbusy flag when finished otherwise it sets
-the 'tp->tx_full' flag.
+The send packet thread has partial control over the Tx ring and tx
+queue status.  It stops the tx queue whenever it's queuing a Tx
+packet. If the next queue slot is empty, it starts the tx queue when
+finished otherwise it sets the 'tp->tx_full' flag.
 
 The interrupt handler has exclusive control over the Rx ring and records stats
 from the Tx ring.  (The Tx-done interrupt can't be selectively turned off, so
 we can't avoid the interrupt overhead by having the Tx routine reap the Tx
 stats.)	 After reaping the stats, it marks the queue entry as empty by setting
-the 'base' to zero.	 Iff the 'tp->tx_full' flag is set, it clears both the
-tx_full and tbusy flags.
+the 'base' to zero.	 Iff the 'tp->tx_full' flag is set, it clears the
+flag and restarts the tx queue.
 
 IV. Notes
 
@@ -1729,9 +1750,6 @@ media_picked:
 	outl_CSR6(tp->csr6, ioaddr, tp->chip_id);
 	outl_CSR6(tp->csr6 | 0x2000, ioaddr, tp->chip_id);
 
-	dev->tbusy = 0;
-	dev->start = 1;
-
 	/* Enable interrupts by setting the interrupt mask. */
 	outl(tulip_tbl[tp->chip_id].valid_intrs, ioaddr + CSR5);
 	outl(tulip_tbl[tp->chip_id].valid_intrs, ioaddr + CSR7);
@@ -1769,6 +1787,8 @@ tulip_open(struct net_device *dev)
 
 	tulip_up(dev);
 	tp->open = 1;
+	netif_start_queue(dev);
+	netif_mark_up(dev);
 	MOD_INC_USE_COUNT;
 
 	return 0;
@@ -2723,14 +2743,7 @@ tulip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int entry;
 	u32 flag;
 
-	/* Block a timer-based transmit from overlapping.  This could better be
-	   done with atomic_swap(1, dev->tbusy), but set_bit() works as well. */
-	if (test_and_set_bit(0, (void*)&dev->tbusy) != 0) {
-		if (jiffies - dev->trans_start < TX_TIMEOUT)
-			return 1;
-		tulip_tx_timeout(dev);
-		return 1;
-	}
+	tx_timeout_check(dev, tulip_tx_timeout);
 
 	/* Caution: the write order is important here, set the field
 	   with the ownership bits last. */
@@ -2764,7 +2777,7 @@ tulip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tp->tx_ring[entry].status = cpu_to_le32(DescOwned);
 	tp->cur_tx++;
 	if ( ! tp->tx_full)
-		clear_bit(0, (void*)&dev->tbusy);
+		netif_start_queue(dev);
 
 	dev->trans_start = jiffies;
 	/* Trigger an immediate transmit demand. */
@@ -2855,7 +2868,7 @@ static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 				}
 
 				/* Free the original skb. */
-				dev_free_skb(tp->tx_skbuff[entry]);
+				dev_kfree_skb_irq(tp->tx_skbuff[entry]);
 				tp->tx_skbuff[entry] = 0;
 				tx++;
 			}
@@ -2868,11 +2881,9 @@ static void tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 			}
 #endif
 
-			if (tp->tx_full && dev->tbusy
-				&& tp->cur_tx - dirty_tx  < TX_RING_SIZE - 2) {
-				/* The ring is no longer full, clear tbusy. */
+			if (tp->tx_full && tp->cur_tx - dirty_tx  < TX_RING_SIZE - 2) {
+				/* The ring is no longer full, restart queue. */
 				tp->tx_full = 0;
-				dev->tbusy = 0;
 				netif_wake_queue(dev);
 			}
 
@@ -3095,9 +3106,6 @@ tulip_down(struct net_device *dev)
 	long ioaddr = dev->base_addr;
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 
-	dev->start = 0;
-	dev->tbusy = 1;
-
 	/* Disable interrupts by clearing the interrupt mask. */
 	outl(0x00000000, ioaddr + CSR7);
 	/* Stop the chip's Tx and Rx processes. */
@@ -3130,8 +3138,11 @@ tulip_close(struct net_device *dev)
 		printk(KERN_DEBUG "%s: Shutting down ethercard, status was %2.2x.\n",
 			   dev->name, inl(ioaddr + CSR5));
 
-	if (dev->start)
+	if (netif_device_present(dev)) {
+		netif_stop_queue(dev);
+		netif_mark_down(dev);
 		tulip_down(dev);
+	}
 
 	free_irq(dev->irq, dev);
 
@@ -3170,7 +3181,7 @@ static struct net_device_stats *tulip_get_stats(struct net_device *dev)
 	struct tulip_private *tp = (struct tulip_private *)dev->priv;
 	long ioaddr = dev->base_addr;
 
-	if (dev->start)
+	if (netif_device_present(dev))
 		tp->stats.rx_missed_errors += inl(ioaddr + CSR8) & 0xffff;
 
 	return &tp->stats;
@@ -3422,7 +3433,7 @@ static void set_rx_mode(struct net_device *dev)
 				tp->tx_ring[entry].buffer1 = virt_to_le32desc(tp->setup_frame);
 			tp->tx_ring[entry].status = cpu_to_le32(DescOwned);
 			if (tp->cur_tx - tp->dirty_tx >= TX_RING_SIZE - 2) {
-				set_bit(0, (void*)&dev->tbusy);
+				netif_stop_queue(dev);
 				tp->tx_full = 1;
 			}
 			if (dummy >= 0)
@@ -3495,6 +3506,7 @@ static void tulip_suspend(dev_node_t *node)
 	}
 	if (dev) {
 		struct tulip_private *tp = (struct tulip_private *)dev->priv;
+		netif_device_detach(dev);
 		if (tp->open) tulip_down(dev);
 	}
 }
@@ -3510,6 +3522,7 @@ static void tulip_resume(dev_node_t *node)
 	if (dev) {
 		struct tulip_private *tp = (struct tulip_private *)dev->priv;
 		if (tp->open) tulip_up(dev);
+		netif_device_attach(dev);
 	}
 }
 
@@ -3523,6 +3536,7 @@ static void tulip_detach(dev_node_t *node)
 	}
 	if (dev && dev->priv) {
 		struct tulip_private *tp = dev->priv;
+		netif_device_detach(dev);
 		if (tp->open) tulip_down(dev);
 		tp->reap = 1;
 		kfree(node);

@@ -1,7 +1,9 @@
 #ifndef _PCMCIA_INIT_H
 #define _PCMCIA_INIT_H
 
-#ifdef MODULE
+#include <linux/version.h>
+
+#if (LINUX_VERSION_CODE < 0x020300) && defined(MODULE)
 #define __init
 #define __initdata
 #define __exit

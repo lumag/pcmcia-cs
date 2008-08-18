@@ -1,5 +1,5 @@
 /*
- * cirrus.h 1.4 1999/10/25 20:03:34
+ * cirrus.h 1.5 2000/03/03 02:38:17
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -47,6 +47,11 @@
 #define PD67_ATA_CTL		0x026	/* 6730: ATA control */
 #define PD67_EXT_INDEX		0x2e	/* Extension index */
 #define PD67_EXT_DATA		0x2f	/* Extension data */
+
+#define pd67_ext_get(s, r) \
+    (i365_set(s, PD67_EXT_INDEX, r), i365_get(s, PD67_EXT_DATA))
+#define pd67_ext_set(s, r, v) \
+    (i365_set(s, PD67_EXT_INDEX, r), i365_set(s, PD67_EXT_DATA, v))
 
 /* PD6722 extension registers -- indexed in PD67_EXT_INDEX */
 #define PD67_DATA_MASK0		0x01	/* Data mask 0 */

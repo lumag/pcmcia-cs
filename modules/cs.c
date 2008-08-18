@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.249 2000/02/10 23:26:11
+    cs.c 1.251 2000/03/07 22:54:24
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -49,6 +49,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
+#include <linux/apm_bios.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #endif
@@ -65,16 +66,11 @@
 #include "cs_internal.h"
 #include "rsrc_mgr.h"
 
-#ifdef CONFIG_APM
-#include <linux/apm_bios.h>
-static int handle_apm_event(apm_event_t event);
-#endif
-
 #ifdef PCMCIA_DEBUG
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.249 2000/02/10 23:26:11 (David Hinds)";
+"cs.c 1.251 2000/03/07 22:54:24 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -458,7 +454,6 @@ static void shutdown_socket(u_long i)
     s->state &= SOCKET_PRESENT|SOCKET_SETUP_PENDING;
     init_socket(s);
     s->irq.AssignedIRQ = s->irq.Config = 0;
-    s->functions = 0;
     s->lock_count = 0;
     s->cis_used = 0;
     if (s->fake_cis) {
@@ -469,6 +464,7 @@ static void shutdown_socket(u_long i)
     cb_release_cis_mem(s);
     cb_free(s);
 #endif
+    s->functions = 0;
     if (s->config) {
 	kfree(s->config);
 	s->config = NULL;

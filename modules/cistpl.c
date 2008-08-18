@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.77 2000/01/16 19:19:01
+    cistpl.c 1.79 2000/03/01 20:24:40
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -1399,34 +1399,32 @@ int validate_cis(client_handle_t handle, cisinfo_t *info)
 {
     tuple_t tuple;
     cisparse_t p;
-    int ret, reserved, errors;
-    
+    int ret, reserved;
+
     if (CHECK_HANDLE(handle))
 	return CS_BAD_HANDLE;
-    
-    info->Chains = reserved = errors = 0;
+
+    info->Chains = reserved = 0;
     tuple.DesiredTuple = RETURN_FIRST_TUPLE;
     tuple.Attributes = TUPLE_RETURN_COMMON;
     ret = get_first_tuple(handle, &tuple);
     if (ret != CS_SUCCESS)
 	return CS_SUCCESS;
 
-    /* First tuple should be DEVICE */
-    if (tuple.TupleCode != CISTPL_DEVICE)
-	errors++;
-    /* All cards should have a MANFID tuple */
-    if (read_tuple(handle, CISTPL_MANFID, &p) != CS_SUCCESS)
-	errors++;
-    /* All cards should have either a VERS_1 or a VERS_2 tuple.  But
-       at worst, we'll accept a CFTABLE_ENTRY that parses. */
-    if ((read_tuple(handle, CISTPL_VERS_1, &p) != CS_SUCCESS) &&
-	(read_tuple(handle, CISTPL_VERS_2, &p) != CS_SUCCESS) &&
+    /* First tuple should be DEVICE; we should really have either that
+       or a CFTABLE_ENTRY of some sort */
+    if ((tuple.TupleCode != CISTPL_DEVICE) &&
 	(read_tuple(handle, CISTPL_CFTABLE_ENTRY, &p) != CS_SUCCESS) &&
 	(read_tuple(handle, CISTPL_CFTABLE_ENTRY_CB, &p) != CS_SUCCESS))
-	errors++;
-    if (errors > 1)
 	return CS_SUCCESS;
-    
+
+    /* All cards should have a MANFID tuple, and/or a VERS_1 or VERS_2
+       tuple, for card identification */
+    if ((read_tuple(handle, CISTPL_MANFID, &p) != CS_SUCCESS) &&
+	(read_tuple(handle, CISTPL_VERS_1, &p) != CS_SUCCESS) &&
+	(read_tuple(handle, CISTPL_VERS_2, &p) != CS_SUCCESS))
+	return CS_SUCCESS;
+
     for (info->Chains = 1; info->Chains < MAX_TUPLES; info->Chains++) {
 	ret = get_next_tuple(handle, &tuple);
 	if (ret != CS_SUCCESS) break;
@@ -1437,7 +1435,7 @@ int validate_cis(client_handle_t handle, cisinfo_t *info)
     }
     if ((info->Chains == MAX_TUPLES) || (reserved > 5))
 	info->Chains = 0;
-    
+
     return CS_SUCCESS;
 }
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.143 2000/02/16 03:05:26
+# Configure 1.146 2000/03/04 00:45:26
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -222,6 +222,7 @@ for TAG in VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION ; do
     eval `sed -ne "/^$TAG/s/[ 	]//gp" $LINUX/Makefile`
 done
 SRC_RELEASE=$VERSION.$PATCHLEVEL.$SUBLEVEL$EXTRAVERSION
+SRC_BASE=$VERSION.$PATCHLEVEL.$SUBLEVEL
 VERSION_CODE=`version $VERSION $PATCHLEVEL $SUBLEVEL`
 echo "The kernel source tree is version $SRC_RELEASE."
 if [ $VERSION_CODE -lt `version 2 0 0` ] ; then
@@ -232,12 +233,17 @@ fi
 HOST_ARCH=`uname -m | sed -e 's/i.86/i386/'`
 if [ ! "$ARCH" ] ; then ARCH=$HOST_ARCH ; fi
 CUR_RELEASE=`uname -r`
-MATCH=0 # different releases and/or architectures
+CUR_VERSION=`uname -v`
+CUR_BASE=`uname -r | sed -e "s/^\([0-9]\.[0-9]\.[0-9]*\).*/\1/"`
+MATCH=0 # default: different releases and/or architectures
 if [ $ARCH = $HOST_ARCH ] ; then
-    if [ "$SRC_RELEASE" != "$CUR_RELEASE" ] ; then
-	echo "WARNING: the current kernel is actually version $CUR_RELEASE."
+    if [ $CUR_RELEASE = $SRC_RELEASE ] ; then
+	MATCH=1 # same release, perfect match
+    elif [ $CUR_BASE = $SRC_BASE ] ; then
+	MATCH=1 # well, maybe same source tree
+	echo "  WARNING: the current kernel is sublevel $CUR_RELEASE."
     else
-	MATCH=1 # same release
+	echo "  WARNING: the current kernel is version $CUR_RELEASE."
     fi
 fi
 
@@ -246,16 +252,16 @@ fi
 CUR_D=`uname -v | sed -e 's/^#[0-9]* //;s/SMP //'`
 CUR_D=`echo $CUR_D | sed -e 's/\(:[0-9][0-9]\) .* \([12][90]\)/\1 \2/'`
 echo "The current kernel build date is $CUR_D."
-UTS_VERSION="unknown";
+SRC_VERSION="unknown";
 if [ -f $LINUX/include/linux/compile.h ] ; then
-    UTS_VERSION=`grep UTS_VERSION $LINUX/include/linux/compile.h |
+    SRC_VERSION=`grep UTS_VERSION $LINUX/include/linux/compile.h |
 	sed -e 's/.*"\(.*\)"/\1/'`
-    SRC_D=`echo $UTS_VERSION | sed -e 's/^#[0-9]* //;s/SMP //'`
+    SRC_D=`echo $SRC_VERSION | sed -e 's/^#[0-9]* //;s/SMP //'`
     SRC_D=`echo $SRC_D | sed -e 's/\(:[0-9][0-9]\) .* \([12][90]\)/\1 \2/'`
     if [ $MATCH = 1 -a "$SRC_D" != "$CUR_D" ] ; then
-	echo "WARNING: the source tree has a build date of $SRC_D."
+	echo "  WARNING: the source tree has a build date of $SRC_D."
 	if [ `date -d "$SRC_D" +%s` -gt `date -d "$CUR_D" +%s` ] ; then
-	    echo "   Did you forget to install your new kernel?!?"
+	    echo "  Did you forget to install your new kernel?"
 	fi
     elif [ $MATCH = 1 ] ; then
 	MATCH=2 # same release & date
@@ -264,23 +270,10 @@ fi
 echo ""
 
 ask_str "Alternate target install directory" PREFIX
-if [ ! "$MODDIR" ] ; then
-    if [ -d /lib/modules/preferred ] ; then
-	MODDIR=/lib/modules/preferred
-    else
-	MODDIR=/lib/modules/$SRC_RELEASE
-    fi
-else
-    MODDIR=`echo $MODDIR | \
-        sed -e "s/[0-9]\.[0-9]\.[0-9]*.*/$SRC_RELEASE/"`
-fi
-ask_str "  Module install directory" MODDIR
 
-write_str CC
-write_str LD
-write_str KFLAGS
-write_str UFLAGS
-write_str PCDEBUG
+for x in CC LD KFLAGS UFLAGS PCDEBUG ; do
+    write_str $x
+done
 write_bool USE_APM
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
@@ -312,8 +305,27 @@ else
 	prompt "Enter option (1-2)" "$CONF_SRC" ans
     done
     CONF_SRC=$ans
+    echo ""
 fi
 echo "CONF_SRC=$CONF_SRC" >> $CONFIG
+
+if [ $CONF_SRC -eq 1 ] ; then
+    UTS_VERSION=$CUR_VERSION ; UTS_RELEASE=$CUR_RELEASE
+else
+    UTS_VERSION=$SRC_VERSION ; UTS_RELEASE=$SRC_RELEASE
+fi
+
+if [ ! "$MODDIR" ] ; then
+    if [ -d /lib/modules/preferred ] ; then
+	MODDIR=/lib/modules/preferred
+    else
+	MODDIR=/lib/modules/$UTS_RELEASE
+    fi
+else
+    MODDIR=`echo $MODDIR | \
+        sed -e "s/[0-9]\.[0-9]\.[0-9]*.*/$UTS_RELEASE/"`
+fi
+ask_str "Module install directory" MODDIR
 echo ""
 
 #=======================================================================
@@ -466,7 +478,7 @@ case $CONF_SRC in
 	echo "#ifndef __LINUX_MODVERSIONS_H" > $MODVER
 	echo "#define __LINUX_MODVERSIONS_H" >> $MODVER
 	H='[0-9a-f][0-9a-f]'
-	$KSYMS | sed -ne 's/.* \(.*\)_R\('$H$H$H$H'\)/\1 \2/p' | \
+	$KSYMS | sed -ne 's/.* \(.*\)_R\('.*$H$H$H$H'\)/\1 \2/p' | \
 	    awk '{ printf "#define %s\t%s_R%s\n", $1, $1, $2 }' \
 	    >> $MODVER
 	echo "#endif" >> $MODVER
@@ -532,12 +544,12 @@ if [ "$CONFIG_PCI" != "y" -a "$CONFIG_CARDBUS" = "y" ] ; then
     fail
 fi
 
-if [ $VERSION_CODE -ge `version 2 3 37` -a "$CONFIG_PCMCIA" != "y" ] ; then
-    echo "2.3.37 and later kernels require that PCMCIA be configured in the"
-    echo "    kernel source tree.  To fix, reconfigure and rebuild your"
-    echo "    kernel with PCMCIA enabled."
-    fail
-fi
+#if [ $VERSION_CODE -ge `version 2 3 37` -a "$CONFIG_PCMCIA" != "y" ] ; then
+#    echo "2.3.37 and later kernels require that PCMCIA be configured in the"
+#    echo "    kernel source tree.  To fix, reconfigure and rebuild your"
+#    echo "    kernel with PCMCIA enabled."
+#    fail
+#fi
 
 if [ ! -r $LINUX/include/asm ] ; then
     cd $LINUX/include ; ln -s asm-$ARCH asm 2>/dev/null
@@ -593,8 +605,6 @@ echo "" >> $CONFIG_H
 
 #=======================================================================
 
-if [ $CONF_SRC -eq 1 ] ; then UTS_VERSION=`uname -v` ; fi
-
 HAS_PROC_BUS=n
 echo "MFLAG=-DMODVERSIONS -include $MODVER" >> $CONFIG_MK
 if [ "$CONFIG_PCMCIA" = "y" ] ; then
@@ -627,7 +637,6 @@ if [ $VERSION_CODE -gt `version 2 1 104` ] ; then
     HAS_PROC_BUS=$CONFIG_PROC_FS
 fi
 
-UTS_RELEASE=$SRC_RELEASE
 write_str UTS_RELEASE
 write_str UTS_VERSION
 echo "LINUX_VERSION_CODE=$VERSION_CODE" >> $CONFIG
