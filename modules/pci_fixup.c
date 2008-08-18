@@ -2,7 +2,7 @@
 
     Kernel fixups for PCI device support
     
-    pci_fixup.c 1.10 2000/03/08 00:29:36
+    pci_fixup.c 1.11 2000/03/13 22:30:50
     
     PCI bus fixups: various bits of code that don't really belong in
     the PCMCIA subsystem, but may or may not be available from the
@@ -34,6 +34,7 @@ MODULE_PARM(cb_mem_base, "i");
 #define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
 INT_MODULE_PARM(cb_bus_base, 0);
 INT_MODULE_PARM(cb_bus_step, 2);
+INT_MODULE_PARM(cb_pci_irq, 0);
 
 #endif
 
@@ -167,49 +168,63 @@ struct routing_table {
 
 #pragma pack()
 
-/* Global variables for current routing table info */
-static struct routing_table *pirq = NULL;
-static struct pci_dev *pirq_router = NULL;
-static u8 (*xlate_link)(struct pci_dev *, u8) = NULL;
-
 /*
   The meaning of the link bytes in the routing table is vendor
-  specific.  For the Intel 82371 family, the link byte points to a
-  PCI configuration register that contains the ISA interrupt
-  assignment.
+  specific.  We need code to get and set the routing information.
 */
 
-static u8 i82371_link(struct pci_dev *router, u8 link)
+static u8 pIIx_link(struct pci_dev *router, u8 link)
 {
     u8 pirq;
+    /* link should be 0x60, 0x61, 0x62, 0x63 */
     pci_read_config_byte(router, link, &pirq);
     return (pirq < 16) ? pirq : 0;
 }
 
-static u8 i82371_init(struct pci_dev *router, struct pirq_pin *pin)
+static void pIIx_init(struct pci_dev *router, u8 link, u8 irq)
 {
-    u16 map = pin->irq_map;
-    u8 irq = 0;
-    if (pirq->pci_mask)
-	map &= pirq->pci_mask;
-    if (map && (!(map & (map-1)))) {
-	irq = ffs(map)-1;
-	pci_write_config_byte(router, pin->link, irq);
-    }
-    return irq;
+    pci_write_config_byte(router, link, irq);
 }
 
 static u8 via_link(struct pci_dev *router, u8 link)
 {
     u8 pirq = 0;
+    /* link should be 1, 2, 3, 5 */
     if (link < 6)
 	pci_read_config_byte(router, 0x55 + (link>>1), &pirq);
     return (link & 1) ? (pirq >> 4) : (pirq & 15);
 }
 
+static void via_init(struct pci_dev *router, u8 link, u8 irq)
+{
+    u8 pirq;
+    pci_read_config_byte(router, 0x55 + (link>>1), &pirq);
+    pirq &= (link & 1) ? 0x0f : 0xf0;
+    pirq |= (link & 1) ? (irq << 4) : (irq & 15);
+    pci_write_config_byte(router, 0x55 + (link>>1), pirq);
+}
+
+static u8 opti_link(struct pci_dev *router, u8 link)
+{
+    u8 pirq = 0;
+    /* link should be 0x02, 0x12, 0x22, 0x32 */
+    if ((link & 0xcf) == 0x02)
+	pci_read_config_byte(router, 0xb8 + (link >> 5), &pirq);
+    return (link & 0x10) ? (pirq >> 4) : (pirq & 15);
+}
+
+static void opti_init(struct pci_dev *router, u8 link, u8 irq)
+{
+    u8 pirq;
+    pci_read_config_byte(router, 0xb8 + (link >> 5), &pirq);
+    pirq &= (link & 0x10) ? 0x0f : 0xf0;
+    pirq |= (link & 0x10) ? (irq << 4) : (irq & 15);
+    pci_write_config_byte(router, 0xb8 + (link >> 5), pirq);
+}
+
 /*
   A table of all the PCI interrupt routers for which we know how to
-  interpret the link bytes.  For now, there isn't much to it.
+  interpret the link bytes.
 */
 
 #ifndef PCI_DEVICE_ID_INTEL_82371FB_0
@@ -224,17 +239,24 @@ static u8 via_link(struct pci_dev *router, u8 link)
 
 #define ID(a,b) PCI_VENDOR_ID_##a,PCI_DEVICE_ID_##a##_##b
 
-struct {
+struct router {
     u16 vendor, device;
-    u8 (*xlate_link)(struct pci_dev *, u8);
-} irq_router[] = {
-    { ID(INTEL, 82371FB_0), &i82371_link },
-    { ID(INTEL, 82371SB_0), &i82371_link },
-    { ID(INTEL, 82371AB_0), &i82371_link },
-    { ID(VIA, 82C596), &via_link },
-    { ID(VIA, 82C686), &via_link }
+    u8 (*xlate)(struct pci_dev *, u8);
+    void (*init)(struct pci_dev *, u8, u8);
+} router_table[] = {
+    { ID(INTEL, 82371FB_0),	&pIIx_link,	&pIIx_init },
+    { ID(INTEL, 82371SB_0),	&pIIx_link,	&pIIx_init },
+    { ID(INTEL, 82371AB_0),	&pIIx_link,	&pIIx_init },
+    { ID(VIA, 82C596),		&via_link,	&via_init },
+    { ID(VIA, 82C686),		&via_link,	&via_init },
+    { ID(OPTI, 82C700),		&opti_link,	&opti_init }
 };
-#define ROUTER_COUNT (sizeof(irq_router)/sizeof(irq_router[0]))
+#define ROUTER_COUNT (sizeof(router_table)/sizeof(router_table[0]))
+
+/* Global variables for current interrupt routing table */
+static struct routing_table *pirq = NULL;
+static struct pci_dev *router_dev = NULL;
+static struct router *router_info = NULL;
 
 #ifndef __va
 #define __va(x) (x)
@@ -260,21 +282,21 @@ void scan_pirq_table(void)
 	   r->major, r->minor, (u32)r & 0xfffff);
     pci_irq_mask |= r->pci_mask;
 
-    pirq_router = router = pci_find_slot(r->bus, r->devfn);
+    router_dev = router = pci_find_slot(r->bus, r->devfn);
     if (router) {
 	for (i = 0; i < ROUTER_COUNT; i++) {
-	    if ((router->vendor == irq_router[i].vendor) &&
-		(router->device == irq_router[i].device))
+	    if ((router->vendor == router_table[i].vendor) &&
+		(router->device == router_table[i].device))
 		break;
-	    if (((r->compat & 0xffff) == irq_router[i].vendor) &&
-		((r->compat >> 16) == irq_router[i].device))
+	    if (((r->compat & 0xffff) == router_table[i].vendor) &&
+		((r->compat >> 16) == router_table[i].device))
 		break;
 	}
 	if (i == ROUTER_COUNT)
 	    printk(KERN_INFO "  unknown PCI interrupt router %04x:%04x\n",
 		   router->vendor, router->device);
 	else
-	    xlate_link = irq_router[i].xlate_link;
+	    router_info = &router_table[i];
     }
 
     for (e = r->entry; (u8 *)e < p+r->size; e++) {
@@ -283,8 +305,8 @@ void scan_pirq_table(void)
 	    if ((dev == NULL) || (dev->irq != 0)) continue;
 	    pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 	    if ((pin == 0) || (pin == 255)) continue;
-	    if (xlate_link) {
-		dev->irq = xlate_link(router, e->pin[pin-1].link);
+	    if (router_info) {
+		dev->irq = router_info->xlate(router, e->pin[pin-1].link);
 	    } else {
 		/* Fallback: see if only one irq possible */
 		int map = e->pin[pin-1].irq_map;
@@ -410,6 +432,24 @@ static void setup_cb_bridge(struct pci_dev *dev)
 		  PCI_COMMAND_MASTER | PCI_COMMAND_WAIT)
 
 #ifdef __i386__
+
+static u8 pirq_init(struct pci_dev *router, struct pirq_pin *pin)
+{
+    u16 map = pin->irq_map;
+    u8 irq = 0;
+    if (pirq->pci_mask)
+	map &= pirq->pci_mask;
+    if (cb_pci_irq)
+	map = 1<<cb_pci_irq;
+    /* Be conservative: only init irq if the mask is unambiguous */
+    if (map && (!(map & (map-1)))) {
+	irq = ffs(map)-1;
+	router_info->init(router, pin->link, irq);
+	pci_irq_mask |= (1<<irq);
+    }
+    return irq;
+}
+
 static void setup_cb_bridge_irq(struct pci_dev *dev)
 {
     struct slot_entry *e;
@@ -432,11 +472,12 @@ static void setup_cb_bridge_irq(struct pci_dev *dev)
 	if ((e->bus != dev->bus->number) ||
 	    (e->devfn != (dev->devfn & ~7)))
 	    continue;
-	dev->irq = i82371_init(pirq_router, &e->pin[pin-1]);
+	dev->irq = pirq_init(router_dev, &e->pin[pin-1]);
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
 	break;
     }
 }
+
 #endif
 
 int pci_enable_device(struct pci_dev *dev)
@@ -449,7 +490,7 @@ int pci_enable_device(struct pci_dev *dev)
     /* In certain cases, if the interrupt can be deduced, but was
        unrouted when the pirq table was scanned, we'll try to set it
        up now. */
-    if (!dev->irq && pirq && (xlate_link == &i82371_link) &&
+    if (!dev->irq && pirq && (router_info) &&
 	((dev->class >> 8) == PCI_CLASS_BRIDGE_CARDBUS)) {
 	setup_cb_bridge_irq(dev);
     }

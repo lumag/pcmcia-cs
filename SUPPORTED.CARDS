@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/03/04 00:45:34
+		Last updated: 2000/03/13 22:29:22
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -185,6 +185,7 @@ Fast Ethernet (10/100baseT) adapters:
 	[smc91c92_cs driver] [x86]
 	Argosy EN220
 	Dynalink L100C
+	EXP ThinLan-110
 	Lantech FastNet/TX
 	Ositech Seven of Diamonds
 	Melco/SMC LPC-TX

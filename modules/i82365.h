@@ -1,5 +1,5 @@
 /*
- * i82365.h 1.17 2000/03/07 01:16:49
+ * i82365.h 1.18 2000/03/08 23:37:13
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -130,7 +130,7 @@
 #define I365_MEM_WRPROT	0x8000	/* In offset high byte */
 #define I365_MEM_REG	0x4000
 
-#define I365_REG(slot, reg)	(((slot) << 6) + reg)
+#define I365_REG(slot, reg)	(((slot) << 6) | (reg))
 
 /* Default ISA interrupt mask */
 #define I365_ISA_IRQ_MASK	0xdeb8	/* irq's 3-5,7,9-12,14,15 */

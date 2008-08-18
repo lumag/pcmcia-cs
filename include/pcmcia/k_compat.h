@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.113 2000/03/01 23:50:09
+ * k_compat.h 1.114 2000/03/13 21:56:31
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -163,6 +163,8 @@ typedef struct wait_queue *wait_queue_head_t;
 #define spin_unlock(l) do { } while (0)
 #define spin_lock_irqsave(l,f) do { save_flags(f); cli(); } while (0)
 #define spin_unlock_irqrestore(l,f) do { restore_flags(f); } while (0)
+#define spin_lock_init(s) do { } while (0)
+typedef int spinlock_t;
 #else
 #if (LINUX_VERSION_CODE < VERSION(2,3,17))
 #include <asm/spinlock.h>

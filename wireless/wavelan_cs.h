@@ -461,14 +461,6 @@
 #define devstop(dev)			(0)
 #endif	/* 2.3.47 */
 
-/* I've also defined spinlock to appear in 2.2.0, but in my legendary
- * lazyness, I didn't check if it was really the case. Oups !
- * David : how can you not have defined spin_lock_init() ?
- */
-#if (LINUX_VERSION_CODE < VERSION(2,2,0))
-typedef int spinlock_t;
-#define spin_lock_init(s)		{}
-#endif	/* 2.2.0 */
 #ifndef HAVE_NETIF_QUEUE
 #define spin_is_locked(s)		0
 #endif	/* 2.3.47 */

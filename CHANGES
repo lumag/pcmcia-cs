@@ -1,3 +1,13 @@
+[14-Mar-00] Version 3.1.13
+-- Added 3.3V card detection for Cirrus PD6729 bridges.
+-- Added PCI fixup support for VIA and OPTi bridges, and "cb_pci_irq"
+   parameter for overriding the PCI interrupt routing table.
+-- Improved "dump_pirq": added OPTi and PicoPower chipset support, and
+   serial irq reporting for PIIX bridges.
+-- Fixed i82365 no-PCI builds, and a PowerPC bug.
+-- Fixed brain dead ray_cs bug introduced in 3.1.12.
+-- Fixed two 2.0.* kernel compatibility glitches.
+
 [08-Mar-00] Version 3.1.12
 -- Added "dump_pirq" utility to debug-tools.
 -- Added support for parsing PIRQ tables for VIA PCI-to-ISA bridges.
@@ -10,7 +20,7 @@
 -- Fixed Configure script to better handle extraversion info for
    current kernel, when checking kernel versions.
 -- More checking of PCI interrupts, so the i82365 module can usually 
-   usually be able to figure out if they won't work.
+   figure out if they won't work.
 
 [17-Feb-00] Version 3.1.11
 -- Changed master Makefile to not build any modules for new kernels.

@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" cardmgr.8 1.33 2000/01/04 21:49:49
+.\" cardmgr.8 1.35 2000/03/15 02:00:44
 .\"
-.TH CARDMGR 8 "2000/01/04 21:49:49" "pcmcia-cs"
+.TH CARDMGR 8 "2000/03/15 02:00:44" "pcmcia-cs"
 .SH NAME
 cardmgr \- PCMCIA device manager
 .SH SYNOPSIS
@@ -67,6 +67,13 @@ If the
 .B PCMCIA_OPTS
 environment variable is set, its contents will be parsed after the
 main card configuration file is read.
+.PP
+At startup,
+.B cardmgr
+requires that
+.I /tmp
+reside on a filesystem that permits special device files (i.e., a real
+linux filesystem, that is not mounted "nodev").
 .SH OPTIONS
 .TP
 .B \-V

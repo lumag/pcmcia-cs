@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" pcmcia_core.4 1.21 2000/02/10 23:28:50
+.\" pcmcia_core.4 1.22 2000/03/10 00:37:04
 .\"
-.TH PCMCIA_CORE 4 "2000/02/10 23:28:50" "pcmcia-cs"
+.TH PCMCIA_CORE 4 "2000/03/10 00:37:04" "pcmcia-cs"
 .SH NAME
 pcmcia_core \- PCMCIA Card Services core module
 .SH SYNOPSIS
@@ -39,6 +39,8 @@ pcmcia_core \- PCMCIA Card Services core module
 .RB [ cb_bus_base=\c
 .IR n ]
 .RB [ cb_bus_step=\c
+.IR n ]
+.RB [ cb_pci_irq=\c
 .IR n ]
 .SH DESCRIPTION
 .B Pcmcia_core
@@ -79,7 +81,7 @@ default is 5.
 .TP
 .BI vcc_settle= n
 Sets the time to wait after first applying power to a socket before
-accessing a card.  In 1/100 second increments, the default is 30.
+accessing a card.  In 1/100 second increments, the default is 40.
 .TP
 .BI reset_time= n
 Sets how long the software reset signal will be asserted, in
@@ -101,25 +103,21 @@ be dead.  The default is 30.
 .TP
 .BI cis_speed= n
 Sets the access delay in nanoseconds for CIS memory windows.  This
-only affects card identification.  The default is 300 ns.
+parameter only affects card identification.  The default is 300 ns.
 .TP
 .BI io_speed= n
 Sets the access delay in nanoseconds for IO port windows.  The default
 is 0.
 .TP
-.BI strict_cis= n
-A flag (zero is false, non-zero is true) indicating if a card's Card
-Information Structure should be checked for strict conformance to the
-PCMCIA spec.  The default is false.
-.TP
 .BI probe_io= n
 A flag indicating if Card Services should probe IO port regions for
-conflicts with other devices unknown to Linux.  The default is true.
+conflicts with other devices unknown to Linux.  The default is 1
+(true).
 .TP
 .BI probe_mem= n
 A flag indicating if Card Services should probe memory windows for
 conflicts with ROM extensions or memory-mapped devices.  The default
-is true.
+is 1 (true).
 .TP
 .BI cb_mem_base= n
 Sets the base address to use for memory mapping CardBus bridge
@@ -136,6 +134,12 @@ uninitialized at boot time will be numbered starting with bus 0x20.
 Specifies the number of bus slots to reserve for secondary PCI
 busses, for each CardBus socket, when busses are renumbered.  The
 default is 2.
+.TP
+.BI cb_pci_irq= n
+Specifies an interrupt number 1..15 to be assigned to any CardBus
+bridge whose PCI interrupt was not set by the BIOS.  The default is to
+pick an interrupt based on the BIOS PCI Interrupt Routing table only
+when the table is unambiguous.
 .SH AUTHOR
 David Hinds \- dhinds@pcmcia.sourceforge.org
 .SH "SEE ALSO"

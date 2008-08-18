@@ -1,5 +1,5 @@
 /*
- * cirrus.h 1.5 2000/03/03 02:38:17
+ * cirrus.h 1.6 2000/03/10 19:52:30
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -124,6 +124,10 @@
 #define PD67_EC1_INV_CARD_IRQ	0x08
 #define PD67_EC1_INV_MGMT_IRQ	0x10
 #define PD67_EC1_PULLUP_CTL	0x20
+
+/* Fields in PD67_EXTERN_DATA */
+#define PD67_EXD_VS1(s)		(0x01 << ((s)<<1))
+#define PD67_EXD_VS2(s)		(0x02 << ((s)<<1))
 
 /* Fields in PD67_MISC_CTL_3 */
 #define PD67_MC3_IRQ_MASK	0x03

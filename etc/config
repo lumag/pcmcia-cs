@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.113 2000/03/04 00:45:07 (David Hinds)
+# config 1.114 2000/03/13 22:29:19 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -680,6 +680,10 @@ card "D-Link Fast Ethernet"
 
 card "Dynalink L100C Fast Ethernet"
   version "DYNALINK", "L100C"
+  bind "smc91c92_cs"
+
+card "EXP ThinLan-110 Fast Ethernet"
+  version "PCMCIA", "Fast Ethernet PCCard"
   bind "smc91c92_cs"
 
 card "Farallon Enet"

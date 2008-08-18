@@ -197,7 +197,7 @@ MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");
 	if (jiffies - (dev)->trans_start < TX_TIMEOUT) return 1; \
 	tx_timeout(dev); \
     } } while (0)
-#define dev_kfree_skb_irq(skb) dev_kfree_skb(skb)
+#define dev_kfree_skb_irq(skb) dev_free_skb(skb)
 #else
 #define tx_timeout_check(dev, handler) netif_stop_queue(dev)
 #define netif_mark_up(dev) do { } while (0)

@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.251 2000/03/07 22:54:24
+    cs.c 1.253 2000/03/10 02:28:54
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -70,7 +70,7 @@
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.251 2000/03/07 22:54:24 (David Hinds)";
+"cs.c 1.253 2000/03/10 02:28:54 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -119,41 +119,30 @@ MODULE_DESCRIPTION("Linux PCMCIA Card Services " CS_RELEASE
 
 /* Parameters that can be set with 'insmod' */
 
-static int setup_delay		= HZ/20;	/* ticks */
-static int resume_delay		= HZ/5;		/* ticks */
-static int shutdown_delay	= HZ/40;	/* ticks */
-static int vcc_settle		= HZ*4/10;	/* ticks */
-static int reset_time		= 10;		/* usecs */
-static int unreset_delay	= HZ/10;	/* ticks */
-static int unreset_check	= HZ/10;	/* ticks */
-static int unreset_limit	= 30;		/* unreset_check's */
+#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
+
+INT_MODULE_PARM(setup_delay,	HZ/20);		/* ticks */
+INT_MODULE_PARM(resume_delay,	HZ/5);		/* ticks */
+INT_MODULE_PARM(shutdown_delay,	HZ/40);		/* ticks */
+INT_MODULE_PARM(vcc_settle,	HZ*4/10);	/* ticks */
+INT_MODULE_PARM(reset_time,	10);		/* usecs */
+INT_MODULE_PARM(unreset_delay,	HZ/10);		/* ticks */
+INT_MODULE_PARM(unreset_check,	HZ/10);		/* ticks */
+INT_MODULE_PARM(unreset_limit,	30);		/* unreset_check's */
 
 /* Access speed for attribute memory windows */
-static int cis_speed		= 300;	/* ns */
+INT_MODULE_PARM(cis_speed,	300);		/* ns */
 
 /* Access speed for IO windows */
-static int io_speed		= 0;	/* ns */
+INT_MODULE_PARM(io_speed,	0);		/* ns */
 
 /* Optional features */
 #ifdef CONFIG_APM
-static int do_apm		= 1;
-MODULE_PARM(do_apm, "i");
+INT_MODULE_PARM(do_apm, 1);
 #endif
 #ifdef CONFIG_PNP_BIOS
-static int do_pnp		= 1;
-MODULE_PARM(do_pnp, "i");
+INT_MODULE_PARM(do_pnp, 1);
 #endif
-
-MODULE_PARM(setup_delay, "i");
-MODULE_PARM(resume_delay, "i");
-MODULE_PARM(shutdown_delay, "i");
-MODULE_PARM(vcc_settle, "i");
-MODULE_PARM(reset_time, "i");
-MODULE_PARM(unreset_delay, "i");
-MODULE_PARM(unreset_check, "i");
-MODULE_PARM(unreset_limit, "i");
-MODULE_PARM(cis_speed, "i");
-MODULE_PARM(io_speed, "i");
 
 /*====================================================================*/
 
@@ -392,6 +381,7 @@ void unregister_ss_entry(ss_entry_t ss_entry)
 #ifdef PCMCIA_DEBUG
 	    remove_proc_entry("clients", s->proc);
 #endif
+	    remove_proc_entry(name, proc_pccard);
 	}
     }
 #endif

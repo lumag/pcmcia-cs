@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.298 2000/03/07 23:39:23
+    i82365.c 1.299 2000/03/13 18:29:40
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.298 2000/03/07 23:39:23 (David Hinds)";
+"i82365.c 1.299 2000/03/13 18:29:40 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -209,8 +209,8 @@ typedef struct socket_info_t {
 #ifdef HAS_PROC_BUS
     struct proc_dir_entry *proc;
 #endif
-#ifdef CONFIG_PCI
     u_char		pci_irq_code;
+#ifdef CONFIG_PCI
     u_short		vendor, device;
     u_char		revision, bus, devfn;
     u_short		bcr;
@@ -444,6 +444,8 @@ static void i365_set_pair(socket_info_t *s, u_short reg, u_short data)
     
 ======================================================================*/
 
+#ifdef CONFIG_PCI
+
 static int __init get_pci_irq(socket_info_t *s)
 {
     u8 irq;
@@ -458,6 +460,8 @@ static int __init get_pci_irq(socket_info_t *s)
     s->cap.pci_irq = irq;
     return irq;
 }
+
+#endif
 
 static void __init cirrus_get_state(socket_info_t *s)
 {
@@ -1504,7 +1508,7 @@ static void __init add_pcic(int ns, int type)
 
 #ifdef CONFIG_PCI
     /* Can we use PCI interrupts for card status changes? */
-    if (pci_csc) {
+    if (pci_csc || pci_int) {
 	for (i = 0; i < ns; i++)
 	    if (!s[i].cap.pci_irq || !pci_scan(&s[i])) break;
 	use_pci = (i == ns);
@@ -1518,22 +1522,23 @@ static void __init add_pcic(int ns, int type)
 
 #ifdef CONFIG_PCI
     if (!mask)
-	printk(use_pci ? KERN_INFO "    PCI card interrupts," :
-	       KERN_INFO "    No interrupts!! ");
-    if (use_pci)
+	printk(KERN_INFO "    %s card interrupts,",
+	       (use_pci && pci_int) ? "PCI" : "NO");
+    if (use_pci && pci_csc)
 	printk(" PCI status changes\n");
 #endif
 
 #ifdef CONFIG_ISA
     /* Poll if only two sensible interrupts available */
-    if (!use_pci && !poll_interval) {
+    if (!(use_pci && pci_csc) && !poll_interval) {
 	u_int tmp = (mask & 0xff20);
 	tmp = tmp & (tmp-1);
 	if ((tmp & (tmp-1)) == 0)
 	    poll_interval = HZ;
     }
     /* Only try an ISA cs_irq if this is the first controller */
-    if (!use_pci && !grab_irq && (cs_irq || !poll_interval)) {
+    if (!(use_pci && pci_csc) && !grab_irq &&
+	(cs_irq || !poll_interval)) {
 	/* Avoid irq 12 unless it is explicitly requested */
 	u_int cs_mask = mask & ((cs_irq) ? (1<<cs_irq) : ~(1<<12));
 	for (isa_irq = 15; isa_irq > 0; isa_irq--)
@@ -1546,7 +1551,7 @@ static void __init add_pcic(int ns, int type)
     }
 #endif
     
-    if (!use_pci && !isa_irq) {
+    if (!(use_pci && pci_csc) && !isa_irq) {
 	if (poll_interval == 0)
 	    poll_interval = HZ;
 	printk(" polling interval = %d ms\n", poll_interval*1000/HZ);
@@ -1559,7 +1564,7 @@ static void __init add_pcic(int ns, int type)
 	s[i].cap.irq_mask = mask;
 	if (!use_pci)
 	    s[i].cap.pci_irq = 0;
-	if (pci_int && s[i].cap.pci_irq)
+	if (use_pci && pci_int)
 	    s[i].cap.irq_mask |= (1 << s[i].cap.pci_irq);
 	s[i].cs_irq = isa_irq;
 #ifdef CONFIG_PCI
@@ -1913,6 +1918,11 @@ static int i365_get_status(socket_info_t *s, u_int *value)
 	status = i365_get(s, O2_MODE_B);
 	*value |= (status & O2_MODE_B_VS1) ? 0 : SS_3VCARD;
 	*value |= (status & O2_MODE_B_VS2) ? 0 : SS_XVCARD;
+    } else if (s->type == IS_PD6729) {
+	socket_info_t *t = (s->psock) ? s : s+1;
+	status = pd67_ext_get(t, PD67_EXTERN_DATA);
+	*value |= (status & PD67_EXD_VS1(s->psock)) ? 0 : SS_3VCARD;
+	*value |= (status & PD67_EXD_VS2(s->psock)) ? 0 : SS_XVCARD;
     }
 #endif
 #ifdef CONFIG_ISA
@@ -1927,7 +1937,6 @@ static int i365_get_status(socket_info_t *s, u_int *value)
 	}
     }
 #endif
-    
     DEBUG(1, "i82365: GetStatus(%d) = %#4.4x\n", s-socket, *value);
     return 0;
 } /* i365_get_status */

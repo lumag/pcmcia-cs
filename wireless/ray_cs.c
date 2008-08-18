@@ -323,7 +323,7 @@ static char hop_pattern_length[] = { 1,
 };
 
 #if defined(PCMCIA_DEBUG) || defined(HAS_PROC_BUS)
-static char rcsid[] = " ray_cs.c,v 1.8 2000/02/29 02:18:11 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.9 2000/03/10 19:07:34 root Exp - Corey Thomas corey@world.std.com";
 #endif
 
 /*===========================================================================*/
@@ -1090,7 +1090,7 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
     }
     DEBUG(3,"ray_dev_start_xmit(skb=%p, dev=%p)\n",skb,dev);
 #ifndef HAVE_NETIF_QUEUE
-    if (netif_running(dev))
+    if (netif_queue_stopped(dev))
     {
         printk(KERN_NOTICE "ray_dev_start_xmit busy\n");
         return 1;
