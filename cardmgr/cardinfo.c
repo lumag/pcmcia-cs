@@ -2,7 +2,7 @@
 
     X Windows PCMCIA device control program
 
-    cardinfo.c 1.30 1999/10/26 18:55:10
+    cardinfo.c 1.31 2000/06/07 22:01:20
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -442,9 +442,7 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
-    if (access("/var/state/pcmcia", R_OK) == 0) {
-	stabfile = "/var/state/pcmcia/stab";
-    } else if (access("/var/lib/pcmcia", R_OK) == 0) {
+    if (access("/var/lib/pcmcia", R_OK) == 0) {
 	stabfile = "/var/lib/pcmcia/stab";
     } else {
 	stabfile = "/var/run/stab";

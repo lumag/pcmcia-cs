@@ -29,7 +29,7 @@
 #define MODULE
 #endif
 
-#include <linux/autoconf.h>
+#include <linux/config.h>
 #ifdef CONFIG_MODVERSIONS
 #define MODVERSIONS
 #include <linux/modversions.h>
@@ -194,19 +194,6 @@ static int auto_wep = 0; /* If set, it tries to figure out the wep mode */
 static int aux_bap = 0; /* Checks to see if the aux ports are needed to read
                            the bap, needed on some older cards and buses. */   
 
-#if (LINUX_VERSION_CODE < 0x2032b)
-#define netif_stop_queue(dev) do { (dev)->tbusy = 1; } while (0)
-#define netif_start_queue(dev) do { (dev)->tbusy = 0; } while (0)
-#define netif_wake_queue(dev) \
-    do { (dev)->tbusy = 0; mark_bh(NET_BH); } while (0)
-#define netif_mark_up(dev) do { (dev)->start = 1; } while (0)
-#define netif_mark_down(dev) do { (dev)->start = 0; } while (0)
-#define netif_device_present(dev) ((dev)->start)
-#else
-#define netif_mark_up(dev) do { } while (0)
-#define netif_mark_down(dev) do { } while (0)
-#endif
-
 #if (LINUX_VERSION_CODE > 0x20155)
 /* new kernel */
 MODULE_PARM(io,"1-4i");
@@ -231,19 +218,15 @@ MODULE_PARM(aux_bap,"i");
 #define cpu_to_le32(x) (x)
 #define le16_to_cpu(x) (x)
 #define cpu_to_le16(x) (x)
-#include <linux/bios32.h>
-#define net_device_stats enet_statistics
 #define KFREE_SKB(a,b)  dev_kfree_skb(a,b)
 #define PROC_REGISTER(a,b) proc_register_dynamic(a,b)
 #endif
 #if (LINUX_VERSION_CODE < 0x020311)
 #define PROC_UNREGISTER(root, entry) proc_unregister(root, (entry)->low_ino)
 #else
+#undef PROC_REGISTER
 #define PROC_REGISTER(root, entry) error
 #define PROC_UNREGISTER(root, entry) error
-#endif
-#if (LINUX_VERSION_CODE < 0x02030e)
-#define net_device device
 #endif
 
 #define min(x,y) ((x<y)?x:y)
@@ -549,7 +532,7 @@ typedef struct {
 #define BUSY_FID 0x10000
 
 static char *version =
-"airo.c 0.99zf 2000/03/25 16:27:17 (Benjamin Reed)";
+"airo.c 0.99zz 2000/05/26 09:40:55 (Benjamin Reed)";
 
 struct airo_info;
 
@@ -582,7 +565,9 @@ static void airo_interrupt( int irq, void* dev_id, struct pt_regs
 struct airo_info {
 	struct net_device_stats	stats;
 	int open;
+#if (LINUX_VERSION_CODE < 0x020363)
 	char name[8];
+#endif
 	struct net_device             *dev;
 	/* Note, we can have MAX_FIDS outstanding.  FIDs are 16-bits, so we
 	   use the high bit to mark wether it is in use. */
@@ -776,7 +761,9 @@ struct net_device *init_airo_card( unsigned short irq, int port )
 	dev->get_stats = &airo_get_stats;
 	dev->set_multicast_list = &airo_set_multicast_list;
 	dev->do_ioctl = &private_ioctl;
+#if (LINUX_VERSION_CODE < 0x020363)
 	dev->name = ((struct airo_info *)dev->priv)->name;
+#endif
 	ether_setup(dev);
 	dev->change_mtu = &airo_change_mtu;
 	dev->open = &airo_open;
@@ -1543,15 +1530,11 @@ static int proc_SSID_open( struct inode *inode, struct file *file );
 static int proc_config_open( struct inode *inode, struct file *file );
 static int proc_wepkey_open( struct inode *inode, struct file *file );
 
-
 static struct file_operations proc_statsdelta_ops = {
 	read:           proc_read,
 	open:           proc_statsdelta_open,
 	release:        proc_close
 };
-
-static struct inode_operations proc_inode_statsdelta_ops = {
-	&proc_statsdelta_ops};
 
 static struct file_operations proc_stats_ops = {
 	read:           proc_read,
@@ -1559,17 +1542,11 @@ static struct file_operations proc_stats_ops = {
 	release:        proc_close
 };
 
-static struct inode_operations proc_inode_stats_ops = {
-	&proc_stats_ops};
-
 static struct file_operations proc_status_ops = {
 	read:            proc_read,
 	open:            proc_status_open,
 	release:         proc_close
 };
-
-static struct inode_operations proc_inode_status_ops = {
-	&proc_status_ops};
 
 static struct file_operations proc_SSID_ops = {
 	read:          proc_read,
@@ -1578,18 +1555,12 @@ static struct file_operations proc_SSID_ops = {
 	release:       proc_close
 };
 
-static struct inode_operations proc_inode_SSID_ops = {
-	&proc_SSID_ops};
-
 static struct file_operations proc_config_ops = {
 	read:          proc_read,
 	write:         proc_write,
 	open:          proc_config_open,
 	release:       proc_close
 };
-
-static struct inode_operations proc_inode_config_ops = {
-	&proc_config_ops};
 
 static struct file_operations proc_wepkey_ops = {
 	read:          proc_read,
@@ -1598,8 +1569,25 @@ static struct file_operations proc_wepkey_ops = {
 	release:       proc_close
 };
 
+#if (LINUX_VERSION_CODE < 0x20355)
+static struct inode_operations proc_inode_statsdelta_ops = {
+	&proc_statsdelta_ops};
+
+static struct inode_operations proc_inode_stats_ops = {
+	&proc_stats_ops};
+
+static struct inode_operations proc_inode_status_ops = {
+	&proc_status_ops};
+
+static struct inode_operations proc_inode_SSID_ops = {
+	&proc_SSID_ops};
+
+static struct inode_operations proc_inode_config_ops = {
+	&proc_config_ops};
+
 static struct inode_operations proc_inode_wepkey_ops = {
 	&proc_wepkey_ops};
+#endif
 
 #if ((LINUX_VERSION_CODE > 0x20155) && (LINUX_VERSION_CODE < 0x20311))
 /*
@@ -1616,6 +1604,7 @@ static void airo_fill_inode( struct inode *i, int fill ) {
 }
 #endif
 
+#if (LINUX_VERSION_CODE < 0x20311)
 static struct file_operations airo_file_ops = {
 	NULL, // lseek
 	NULL, // read
@@ -1634,7 +1623,6 @@ static struct inode_operations airo_inode_ops = {
 	NULL, // lookup
 };
 
-#if (LINUX_VERSION_CODE < 0x20311)
 static struct proc_dir_entry airo_entry = {
 	0,
 	7,
@@ -2574,7 +2562,7 @@ static void add_airo_dev( struct net_device *dev ) {
 			
 			timer->function = timer_func;
 			timer->data = (u_long)dev;
-			timer->prev = timer->next = 0;
+			init_timer(timer);
 			/*Start off checking 5 secs */
 			timer->expires = RUN_AT( HZ * 5 );  
 			add_timer(timer);

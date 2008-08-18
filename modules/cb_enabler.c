@@ -2,7 +2,7 @@
 
     CardBus device enabler
 
-    cb_enabler.c 1.29 2000/03/31 19:56:11
+    cb_enabler.c 1.30 2000/05/23 22:57:03
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -63,7 +63,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.29 2000/03/31 19:56:11 (David Hinds)";
+"cb_enabler.c 1.30 2000/05/23 22:57:03 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -181,9 +181,9 @@ static void cb_detach(dev_link_t *link)
     driver_info_t *dev = link->priv;
     dev_link_t **linkp;
     bus_info_t *b = (void *)link->win;
-    
+
     DEBUG(0, "cb_detach(0x%p)\n", link);
-    
+
     /* Locate device structure */
     for (linkp = &dev->dev_list; *linkp; linkp = &(*linkp)->next)
 	if (*linkp == link) break;
@@ -192,16 +192,16 @@ static void cb_detach(dev_link_t *link)
 
     if (link->state & DEV_CONFIG)
 	cb_release((u_long)link);
-    
+
     /* Don't drop Card Services connection if we are the bus owner */
-    if ((b->flags != 0) && (link == b->owner)) {
+    if (b && (b->flags != 0) && (link == b->owner)) {
 	link->state |= DEV_STALE_LINK;
 	return;
     }
-    
+
     if (link->handle)
 	CardServices(DeregisterClient, link->handle);
-    
+
     *linkp = link->next;
     kfree(link);
     MOD_DEC_USE_COUNT;

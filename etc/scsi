@@ -47,16 +47,17 @@ case "$ACTION" in
     if [ -b /dev/$DEVICE ] ; then
 	rm_parts $ADDRESS "$PARTS"
     else
-	fuser -k /dev/$DEVICE > /dev/null
+	do_fuser -k /dev/$DEVICE > /dev/null
     fi
     exit $?
     ;;
 
 'check')
+    is_true $NO_CHECK && exit 0
     if [ -b /dev/$DEVICE ] ; then
-	fuser -s -m /dev/${DEVICE}* && exit 1
+	do_fuser -s -m /dev/${DEVICE}* && exit 1
     elif [ -c /dev/$DEVICE ] ; then
-	fuser -s /dev/${DEVICE}* && exit 1
+	do_fuser -s /dev/${DEVICE}* && exit 1
     fi
     ;;
 

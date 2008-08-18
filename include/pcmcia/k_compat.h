@@ -1,5 +1,5 @@
 /*
- * k_compat.h 1.124 2000/05/16 22:07:35
+ * k_compat.h 1.127 2000/06/05 22:48:01
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -45,6 +45,9 @@
 
 #define BLK_DEV_HDR		"linux/blk.h"
 #define NEW_MULTICAST
+#ifdef CONFIG_NET_PCMCIA_RADIO
+#define HAS_WIRELESS_EXTENSIONS
+#endif
 
 #define FREE_IRQ(i,d)		free_irq(i, d)
 #define REQUEST_IRQ(i,h,f,n,d)	request_irq(i,h,f,n,d)
@@ -85,14 +88,6 @@ typedef struct wait_queue *wait_queue_head_t;
 #endif
 #include <linux/module.h>
 
-#if (LINUX_VERSION_CODE < VERSION(2,1,18))
-#define MODULE_PARM(a,b)	extern int __bogus_decl
-#define MODULE_AUTHOR(a)	extern int __bogus_decl
-#define MODULE_DESCRIPTION(a)	extern int __bogus_decl
-#undef  GET_USE_COUNT
-#define GET_USE_COUNT(m)	mod_use_count_
-#endif
-
 #if (LINUX_VERSION_CODE < VERSION(2,1,45))
 #define F_INODE(file)		((file)->f_inode)
 #else
@@ -117,12 +112,6 @@ typedef struct wait_queue *wait_queue_head_t;
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,68))
 #define signal_pending(cur)	((cur)->signal & ~(cur)->blocked)
-#endif
-
-#if (LINUX_VERSION_CODE < VERSION(2,1,86))
-#define DEV_KFREE_SKB(skb)	dev_kfree_skb(skb, FREE_WRITE)
-#else
-#define DEV_KFREE_SKB(skb)	dev_kfree_skb(skb)
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,1,89))
@@ -252,10 +241,6 @@ extern void request_mem_region(unsigned long base, unsigned long num,
 extern void release_mem_region(unsigned long base, unsigned long num);
 #endif
 
-#if (LINUX_VERSION_CODE < VERSION(2,3,14))
-#define net_device		device
-#endif
-
 #if (LINUX_VERSION_CODE < VERSION(2,2,0))
 #define in_interrupt()		(intr_count)
 #endif
@@ -283,47 +268,6 @@ extern void release_mem_region(unsigned long base, unsigned long num);
     do { (dev)->part[(drive)*(minors)].nr_sects = size; \
 	if (size == 0) (dev)->part[(drive)*(minors)].start_sect = -1; \
 	resetup_one_dev(dev, drive); } while (0);
-#endif
-
-#if (LINUX_VERSION_CODE < VERSION(2,1,25))
-#define net_device_stats	enet_statistics
-#define skb_tx_check(dev, skb) \
-    do { if (skb == NULL) { dev_tint(dev); return 0; } \
-    if (skb->len <= 0) return 0; } while (0)
-#define add_rx_bytes(stats, n)	do { int x; x = (n); } while (0)
-#define add_tx_bytes(stats, n)	do { int x; x = (n); } while (0)
-#else
-#define skb_tx_check(dev, skb)	do { } while (0)
-#define add_rx_bytes(stats, n)	do { (stats)->rx_bytes += n; } while (0)
-#define add_tx_bytes(stats, n)	do { (stats)->tx_bytes += n; } while (0)
-#endif
-
-#if (LINUX_VERSION_CODE < VERSION(2,3,43))
-#define netif_stop_queue(dev)	set_bit(0, (void *)&(dev)->tbusy)
-#define netif_start_queue(dev)	clear_bit(0, (void *)&(dev)->tbusy)
-#define netif_wake_queue(dev) \
-    do { netif_start_queue(dev); mark_bh(NET_BH); } while (0)
-#define netif_device_attach(dev) \
-    do { (dev)->start = 1; netif_start_queue(dev); } while (0)
-#define netif_device_detach(dev) \
-    do { (dev)->start = 0; netif_stop_queue(dev); } while (0)
-#define netif_device_present(dev) ((dev)->start)
-#define netif_running(dev)	((dev)->start)
-#define netif_mark_up(dev)	do { (dev)->start = 1; } while (0)
-#define netif_mark_down(dev)	do { (dev)->start = 0; } while (0)
-#define netif_carrier_on(dev)	do { dev->flags |= IFF_RUNNING; } while (0)
-#define netif_carrier_off(dev)	do { dev->flags &= ~IFF_RUNNING; } while (0)
-#define netif_queue_stopped(dev) ((dev)->tbusy)
-#define tx_timeout_check(dev, tx_timeout) \
-    do { if (test_and_set_bit(0, (void *)&(dev)->tbusy) != 0) { \
-	if (jiffies - (dev)->trans_start < TX_TIMEOUT) return 1; \
-	tx_timeout(dev); \
-    } } while (0)
-#define dev_kfree_skb_irq(skb)	DEV_KFREE_SKB(skb)
-#else
-#define netif_mark_up(dev)	do { } while (0)
-#define netif_mark_down(dev)	do { } while (0)
-#define tx_timeout_check(d,h)	netif_stop_queue(d)
 #endif
 
 #if (LINUX_VERSION_CODE < VERSION(2,2,0))

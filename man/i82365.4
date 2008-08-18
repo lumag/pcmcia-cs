@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" i82365.4 1.34 2000/04/03 20:04:01
+.\" i82365.4 1.35 2000/05/19 17:14:16
 .\"
-.TH I82365 4 "2000/04/03 20:04:01" "pcmcia-cs"
+.TH I82365 4 "2000/05/19 17:14:16" "pcmcia-cs"
 .SH NAME
 i82365 \- Intel i82365sl PCMCIA controller driver
 
@@ -236,10 +236,10 @@ readers.
 .SH Options specific for Ricoh CardBus controllers
 .TP
 .BI irq_mode= n
-Selects the interrupt routing method.  A value of 1 selects ISA
-interrupt routing, and 2 selects interrupt routing via an external
-serial interrupt controller.  The default is to use whatever routing
-method is already enabled.
+Selects the interrupt routing method.  A value of 0 selects only PCI
+interrupts; 1 selects ISA interrupt routing, and 2 selects ISA
+interrupt routing via an external serial interrupt controller.  The
+default is to use whatever ISA routing method is already enabled.
 .TP
 .BI setup_time= n
 Sets the bus setup time, in internal clock cycles. The default is 3.

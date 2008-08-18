@@ -423,15 +423,9 @@
 #include <linux/ioport.h>
 #include <linux/fcntl.h>
 
-#ifdef IN_KERNEL_SOURCE		/* David : check this out ! */
 #ifdef CONFIG_NET_PCMCIA_RADIO
 #include <linux/wireless.h>		/* Wireless extensions */
-#endif	/* CONFIG_NET_PCMCIA_RADIO */
-#else	/* IN_KERNEL_SOURCE */
-#ifdef HAS_WIRELESS_EXTENSIONS
-#include <linux/wireless.h>		/* Wireless extensions */
-#endif	/* HAS_WIRELESS_EXTENSIONS */
-#endif	/* IN_KERNEL_SOURCE */
+#endif
 
 /* Pcmcia headers that we need */
 #include <pcmcia/cs_types.h>

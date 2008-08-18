@@ -2,43 +2,14 @@
  * Xircom CreditCard Ethernet Adapter IIps driver
  * Xircom Realport 10/100 (RE-100) driver 
  *
- * This driver originally was made by Werner Koch. Since the driver was left
- * unmaintained for some time, there have been some improvements and changes
- * since. These include supporting some of the "Realport" cards and develop-
- * ing enhancements to support the new ones.
- * It is made for CE2, CEM28, CEM33, CE33 and 
- * CEM56 cards. The CEM56 cards work both with their modem and ethernet
- * interface. The RealPort 10/100 Modem and similar cards are supported but
- * with some bugs which are being corrected as they are detected. 
+ * This driver supports various Xircom CreditCard Ethernet adapters
+ * including the CE2, CE IIps, RE-10, CEM28, CEM33, CE33, CEM56,
+ * CE3-100, CE3B, RE-100, REM10BT, and REM56G-100.
  * 
- * Code revised and maintained by Allan Baker Ortegon
- * al527261@prodigy.net.mx
  * Written originally by Werner Koch based on David Hinds' skeleton of the
- * PCMCIA driver. The code has been modified as to make the newer cards
- * available.
+ * PCMCIA driver.
  *
- * The latest code for the driver, information on the development project
- * for the Xircom RealPort and CE cards for the PCMCIA driver, and other
- * related material, can be found at the following URL, which is underway:
- * 
- * "http://xirc2ps.linuxbox.com/index.html"
- *
- * Any bugs regarding this driver, please send them to:
- * alanyuu@linuxbox.com
- *
- * The driver is still evolving and there are many cards which will benefit
- * from having alpha testers. If you have a particular card and would like
- * to be involved in this ongoing effort, please send mail to the maintainer.
- * 
- * Special thanks to David Hinds, to Xircom for the specifications and their
- * software development kit, and all others who may have colaborated in the
- * development of the driver: Koen Van Herck (Koen.Van.Herck@xircom.com),
- * 4PC GmbH Duesseldorf, David Luger, et al.
- * 
- *
- ************************************************************************
  * Copyright (c) 1997,1998 Werner Koch (dd9jn)
- * Copyright (c) 1999 Allan Baker Ortegon 
  *
  * This driver is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -86,9 +57,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/* Enable the bug fix for CEM56 to use modem and ethernet simultaneously */
-#define CEM56_FIX
 
 #include <pcmcia/config.h>
 #include <pcmcia/k_compat.h>
@@ -717,7 +685,7 @@ xirc2ps_attach(void)
     dev->do_ioctl = &do_ioctl;
     dev->set_multicast_list = &set_multicast_list;
     ether_setup(dev);
-    dev->name = local->node.dev_name;
+    init_dev_name(dev, local->node);
     dev->open = &do_open;
     dev->stop = &do_stop;
 #ifdef HAVE_NETIF_QUEUE
@@ -1128,13 +1096,10 @@ xirc2ps_config(dev_link_t * link)
     }
 
     if (local->dingo) {
-      #ifdef CEM56_FIX
 	conf_reg_t reg;
-      #endif
 	win_req_t req;
 	memreq_t mem;
 
-      #ifdef CEM56_FIX
 	/* Reset the modem's BAR to the correct value
 	 * This is necessary because in the RequestConfiguration call,
 	 * the base address of the ethernet port (BasePort1) is written
@@ -1156,7 +1121,6 @@ xirc2ps_config(dev_link_t * link)
 	    cs_error(link->handle, AccessConfigurationRegister, err);
 	    goto config_error;
 	}
-     #endif
 
 	/* There is no config entry for the Ethernet part which
 	 * is at 0x0800. So we allocate a window into the attribute
@@ -1235,8 +1199,9 @@ xirc2ps_config(dev_link_t * link)
 	goto config_error;
     }
 
-    link->state &= ~DEV_CONFIG_PENDING;
+    copy_dev_name(local->node, dev);
     link->dev = &local->node;
+    link->state &= ~DEV_CONFIG_PENDING;
 
     if (local->dingo)
 	do_reset(dev, 1); /* a kludge to make the cem56 work */

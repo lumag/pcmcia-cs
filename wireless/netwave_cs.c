@@ -64,7 +64,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
-#ifdef HAS_WIRELESS_EXTENSIONS
+#ifdef CONFIG_NET_PCMCIA_RADIO
 #include <linux/wireless.h>
 #endif
 
@@ -496,7 +496,7 @@ static dev_link_t *netwave_attach(void)
 #endif
 
     ether_setup(dev);
-    dev->name = priv->node.dev_name;
+    init_dev_name(dev, priv->node);
     dev->open = &netwave_open;
     dev->stop = &netwave_close;
     link->irq.Instance = dev;
@@ -843,10 +843,10 @@ static void netwave_pcmcia_config(dev_link_t *link) {
     CS_CHECK(ParseTuple, handle, &tuple, &parse);
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
-    
+
     /* Configure card */
     link->state |= DEV_CONFIG;
-	
+
     /*
      *  Try allocating IO ports.  This tries a few fixed addresses.
      *  If you want, you can also read the card's config table to
@@ -861,19 +861,19 @@ static void netwave_pcmcia_config(dev_link_t *link) {
 	cs_error(link->handle, RequestIO, i);
 	goto failed;
     }
-		
+
     /*
      *  Now allocate an interrupt line.  Note that this does not
      *  actually assign a handler to the interrupt.
      */
     CS_CHECK(RequestIRQ, handle, &link->irq);
-	
+
     /*
      *  This actually configures the PCMCIA socket -- setting up
      *  the I/O windows and the interrupt mapping.
      */
     CS_CHECK(RequestConfiguration, handle, &link->conf);
-    
+
     /*
      *  Allocate a 32K memory window.  Note that the dev_link_t
      *  structure provides space for one window handle -- if your
@@ -881,7 +881,7 @@ static void netwave_pcmcia_config(dev_link_t *link) {
      *  the handles in your private data structure, link->priv.
      */
     DEBUG(1, "Setting mem speed of %d\n", mem_speed);
-    
+
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
     req.Base = 0; req.Size = 0x8000;
     req.AccessSpeed = mem_speed;
@@ -889,24 +889,25 @@ static void netwave_pcmcia_config(dev_link_t *link) {
     CS_CHECK(RequestWindow, &link->win, &req);
     mem.CardOffset = 0x20000; mem.Page = 0; 
     CS_CHECK(MapMemPage, link->win, &mem);
-    
+
     /* Store base address of the common window frame */
     ramBase = ioremap(req.Base, 0x8000);
     ((netwave_private*)dev->priv)->ramBase = ramBase;
-    
+
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
     if (register_netdev(dev) != 0) {
 	printk(KERN_DEBUG "netwave_cs: register_netdev() failed\n");
 	goto failed;
     }
-	
+
+    copy_dev_name(priv->node, dev);
     link->dev = &priv->node;
     link->state &= ~DEV_CONFIG_PENDING;
 
     /* Reset card before reading physical address */
     netwave_doreset(dev->base_addr, ramBase);
-    
+
     /* Read the ethernet address and fill in the Netwave registers. */
     for (i = 0; i < 6; i++) 
 	dev->dev_addr[i] = readb(ramBase + NETWAVE_EREG_PA + i);
@@ -953,7 +954,7 @@ static void netwave_release(u_long arg) {
 	link->state |= DEV_STALE_CONFIG;
 	return;
     }
-	
+
     /* Don't bother checking to see if these succeed or not */
     if (link->win) {
 	iounmap(priv->ramBase);
@@ -962,9 +963,9 @@ static void netwave_release(u_long arg) {
     CardServices(ReleaseConfiguration, link->handle);
     CardServices(ReleaseIO, link->handle, &link->io);
     CardServices(ReleaseIRQ, link->handle, &link->irq);
- 
+
     link->state &= ~(DEV_CONFIG | DEV_STALE_CONFIG);
-    
+
 } /* netwave_release */
 
 /*

@@ -1,53 +1,72 @@
 /* EtherLinkXL.c: A 3Com EtherLink PCI III/XL ethernet driver for linux. */
 /*
-	Written 1996-1999 by Donald Becker.
+	Written 1996-2000 by Donald Becker.
 
-	This software may be used and distributed according to the terms
-	of the GNU Public License, incorporated herein by reference.
+	This software may be used and distributed according to the terms of
+	the GNU General Public License (GPL), incorporated herein by reference.
+	Drivers based on or derived from this code fall under the GPL and must
+	retain the authorship, copyright and license notice.  This file is not
+	a complete program and may only be used when the entire operating
+	system is licensed under the GPL.
 
 	This driver is for the 3Com "Vortex" and "Boomerang" series ethercards.
 	Members of the series include Fast EtherLink 3c590/3c592/3c595/3c597
 	and the EtherLink XL 3c900 and 3c905 cards.
 
-	The author may be reached as becker@CESDIS.gsfc.nasa.gov, or C/O
-	Center of Excellence in Space Data and Information Sciences
-	   Code 930.5, Goddard Space Flight Center, Greenbelt MD 20771
+	The author may be reached as becker@scyld.com, or C/O
+	Scyld Computing Corporation
+	410 Severn Ave., Suite 210
+	Annapolis MD 21403
+
+	Support and updates available at
+	http://www.scyld.com/network/vortex.html
 */
 
-static char *version =
-"3c59x.c:v0.99L 5/28/99 Donald Becker http://cesdis.gsfc.nasa.gov/linux/drivers/vortex.html\n";
+static const char versionA[] =
+"3c59x.c:v0.99Q 5/16/2000 Donald Becker, becker@scyld.com\n";
+static const char versionB[] =
+"  http://www.scyld.com/network/vortex.html\n";
 
-/* "Knobs" that adjust features and parameters. */
+/* The user-configurable values.
+   These may be modified when a driver module is loaded.*/
+
+static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+#define vortex_debug debug
+
+/* This driver uses 'options' to pass the media type, full-duplex flag, etc.
+   See media_tbl[] and the web page for the possible types.
+   There is no limit card count, MAX_UNITS limits only module options. */
+#define MAX_UNITS 8
+static int options[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1,};
+static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+
+/* Maximum events (Rx packets, etc.) to handle at each interrupt. */
+static int max_interrupt_work = 32;
+
 /* Set the copy breakpoint for the copy-only-tiny-frames scheme.
    Setting to > 1512 effectively disables this feature. */
 static const int rx_copybreak = 200;
 /* Allow setting MTU to a larger size, bypassing the normal ethernet setup. */
 static const int mtu = 1500;
-/* Maximum events (Rx packets, etc.) to handle at each interrupt. */
-static int max_interrupt_work = 32;
 
-/* Put out somewhat more debugging messages. (0: no msg, 1 minimal .. 6). */
-#define vortex_debug debug
-#ifdef VORTEX_DEBUG
-static int vortex_debug = VORTEX_DEBUG;
-#else
-static int vortex_debug = 1;
-#endif
+/* Operational parameters that are set at compile time. */
 
-/* Some values here only for performance evaluation and path-coverage
-   debugging. */
-static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
+/* Keep the ring sizes a power of two for compile efficiency.
+   The compiler will convert <unsigned>'%'<2^N> into a bit mask.
+   Making the Tx ring too large decreases the effectiveness of channel
+   bonding and packet priority.
+   There are no ill effects from too-large receive rings. */
+#define TX_RING_SIZE	16
+#define TX_QUEUE_LEN	10		/* Limit ring entries actually used.  */
+#define RX_RING_SIZE	32
 
-/* A few values that may be tweaked. */
+/* Operational parameters that usually are not changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  ((400*HZ)/1000)
 
-/* Keep the ring sizes a power of two for efficiency. */
-#define TX_RING_SIZE	16
-#define RX_RING_SIZE	32
 #define PKT_BUF_SZ		1536			/* Size of each temporary Rx buffer.*/
 
-#ifndef __OPTIMIZE__
+#if !defined(__OPTIMIZE__)
 #warning  You must compile this file with the correct options!
 #warning  See the last lines of the source file.
 #error You must compile this driver with "-O".
@@ -66,11 +85,9 @@ static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
 #endif
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/errno.h>
-#include <linux/in.h>
 #include <linux/ioport.h>
 #include <linux/malloc.h>
 #include <linux/interrupt.h>
@@ -78,17 +95,13 @@ static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#if LINUX_VERSION_CODE < 0x20155
-#include <linux/bios32.h>
-#endif
-#include <asm/irq.h>			/* For NR_IRQS only. */
+#include <asm/irq.h>
 #include <asm/bitops.h>
 #include <asm/io.h>
+#include <asm/byteorder.h>
 
 /* Kernel compatibility defines, some common to David Hinds' PCMCIA package.
    This is only in the support-all-kernels source code. */
-
-#include <linux/delay.h>
 
 #if (LINUX_VERSION_CODE <= 0x20100)
 #ifndef __alpha__
@@ -97,10 +110,6 @@ static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
 #define iounmap(v) \
 	do { if ((u_long)(v) > 0x100000) vfree(v); } while (0)
 #endif
-#endif
-#if LINUX_VERSION_CODE <= 0x20139
-#define	net_device_stats enet_statistics
-#define NETSTATS_VER2
 #endif
 #if LINUX_VERSION_CODE < 0x20138
 #define test_and_set_bit(val, addr) set_bit(val, addr)
@@ -113,68 +122,34 @@ static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
 #define PCI_SUPPORT_VER2
 #endif
 #if LINUX_VERSION_CODE < 0x20159
-#define DEV_FREE_SKB(skb) dev_kfree_skb (skb, FREE_WRITE);
+#define dev_free_skb(skb) dev_kfree_skb (skb, FREE_WRITE);
 #else  /* Grrr, incompatible changes should change the name. */
-#define DEV_FREE_SKB(skb) dev_kfree_skb(skb);
+#define dev_free_skb(skb) dev_kfree_skb(skb);
 #endif
 #if ! defined(CAP_NET_ADMIN)
 #define capable(CAP_XXX) (suser())
 #endif
-#if LINUX_VERSION_CODE < 0x2030e
-#define net_device device
-#endif
-#ifndef HAVE_NETIF_QUEUE
-#define netif_stop_queue(dev) set_bit(0, (void *)&(dev)->tbusy)
-#define netif_start_queue(dev) clear_bit(0, (void *)&(dev)->tbusy)
-#define netif_wake_queue(dev) \
-    do { netif_start_queue(dev); mark_bh(NET_BH); } while (0)
-#define netif_device_attach(dev) \
-    do { (dev)->start = 1; netif_start_queue(dev); } while (0)
-#define netif_device_detach(dev) \
-    do { (dev)->start = 0; netif_stop_queue(dev); } while (0)
-#define netif_device_present(dev) ((dev)->start)
-#define netif_running(dev) ((dev)->start)
-#define netif_mark_up(dev) do { (dev)->start = 1; } while (0)
-#define netif_mark_down(dev) do { (dev)->start = 0; } while (0)
-#define netif_queue_stopped(dev) ((dev)->tbusy)
-#define tx_timeout_check(dev, tx_timeout) \
-    do { if (test_and_set_bit(0, (void *)&(dev)->tbusy) != 0) { \
-	if (jiffies - (dev)->trans_start < TX_TIMEOUT) return 1; \
-	tx_timeout(dev); \
-    } } while (0)
-#define dev_kfree_skb_irq(skb) DEV_FREE_SKB(skb)
-#else
-#define tx_timeout_check(dev, handler) netif_stop_queue(dev)
-#define netif_mark_up(dev) do { } while (0)
-#define netif_mark_down(dev) do { } while (0)
-#endif
 
-#if defined(MODULE) && LINUX_VERSION_CODE > 0x20115
-MODULE_AUTHOR("Donald Becker <becker@cesdis.gsfc.nasa.gov>");
+#define virt_to_le32desc(addr)  cpu_to_le32(virt_to_bus(addr))
+#define le32desc_to_virt(addr)  bus_to_virt(le32_to_cpu(addr))
+
+MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("3Com 3c590/3c900 series Vortex/Boomerang driver");
 MODULE_PARM(debug, "i");
-MODULE_PARM(options, "1-" __MODULE_STRING(8) "i");
-MODULE_PARM(full_duplex, "1-" __MODULE_STRING(8) "i");
+MODULE_PARM(options, "1-" __MODULE_STRING(MAX_UNITS) "i");
+MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");
 MODULE_PARM(rx_copybreak, "i");
 MODULE_PARM(max_interrupt_work, "i");
-MODULE_PARM(compaq_ioaddr, "i");
-MODULE_PARM(compaq_irq, "i");
-MODULE_PARM(compaq_device_id, "i");
-#endif
 
 /* Operational parameter that usually are not changed. */
-
-/* The Vortex size is twice that of the original EtherLinkIII series: the
-   runtime register window, window 1, is now always mapped in.
-   The Boomerang size is twice as large as the Vortex -- it has additional
-   bus master control registers. */
-#define VORTEX_TOTAL_SIZE 0x20
-#define BOOMERANG_TOTAL_SIZE 0x40
 
 /* Set iff a MII transceiver on any interface requires mdio preamble.
    This only set with the original DP83840 on older 3c905 boards, so the extra
    code size of a per-interface flag is not worthwhile. */
 static char mii_preamble_required = 0;
+
+/* Values here only for performance evaluation and path-coverage debugging. */
+static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
 
 /*
 				Theory of Operation
@@ -184,11 +159,10 @@ I. Board Compatibility
 This device driver is designed for the 3Com FastEtherLink and FastEtherLink
 XL, 3Com's PCI to 10/100baseT adapters.  It also works with the 10Mbs
 versions of the FastEtherLink cards.  The supported product IDs are
-  3c590, 3c592, 3c595, 3c597, 3c900, 3c905
+in the pci_tbl[] list.
 
 The related ISA 3c515 is supported with a separate driver, 3c515.c, included
-with the kernel source or available from
-    cesdis.gsfc.nasa.gov:/pub/linux/drivers/3c515.html
+with the kernel source.
 
 II. Board-specific settings
 
@@ -236,9 +210,9 @@ copying cost of copying a frame to a correctly-sized skbuff.
 
 IIIC. Synchronization
 The driver runs as two independent, single-threaded flows of control.
-One is the send-packet routine, which is single threaded by the tx
-queue system.  The other thread is the interrupt handler, which is
-single threaded by the hardware and other software.
+One is the send-packet routine, which is single threaded by the tx queue
+system.  The other thread is the interrupt handler, which is single
+threaded by the hardware and other software.
 
 IV. Notes
 
@@ -248,9 +222,9 @@ The name "Vortex" is the internal 3Com project name for the PCI ASIC, and
 the EISA version is called "Demon".  According to Terry these names come
 from rides at the local amusement park.
 
-The new chips support both ethernet (1.5K) and FDDI (4.5K) packet sizes!
-This driver only supports ethernet packets because of the skbuff allocation
-limit of 4K.
+The new chips support both ethernet (1.5K) and FDDI (4.5K) packet sizes.
+This driver only supports ethernet packets on some kernels because of the
+skbuff allocation limit of 4K.
 */
 
 /* This table drives the PCI probe routines.  It's mostly boilerplate in all
@@ -268,69 +242,41 @@ struct pci_id_info {
 							 long ioaddr, int irq, int chip_idx, int fnd_cnt);
 };
 
-enum { IS_VORTEX=1, IS_BOOMERANG=2, IS_CYCLONE=4,
-	   HAS_PWR_CTRL=0x10, HAS_MII=0x20, HAS_NWAY=0x40, HAS_CB_FNS=0x80, };
+/* The Vortex size is twice that of the original EtherLinkIII series: the
+   runtime register window, window 1, is now always mapped in.
+   The Boomerang size is twice as large as the Vortex -- it has additional
+   bus master control registers. */
+#define VORTEX_SIZE 0x20
+#define BOOMERANG_SIZE 0x40
+#define CYCLONE_SIZE 0x80
+enum { IS_VORTEX=1, IS_BOOMERANG=2, IS_CYCLONE=4, IS_TORNADO=8,
+	   HAS_PWR_CTRL=0x10, HAS_MII=0x20, HAS_NWAY=0x40, HAS_CB_FNS=0x80,
+	   EEPROM_8BIT=0x200, INVERT_LED_PWR=0x400, INVERT_MII_PWR=0x800, };
 static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 									struct net_device *dev, long ioaddr,
 									int irq, int dev_id, int card_idx);
 static struct pci_id_info pci_tbl[] = {
-	{"3c590 Vortex 10Mbps",			0x10B7, 0x5900, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_VORTEX, 32, vortex_probe1},
-	{"3c595 Vortex 100baseTx",		0x10B7, 0x5950, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_VORTEX, 32, vortex_probe1},
-	{"3c595 Vortex 100baseT4",		0x10B7, 0x5951, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_VORTEX, 32, vortex_probe1},
-	{"3c595 Vortex 100base-MII",	0x10B7, 0x5952, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_VORTEX, 32, vortex_probe1},
-	{"3Com Vortex",					0x10B7, 0x5900, 0xff00,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG, 64, vortex_probe1},
-	{"3c900 Boomerang 10baseT",		0x10B7, 0x9000, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG, 64, vortex_probe1},
-	{"3c900 Boomerang 10Mbps Combo", 0x10B7, 0x9001, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG, 64, vortex_probe1},
-	{"3c900 Cyclone 10Mbps Combo", 0x10B7, 0x9005, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE, 128, vortex_probe1},
-	{"3c900B-FL Cyclone 10base-FL",	0x10B7, 0x900A, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE, 128, vortex_probe1},
-	{"3c905 Boomerang 100baseTx",	0x10B7, 0x9050, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG|HAS_MII, 64, vortex_probe1},
-	{"3c905 Boomerang 100baseT4",	0x10B7, 0x9051, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG|HAS_MII, 64, vortex_probe1},
-	{"3c905B Cyclone 100baseTx",	0x10B7, 0x9055, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY, 128, vortex_probe1},
-	{"3c905B Cyclone 10/100/BNC",	0x10B7, 0x9058, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY, 128, vortex_probe1},
-	{"3c905B-FX Cyclone 100baseFx",	0x10B7, 0x905A, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE, 128, vortex_probe1},
-	{"3c905C Tornado",	0x10B7, 0x9200, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE, 128, vortex_probe1},
-	{"3c980 Cyclone",	0x10B7, 0x9800, 0xfff0,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE, 128, vortex_probe1},
-	{"3cSOHO100-TX Hurricane",	0x10B7, 0x7646, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE, 128, vortex_probe1},
-	{"3c555 Laptop Hurricane",	0x10B7, 0x5055, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE, 128, vortex_probe1},
 	{"3c575 Boomerang CardBus",		0x10B7, 0x5057, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG|HAS_MII, 64, vortex_probe1},
-	{"3CCFE575 Cyclone CardBus",	0x10B7, 0x5157, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS,
-	 128, vortex_probe1},
+	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG|HAS_MII|EEPROM_8BIT,
+	 64, vortex_probe1},
+	{"3CCFE575BT Cyclone CardBus",	0x10B7, 0x5157, 0xffff,
+	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS|
+	 EEPROM_8BIT|INVERT_LED_PWR, 128, vortex_probe1},
 	{"3CCFE575CT Cyclone CardBus",	0x10B7, 0x5257, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS,
-	 128, vortex_probe1},
+	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS|
+	 EEPROM_8BIT|INVERT_MII_PWR, 128, vortex_probe1},
 	{"3CCFE656 Cyclone CardBus",	0x10B7, 0x6560, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS,
-	 128, vortex_probe1},
-	{"3CCFEM656 Cyclone CardBus",	0x10B7, 0x6562, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS,
-	 128, vortex_probe1},
-	{"3CCFEM656 Cyclone CardBus",	0x10B7, 0x6564, 0xffff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS,
-	 128, vortex_probe1},
+	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS|
+	 EEPROM_8BIT|INVERT_LED_PWR|INVERT_MII_PWR, 128, vortex_probe1},
+	{"3CCFEM656B Cyclone CardBus",	0x10B7, 0x6562, 0xffff,
+	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS|
+	 EEPROM_8BIT|INVERT_LED_PWR|INVERT_MII_PWR, 128, vortex_probe1},
+	{"3CCFEM656C Cyclone CardBus",	0x10B7, 0x6564, 0xffff,
+	 PCI_USES_IO|PCI_USES_MASTER, IS_CYCLONE|HAS_NWAY|HAS_CB_FNS|
+	 EEPROM_8BIT|INVERT_MII_PWR, 128, vortex_probe1},
 	{"3c575 series CardBus (unknown version)", 0x10B7, 0x5057, 0xf0ff,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG|HAS_MII, 64, vortex_probe1},
-	{"3Com Boomerang (unknown version)",	0x10B7, 0x9000, 0xff00,
-	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG, 64, vortex_probe1},
+	 PCI_USES_IO|PCI_USES_MASTER, IS_BOOMERANG|HAS_MII|
+	 EEPROM_8BIT|INVERT_LED_PWR, 64, vortex_probe1},
 	{0,},						/* 0 terminated list. */
 };
 
@@ -432,7 +378,8 @@ enum Window7 {					/* Window 7: Bus Master control. */
 /* Boomerang bus master control registers. */
 enum MasterCtrl {
 	PktStatus = 0x20, DownListPtr = 0x24, FragAddr = 0x28, FragLen = 0x2c,
-	TxFreeThreshold = 0x2f, UpPktStatus = 0x30, UpListPtr = 0x38,
+	DownPollRate = 0x2d, TxFreeThreshold = 0x2f,
+	UpPktStatus = 0x30, UpListPtr = 0x38,
 };
 
 /* The Rx and Tx descriptor lists.
@@ -470,6 +417,7 @@ enum tx_desc_status {
 /* Chip features we care about in vp->capabilities, read from the EEPROM. */
 enum ChipCaps { CapBusMaster=0x20, CapPwrMgmt=0x2000 };
 
+#define PRIV_ALIGN	15 	/* Required alignment mask */
 struct vortex_private {
 	/* The Rx and Tx rings should be quad-word-aligned. */
 	struct boom_rx_desc rx_ring[RX_RING_SIZE];
@@ -479,15 +427,17 @@ struct vortex_private {
 	struct sk_buff* tx_skbuff[TX_RING_SIZE];
 	struct net_device *next_module;
 	void *priv_addr;
-	unsigned int cur_rx, cur_tx;		/* The next free ring entry */
-	unsigned int dirty_rx, dirty_tx;	/* The ring entries to be free()ed. */
-	struct net_device_stats stats;
+	struct boom_rx_desc *rx_head_desc;
+	unsigned int cur_rx, dirty_rx;		/* Producer/consumer ring indices */
+	unsigned int rx_buf_sz;				/* Based on MTU+slack. */
+	struct boom_tx_desc *tx_desc_tail;
+	unsigned int cur_tx, dirty_tx;
 	struct sk_buff *tx_skb;		/* Packet being eaten by bus master ctrl.  */
-
-	/* PCI configuration space information. */
-	u8 pci_bus, pci_devfn;		/* PCI bus location, for power management. */
+	long last_reset;
+	struct net_device_stats stats;
 	char *cb_fn_base;			/* CardBus function status addr space. */
-	int chip_id;
+	int chip_id, drv_flags;
+	u8 pci_bus, pci_devfn;		/* PCI configuration space information. */
 
 	/* The remainder are related to chip state, mostly media selection. */
 	struct timer_list timer;	/* Media selection timer. */
@@ -498,16 +448,16 @@ struct vortex_private {
 		bus_master:1,				/* Vortex can only do a fragment bus-m. */
 		full_bus_master_tx:1, full_bus_master_rx:2, /* Boomerang  */
 		hw_csums:1,				/* Has hardware checksums. */
-		tx_full:1,
-		open:1,
-		reap:1;
+		tx_full:1, restart_tx:1,
+		open:1, reap:1,
+		polling:1;
 	u16 status_enable;
 	u16 intr_enable;
 	u16 available_media;				/* From Wn3_Options. */
 	u16 capabilities, info1, info2;		/* Various, from EEPROM. */
 	u16 advertising;					/* NWay media advertisement */
 	unsigned char phys[2];				/* MII device addresses. */
-	u16 deferred;
+	u16 deferred_irqs;
 };
 
 /* The action to take with a media selection timer tick.
@@ -538,16 +488,16 @@ static struct media_table {
   { "Default",	 0,			0xFF, XCVR_10baseT, 10000},
 };
 
-#ifndef CARDBUS
-static int vortex_scan(struct net_device *dev, struct pci_id_info pci_tbl[]);
-#endif
 static void vortex_up(struct net_device *dev);
 static void vortex_down(struct net_device *dev);
 static int vortex_open(struct net_device *dev);
+static void set_media_type(struct net_device *dev);
+static void start_operation(struct net_device *dev);
 static void mdio_sync(long ioaddr, int bits);
 static int mdio_read(long ioaddr, int phy_id, int location);
 static void mdio_write(long ioaddr, int phy_id, int location, int value);
 static void vortex_timer(unsigned long arg);
+static void vortex_tx_timeout(struct net_device *dev);
 static int vortex_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int vortex_rx(struct net_device *dev);
@@ -560,24 +510,10 @@ static void set_rx_mode(struct net_device *dev);
 static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void acpi_wake(int pci_bus, int pci_devfn);
 static void acpi_set_WOL(struct net_device *dev);
-static void vortex_tx_timeout(struct net_device *dev);
 
 
-/* This driver uses 'options' to pass the media type, full-duplex flag, etc. */
-/* Option count limit only -- unlimited interfaces are supported. */
-#define MAX_UNITS 8
-static int options[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1,};
-static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 /* A list of all installed Vortex devices, for removing the driver module. */
 static struct net_device *root_vortex_dev = NULL;
-
-#ifdef MODULE
-#ifndef CARDBUS
-/* Variables to work-around the Compaq PCI BIOS32 problem. */
-static int compaq_ioaddr = 0, compaq_irq = 0, compaq_device_id = 0x5900;
-#endif
-
-#ifdef CARDBUS
 
 #include <pcmcia/driver_ops.h>
 
@@ -694,179 +630,23 @@ struct driver_operations vortex_ops = {
 	"3c575_cb", vortex_attach, vortex_suspend, vortex_resume, vortex_detach
 };
 
-#endif  /* Cardbus support */
-
-
 int init_module(void)
 {
-	if (vortex_debug)
-		printk(KERN_INFO "%s", version);
-#ifdef CARDBUS
+	if (debug)
+		printk(KERN_INFO "%s" KERN_INFO "%s", versionA, versionB);
 	register_driver(&vortex_ops);
 	return 0;
-#else
-	return vortex_scan(0, pci_tbl);
-#endif
 }
-
-#else
-int tc59x_probe(struct net_device *dev)
-{
-	static int did_version = -1;
-	if (++did_version <= 0)
-		printk(KERN_INFO "%s", version);
-	return vortex_scan(dev, pci_tbl);
-}
-#endif  /* not MODULE */
-
-#ifndef CARDBUS
-static int vortex_scan(struct net_device *dev, struct pci_id_info pci_tbl[])
-{
-	int cards_found = 0;
-
-	/* Allow an EISA-only driver. */
-#if defined(CONFIG_PCI) || (defined(MODULE) && !defined(NO_PCI))
-	/* Ideally we would detect all cards in slot order.  That would
-	   be best done a central PCI probe dispatch, which wouldn't work
-	   well with the current structure.  So instead we detect 3Com cards
-	   in slot order. */
-	if (pcibios_present()) {
-		static int pci_index = 0;
-		unsigned char pci_bus, pci_device_fn;
-
-		for (;pci_index < 0xff; pci_index++) {
-			u16 vendor, device, pci_command, new_command;
-			int chip_idx, irq;
-			long ioaddr;
-
-			if (pcibios_find_class (PCI_CLASS_NETWORK_ETHERNET << 8, pci_index,
-									&pci_bus, &pci_device_fn)
-				!= PCIBIOS_SUCCESSFUL)
-				break;
-			pcibios_read_config_word(pci_bus, pci_device_fn,
-									 PCI_VENDOR_ID, &vendor);
-			pcibios_read_config_word(pci_bus, pci_device_fn,
-									 PCI_DEVICE_ID, &device);
-			for (chip_idx = 0; pci_tbl[chip_idx].vendor_id; chip_idx++)
-				if (vendor == pci_tbl[chip_idx].vendor_id
-					&& (device & pci_tbl[chip_idx].device_id_mask) ==
-					pci_tbl[chip_idx].device_id)
-					break;
-			if (pci_tbl[chip_idx].vendor_id == 0) 		/* Compiled out! */
-				continue;
-
-			/* The Cyclone requires config space re-write if powered down. */
-			acpi_wake(pci_bus, pci_device_fn);
-
-			{
-#if LINUX_VERSION_CODE >= 0x2030d
-				struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
-				ioaddr = pdev->resource[0].start;
-				irq = pdev->irq;
-#elif LINUX_VERSION_CODE >= 0x20155
-				struct pci_dev *pdev = pci_find_slot(pci_bus, pci_device_fn);
-				ioaddr = pdev->base_address[0] & ~3;
-				irq = pdev->irq;
-#else
-				u32 pci_ioaddr;
-				u8 pci_irq_line;
-				pcibios_read_config_byte(pci_bus, pci_device_fn,
-										 PCI_INTERRUPT_LINE, &pci_irq_line);
-				pcibios_read_config_dword(pci_bus, pci_device_fn,
-										  PCI_BASE_ADDRESS_0, &pci_ioaddr);
-				ioaddr = pci_ioaddr & ~3;;
-				irq = pci_irq_line;
-#endif
-			}
-
-			if (ioaddr == 0) {
-				printk(KERN_WARNING "  A 3Com network adapter has been found, "
-					   "however it has not been assigned an I/O address.\n"
-					   "  You may need to power-cycle the machine for this "
-					   "device to work!\n");
-				continue;
-			}
-
-			/* Activate the card. */
-			pcibios_read_config_word(pci_bus, pci_device_fn,
-									 PCI_COMMAND, &pci_command);
-			new_command = pci_command | PCI_COMMAND_MASTER|PCI_COMMAND_IO;
-			if (pci_command != new_command) {
-				printk(KERN_INFO "  The PCI BIOS has not enabled the device "
-					   "at %d/%d. Updating PCI command %4.4x->%4.4x.\n",
-					   pci_bus, pci_device_fn, pci_command, new_command);
-				pcibios_write_config_word(pci_bus, pci_device_fn,
-										  PCI_COMMAND, new_command);
-			}
-
-			dev = vortex_probe1(pci_bus, pci_device_fn, dev, ioaddr, irq,
-								chip_idx, cards_found);
-
-			if (dev) {
-				/* Get and check the latency values.  On the 3c590 series
-				   the latency timer must be set to the maximum value to avoid
-				   data corruption that occurs when the timer expires during
-				   a transfer -- a bug in the Vortex chip only. */
-				u8 pci_latency;
-				u8 new_latency = (device & 0xff00) == 0x5900 ? 248 : 32;
-				
-				pcibios_read_config_byte(pci_bus, pci_device_fn,
-										 PCI_LATENCY_TIMER, &pci_latency);
-				if (pci_latency < new_latency) {
-					printk(KERN_INFO "%s: Overriding PCI latency"
-						   " timer (CFLT) setting of %d, new value is %d.\n",
-						   dev->name, pci_latency, new_latency);
-					pcibios_write_config_byte(pci_bus, pci_device_fn,
-											  PCI_LATENCY_TIMER, new_latency);
-				}
-				dev = 0;
-				cards_found++;
-			}
-		}
-	}
-#endif /* NO_PCI */
-
-	/* Now check all slots of the EISA bus. */
-	if (EISA_bus) {
-		static long ioaddr = 0x1000;
-		for ( ; ioaddr < 0x9000; ioaddr += 0x1000) {
-			int device_id;
-			if (check_region(ioaddr, VORTEX_TOTAL_SIZE))
-				continue;
-			/* Check the standard EISA ID register for an encoded '3Com'. */
-			if (inw(ioaddr + 0xC80) != 0x6d50)
-				continue;
-			/* Check for a product that we support, 3c59{2,7} any rev. */
-			device_id = (inb(ioaddr + 0xC82)<<8) + inb(ioaddr + 0xC83);
-			if ((device_id & 0xFF00) != 0x5900)
-				continue;
-			vortex_probe1(0, 0, dev, ioaddr, inw(ioaddr + 0xC88) >> 12,
-						  4, cards_found);
-			dev = 0;
-			cards_found++;
-		}
-	}
-
-#ifdef MODULE
-	/* Special code to work-around the Compaq PCI BIOS32 problem. */
-	if (compaq_ioaddr) {
-		vortex_probe1(0, 0, dev, compaq_ioaddr, compaq_irq,
-					  compaq_device_id, cards_found++);
-		dev = 0;
-	}
-#endif
-
-	return cards_found ? 0 : -ENODEV;
-}
-#endif  /* ! Cardbus */
 
 static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 									struct net_device *dev, long ioaddr,
-									int irq, int chip_idx, int card_idx)
+									int irq, int chip_idx, int find_cnt)
 {
 	struct vortex_private *vp;
+	void *priv_mem;
 	int option;
 	unsigned int eeprom[0x40], checksum = 0;		/* EEPROM contents */
+	int drv_flags = pci_tbl[chip_idx].drv_flags;
 	int i;
 
 	dev = init_etherdev(dev, 0);
@@ -874,18 +654,21 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 	printk(KERN_INFO "%s: 3Com %s at 0x%lx, ",
 		   dev->name, pci_tbl[chip_idx].name, ioaddr);
 
+	/* Make certain elements e.g. descriptor lists are aligned. */
+	priv_mem = kmalloc(sizeof(*vp) + PRIV_ALIGN, GFP_KERNEL);
+	/* Check for the very unlikely case of no memory. */
+	if (priv_mem == NULL) {
+		printk(" INTERFACE MEMORY ALLOCATION FAILURE.\n");
+		return NULL;
+	}
+
 	dev->base_addr = ioaddr;
 	dev->irq = irq;
 	dev->mtu = mtu;
 
-	/* Make certain the descriptor lists are aligned. */
-	{
-		void *mem = kmalloc(sizeof(*vp) + 15, GFP_KERNEL);
-		vp =  (void *)(((long)mem + 15) & ~15);
-		memset(vp, 0, sizeof(*vp));
-		vp->priv_addr = mem;
-	}
-	dev->priv = vp;
+	dev->priv = vp = (void *)(((long)priv_mem + PRIV_ALIGN) & ~PRIV_ALIGN);
+	memset(vp, 0, sizeof(*vp));
+	vp->priv_addr = priv_mem;
 
 	vp->next_module = root_vortex_dev;
 	root_vortex_dev = dev;
@@ -893,12 +676,13 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 	vp->chip_id = chip_idx;
 	vp->pci_bus = pci_bus;
 	vp->pci_devfn = pci_devfn;
+	vp->drv_flags = drv_flags;
 
 	/* The lower four bits are the media type. */
 	if (dev->mem_start)
 		option = dev->mem_start;
-	else if (card_idx < MAX_UNITS)
-		option = options[card_idx];
+	else if (find_cnt < MAX_UNITS)
+		option = options[find_cnt];
 	else
 		option = -1;
 
@@ -911,7 +695,7 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 		vp->full_duplex = 0;
 		vp->bus_master = 0;
 	}
-	if (card_idx < MAX_UNITS  &&  full_duplex[card_idx] > 0)
+	if (find_cnt < MAX_UNITS  &&  full_duplex[find_cnt] > 0)
 		vp->full_duplex = 1;
 
 	vp->force_fd = vp->full_duplex;
@@ -921,14 +705,10 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 	EL3WINDOW(0);
 	for (i = 0; i < 0x40; i++) {
 		int timer;
-#ifdef CARDBUS
-		outw(0x230 + i, ioaddr + Wn0EepromCmd);
-#else
-		outw(EEPROM_Read + i, ioaddr + Wn0EepromCmd);
-#endif
-		/* Pause for at least 162 us. for the read to take place. */
-		for (timer = 10; timer >= 0; timer--) {
-			udelay(162);
+		outw((drv_flags & EEPROM_8BIT ? 0x230 : EEPROM_Read) + i,
+			 ioaddr + Wn0EepromCmd);
+		/* The read may take up to 162 usec. */
+		for (timer = 162*5; timer >= 0; timer--) {
 			if ((inw(ioaddr + Wn0EepromCmd) & 0x8000) == 0)
 				break;
 		}
@@ -942,7 +722,7 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 			checksum ^= eeprom[i++];
 		checksum = (checksum ^ (checksum >> 8)) & 0xff;
 	}
-	if (checksum != 0x00)
+	if (checksum != 0x00  &&  !(drv_flags & IS_TORNADO))
 		printk(" ***INVALID CHECKSUM %4.4x*** ", checksum);
 
 	for (i = 0; i < 3; i++)
@@ -957,20 +737,28 @@ static struct net_device *vortex_probe1(int pci_bus, int pci_devfn,
 	printk(", IRQ %s\n", __irq_itoa(dev->irq));
 #else
 	printk(", IRQ %d\n", dev->irq);
+	printk(KERN_INFO "  product code '%c%c' rev %02x date %02d-%02d-%02d\n",
+		   eeprom[6]&0xff, eeprom[6]>>8, eeprom[0x14],
+		   (eeprom[4]>>5) & 15, eeprom[4] & 31, eeprom[4]>>9);
 	/* Tell them about an invalid IRQ. */
-	if (vortex_debug && (dev->irq <= 0 || dev->irq >= NR_IRQS))
+	if (vortex_debug && (dev->irq <= 0))
 		printk(KERN_WARNING " *** Warning: IRQ %d is unlikely to work! ***\n",
 			   dev->irq);
 #endif
 
-	if (pci_tbl[vp->chip_id].drv_flags & HAS_CB_FNS) {
+	if (drv_flags & HAS_CB_FNS) {
 		u32 fn_st_addr;			/* Cardbus function status space */
 		pcibios_read_config_dword(pci_bus, pci_devfn, PCI_BASE_ADDRESS_2,
 								  &fn_st_addr);
 		if (fn_st_addr)
 			vp->cb_fn_base = ioremap(fn_st_addr & ~3, 128);
-		printk(KERN_INFO "%s: CardBus functions mapped %8.8x->%p\n",
+		printk(KERN_INFO "%s: CardBus functions mapped %8.8x->%p.\n",
 			   dev->name, fn_st_addr, vp->cb_fn_base);
+		if (drv_flags & INVERT_MII_PWR) {
+			EL3WINDOW(2);
+			outw(inw(ioaddr + Wn2_ResetOptions) | 0x4000,
+				 ioaddr + Wn2_ResetOptions);
+		}
 	}
 
 	/* Extract our information from the EEPROM data. */
@@ -1085,18 +873,26 @@ static void wait_for_completion(struct net_device *dev, int cmd)
 static void
 vortex_up(struct net_device *dev)
 {
-	long ioaddr = dev->base_addr;
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
-	union wn3_config config;
+	long ioaddr = dev->base_addr;
 	int i;
 	
-	/* Should be if(HAS_ACPI) */
 	acpi_wake(vp->pci_bus, vp->pci_devfn);
 
-	/* Before initializing select the active media port. */
-	EL3WINDOW(3);
-	config.i = inl(ioaddr + Wn3_Config);
+	if (vp->cb_fn_base) {
+		u16 opts;
+		EL3WINDOW(2);
+		opts = inw(ioaddr + Wn2_ResetOptions);
+		/* Inverted LED polarity */
+		if (vp->drv_flags & INVERT_LED_PWR)
+			opts |= 0x0010;
+		/* Inverted polarity of MII power bit */
+		if (vp->drv_flags & INVERT_MII_PWR)
+			opts |= 0x4000;
+		outw(opts, ioaddr + Wn2_ResetOptions);
+	}
 
+	/* Before initializing select the active media port. */
 	if (vp->media_override != 7) {
 		if (vortex_debug > 1)
 			printk(KERN_INFO "%s: Media override to transceiver %d (%s).\n",
@@ -1104,7 +900,7 @@ vortex_up(struct net_device *dev)
 				   media_tbl[vp->media_override].name);
 		dev->if_port = vp->media_override;
 	} else if (vp->autoselect) {
-		if (pci_tbl[vp->chip_id].drv_flags & HAS_NWAY)
+		if (vp->drv_flags & HAS_NWAY)
 			dev->if_port = XCVR_NWAY;
 		else {
 			/* Find first available media type, starting with 100baseTx. */
@@ -1115,87 +911,28 @@ vortex_up(struct net_device *dev)
 	} else
 		dev->if_port = vp->default_media;
 
-	init_timer(&vp->timer);
-	vp->timer.expires = jiffies + media_tbl[dev->if_port].wait;
-	vp->timer.data = (unsigned long)dev;
-	vp->timer.function = &vortex_timer;		/* timer handler */
-	add_timer(&vp->timer);
+	vp->full_duplex = vp->force_fd;
+
+	vp->status_enable = SetStatusEnb | HostError|IntReq|StatsFull|TxComplete|
+		(vp->full_bus_master_tx ? DownComplete : TxAvailable) |
+		(vp->full_bus_master_rx ? UpComplete : RxComplete) |
+		(vp->bus_master ? DMADone : 0);
+	vp->intr_enable = SetIntrEnb | IntLatch | TxAvailable | RxComplete |
+		StatsFull | HostError | TxComplete | IntReq
+		| (vp->bus_master ? DMADone : 0) | UpComplete | DownComplete;
 
 	if (vortex_debug > 1)
-		printk(KERN_DEBUG "%s: Initial media type %s.\n",
-			   dev->name, media_tbl[dev->if_port].name);
+		printk(KERN_DEBUG "%s: Initial media type %s %s-duplex.\n",
+			   dev->name, media_tbl[dev->if_port].name,
+			   vp->full_duplex ? "full":"half");
 
-	vp->full_duplex = vp->force_fd;
-	config.u.xcvr = dev->if_port;
-	if ( ! (pci_tbl[vp->chip_id].drv_flags & HAS_NWAY))
-		outl(config.i, ioaddr + Wn3_Config);
-
-	if (dev->if_port == XCVR_MII || dev->if_port == XCVR_NWAY) {
-		int mii_reg1, mii_reg5;
-		EL3WINDOW(4);
-		/* Read BMSR (reg1) only to clear old status. */
-		mii_reg1 = mdio_read(ioaddr, vp->phys[0], 1);
-		mii_reg5 = mdio_read(ioaddr, vp->phys[0], 5);
-		if (mii_reg5 == 0xffff  ||  mii_reg5 == 0x0000)
-			;					/* No MII device or no link partner report */
-		else if ((mii_reg5 & 0x0100) != 0	/* 100baseTx-FD */
-				 || (mii_reg5 & 0x00C0) == 0x0040) /* 10T-FD, but not 100-HD */
-			vp->full_duplex = 1;
-		if (vortex_debug > 1)
-			printk(KERN_INFO "%s: MII #%d status %4.4x, link partner capability %4.4x,"
-				   " setting %s-duplex.\n", dev->name, vp->phys[0],
-				   mii_reg1, mii_reg5, vp->full_duplex ? "full" : "half");
-		EL3WINDOW(3);
-	}
-
-	/* Set the full-duplex bit. */
-	outb(((vp->info1 & 0x8000) || vp->full_duplex ? 0x20 : 0) |
-		 (dev->mtu > 1500 ? 0x40 : 0), ioaddr + Wn3_MAC_Ctrl);
-
-	if (vortex_debug > 1) {
-		printk(KERN_DEBUG "%s: vortex_open() InternalConfig %8.8x.\n",
-			dev->name, config.i);
-	}
-
-	wait_for_completion(dev, TxReset);
-	wait_for_completion(dev, RxReset);
-
-	outw(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
+	set_media_type(dev);
+	start_operation(dev);
 
 	if (vortex_debug > 1) {
 		EL3WINDOW(4);
 		printk(KERN_DEBUG "%s: vortex_open() irq %d media status %4.4x.\n",
 			   dev->name, dev->irq, inw(ioaddr + Wn4_Media));
-	}
-
-	/* Set the station address and mask in window 2 each time opened. */
-	EL3WINDOW(2);
-	for (i = 0; i < 6; i++)
-		outb(dev->dev_addr[i], ioaddr + i);
-	for (; i < 12; i+=2)
-		outw(0, ioaddr + i);
-	if (vp->cb_fn_base) {
-		u_short n = inw(ioaddr + Wn2_ResetOptions);
-		/* Inverted LED polarity */
-		if ((pci_tbl[vp->chip_id].device_id != 0x5257) &&
-			(pci_tbl[vp->chip_id].device_id != 0x6564))
-			n |= 0x0010;
-		/* Inverted polarity of MII power bit */
-		if ((pci_tbl[vp->chip_id].device_id == 0x6560) ||
-			(pci_tbl[vp->chip_id].device_id == 0x6562) ||
-			(pci_tbl[vp->chip_id].device_id == 0x6564) ||
-			(pci_tbl[vp->chip_id].device_id == 0x5257))
-			n |= 0x4000;
-		outw(n, ioaddr + Wn2_ResetOptions);
-	}
-
-	if (dev->if_port == XCVR_10base2)
-		/* Start the thinnet transceiver. We should really wait 50ms...*/
-		outw(StartCoax, ioaddr + EL3_CMD);
-	if (dev->if_port != XCVR_NWAY) {
-		EL3WINDOW(4);
-		outw((inw(ioaddr + Wn4_Media) & ~(Media_10TP|Media_SQE)) |
-			 media_tbl[dev->if_port].media_bits, ioaddr + Wn4_Media);
 	}
 
 	/* Switch to the stats window, and clear all stats by reading. */
@@ -1219,18 +956,24 @@ vortex_up(struct net_device *dev)
 		/* Initialize the RxEarly register as recommended. */
 		outw(SetRxThreshold + (1536>>2), ioaddr + EL3_CMD);
 		outl(0x0020, ioaddr + PktStatus);
-		outl(virt_to_bus(&vp->rx_ring[0]), ioaddr + UpListPtr);
-	}
-	if (vp->full_bus_master_tx) { 		/* Boomerang bus master Tx. */
-		dev->hard_start_xmit = &boomerang_start_xmit;
-		vp->cur_tx = vp->dirty_tx = 0;
-		outb(PKT_BUF_SZ>>8, ioaddr + TxFreeThreshold); /* Room for a packet. */
-		/* Clear the Rx, Tx rings. */
 		for (i = 0; i < RX_RING_SIZE; i++)
 			vp->rx_ring[i].status = 0;
+		vp->rx_head_desc = &vp->rx_ring[0];
+		outl(virt_to_bus(vp->rx_head_desc), ioaddr + UpListPtr);
+	}
+	if (vp->full_bus_master_tx) { 		/* Boomerang bus master Tx. */
+		vp->cur_tx = vp->dirty_tx = 0;
+		vp->tx_desc_tail = &vp->tx_ring[TX_RING_SIZE - 1];
+		if (vp->drv_flags & IS_BOOMERANG) {
+			/* Room for a packet, to avoid long DownStall delays. */
+			outb(PKT_BUF_SZ>>8, ioaddr + TxFreeThreshold);
+		} else
+			outb(20, ioaddr + DownPollRate);
+		/* Clear the Tx ring. */
 		for (i = 0; i < TX_RING_SIZE; i++)
 			vp->tx_skbuff[i] = 0;
 		outl(0, ioaddr + DownListPtr);
+		vp->restart_tx = 1;
 	}
 	/* Set receiver mode: presumably accept b-case and phys addr only. */
 	set_rx_mode(dev);
@@ -1239,13 +982,6 @@ vortex_up(struct net_device *dev)
 	outw(RxEnable, ioaddr + EL3_CMD); /* Enable the receiver. */
 	outw(TxEnable, ioaddr + EL3_CMD); /* Enable transmitter. */
 	/* Allow status bits to be seen. */
-	vp->status_enable = SetStatusEnb | HostError|IntReq|StatsFull|TxComplete|
-		(vp->full_bus_master_tx ? DownComplete : TxAvailable) |
-		(vp->full_bus_master_rx ? UpComplete : RxComplete) |
-		(vp->bus_master ? DMADone : 0);
-	vp->intr_enable = SetIntrEnb | IntLatch | TxAvailable | RxComplete |
-		StatsFull | HostError | TxComplete | IntReq
-		| (vp->bus_master ? DMADone : 0) | UpComplete | DownComplete;
 	outw(vp->status_enable, ioaddr + EL3_CMD);
 	/* Ack all pending events, and set active indicator mask. */
 	outw(AckIntr | IntLatch | TxAvailable | RxEarly | IntReq,
@@ -1253,6 +989,71 @@ vortex_up(struct net_device *dev)
 	outw(vp->intr_enable, ioaddr + EL3_CMD);
 	if (vp->cb_fn_base)			/* The PCMCIA people are idiots.  */
 		writel(0x8000, vp->cb_fn_base + 4);
+
+	init_timer(&vp->timer);
+	vp->timer.expires = jiffies + media_tbl[dev->if_port].wait;
+	vp->timer.data = (unsigned long)dev;
+	vp->timer.function = &vortex_timer;		/* timer handler */
+	add_timer(&vp->timer);
+}
+
+static void set_media_type(struct net_device *dev)
+{
+	struct vortex_private *vp = (struct vortex_private *)dev->priv;
+	long ioaddr = dev->base_addr;
+	union wn3_config config;
+
+	EL3WINDOW(3);
+	config.i = inl(ioaddr + Wn3_Config);
+	config.u.xcvr = dev->if_port;
+	if ( ! (vp->drv_flags & HAS_NWAY))
+		outl(config.i, ioaddr + Wn3_Config);
+
+	if (dev->if_port == XCVR_MII || dev->if_port == XCVR_NWAY) {
+		int mii_reg1, mii_reg5;
+		EL3WINDOW(4);
+		/* Read BMSR (reg1) only to clear old status. */
+		mii_reg1 = mdio_read(ioaddr, vp->phys[0], 1);
+		mii_reg5 = mdio_read(ioaddr, vp->phys[0], 5);
+		if (mii_reg5 == 0xffff  ||  mii_reg5 == 0x0000)
+			;					/* No MII device or no link partner report */
+		else if ((mii_reg5 & 0x0100) != 0	/* 100baseTx-FD */
+				 || (mii_reg5 & 0x00C0) == 0x0040) /* 10T-FD, but not 100-HD */
+			vp->full_duplex = 1;
+		if (vortex_debug > 1)
+			printk(KERN_INFO "%s: MII #%d status %4.4x, link partner capability %4.4x,"
+				   " setting %s-duplex.\n", dev->name, vp->phys[0],
+				   mii_reg1, mii_reg5, vp->full_duplex ? "full" : "half");
+	}
+	if (dev->if_port == XCVR_10base2)
+		/* Start the thinnet transceiver. We should really wait 50ms...*/
+		outw(StartCoax, ioaddr + EL3_CMD);
+	if (dev->if_port != XCVR_NWAY) {
+		EL3WINDOW(4);
+		outw((inw(ioaddr + Wn4_Media) & ~(Media_10TP|Media_SQE)) |
+			 media_tbl[dev->if_port].media_bits, ioaddr + Wn4_Media);
+	}
+
+	/* Set the full-duplex bit. */
+	EL3WINDOW(3);
+	outb(((vp->info1 & 0x8000) || vp->full_duplex ? 0x20 : 0) |
+		 (dev->mtu > 1500 ? 0x40 : 0), ioaddr + Wn3_MAC_Ctrl);
+}
+
+static void start_operation(struct net_device *dev)
+{
+	long ioaddr = dev->base_addr;
+	int i;
+
+	wait_for_completion(dev, TxReset);
+	wait_for_completion(dev, RxReset);
+	outw(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
+	/* Reset the station address and mask. */
+	EL3WINDOW(2);
+	for (i = 0; i < 6; i++)
+		outb(dev->dev_addr[i], ioaddr + i);
+	for (; i < 12; i+=2)
+		outw(0, ioaddr + i);
 }
 
 static int
@@ -1273,21 +1074,21 @@ vortex_open(struct net_device *dev)
 	if (vp->full_bus_master_rx) { /* Boomerang bus master. */
 		if (vortex_debug > 2)
 			printk(KERN_DEBUG "%s:  Filling in the Rx ring.\n", dev->name);
+		vp->rx_buf_sz = (dev->mtu <= 1500 ? PKT_BUF_SZ : dev->mtu + 32);
 		for (i = 0; i < RX_RING_SIZE; i++) {
 			struct sk_buff *skb;
-			vp->rx_ring[i].next = cpu_to_le32(virt_to_bus(&vp->rx_ring[i+1]));
-			vp->rx_ring[i].status = 0;	/* Clear complete bit. */
-			vp->rx_ring[i].length = cpu_to_le32(PKT_BUF_SZ | LAST_FRAG);
-			skb = dev_alloc_skb(PKT_BUF_SZ);
+			vp->rx_ring[i].length = cpu_to_le32(vp->rx_buf_sz | LAST_FRAG);
+			vp->rx_ring[i].next = virt_to_le32desc(&vp->rx_ring[i+1]);
+			skb = dev_alloc_skb(vp->rx_buf_sz);
 			vp->rx_skbuff[i] = skb;
 			if (skb == NULL)
 				break;			/* Bad news!  */
 			skb->dev = dev;			/* Mark as being used by this device. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-			vp->rx_ring[i].addr = cpu_to_le32(virt_to_bus(skb->tail));
+			vp->rx_ring[i].addr = virt_to_le32desc(skb->tail);
 		}
 		/* Wrap the ring. */
-		vp->rx_ring[i-1].next = cpu_to_le32(virt_to_bus(&vp->rx_ring[0]));
+		vp->rx_ring[i-1].next = virt_to_le32desc(&vp->rx_ring[0]);
 	}
 	if (vp->full_bus_master_tx)
 		dev->hard_start_xmit = &boomerang_start_xmit;
@@ -1313,6 +1114,30 @@ static void vortex_timer(unsigned long data)
 	if (vortex_debug > 1)
 		printk(KERN_DEBUG "%s: Media selection timer tick happened, %s.\n",
 			   dev->name, media_tbl[dev->if_port].name);
+
+	/* This only works with bus-master (non-3c590) chips. */
+	if (vp->cur_tx - vp->dirty_tx > 1  &&
+		(jiffies - dev->trans_start) > TX_TIMEOUT) {
+		/* Check for blocked interrupts. */
+		if (inw(ioaddr + EL3_STATUS) & IntLatch) {
+			/* We have a blocked IRQ line.  This should never happen, but
+			   we recover as best we can.*/
+			if ( ! vp->polling) {
+				if (jiffies - vp->last_reset > 10*HZ) {
+					printk(KERN_ERR "%s: IRQ %d is physically blocked! "
+						   "Failing back to low-rate polling.\n",
+						   dev->name, dev->irq);
+					vp->last_reset = jiffies;
+				}
+				vp->polling = 1;
+			}
+			vortex_interrupt(dev->irq, dev, 0);
+			next_tick = jiffies + 2;
+		} else {
+			vortex_tx_timeout(dev);
+			vp->last_reset = jiffies;
+		}
+	}
 
 	disable_irq(dev->irq);
 	old_window = inw(ioaddr + EL3_CMD) >> 13;
@@ -1401,7 +1226,7 @@ static void vortex_timer(unsigned long data)
 
 	vp->timer.expires = jiffies + next_tick;
 	add_timer(&vp->timer);
-	if (vp->deferred)
+	if (vp->deferred_irqs)
 		outw(FakeIntr, ioaddr + EL3_CMD);
 	return;
 }
@@ -1412,8 +1237,11 @@ static void vortex_tx_timeout(struct net_device *dev)
 	long ioaddr = dev->base_addr;
 
 	printk(KERN_ERR "%s: transmit timed out, tx_status %2.2x status %4.4x.\n",
-		   dev->name, inb(ioaddr + TxStatus),
-		   inw(ioaddr + EL3_STATUS));
+		   dev->name, inb(ioaddr + TxStatus), inw(ioaddr + EL3_STATUS));
+	EL3WINDOW(4);
+	printk(KERN_ERR "  diagnostics: fifo %04x net %04x dma %8.8x.\n",
+		   inw(ioaddr + Wn4_FIFODiag), inw(ioaddr + Wn4_NetDiag),
+		   inl(ioaddr + PktStatus));
 	/* Slight code bloat to be user friendly. */
 	if ((inb(ioaddr + TxStatus) & 0x88) == 0x88)
 		printk(KERN_ERR "%s: Transmitter encountered 16 collisions --"
@@ -1452,12 +1280,16 @@ static void vortex_tx_timeout(struct net_device *dev)
 		if (vp->cur_tx - vp->dirty_tx > 0  &&  inl(ioaddr + DownListPtr) == 0)
 			outl(virt_to_bus(&vp->tx_ring[vp->dirty_tx % TX_RING_SIZE]),
 				 ioaddr + DownListPtr);
-		if (vp->tx_full && (vp->cur_tx - vp->dirty_tx <= TX_RING_SIZE - 1)) {
+		if (vp->tx_full && (vp->cur_tx - vp->dirty_tx <= TX_QUEUE_LEN - 1)) {
 			vp->tx_full = 0;
 			netif_start_queue(dev);
 		}
-		outb(PKT_BUF_SZ>>8, ioaddr + TxFreeThreshold);
-		outw(DownUnstall, ioaddr + EL3_CMD);
+		if (vp->drv_flags & IS_BOOMERANG) {
+			/* Room for a packet, to avoid long DownStall delays. */
+			outb(PKT_BUF_SZ>>8, ioaddr + TxFreeThreshold);
+			outw(DownUnstall, ioaddr + EL3_CMD);
+		} else
+			outb(20, ioaddr + DownPollRate);
 	} else
 		vp->stats.tx_dropped++;
 	
@@ -1528,7 +1360,9 @@ vortex_error(struct net_device *dev, int status)
 			   dev->name, fifo_diag);
 		/* Adapter failure requires Tx/Rx reset and reinit. */
 		if (vp->full_bus_master_tx) {
-			/* In this case, blow the card away */
+			if (vortex_debug)
+				printk(KERN_ERR "%s: PCI bus error, bus status %8.8x.\n",
+					   dev->name, inl(ioaddr + PktStatus));
 			vortex_down(dev);
 			wait_for_completion(dev, TotalReset | 0xff);
 			vortex_up(dev);
@@ -1570,7 +1404,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		/* ... and the packet rounded to a doubleword. */
 		outsl(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
-		DEV_FREE_SKB(skb);
+		dev_free_skb(skb);
 		if (inw(ioaddr + TxFree) > 1536) {
 			netif_start_queue(dev);
 		} else
@@ -1608,55 +1442,66 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vortex_private *vp = (struct vortex_private *)dev->priv;
 	long ioaddr = dev->base_addr;
+	int entry;
+	struct boom_tx_desc *prev_entry;
+	unsigned long flags;
+	int i;
 
 	tx_timeout_check(dev, vortex_tx_timeout);
 
-	{
-		/* Calculate the next Tx descriptor entry. */
-		int entry = vp->cur_tx % TX_RING_SIZE;
-		struct boom_tx_desc *prev_entry =
-			&vp->tx_ring[(vp->cur_tx-1) % TX_RING_SIZE];
-		unsigned long flags;
+	/* Calculate the next Tx descriptor entry. */
+	entry = vp->cur_tx % TX_RING_SIZE;
+	prev_entry = &vp->tx_ring[(vp->cur_tx-1) % TX_RING_SIZE];
 
-		if (vortex_debug > 3)
-			printk(KERN_DEBUG "%s: Trying to send a packet, Tx index %d.\n",
-				   dev->name, vp->cur_tx);
-		if (vp->tx_full) {
-			if (vortex_debug >0)
-				printk(KERN_WARNING "%s: Tx Ring full, refusing to send buffer.\n",
-					   dev->name);
-			return 1;
-		}
-		vp->tx_skbuff[entry] = skb;
-		vp->tx_ring[entry].next = 0;
-		vp->tx_ring[entry].addr = cpu_to_le32(virt_to_bus(skb->data));
-		vp->tx_ring[entry].length = cpu_to_le32(skb->len | LAST_FRAG);
-		vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded);
+	if (vortex_debug > 3)
+		printk(KERN_DEBUG "%s: Queuing Tx packet, index %d.\n",
+			   dev->name, vp->cur_tx);
+	/* Impossible error. */
+	if (vp->tx_full) {
+		if (vortex_debug >0)
+			printk(KERN_WARNING "%s: Tx Ring full, refusing to send buffer.\n",
+				   dev->name);
+		return 1;
+	}
+	vp->tx_skbuff[entry] = skb;
+	vp->tx_ring[entry].next = 0;
+	vp->tx_ring[entry].addr = virt_to_le32desc(skb->data);
+	vp->tx_ring[entry].length = cpu_to_le32(skb->len | LAST_FRAG);
+	vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded);
 
+	if (vp->drv_flags & IS_BOOMERANG) {
 		save_flags(flags);
 		cli();
 		/* Wait for the stall to complete. */
 		wait_for_completion(dev, DownStall);
-		prev_entry->next = cpu_to_le32(virt_to_bus(&vp->tx_ring[entry]));
+		vp->tx_desc_tail->next = virt_to_le32desc(&vp->tx_ring[entry]);
+		vp->tx_desc_tail = &vp->tx_ring[entry];
 		if (inl(ioaddr + DownListPtr) == 0) {
 			outl(virt_to_bus(&vp->tx_ring[entry]), ioaddr + DownListPtr);
 			queued_packet++;
 		}
 		outw(DownUnstall, ioaddr + EL3_CMD);
 		restore_flags(flags);
-
-		vp->cur_tx++;
-		if (vp->cur_tx - vp->dirty_tx > TX_RING_SIZE - 1)
-			vp->tx_full = 1;
-		else {					/* Clear previous interrupt enable. */
-#if defined(tx_interrupt_mitigation)
-			prev_entry->status &= cpu_to_le32(~TxIntrUploaded);
-#endif
-			netif_start_queue(dev);
+	} else {
+		vp->tx_desc_tail->next = virt_to_le32desc(&vp->tx_ring[entry]);
+		vp->tx_desc_tail = &vp->tx_ring[entry];
+		if (vp->restart_tx) {
+			outl(virt_to_bus(vp->tx_desc_tail), ioaddr + DownListPtr);
+			vp->restart_tx = 0;
+			queued_packet++;
 		}
-		dev->trans_start = jiffies;
-		return 0;
 	}
+	vp->cur_tx++;
+	if (vp->cur_tx - vp->dirty_tx >= TX_QUEUE_LEN)
+		vp->tx_full = 1;
+	else {					/* Clear previous interrupt enable. */
+#if defined(tx_interrupt_mitigation)
+		prev_entry->status &= cpu_to_le32(~TxIntrUploaded);
+#endif
+		netif_start_queue(dev);
+	}
+	dev->trans_start = jiffies;
+	return 0;
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up
@@ -1673,8 +1518,8 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	latency = inb(ioaddr + Timer);
 	status = inw(ioaddr + EL3_STATUS);
 	if (status & IntReq) {
-		status |= vp->deferred;
-		vp->deferred = 0;
+		status |= vp->deferred_irqs;
+		vp->deferred_irqs = 0;
 	}
 
 	if (status == 0xffff)
@@ -1718,7 +1563,7 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				dirty_tx++;
 			}
 			vp->dirty_tx = dirty_tx;
-			if (vp->tx_full && (vp->cur_tx - dirty_tx <= TX_RING_SIZE - 1)) {
+			if (vp->tx_full && (vp->cur_tx - dirty_tx < TX_QUEUE_LEN)) {
 				vp->tx_full = 0;
 				netif_wake_queue(dev);
 			}
@@ -1745,10 +1590,10 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				   "%4.4x.\n", dev->name, status);
 			/* Disable all pending interrupts. */
 			do {
-				vp->deferred |= status;
-				outw(SetStatusEnb | (~vp->deferred & vp->status_enable),
+				vp->deferred_irqs |= status;
+				outw(SetStatusEnb | (~vp->deferred_irqs & vp->status_enable),
 					 ioaddr + EL3_CMD);
-				outw(AckIntr | (vp->deferred & 0x7ff), ioaddr + EL3_CMD);
+				outw(AckIntr | (vp->deferred_irqs & 0x7ff), ioaddr + EL3_CMD);
 			} while ((status = inw(ioaddr + EL3_CMD)) & IntLatch);
 			/* The timer will reenable interrupts. */
 			del_timer(&vp->timer);
@@ -1880,7 +1725,7 @@ boomerang_rx(struct net_device *dev)
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				/* 'skb_put()' points to the start of sk_buff data area. */
 				memcpy(skb_put(skb, pkt_len),
-					   bus_to_virt(le32_to_cpu(vp->rx_ring[entry].addr)),
+					   le32desc_to_virt(vp->rx_ring[entry].addr),
 					   pkt_len);
 				rx_copy++;
 			} else {
@@ -1890,10 +1735,10 @@ boomerang_rx(struct net_device *dev)
 				vp->rx_skbuff[entry] = NULL;
 				temp = skb_put(skb, pkt_len);
 				/* Remove this checking code for final release. */
-				if (bus_to_virt(le32_to_cpu(vp->rx_ring[entry].addr)) != temp)
+				if (le32desc_to_virt(vp->rx_ring[entry].addr) != temp)
 					printk(KERN_ERR "%s: Warning -- the skbuff addresses do not match"
 						   " in boomerang_rx: %p vs. %p.\n", dev->name,
-						   bus_to_virt(le32_to_cpu(vp->rx_ring[entry].addr)),
+						   le32desc_to_virt(vp->rx_ring[entry].addr),
 						   temp);
 				rx_nocopy++;
 			}
@@ -1914,7 +1759,7 @@ boomerang_rx(struct net_device *dev)
 		entry = (++vp->cur_rx) % RX_RING_SIZE;
 	}
 	/* Refill the Rx ring buffers. */
-	for (; vp->dirty_rx < vp->cur_rx; vp->dirty_rx++) {
+	for (; vp->cur_rx - vp->dirty_rx > 0; vp->dirty_rx++) {
 		struct sk_buff *skb;
 		entry = vp->dirty_rx % RX_RING_SIZE;
 		if (vp->rx_skbuff[entry] == NULL) {
@@ -1923,7 +1768,7 @@ boomerang_rx(struct net_device *dev)
 				break;			/* Bad news!  */
 			skb->dev = dev;			/* Mark as being used by this device. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-			vp->rx_ring[entry].addr = cpu_to_le32(virt_to_bus(skb->tail));
+			vp->rx_ring[entry].addr = virt_to_le32desc(skb->tail);
 			vp->rx_skbuff[entry] = skb;
 		}
 		vp->rx_ring[entry].status = 0;	/* Clear complete bit. */
@@ -1992,14 +1837,14 @@ vortex_close(struct net_device *dev)
 #if LINUX_VERSION_CODE < 0x20100
 				vp->rx_skbuff[i]->free = 1;
 #endif
-				DEV_FREE_SKB(vp->rx_skbuff[i]);
+				dev_free_skb(vp->rx_skbuff[i]);
 				vp->rx_skbuff[i] = 0;
 			}
 	}
 	if (vp->full_bus_master_tx) { /* Free Boomerang bus master Tx buffers. */
 		for (i = 0; i < TX_RING_SIZE; i++)
 			if (vp->tx_skbuff[i]) {
-				DEV_FREE_SKB(vp->tx_skbuff[i]);
+				dev_free_skb(vp->tx_skbuff[i]);
 				vp->tx_skbuff[i] = 0;
 			}
 	}
@@ -2271,13 +2116,14 @@ void cleanup_module(void)
 	/* No need to check MOD_IN_USE, as sys_delete_module() checks. */
 	while (root_vortex_dev) {
 		struct vortex_private *vp=(void *)(root_vortex_dev->priv);
-		next_dev = vp->next_module;
 		unregister_netdev(root_vortex_dev);
 		outw(TotalReset, root_vortex_dev->base_addr + EL3_CMD);
 		release_region(root_vortex_dev->base_addr,
 					   pci_tbl[vp->chip_id].io_size);
+		next_dev = vp->next_module;
+		if (vp->priv_addr)
+			kfree(vp->priv_addr);
 		kfree(root_vortex_dev);
-		kfree(vp->priv_addr);
 		root_vortex_dev = next_dev;
 	}
 }

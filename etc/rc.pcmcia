@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# rc.pcmcia 1.31 1999/12/11 03:59:04 (David Hinds)
+# rc.pcmcia 1.32 2000/06/07 22:12:08 (David Hinds)
 #
 # This is designed to work in BSD as well as SysV init setups.  See
 # the HOWTO for customization instructions.
@@ -76,10 +76,7 @@ for x in "1" ; do
 
     start)
 	echo -n "Starting PCMCIA services:"
-	if [ -d /var/state/pcmcia ] ; then
-	    SC=/var/state/pcmcia/scheme
-	    RUN=/var/state/pcmcia
-	elif [ -d /var/lib/pcmcia ] ; then
+	if [ -d /var/lib/pcmcia ] ; then
 	    SC=/var/lib/pcmcia/scheme
 	    RUN=/var/lib/pcmcia
 	else

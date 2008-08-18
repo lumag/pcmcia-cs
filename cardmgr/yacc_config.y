@@ -1,6 +1,6 @@
 %{
 /*
- * yacc_config.y 1.49 1999/12/29 00:57:33
+ * yacc_config.y 1.50 2000/05/17 22:34:12
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -477,7 +477,7 @@ void yyerror(char *msg, ...)
 #if YYDEBUG
      fprintf(stderr, "%s\n", str);
 #else
-     syslog(LOG_INFO, "%s", str);
+     syslog(LOG_ERR, "%s", str);
 #endif
      va_end(ap);
 }

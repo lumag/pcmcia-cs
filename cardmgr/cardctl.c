@@ -2,7 +2,7 @@
 
     PCMCIA device control program
 
-    cardctl.c 1.53 2000/01/25 01:40:12
+    cardctl.c 1.54 2000/06/07 22:01:20
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -606,10 +606,7 @@ int main(int argc, char *argv[])
     int optch, errflg = 0;
     char *s, *opts = (getuid() == 0) ? "Vc:f:s:" : "V";
 
-    if (access("/var/state/pcmcia", R_OK) == 0) {
-	scheme = "/var/state/pcmcia/scheme";
-	stabfile = "/var/state/pcmcia/stab";
-    } else if (access("/var/lib/pcmcia", R_OK) == 0) {
+    if (access("/var/lib/pcmcia", R_OK) == 0) {
 	scheme = "/var/lib/pcmcia/scheme";
 	stabfile = "/var/lib/pcmcia/stab";
     } else {

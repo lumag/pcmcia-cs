@@ -8,7 +8,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    smc91c92_cs.c 1.96 2000/05/09 02:35:58
+    smc91c92_cs.c 1.98 2000/06/05 23:02:22
     
     This driver contains code written by Donald Becker
     (becker@cesdis.gsfc.nasa.gov), Rowan Hughes (x-csrdh@jcu.edu.au),
@@ -364,7 +364,7 @@ static dev_link_t *smc91c92_attach(void)
     dev->set_config = &s9k_config;
     dev->set_multicast_list = &set_rx_mode;
     ether_setup(dev);
-    dev->name = smc->node.dev_name;
+    init_dev_name(dev, smc->node);
     dev->open = &smc91c92_open;
     dev->stop = &smc91c92_close;
 #ifdef HAVE_NETIF_QUEUE
@@ -986,6 +986,7 @@ static void smc91c92_config(dev_link_t *link)
 	goto config_undo;
     }
 
+    copy_dev_name(smc->node, dev);
     link->dev = &smc->node;
     link->state &= ~DEV_CONFIG_PENDING;
 
@@ -1006,7 +1007,7 @@ static void smc91c92_config(dev_link_t *link)
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
     if (rev > 0) {
-	u_long mir, mcr, mii;
+	u_long mir, mcr;
 	ioaddr_t ioaddr = dev->base_addr;
 	SMC_SELECT_BANK(0);
 	mir = inw(ioaddr + MEMINFO) & 0xff;
@@ -1019,8 +1020,14 @@ static void smc91c92_config(dev_link_t *link)
 	else
 	    printk(KERN_INFO "  %lu kb", mir>>10);
 	SMC_SELECT_BANK(1);
-	mii = inw(ioaddr + CONFIG) & CFG_MII_SELECT;
-	printk(" buffer, %s xcvr\n", mii ? "MII" : if_names[dev->if_port]);
+	smc->cfg = inw(ioaddr + CONFIG) & ~CFG_AUI_SELECT;
+	smc->cfg |= CFG_NO_WAIT | CFG_16BIT | CFG_STATIC;
+	if (smc->manfid == MANFID_OSITECH)
+	    smc->cfg |= CFG_IRQ_SEL_1 | CFG_IRQ_SEL_0;
+	if ((rev >> 4) >= 7)
+	    smc->cfg |= CFG_MII_SELECT;
+	printk(" buffer, %s xcvr\n", (smc->cfg & CFG_MII_SELECT) ?
+	       "MII" : if_names[dev->if_port]);
     }
     
     return;
@@ -1816,9 +1823,6 @@ static void smc_reset(struct net_device *dev)
        Accept link errors, counter and Tx error interrupts. */
     outw(CTL_AUTO_RELEASE | CTL_TE_ENABLE | CTL_CR_ENABLE,
 	 ioaddr + CONTROL);
-    smc->cfg = inw(ioaddr + CONFIG) & ~CFG_AUI_SELECT;
-    smc->cfg |= CFG_NO_WAIT | CFG_16BIT | CFG_STATIC |
-	(smc->manfid == MANFID_OSITECH ? (CFG_IRQ_SEL_1 | CFG_IRQ_SEL_0) : 0);
     smc_set_xcvr(dev, dev->if_port);
     if ((smc->manfid == MANFID_OSITECH) &&
 	(smc->cardid != PRODID_OSITECH_SEVEN))

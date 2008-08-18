@@ -1,5 +1,5 @@
 /*
- * topic.h 1.11 2000/04/24 21:19:49
+ * topic.h 1.12 2000/06/09 21:24:57
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -25,7 +25,7 @@
  * other provisions required by the GPL.  If you do not delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
- * topic.h $Release$ 2000/04/24 21:19:49
+ * topic.h $Release$ 2000/06/09 21:24:57
  */
 
 #ifndef _LINUX_TOPIC_H
@@ -103,5 +103,14 @@ typedef struct topic_state_t {
     u_char		cdr;		/* TOPIC_CARD_DETECT */
     u_int		rcr;		/* TOPIC_REGISTER_CONTROL */
 } topic_state_t;
+
+#define TOPIC_PCIC_ID \
+    IS_TOPIC95_A, IS_TOPIC95_B, IS_TOPIC97, IS_TOPIC100
+
+#define TOPIC_PCIC_INFO \
+    { "Toshiba ToPIC95-A", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC95_A) }, \
+    { "Toshiba ToPIC95-B", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC95_B) }, \
+    { "Toshiba ToPIC97", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC97) }, \
+    { "Toshiba ToPIC100", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC100) }
 
 #endif /* _LINUX_TOPIC_H */

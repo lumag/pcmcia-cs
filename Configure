@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.156 2000/05/16 21:35:31
+# Configure 1.158 2000/06/05 22:49:22
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -142,6 +142,7 @@ cat << 'EOF' > $CONFIG_H
 #define _PCMCIA_CONFIG_H
 
 #define AUTOCONF_INCLUDED
+#define __IN_PCMCIA_PACKAGE__
 
 EOF
 
@@ -400,7 +401,7 @@ printconfig () {
     printflag "Power management (APM) support" CONFIG_PM
     printflag "SCSI support" CONFIG_SCSI
     printflag "Networking support" CONFIG_INET
-    printflag " Radio network interface support" CONFIG_NET_RADIO
+    printflag " Radio network interface support" CONFIG_NET_PCMCIA_RADIO
     printflag " Token Ring device support" CONFIG_TR
     printflag " Fast switching" CONFIG_NET_FASTROUTE
     printflag "Module version checking" CONFIG_MODVERSIONS
@@ -482,9 +483,9 @@ case $CONF_SRC in
 	symcheck CONFIG_INET register_netdev
 	symcheck CONFIG_NET_FASTROUTE dev_fastroute_stat
 	if [ -r /proc/net/wireless ] ; then
-	    CONFIG_NET_RADIO=y
+	    CONFIG_NET_PCMCIA_RADIO=y
 	else
-	    CONFIG_NET_RADIO=n
+	    CONFIG_NET_PCMCIA_RADIO=n
 	fi
 	symcheck CONFIG_MODVERSIONS printk_R
 	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
@@ -538,12 +539,15 @@ case $CONF_SRC in
 	else
 	    configcheck CONFIG_PM
 	fi
-	for C in CONFIG_PCI CONFIG_SCSI CONFIG_INET \
+	for C in CONFIG_PCI CONFIG_SCSI CONFIG_SERIAL CONFIG_INET \
 	    CONFIG_NET_FASTROUTE CONFIG_NET_RADIO CONFIG_TR \
 	    CONFIG_MODVERSIONS CONFIG_PROC_FS CONFIG_PARPORT \
-	    CONFIG_PARPORT_PC CONFIG_SERIAL ; do
+	    CONFIG_PARPORT_PC CONFIG_NET_PCMCIA_RADIO ; do
 	    configcheck $C
 	done
+	if [ $CONFIG_NET_RADIO = "y" ] ; then
+	    CONFIG_NET_PCMCIA_RADIO=y
+	fi
 	if [ $ARCH = "arm" ] ; then
 	    configcheck CONFIG_ARCH_BRUTUS
 	    configcheck CONFIG_ITSY
@@ -557,6 +561,9 @@ case $CONF_SRC in
 esac
 
 if [ "$USE_APM" != "y" ] ; then CONFIG_APM=n ; fi
+if [ ! -r ${LINUX}/include/linux/wireless.h ] ; then
+    CONFIG_NET_PCMCIA_RADIO=n
+fi
 printconfig
 echo ""
 
@@ -672,7 +679,8 @@ write_str UTS_VERSION
 echo "LINUX_VERSION_CODE=$VERSION_CODE" >> $CONFIG
 echo "LINUX_VERSION_CODE=$VERSION_CODE" >> $CONFIG_MK
 echo "#define LINUX_VERSION_CODE $VERSION_CODE" >> $CONFIG_H
-echo "#define KERNEL_VERSION(v,p,s)	(((v)<<16)+((p)<<8)+(s))" >> $CONFIG_H
+echo "#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))" \
+    >> $CONFIG_H
 echo "" >> $CONFIG
 echo "" >> $CONFIG_MK
 echo "" >> $CONFIG_H
@@ -687,13 +695,6 @@ fi
 if [ $CONFIG_PARPORT_PC = "y" -a $VERSION_CODE -ge `version 2 2 0` -a \
      $VERSION_CODE -lt `version 2 3 6` ] ; then
     echo "DO_PARPORT=y" >> $CONFIG_MK
-fi
-
-if [ "$CONFIG_NET_RADIO" = "y" -a \
-      -r ${LINUX}/include/linux/wireless.h ] ; then
-    echo "#define HAS_WIRELESS_EXTENSIONS 1" >> $CONFIG_H
-else
-    echo "#undef  HAS_WIRELESS_EXTENSIONS" >> $CONFIG_H
 fi
 
 SCSI=$LINUX/drivers/scsi

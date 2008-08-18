@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.312 2000/05/10 19:30:15
+    i82365.c 1.317 2000/06/09 22:14:25
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.312 2000/05/10 19:30:15 (David Hinds)";
+"i82365.c 1.317 2000/06/09 22:14:25 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -256,20 +256,12 @@ static int pci_writel(socket_info_t *s, int r, u_int v)
 /* These definitions must match the pcic table! */
 typedef enum pcic_id {
 #ifdef CONFIG_ISA
-    IS_I82365A, IS_I82365B, IS_I82365DF,
-    IS_IBM, IS_RF5Cx96, IS_VLSI, IS_VG468, IS_VG469,
-    IS_PD6710, IS_PD672X, IS_VT83C469,
+    IS_I82365A, IS_I82365B, IS_I82365DF, IS_IBM, IS_RF5Cx96,
+    IS_VLSI, IS_VG468, IS_VG469, IS_PD6710, IS_PD672X, IS_VT83C469,
 #endif
 #ifdef CONFIG_PCI
-    IS_I82092AA, IS_OM82C092G,
-    IS_PD6729, IS_PD6730, IS_PD6832,
-    IS_OZ6729, IS_OZ6730, IS_OZ6832, IS_OZ6836, IS_OZ6812,
-    IS_RL5C465, IS_RL5C466, IS_RL5C475, IS_RL5C476, IS_RL5C478,
-    IS_SMC34C90,
-    IS_TI1130, IS_TI1131, IS_TI1250A, IS_TI1220, IS_TI1221, IS_TI1210,
-    IS_TI1251A, IS_TI1251B, IS_TI1450, IS_TI1225, IS_TI1211, IS_TI1420,
-    IS_TI1031, IS_TI1410,
-    IS_TOPIC95_A, IS_TOPIC95_B, IS_TOPIC97, IS_TOPIC100,
+    IS_I82092AA, IS_OM82C092G, CIRRUS_PCIC_ID, O2MICRO_PCIC_ID,
+    RICOH_PCIC_ID, SMC_PCIC_ID, TI_PCIC_ID, TOPIC_PCIC_ID,
     IS_UNK_PCI, IS_UNK_CARDBUS
 #endif
 } pcic_id;
@@ -279,7 +271,6 @@ typedef enum pcic_id {
 #define IS_CIRRUS	0x0002
 #define IS_TI		0x0004
 #define IS_O2MICRO	0x0008
-#define IS_VIA		0x0010
 #define IS_TOPIC	0x0020
 #define IS_RICOH	0x0040
 #define IS_UNKNOWN	0x0400
@@ -311,43 +302,13 @@ static pcic_t pcic[] = {
     { "Vadem VG-469", IS_VADEM|IS_VG_PWR },
     { "Cirrus PD6710", IS_CIRRUS },
     { "Cirrus PD672x", IS_CIRRUS },
-    { "VIA VT83C469", IS_CIRRUS|IS_VIA },
+    { "VIA VT83C469", IS_CIRRUS },
 #endif
 #ifdef CONFIG_PCI
     { "Intel 82092AA", IS_PCI, ID(INTEL, 82092AA_0) },
     { "Omega Micro 82C092G", IS_PCI, ID(OMEGA, 82C092G) },
-    { "Cirrus PD6729", IS_CIRRUS|IS_PCI, ID(CIRRUS, 6729) },
-    { "Cirrus PD6730", IS_CIRRUS|IS_PCI, PCI_VENDOR_ID_CIRRUS, 0xffff },
-    { "Cirrus PD6832", IS_CIRRUS|IS_CARDBUS, ID(CIRRUS, 6832) },
-    { "O2Micro OZ6729", IS_O2MICRO|IS_PCI|IS_VG_PWR, ID(O2, 6729) },
-    { "O2Micro OZ6730", IS_O2MICRO|IS_PCI|IS_VG_PWR, ID(O2, 6730) },
-    { "O2Micro OZ6832/33", IS_O2MICRO|IS_CARDBUS, ID(O2, 6832) },
-    { "O2Micro OZ6836/60", IS_O2MICRO|IS_CARDBUS, ID(O2, 6836) },
-    { "O2Micro OZ6812", IS_O2MICRO|IS_CARDBUS, ID(O2, 6812) },
-    { "Ricoh RL5C465", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C465) },
-    { "Ricoh RL5C466", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C466) },
-    { "Ricoh RL5C475", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C475) },
-    { "Ricoh RL5C476", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C476) },
-    { "Ricoh RL5C478", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C478) },
-    { "SMC 34C90", IS_CARDBUS, ID(SMC, 34C90) },
-    { "TI 1130", IS_TI|IS_CARDBUS, ID(TI, 1130) },
-    { "TI 1131", IS_TI|IS_CARDBUS, ID(TI, 1131) },
-    { "TI 1250A", IS_TI|IS_CARDBUS, ID(TI, 1250A) },
-    { "TI 1220", IS_TI|IS_CARDBUS, ID(TI, 1220) },
-    { "TI 1221", IS_TI|IS_CARDBUS, ID(TI, 1221) },
-    { "TI 1210", IS_TI|IS_CARDBUS, ID(TI, 1210) },
-    { "TI 1251A", IS_TI|IS_CARDBUS, ID(TI, 1251A) },
-    { "TI 1251B", IS_TI|IS_CARDBUS, ID(TI, 1251B) },
-    { "TI 1450", IS_TI|IS_CARDBUS, ID(TI, 1450) },
-    { "TI 1225", IS_TI|IS_CARDBUS, ID(TI, 1225) },
-    { "TI 1211", IS_TI|IS_CARDBUS, ID(TI, 1211) },
-    { "TI 1420", IS_TI|IS_CARDBUS, ID(TI, 1420) },
-    { "TI 1031", IS_TI|IS_CARDBUS, ID(TI, 1031) },
-    { "TI 1410", IS_TI|IS_CARDBUS, ID(TI, 1410) },
-    { "Toshiba ToPIC95-A", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC95_A) },
-    { "Toshiba ToPIC95-B", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC95_B) },
-    { "Toshiba ToPIC97", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC97) },
-    { "Toshiba ToPIC100", IS_CARDBUS|IS_TOPIC, ID(TOSHIBA, TOPIC100) },
+    CIRRUS_PCIC_INFO, O2MICRO_PCIC_INFO, RICOH_PCIC_INFO,
+    SMC_PCIC_INFO, TI_PCIC_INFO, TOPIC_PCIC_INFO,
     { "Unknown", IS_PCI|IS_UNKNOWN, 0, 0 },
     { "Unknown", IS_CARDBUS|IS_UNKNOWN, 0, 0 }
 #endif
@@ -381,14 +342,12 @@ static void i365_set(socket_info_t *s, u_short reg, u_char data)
 
 static void i365_bset(socket_info_t *s, u_short reg, u_char mask)
 {
-    u_char d = i365_get(s, reg);
-    i365_set(s, reg, d | mask);
+    i365_set(s, reg, i365_get(s, reg) | mask);
 }
 
 static void i365_bclr(socket_info_t *s, u_short reg, u_char mask)
 {
-    u_char d = i365_get(s, reg);
-    i365_set(s, reg, d & ~mask);
+    i365_set(s, reg, i365_get(s, reg) & ~mask);
 }
 
 static void i365_bflip(socket_info_t *s, u_short reg, u_char mask, int b)
@@ -399,8 +358,7 @@ static void i365_bflip(socket_info_t *s, u_short reg, u_char mask, int b)
 
 static u_short i365_get_pair(socket_info_t *s, u_short reg)
 {
-    u_short a = i365_get(s, reg), b = i365_get(s, reg+1);
-    return (a + (b<<8));
+    return (i365_get(s, reg) + (i365_get(s, reg+1) << 8));
 }
 
 static void i365_set_pair(socket_info_t *s, u_short reg, u_short data)
@@ -494,7 +452,7 @@ static u_int __init cirrus_set_opts(socket_info_t *s, char *buf)
 	strcat(buf, " [dyn mode]");
     if (p->misc1 & PD67_MC1_INPACK_ENA)
 	strcat(buf, " [inpack]");
-    if (!(s->flags & (IS_PCI | IS_CARDBUS))) {
+    if (!(s->flags & (IS_PCI|IS_CARDBUS))) {
 	if (p->misc2 & PD67_MC2_IRQ15_RI)
 	    mask &= ~0x8000;
 	if (has_led > 0) {
@@ -526,7 +484,7 @@ static u_int __init cirrus_set_opts(socket_info_t *s, char *buf)
 	}
 #endif
     }
-    if (!(s->flags & IS_VIA)) {
+    if (s->type != IS_VT83C469) {
 	if (setup_time >= 0)
 	    p->timer[0] = p->timer[3] = setup_time;
 	if (cmd_time > 0) {
@@ -738,6 +696,7 @@ static u_int __init ti113x_set_opts(socket_info_t *s, char *buf)
 static void __init ricoh_get_state(socket_info_t *s)
 {
     ricoh_state_t *p = &s->state.ricoh;
+    pci_readw(s, RL5C4XX_CONFIG, &p->config);
     pci_readw(s, RL5C4XX_MISC, &p->misc);
     pci_readw(s, RL5C4XX_16BIT_CTL, &p->ctl);
     pci_readw(s, RL5C4XX_16BIT_IO_0, &p->io);
@@ -747,6 +706,7 @@ static void __init ricoh_get_state(socket_info_t *s)
 static void ricoh_set_state(socket_info_t *s)
 {
     ricoh_state_t *p = &s->state.ricoh;
+    pci_writew(s, RL5C4XX_CONFIG, p->config);
     pci_writew(s, RL5C4XX_MISC, p->misc);
     pci_writew(s, RL5C4XX_16BIT_CTL, p->ctl);
     pci_writew(s, RL5C4XX_16BIT_IO_0, p->io);
@@ -760,8 +720,11 @@ static u_int __init ricoh_set_opts(socket_info_t *s, char *buf)
     int old = (s->type < IS_RL5C475);
 
     p->ctl = RL5C4XX_16CTL_IO_TIMING | RL5C4XX_16CTL_MEM_TIMING;
-    if (old) p->ctl |= RL5C46X_16CTL_LEVEL_1 | RL5C46X_16CTL_LEVEL_2;
-    
+    if (old)
+	p->ctl |= RL5C46X_16CTL_LEVEL_1 | RL5C46X_16CTL_LEVEL_2;
+    else
+	p->config |= RL5C4XX_CONFIG_PREFETCH;
+
     if (setup_time >= 0) {
 	p->io = (p->io & ~RL5C4XX_SETUP_MASK) +
 	    ((setup_time+1) << RL5C4XX_SETUP_SHIFT);
@@ -780,7 +743,11 @@ static u_int __init ricoh_set_opts(socket_info_t *s, char *buf)
 	p->mem = (p->mem & ~RL5C4XX_HOLD_MASK) +
 	    (hold_time << RL5C4XX_HOLD_SHIFT);
     }
-    if (!old) {
+    if (irq_mode == 0) {
+	mask = 0;
+	sprintf(buf, " [pci only]");
+	buf += strlen(buf);
+    } else if (!old) {
 	switch (irq_mode) {
 	case 1:
 	    p->misc &= ~RL5C47X_MISC_SRIRQ_ENA; break;
@@ -1673,7 +1640,6 @@ static void __init add_cb_bridge(int type, u_short v, u_short d0)
     add_pcic(ns, type);
 
 #ifdef __LINUX__
-#if (LINUX_VERSION_CODE >= VERSION(2,1,103))
     /* Look up PCI bus bridge structures if needed */
     s -= ns;
     for (a = 0; a < ns; a++) {
@@ -1687,7 +1653,6 @@ static void __init add_cb_bridge(int type, u_short v, u_short d0)
 	s[a].cap.cb_bus = child;
 #endif
     }
-#endif
 #endif
 }
 
@@ -2235,7 +2200,7 @@ static int i365_set_mem_map(socket_info_t *s, struct pccard_mem_map *mem)
     if ((map > 4) || (mem->card_start > 0x3ffffff) ||
 	(mem->sys_start > mem->sys_stop) || (mem->speed > 1000))
 	return -EINVAL;
-    if (!(s->flags & (IS_PCI | IS_CARDBUS)) &&
+    if (!(s->flags & (IS_PCI|IS_CARDBUS)) &&
 	((mem->sys_start > 0xffffff) || (mem->sys_stop > 0xffffff)))
 	return -EINVAL;
 	

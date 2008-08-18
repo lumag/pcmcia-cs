@@ -80,8 +80,8 @@ sub checkout
     }
 }
 
-foreach $f ("/var/run/stab", "/var/lib/pcmcia/stab",
-	    "/var/state/pcmcia/stab") {
+foreach $f ("/var/state/pcmcia/stab", "/var/lib/pcmcia/stab",
+	    "/var/run/stab") {
     if (-f $f) {
 	$stab = $f; last;
     }

@@ -2,7 +2,7 @@
 
     PCMCIA controller probe
 
-    probe.c 1.50 2000/05/10 18:23:11
+    probe.c 1.51 2000/05/22 20:21:38
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -39,21 +39,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#ifdef __GLIBC__
-#include <sys/io.h>
-#else
-#include <asm/io.h>
-#endif
-
 #include <pcmcia/config.h>
-#include "i82365.h"
-#include "cirrus.h"
-#include "vg468.h"
-#include "tcic.h"
-
-static int i365_base = 0x03e0;
-
-typedef u_short ioaddr_t;
 
 /*====================================================================*/
 
@@ -167,6 +153,21 @@ static int pci_probe(int verbose, int module)
 
 /*====================================================================*/
 
+#ifdef CONFIG_ISA
+
+#ifdef __GLIBC__
+#include <sys/io.h>
+#else
+#include <asm/io.h>
+#endif
+typedef u_short ioaddr_t;
+
+#include "i82365.h"
+#include "cirrus.h"
+#include "vg468.h"
+
+static ioaddr_t i365_base = 0x03e0;
+
 static u_char i365_get(u_short sock, u_short reg)
 {
     u_char val = I365_REG(sock, reg);
@@ -193,8 +194,6 @@ static void i365_bclr(u_short sock, u_short reg, u_char mask)
     d &= ~mask;
     i365_set(sock, reg, d);
 }
-
-/*====================================================================*/
 
 int i365_probe(int verbose, int module)
 {
@@ -281,8 +280,16 @@ int i365_probe(int verbose, int module)
     return 0;
     
 } /* i365_probe */
-  
+
+#endif /* CONFIG_ISA */
+
 /*====================================================================*/
+
+#ifdef CONFIG_ISA
+
+#include "tcic.h"
+
+static ioaddr_t tcic_base = TCIC_BASE;
 
 static u_char tcic_getb(ioaddr_t base, u_char reg)
 {
@@ -407,6 +414,8 @@ int tcic_probe(int verbose, int module, ioaddr_t base)
     
 } /* tcic_probe */
 
+#endif /* CONFIG_ISA */
+
 /*====================================================================*/
 
 int main(int argc, char *argv[])
@@ -414,13 +423,14 @@ int main(int argc, char *argv[])
     int optch, errflg;
     extern char *optarg;
     int verbose = 0, module = 0;
-    ioaddr_t tcic_base = TCIC_BASE;
     
     errflg = 0;
     while ((optch = getopt(argc, argv, "t:vxm")) != -1) {
 	switch (optch) {
+#ifdef CONFIG_ISA
 	case 't':
 	    tcic_base = strtoul(optarg, NULL, 0); break;
+#endif
 	case 'v':
 	    verbose = 1; break;
 	case 'm':
@@ -437,13 +447,13 @@ int main(int argc, char *argv[])
 #ifdef CONFIG_PCI
     if (pci_probe(verbose, module) == 0)
 	exit(EXIT_SUCCESS);
-    else
 #endif
+#ifdef CONFIG_ISA
     if (i365_probe(verbose, module) == 0)
 	exit(EXIT_SUCCESS);
     else if (tcic_probe(verbose, module, tcic_base) == 0)
 	exit(EXIT_SUCCESS);
-    else
-	exit(EXIT_FAILURE);
+#endif
+    exit(EXIT_FAILURE);
     return 0;
 }

@@ -130,7 +130,6 @@ static int csr0 = 0x00A00000 | 0x4800;
 /* Kernel compatibility defines, some common to David Hinds' PCMCIA package.
    This is only in the support-all-kernels source code. */
 
-#if defined(MODULE) && LINUX_VERSION_CODE > 0x20115
 MODULE_AUTHOR("Donald Becker <becker@cesdis.gsfc.nasa.gov>");
 MODULE_DESCRIPTION("Digital 21*4* Tulip ethernet driver");
 MODULE_PARM(debug, "i");
@@ -140,21 +139,12 @@ MODULE_PARM(rx_copybreak, "i");
 MODULE_PARM(csr0, "i");
 MODULE_PARM(options, "1-" __MODULE_STRING(MAX_UNITS) "i");
 MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");
-#endif
-
-#define RUN_AT(x) (jiffies + (x))
 
 #if LINUX_VERSION_CODE < 0x20123
-#define hard_smp_processor_id() smp_processor_id()
 #define test_and_set_bit(val, addr) set_bit(val, addr)
 #define le16_to_cpu(val) (val)
 #define le32_to_cpu(val) (val)
 #define cpu_to_le32(val) (val)
-#endif
-#if LINUX_VERSION_CODE <= 0x20139
-#define	net_device_stats enet_statistics
-#else
-#define NETSTATS_VER2
 #endif
 #if LINUX_VERSION_CODE < 0x20155
 /* Grrrr, the PCI code changed, but did not consider CardBus... */
@@ -172,36 +162,8 @@ MODULE_PARM(full_duplex, "1-" __MODULE_STRING(MAX_UNITS) "i");
 #else
 #define dev_free_skb(skb) dev_kfree_skb(skb);
 #endif
-#if LINUX_VERSION_CODE < 0x2030e
-#define net_device device
-#endif
 #if ! defined(CAP_NET_ADMIN)
 #define capable(CAP_XXX) (suser())
-#endif
-#ifndef HAVE_NETIF_QUEUE
-#define netif_stop_queue(dev) set_bit(0, (void *)&(dev)->tbusy)
-#define netif_start_queue(dev) clear_bit(0, (void *)&(dev)->tbusy)
-#define netif_wake_queue(dev) \
-    do { netif_start_queue(dev); mark_bh(NET_BH); } while (0)
-#define netif_device_attach(dev) \
-    do { (dev)->start = 1; netif_start_queue(dev); } while (0)
-#define netif_device_detach(dev) \
-    do { (dev)->start = 0; netif_stop_queue(dev); } while (0)
-#define netif_device_present(dev) ((dev)->start)
-#define netif_running(dev) ((dev)->start)
-#define netif_mark_up(dev) do { (dev)->start = 1; } while (0)
-#define netif_mark_down(dev) do { (dev)->start = 0; } while (0)
-#define netif_queue_stopped(dev) ((dev)->tbusy)
-#define tx_timeout_check(dev, tx_timeout) \
-    do { if (test_and_set_bit(0, (void *)&(dev)->tbusy) != 0) { \
-	if (jiffies - (dev)->trans_start < TX_TIMEOUT) return 1; \
-	tx_timeout(dev); \
-    } } while (0)
-#define dev_kfree_skb_irq(skb) dev_free_skb(skb)
-#else
-#define tx_timeout_check(dev, handler) netif_stop_queue(dev)
-#define netif_mark_up(dev) do { } while (0)
-#define netif_mark_down(dev) do { } while (0)
 #endif
 
 /* Condensed operations for readability. */
@@ -1764,7 +1726,7 @@ media_picked:
 	/* Set the timer to switch to check for link beat and perhaps switch
 	   to an alternate media type. */
 	init_timer(&tp->timer);
-	tp->timer.expires = RUN_AT(next_tick);
+	tp->timer.expires = jiffies + next_tick;
 	tp->timer.data = (unsigned long)dev;
 	tp->timer.function = tulip_tbl[tp->chip_id].media_timer;
 	add_timer(&tp->timer);
@@ -2219,7 +2181,7 @@ static void tulip_timer(unsigned long data)
 	}
 	break;
 	}
-	tp->timer.expires = RUN_AT(next_tick);
+	tp->timer.expires = jiffies + next_tick;
 	add_timer(&tp->timer);
 }
 
@@ -2295,7 +2257,7 @@ static void t21142_timer(unsigned long data)
 		tulip_tx_timeout(dev);
 	}
 
-	tp->timer.expires = RUN_AT(next_tick);
+	tp->timer.expires = jiffies + next_tick;
 	add_timer(&tp->timer);
 }
 
@@ -2397,7 +2359,7 @@ static void t21142_lnk_change(struct net_device *dev, int csr5)
 		/* Link blew? Maybe restart NWay. */
 		del_timer(&tp->timer);
 		t21142_start_nway(dev);
-		tp->timer.expires = RUN_AT(3*HZ);
+		tp->timer.expires = jiffies + 3*HZ;
 		add_timer(&tp->timer);
 	} else if (dev->if_port == 3  ||  dev->if_port == 5) {
 		if (tulip_debug > 1)
@@ -2407,7 +2369,7 @@ static void t21142_lnk_change(struct net_device *dev, int csr5)
 		if ((csr12 & 2)  &&  ! tp->medialock) {
 			del_timer(&tp->timer);
 			t21142_start_nway(dev);
-			tp->timer.expires = RUN_AT(3*HZ);
+			tp->timer.expires = jiffies + 3*HZ;
 			add_timer(&tp->timer);
 		}
 	} else if (dev->if_port == 0  ||  dev->if_port == 4) {
@@ -2448,7 +2410,7 @@ static void mxic_timer(unsigned long data)
 			   inl(ioaddr + CSR12));
 	}
 	if (next_tick) {
-		tp->timer.expires = RUN_AT(next_tick);
+		tp->timer.expires = jiffies + next_tick;
 		add_timer(&tp->timer);
 	}
 }
@@ -2569,7 +2531,7 @@ static void pnic_timer(unsigned long data)
 			}
 		}
 	}
-	tp->timer.expires = RUN_AT(next_tick);
+	tp->timer.expires = jiffies + next_tick;
 	add_timer(&tp->timer);
 }
 
@@ -2584,7 +2546,7 @@ static void comet_timer(unsigned long data)
 		printk(KERN_DEBUG "%s: Comet link status %4.4x partner capability "
 			   "%4.4x.\n",
 			   dev->name, inl(ioaddr + 0xB8), inl(ioaddr + 0xC8));
-	tp->timer.expires = RUN_AT(next_tick);
+	tp->timer.expires = jiffies + next_tick;
 	add_timer(&tp->timer);
 }
 

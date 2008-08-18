@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# memory 1.26 2000/04/17 20:30:22 (David Hinds)
+# memory 1.27 2000/06/06 21:02:09 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA memory device
 #
@@ -56,14 +56,15 @@ case "$ACTION" in
     ;;
 
 'check')
-    fuser -s /dev/${DEVICE}* && exit 1
+    is_true $NO_CHECK && exit 0
+    do_fuser -s /dev/${DEVICE}* && exit 1
     if [ "$DRIVER" != "memory_cb" ] ; then
-	fuser -s -m /dev/${DEVICE}c0b && exit 1
+	do_fuser -s -m /dev/${DEVICE}c0b && exit 1
     fi
     ;;
 
 'stop')
-    fuser -k /dev/${DEVICE}* > /dev/null
+    do_fuser -k /dev/${DEVICE}* > /dev/null
     if [ "$DRIVER" != "memory_cb" ] ; then
 	rm_blkdev /dev/${DEVICE}c0b || exit 1
     fi

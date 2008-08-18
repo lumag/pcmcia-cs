@@ -25,9 +25,9 @@
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.    
     
 ======================================================================*/
-#define PCMCIA_DIST
-#ifdef PCMCIA_DIST
-#include <pcmcia/config.h>
+
+#include <linux/config.h>
+#ifdef __IN_PCMCIA_PACKAGE__
 #include <pcmcia/k_compat.h>
 #else
 #ifndef __KERNEL__
@@ -38,13 +38,11 @@
 #define MODULE
 #endif
 
-#include <linux/autoconf.h>
 #ifdef CONFIG_MODVERSIONS
 #define MODVERSIONS
 #include <linux/modversions.h>
 #endif   
 
-#include <linux/config.h>
 #endif 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -77,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
 static char *version =
-"airo_cs.c .99zb 2000/02/20 00:38:22 (Benjamin Reed)";
+"airo_cs.c .99zz 2000/05/26 09:41:21 (Benjamin Reed)";
 #else
 #define DEBUG(n, args...)
 #endif

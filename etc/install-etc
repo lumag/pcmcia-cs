@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# etc/install-etc 1.3 2000/05/15 19:28:10 (David Hinds)
+# etc/install-etc 1.5 2000/06/07 22:11:52 (David Hinds)
 #
 # This handles updating the PCMCIA startup and device configuration
 # scripts.  I used to do this in the Makefile, but it is really much
@@ -106,7 +106,7 @@ install_depmod ()
 	    echo keep >> $CONF
 	modprobe -c | sed -ne '/path/s/\[net\]/\[pcmcia\]/p' >> $CONF
     fi
-    if [ -x /sbin/depmod -a "$PREFIX" = "" ] ; then
+    if [ -x /sbin/depmod -a "$PREFIX" = "" -a "$CONF_SRC" = 1 ] ; then
 	echo "-> Running depmod..."
 	depmod -a
     else
@@ -124,8 +124,4 @@ install_clients
 install_depmod
 
 # Directory to receive cardmgr's 'stab' socket status file
-if [ -d /var/state ] ; then
-    mkdir -p $PREFIX/var/state/pcmcia
-else
-    mkdir -p $PREFIX/var/lib/pcmcia
-fi
+mkdir -p $PREFIX/var/lib/pcmcia

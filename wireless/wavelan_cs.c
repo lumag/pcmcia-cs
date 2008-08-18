@@ -3899,7 +3899,7 @@ wv_pcmcia_config(dev_link_t *	link)
       return FALSE;
     }
 
-  /* ???? Could you explain me this, Dave ? */
+  copy_dev_name(((net_local *) dev->priv)->node, dev);
   link->dev = &((net_local *) dev->priv)->node;
 
 #ifdef DEBUG_CONFIG_TRACE
@@ -4562,7 +4562,7 @@ wavelan_attach(void)
 
   /* Other specific data */
   /* Provide storage area for device name */
-  dev->name = ((net_local *)dev->priv)->node.dev_name;
+  init_dev_name(dev, ((net_local *)dev->priv)->node);
   dev->mtu = WAVELAN_MTU;
 
   /* Register with Card Services */

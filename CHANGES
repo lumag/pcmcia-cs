@@ -1,3 +1,27 @@
+[09-Jun-00] Version 3.1.16
+-- Added force_size option for SRAM cards to memory_cs driver.
+-- Better wording in COPYING file.
+-- PCMCIA status files (stab, scheme) now only go in /var/lib/pcmcia;
+   removed the /var/state option because it was dropped from FHS 2.1.
+-- Added NO_CHECK and NO_FUSER eject options for the config scripts.
+-- Changed i82365 driver to enable PCI read prefetch on Ricoh bridges.
+-- Changed smc91c92_cs driver to assume all 100baseT-capable chipsets
+   have an MII interface; I think this is generally true.
+-- Several 2.0.* kernel fixes for things I broke in 3.1.15: a network
+   device initialization issue, and a cardbus setup issue.
+-- Updates for clean builds with latest 2.3.99 & 2.4.0-test kernels.
+-- Fixed an insert-eject race condition in the cb_enabler module.
+-- Fixed 'probe' to build on non-ISA-bus architectures.
+-- Reorganized some of the kernel compatibility definitions.
+-- Changed serial_cs to always tell serial driver to permit interrupt
+   sharing, since serial_cs can't always tell if it is needed.
+-- Added irq_mode=0 option for Ricoh bridges to select PCI interrupts.
+-- Tweaked CardBus setup to initialize the PCI latency timer.
+-- Folded some changes from Becker's 0.99Q 3c59x driver into 3c575_cb;
+   fixed init problem with some 3CXFE575CT cards.
+-- Tweaked priorities of some cardmgr syslog messages.
+-- Changed cardmgr to not fail if the modules directory is missing.
+
 [16-May-00] Version 3.1.15
 -- Added test_setup, test_network, test_modem to debug-tools.
 -- Added D-Link DL10022 chipset support to pcnet_cs driver.

@@ -10,10 +10,14 @@
 case "$ADDRESS" in
 *,sr,*,*,*,*)
     INFO="Default CD-ROM setup"
+    LINK="/dev/cdrom"
     PARTS=""
     DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="n"
     FSTYPE="iso9660"
     OPTS="ro,noauto"
     MOUNTPT="/mnt/cdrom"
+    # Card eject policy options
+    NO_CHECK=n
+    NO_FUSER=n
     ;;
 esac

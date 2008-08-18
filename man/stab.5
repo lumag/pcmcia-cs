@@ -1,23 +1,19 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" stab.5 1.11 1999/12/21 22:40:19
+.\" stab.5 1.12 2000/06/07 22:13:44
 .\"
-.TH STAB 5 "1999/12/21 22:40:19" "pcmcia-cs"
+.TH STAB 5 "2000/06/07 22:13:44" "pcmcia-cs"
 .SH NAME
 stab \- current PCMCIA socket status
+
 .SH DESCRIPTION
-The
-.I stab
-file is created by
-.B cardmgr
+The \fIstab\fR file is created by \fBcardmgr\fR
 and contains identification and device driver information for PCMCIA
 cards.  Each socket is described by one header line, followed by one
 or more device driver lines.  The header gives the card name as given
-in
-.IR /etc/pcmcia/config .
+in \fI/etc/pcmcia/config\fR.
 Device driver lines consist of a series of tab-separated fields.  The
 first field is the socket number.  The second field is the device
-class, which identifies which script in
-.I /etc/pcmcia
+class, which identifies which script in \fI/etc/pcmcia\fR
 is used to configure or shut down this device.
 The third field is the driver name.
 The fourth field is used to number devices when a single
@@ -25,22 +21,13 @@ card has several devices associated with the same driver.  The fifth
 field is the device name, and the final two fields are major and minor
 device numbers for this device, if appropriate.
 .PP
-The file is updated by
-.B cardmgr
-whenever a card is inserted or ejected, and when
-.B cardmgr
-receives a
-.B SIGHUP
-signal.
+The file is updated by \fBcardmgr\fR whenever a card is inserted or
+ejected, and when \fBcardmgr\fR receives a \fBSIGHUP\fR signal.
 .PP
-The
-.I stab
-file will normally be created in either
-.I /var/state/pcmcia
-or
-.IR /var/lib/pcmcia ,
-but if neither directory is available, it will be found in
-.IR /var/run .
+The \fIstab\fR file will normally be created in \fI/var/lib/pcmcia\fR,
+but if that directory is unavailable, it will be found in
+\fI/var/run\fR.
+
 .SH AUTHOR
 David Hinds \- dhinds@pcmcia.sourceforge.org
 .SH "SEE ALSO"

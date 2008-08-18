@@ -1,5 +1,5 @@
 /*
- * smc34c90.h 1.7 1999/10/25 20:03:34
+ * smc34c90.h 1.8 2000/06/09 21:25:03
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -48,5 +48,11 @@
 #define SMC34C90_EEINFO_ZV_PORT		0x0008
 #define SMC34C90_EEINFO_RING		0x0010
 #define SMC34C90_EEINFO_LED		0x0020
+
+#define SMC_PCIC_ID \
+    IS_SMC34C90
+
+#define SMC_PCIC_INFO \
+    { "SMC 34C90", IS_CARDBUS, ID(SMC, 34C90) }
 
 #endif /* _LINUX_SMC34C90_H */

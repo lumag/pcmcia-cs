@@ -2,7 +2,7 @@
 
     Dump ExCA compatible PCMCIA bridge registers
 
-    dump_exca.c 1.2 2000/05/11 03:05:14
+    dump_exca.c 1.3 2000/06/02 17:41:02
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -173,7 +173,7 @@ static void dump_power(proc_exca *ex)
 static void dump_intctl(proc_exca *ex)
 {
     int v = ex->reg.b[I365_INTCTL];
-    printf("  Interrupt and general control = 0x%2x\n   ", v);
+    printf("  Interrupt and general control = 0x%02x\n   ", v);
     if (v & I365_RING_ENA) printf(" [ring ena]");
     if (!(v & I365_PC_RESET)) printf(" [reset]");
     if (v & I365_PC_IOCARD) printf(" [iocard]");

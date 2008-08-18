@@ -36,11 +36,11 @@ exclude irq 7
 
 # Options for Raylink/WebGear driver: uncomment only one line...
 # Generic ad-hoc network
-module "ray_cs" opts "pc_debug=1 essid=ADHOC_ESSID hop_dwell=128 beacon_period=256 translate=1"
+module "ray_cs" opts "essid=ADHOC_ESSID hop_dwell=128 beacon_period=256 translate=1"
 # Infrastructure network for older cards
-#module "ray_cs" opts "pc_debug=1 net_type=1 essid=ESSID1"
+#module "ray_cs" opts "net_type=1 essid=ESSID1"
 # Infrastructure network for WebGear
-#module "ray_cs" opts "pc_debug=1 net_type=1 essid=ESSID1 translate=1 hop_dwell=128 beacon_period=256"
+#module "ray_cs" opts "net_type=1 essid=ESSID1 translate=1 hop_dwell=128 beacon_period=256"
 
 # Options for WaveLAN/IEEE driver (AccessPoint mode)...
 #module "wvlan_cs" opts "station_name=MY_PC"

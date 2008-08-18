@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.135 2000/05/16 22:44:58
+    cardmgr.c 1.138 2000/06/07 22:01:20
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -287,7 +287,7 @@ static void write_pid(void)
     FILE *f;
     f = fopen(pidfile, "w");
     if (f == NULL)
-	syslog(LOG_INFO, "could not open %s: %m", pidfile);
+	syslog(LOG_WARNING, "could not open %s: %m", pidfile);
     else {
 	fprintf(f, "%d\n", getpid());
 	fclose(f);
@@ -303,12 +303,12 @@ static void write_stab(void)
 
     f = fopen(stabfile, "w");
     if (f == NULL) {
-	syslog(LOG_INFO, "fopen(stabfile) failed: %m");
+	syslog(LOG_WARNING, "fopen(stabfile) failed: %m");
 	return;
     }
 #ifndef __BEOS__
     if (flock(fileno(f), LOCK_EX) != 0) {
-	syslog(LOG_INFO, "flock(stabfile) failed: %m");
+	syslog(LOG_ERR, "flock(stabfile) failed: %m");
 	return;
     }
 #endif
@@ -516,14 +516,16 @@ static card_info_t *lookup_card(int ns)
 
 static void load_config(void)
 {
-    if (chdir(configpath) != 0)
-	syslog(LOG_INFO, "chdir to %s failed: %m", configpath);
+    if (chdir(configpath) != 0) {
+	syslog(LOG_ERR, "chdir to %s failed: %m", configpath);
+	exit(EXIT_FAILURE);
+    }
     if (parse_configfile("config") != 0)
 	exit(EXIT_FAILURE);
     if (root_device == NULL)
-	syslog(LOG_INFO, "no device drivers defined");
+	syslog(LOG_WARNING, "no device drivers defined");
     if ((root_card == NULL) && (root_func == NULL))
-	syslog(LOG_INFO, "no cards defined");
+	syslog(LOG_WARNING, "no cards defined");
 }
 
 /*====================================================================*/
@@ -867,12 +869,12 @@ static void update_cis(socket_info_t *s)
     cisdump_t cis;
     FILE *f = fopen(s->card->cis_file, "r");
     if (f == NULL)
-	syslog(LOG_INFO, "could not open '%s': %m", s->card->cis_file);
+	syslog(LOG_ERR, "could not open '%s': %m", s->card->cis_file);
     else {
 	cis.Length = fread(cis.Data, 1, CISTPL_MAX_CIS_SIZE, f);
 	fclose(f);
 	if (ioctl(s->fd, DS_REPLACE_CIS, &cis) != 0)
-	    syslog(LOG_INFO, "could not replace CIS: %m");
+	    syslog(LOG_ERR, "could not replace CIS: %m");
     }
 }
 
@@ -1201,9 +1203,9 @@ static void fork_now(void)
 	exit(0);
     }
     if (ret == -1)
-	syslog(LOG_INFO, "forking: %m");
+	syslog(LOG_ERR, "forking: %m");
     if (setsid() < 0)
-	syslog(LOG_INFO, "detaching from tty: %m");
+	syslog(LOG_ERR, "detaching from tty: %m");
 }    
 
 static void done(void)
@@ -1264,9 +1266,9 @@ static int init_sockets(void)
     major = lookup_dev("pcmcia");
     if (major < 0) {
 	if (major == -ENODEV)
-	    syslog(LOG_INFO, "no pcmcia driver in /proc/devices");
+	    syslog(LOG_ERR, "no pcmcia driver in /proc/devices");
 	else
-	    syslog(LOG_INFO, "could not open /proc/devices: %m");
+	    syslog(LOG_ERR, "could not open /proc/devices: %m");
 	exit(EXIT_FAILURE);
     }
 #endif
@@ -1277,19 +1279,19 @@ static int init_sockets(void)
 	socket[i].state = 0;
     }
     if ((fd < 0) && (errno != ENODEV) && (errno != ENOENT))
-	syslog(LOG_INFO, "open_sock(socket %d) failed: %m", i);
+	syslog(LOG_ERR, "open_sock(socket %d) failed: %m", i);
     sockets = i;
     if (sockets == 0) {
-	syslog(LOG_INFO, "no sockets found!");
+	syslog(LOG_ERR, "no sockets found!");
 	return -1;
     } else
 	syslog(LOG_INFO, "watching %d sockets", sockets);
 
     if (ioctl(socket[0].fd, DS_GET_CARD_SERVICES_INFO, &serv) == 0) {
 	if (serv.Revision != CS_RELEASE_CODE)
-	    syslog(LOG_INFO, "Card Services release does not match!");
+	    syslog(LOG_INFO, "Card Services release does not match");
     } else {
-	syslog(LOG_INFO, "could not get CS revision info!");
+	syslog(LOG_ERR, "could not get CS revision info!");
 	return -1;
     }
     adjust_resources();
@@ -1306,9 +1308,7 @@ int main(int argc, char *argv[])
     struct timeval tv;
     fd_set fds;
 
-    if (access("/var/state/pcmcia", R_OK) == 0) {
-	stabfile = "/var/state/pcmcia/stab";
-    } else if (access("/var/lib/pcmcia", R_OK) == 0) {
+    if (access("/var/lib/pcmcia", R_OK) == 0) {
 	stabfile = "/var/lib/pcmcia/stab";
     } else {
 	stabfile = "/var/run/stab";
@@ -1372,17 +1372,15 @@ int main(int argc, char *argv[])
 	else {
 	    struct utsname utsname;
 	    if (uname(&utsname) != 0) {
-		syslog(LOG_INFO, "uname(): %m");
+		syslog(LOG_ERR, "uname(): %m");
 		exit(EXIT_FAILURE);
 	    }
 	    modpath = (char *)malloc(strlen(utsname.release)+14);
 	    sprintf(modpath, "/lib/modules/%s", utsname.release);
 	}
     }
-    if (access(modpath, X_OK) != 0) {
+    if (access(modpath, X_OK) != 0)
 	syslog(LOG_INFO, "cannot access %s: %m", modpath);
-	exit(EXIT_FAILURE);
-    }
     /* We default to using modprobe if it is available */
     do_modprobe |= (access("/sbin/modprobe", X_OK) == 0);
 #endif /* __linux__ */
@@ -1398,14 +1396,14 @@ int main(int argc, char *argv[])
     cleanup_files = 1;
     
     if (signal(SIGHUP, catch_signal) == SIG_ERR)
-	syslog(LOG_INFO, "signal(SIGHUP): %m");
+	syslog(LOG_ERR, "signal(SIGHUP): %m");
     if (signal(SIGTERM, catch_signal) == SIG_ERR)
-	syslog(LOG_INFO, "signal(SIGTERM): %m");
+	syslog(LOG_ERR, "signal(SIGTERM): %m");
     if (signal(SIGINT, catch_signal) == SIG_ERR)
-	syslog(LOG_INFO, "signal(SIGINT): %m");
+	syslog(LOG_ERR, "signal(SIGINT): %m");
 #ifdef SIGPWR
     if (signal(SIGPWR, catch_signal) == SIG_ERR)
-	syslog(LOG_INFO, "signal(SIGPWR): %m");
+	syslog(LOG_ERR, "signal(SIGPWR): %m");
 #endif
     
     for (i = max_fd = 0; i < sockets; i++)
@@ -1428,7 +1426,7 @@ int main(int argc, char *argv[])
 	    if (errno == EINTR) {
 		handle_signal();
 	    } else {
-		syslog(LOG_INFO, "select(): %m");
+		syslog(LOG_ERR, "select(): %m");
 		exit(EXIT_FAILURE);
 	    }
 	}

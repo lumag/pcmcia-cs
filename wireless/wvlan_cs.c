@@ -295,7 +295,7 @@ MODULE_PARM(eth, "i");
 MODULE_PARM(mtu, "i");
 
 // Useful macros we have in pcmcia-cs but not in the kernel
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0))
+#ifndef __IN_PCMCIA_PACKAGE__
 #define DEV_KFREE_SKB(skb) dev_kfree_skb(skb);
 #define skb_tx_check(dev, skb)
 #define add_rx_bytes(stats, n) (stats)->rx_bytes += n;
@@ -2570,7 +2570,7 @@ next_entry:
 		for (i=0; i<MAX_WVLAN_CARDS; ++i)
 			if (!wvlandev_index[i])
 			{
-				sprintf(local->node.dev_name, "wvlan%d", i);
+				sprintf(dev->name, "wvlan%d", i);
 				wvlandev_index[i] = dev;
 				break;
 			}
@@ -2586,6 +2586,7 @@ next_entry:
 	}
 	printk(KERN_INFO "%s: Registered netdevice %s\n", dev_info, dev->name);
 
+	copy_dev_name(local->node, dev);
 	link->dev = &local->node;
 
 	// Success!
@@ -2703,7 +2704,7 @@ static dev_link_t *wvlan_attach (void)
 #endif
 
 	// Other netdevice data
-	dev->name = local->node.dev_name;
+	init_dev_name(dev, local->node);
 	dev->mtu = mtu;
 	netif_stop_queue(dev);
 

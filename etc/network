@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# network 1.73 2000/04/29 01:39:15 (David Hinds)
+# network 1.74 2000/06/06 21:02:09 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ethernet adapter
 #
@@ -159,7 +159,7 @@ case "$ACTION" in
 	    if read HOST MT ; then
 		nfsstop
 		if /sbin/ifuser $DEVICE $HOST ; then
-		    fuser -k -m $MT > /dev/null
+		    do_fuser -k -m $MT > /dev/null
 		    umount -v $MT
 		fi
 	    fi
@@ -193,13 +193,14 @@ case "$ACTION" in
     ;;
 
 'check')
+    is_true $NO_CHECK && exit 0
     /sbin/ifconfig $DEVICE | grep -q RUNNING || exit 0
 
     # Check for any in-use NFS mounts
     nfscheck ()
     {
 	while read HOST MT ; do
-	    /sbin/ifuser $DEVICE $HOST && fuser -sm $MT && exit 1
+	    /sbin/ifuser $DEVICE $HOST && do_fuser -sm $MT && exit 1
 	done
     }
     mount -t nfs | sed -e 's/:.* on \(.*\) type .*/ \1/' | nfscheck

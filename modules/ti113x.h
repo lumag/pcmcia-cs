@@ -1,5 +1,5 @@
 /*
- * ti113x.h 1.21 2000/05/10 18:22:11
+ * ti113x.h 1.22 2000/06/09 21:26:14
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -187,5 +187,26 @@ typedef struct ti113x_state_t {
     u_char		devctl;		/* TI113X_DEVICE_CONTROL */
     u_char		diag;		/* TI1250_DIAGNOSTIC */
 } ti113x_state_t;
+
+#define TI_PCIC_ID \
+    IS_TI1130, IS_TI1131, IS_TI1250A, IS_TI1220, IS_TI1221,	\
+    IS_TI1210, IS_TI1251A, IS_TI1251B, IS_TI1450, IS_TI1225,	\
+    IS_TI1211, IS_TI1420, IS_TI1031, IS_TI1410
+
+#define TI_PCIC_INFO \
+    { "TI 1130",  IS_TI|IS_CARDBUS, ID(TI, 1130) }, \
+    { "TI 1131",  IS_TI|IS_CARDBUS, ID(TI, 1131) }, \
+    { "TI 1250A", IS_TI|IS_CARDBUS, ID(TI, 1250A) }, \
+    { "TI 1220",  IS_TI|IS_CARDBUS, ID(TI, 1220) }, \
+    { "TI 1221",  IS_TI|IS_CARDBUS, ID(TI, 1221) }, \
+    { "TI 1210",  IS_TI|IS_CARDBUS, ID(TI, 1210) }, \
+    { "TI 1251A", IS_TI|IS_CARDBUS, ID(TI, 1251A) }, \
+    { "TI 1251B", IS_TI|IS_CARDBUS, ID(TI, 1251B) }, \
+    { "TI 1450",  IS_TI|IS_CARDBUS, ID(TI, 1450) }, \
+    { "TI 1225",  IS_TI|IS_CARDBUS, ID(TI, 1225) }, \
+    { "TI 1211",  IS_TI|IS_CARDBUS, ID(TI, 1211) }, \
+    { "TI 1420",  IS_TI|IS_CARDBUS, ID(TI, 1420) }, \
+    { "TI 1031",  IS_TI|IS_CARDBUS, ID(TI, 1031) }, \
+    { "TI 1410",  IS_TI|IS_CARDBUS, ID(TI, 1410) }
 
 #endif /* _LINUX_TI113X_H */

@@ -1,5 +1,5 @@
 /*
- * ricoh.h 1.10 2000/04/24 21:19:49
+ * ricoh.h 1.12 2000/06/09 21:26:56
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -93,8 +93,14 @@
 #define RL5C46X_BCR_3E0_ENA		0x0800
 #define RL5C46X_BCR_3E2_ENA		0x1000
 
+/* Bridge Configuration Register */
+#define RL5C4XX_CONFIG			0x80	/* 16 bit */
+#define  RL5C4XX_CONFIG_IO_1_MODE	0x0200
+#define  RL5C4XX_CONFIG_IO_0_MODE	0x0100
+#define  RL5C4XX_CONFIG_PREFETCH	0x0001
+
 /* Misc Control Register */
-#define RL5C4XX_MISC			0x0082	/* 16 bit */
+#define RL5C4XX_MISC			0x82	/* 16 bit */
 #define  RL5C4XX_MISC_HW_SUSPEND_ENA	0x0002
 #define  RL5C4XX_MISC_VCCEN_POL		0x0100
 #define  RL5C4XX_MISC_VPPEN_POL		0x0200
@@ -113,15 +119,15 @@
 #define  RL5C47X_MISC_LED_POL		0x0800
 
 /* 16-bit Interface Control Register */
-#define RL5C4XX_16BIT_CTL		0x0084	/* 16 bit */
+#define RL5C4XX_16BIT_CTL		0x84	/* 16 bit */
 #define  RL5C4XX_16CTL_IO_TIMING	0x0100
 #define  RL5C4XX_16CTL_MEM_TIMING	0x0200
 #define  RL5C46X_16CTL_LEVEL_1		0x0010
 #define  RL5C46X_16CTL_LEVEL_2		0x0020
 
 /* 16-bit IO and memory timing registers */
-#define RL5C4XX_16BIT_IO_0		0x0088	/* 16 bit */
-#define RL5C4XX_16BIT_MEM_0		0x0088	/* 16 bit */
+#define RL5C4XX_16BIT_IO_0		0x88	/* 16 bit */
+#define RL5C4XX_16BIT_MEM_0		0x8a	/* 16 bit */
 #define  RL5C4XX_SETUP_MASK		0x0007
 #define  RL5C4XX_SETUP_SHIFT		0
 #define  RL5C4XX_CMD_MASK		0x01f0
@@ -131,10 +137,21 @@
 
 /* Data structure for tracking vendor-specific state */
 typedef struct ricoh_state_t {
+    u_short		config;		/* RL5C4XX_CONFIG */
     u_short		misc;		/* RL5C4XX_MISC */
     u_short		ctl;		/* RL5C4XX_16BIT_CTL */
     u_short		io;		/* RL5C4XX_16BIT_IO_0 */
     u_short		mem;		/* RL5C4XX_16BIT_MEM_0 */
 } ricoh_state_t;
+
+#define RICOH_PCIC_ID \
+    IS_RL5C465, IS_RL5C466, IS_RL5C475, IS_RL5C476, IS_RL5C478
+
+#define RICOH_PCIC_INFO \
+    { "Ricoh RL5C465", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C465) }, \
+    { "Ricoh RL5C466", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C466) }, \
+    { "Ricoh RL5C475", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C475) }, \
+    { "Ricoh RL5C476", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C476) }, \
+    { "Ricoh RL5C478", IS_RICOH|IS_CARDBUS, ID(RICOH, RL5C478) }
 
 #endif /* _LINUX_RICOH_H */

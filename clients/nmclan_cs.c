@@ -516,7 +516,7 @@ static dev_link_t *nmclan_attach(void)
     dev->get_stats = &mace_get_stats;
     dev->set_multicast_list = &set_multicast_list;
     ether_setup(dev);
-    dev->name = lp->node.dev_name;
+    init_dev_name(dev, lp->node);
     dev->open = &mace_open;
     dev->stop = &mace_close;
 #ifdef HAVE_NETIF_QUEUE
@@ -806,6 +806,7 @@ static void nmclan_config(dev_link_t *link)
      to printk. */
 #endif
 
+  copy_dev_name(lp->node, dev);
   link->dev = &lp->node;
   link->state &= ~DEV_CONFIG_PENDING;
 

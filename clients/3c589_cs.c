@@ -4,7 +4,7 @@
     
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    3c589_cs.c 1.151 2000/05/08 22:03:18
+    3c589_cs.c 1.152 2000/05/25 03:11:12
 
     The network driver code is based on Donald Becker's 3c589 code:
     
@@ -120,7 +120,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"3c589_cs.c 1.151 2000/05/08 22:03:18 (David Hinds)";
+"3c589_cs.c 1.152 2000/05/25 03:11:12 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -244,7 +244,7 @@ static dev_link_t *tc589_attach(void)
     dev->get_stats = &el3_get_stats;
     dev->set_multicast_list = &set_multicast_list;
     ether_setup(dev);
-    dev->name = lp->node.dev_name;
+    init_dev_name(dev, lp->node);
     dev->open = &el3_open;
     dev->stop = &el3_close;
 #ifdef HAVE_NETIF_QUEUE
@@ -408,7 +408,8 @@ static void tc589_config(dev_link_t *link)
 	    goto failed;
 	}
     }
-    
+
+    copy_dev_name(lp->node, dev);
     link->dev = &lp->node;
     link->state &= ~DEV_CONFIG_PENDING;
     

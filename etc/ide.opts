@@ -15,5 +15,8 @@ case "$ADDRESS" in
     ;;
 *,*,*)
     #PARTS="1"
+    # Card eject policy options
+    NO_CHECK=n
+    NO_FUSER=n
     ;;
 esac

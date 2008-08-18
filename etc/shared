@@ -1,5 +1,5 @@
 #
-# shared 1.18 2000/04/17 20:27:52 (David Hinds)
+# shared 1.21 2000/06/07 22:03:32 (David Hinds)
 #
 
 usage ()
@@ -12,6 +12,12 @@ usage ()
 is_true ()
 {
     [ "$1" = "y" -o "$1" = "Y" -o "$1" = "yes" -o "$1" = "YES" ]
+}
+
+do_fuser ()
+{
+    is_true $NO_FUSER && return 1
+    fuser $*
 }
 
 add_blkdev ()
@@ -51,7 +57,7 @@ rm_blkdev ()
 {
     # usage: rm_blkdev [device]
     test -b $1 || return 1
-    fuser -k -m $1 > /dev/null
+    do_fuser -k -m $1 > /dev/null
     if mount | fgrep -q "$1 on" ; then
 	umount -v $1 || return 1
     fi
@@ -77,7 +83,7 @@ rm_parts ()
 	    mv /etc/fstab.N /etc/fstab
 	fi
     done
-    fuser -k -m /dev/${DEVICE}* > /dev/null
+    do_fuser -k -m /dev/${DEVICE}* > /dev/null
     LIST=`mount | sed -ne "s+^\($BLK[0-9]*\) .*+\1+p"`
     if [ "$LIST" ] ; then
 	for MT in $LIST ; do
@@ -123,10 +129,7 @@ grep_stab ()
 
 get_info ()
 {
-    if [ -d /var/state/pcmcia ] ; then
-	SCHEME=`cat /var/state/pcmcia/scheme`
-	STAB=/var/state/pcmcia/stab
-    elif [ -d /var/lib/pcmcia ] ; then
+    if [ -d /var/lib/pcmcia ] ; then
 	SCHEME=`cat /var/lib/pcmcia/scheme`
 	STAB=/var/lib/pcmcia/stab
     else

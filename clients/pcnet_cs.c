@@ -11,7 +11,7 @@
 
     Copyright (C) 1999 David A. Hinds -- dhinds@pcmcia.sourceforge.org
 
-    pcnet_cs.c 1.120 2000/05/13 02:35:35
+    pcnet_cs.c 1.122 2000/05/31 22:24:20
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -75,7 +75,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.120 2000/05/13 02:35:35 (David Hinds)";
+"pcnet_cs.c 1.122 2000/05/31 22:24:20 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -318,7 +318,7 @@ static dev_link_t *pcnet_attach(void)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     ethdev_init(dev);
-    dev->name = info->node.dev_name;
+    init_dev_name(dev, info->node);
     dev->init = &pcnet_init;
     dev->open = &pcnet_open;
     dev->stop = &pcnet_close;
@@ -744,7 +744,9 @@ static void pcnet_config(dev_link_t *link)
     info->flags = hw_info->flags;
     /* Check for user overrides */
     info->flags |= (delay_output) ? DELAY_OUTPUT : 0;
-    if ((manfid == MANFID_SOCKET) && (prodid == PRODID_SOCKET_LPE))
+    if ((manfid == MANFID_SOCKET) &&
+	((prodid == PRODID_SOCKET_LPE) ||
+	 (prodid == PRODID_SOCKET_EIO)))
 	info->flags &= ~USE_BIG_BUF;
     if (!use_big_buf)
 	info->flags &= ~USE_BIG_BUF;
@@ -768,6 +770,7 @@ static void pcnet_config(dev_link_t *link)
     ei_status.word16 = 1;
     ei_status.reset_8390 = &pcnet_reset_8390;
 
+    copy_dev_name(info->node, dev);
     link->dev = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
 

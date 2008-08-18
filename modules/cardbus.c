@@ -2,7 +2,7 @@
   
     Cardbus device configuration
     
-    cardbus.c 1.72 2000/05/16 23:39:20
+    cardbus.c 1.74 2000/05/20 03:16:31
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -552,6 +552,8 @@ int cb_config(socket_info_t *s)
 	}
 #endif
     }
+    if (irq)
+	printk(KERN_INFO "  irq %d\n", irq);
     s->irq.AssignedIRQ = irq;
     for (i = 0; i < fn; i++)
 	c[i].dev.irq = irq;
@@ -653,11 +655,13 @@ void cb_enable(socket_info_t *s)
 	    pci_writel(&c[i].dev, CB_ROM_BASE, ROM(c[i]) | 1);
     }
 
-    /* Set up PCI interrupt and command registers */
+    /* Set up a few basic PCI registers */
     for (i = 0; i < s->functions; i++) {
 	pci_writeb(&c[i].dev, PCI_COMMAND, PCI_COMMAND_MASTER |
 		   PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
+	/* These are lame but I don't know how to do any better */
 	pci_writeb(&c[i].dev, PCI_CACHE_LINE_SIZE, 8);
+	pci_writeb(&c[i].dev, PCI_LATENCY_TIMER, 64);
     }
     
     if (s->irq.AssignedIRQ) {

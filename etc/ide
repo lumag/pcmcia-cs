@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# ide 1.11 2000/04/17 20:31:02 (David Hinds)
+# ide 1.12 2000/06/06 21:02:09 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA ATA/IDE adapter
 #
@@ -43,10 +43,11 @@ case "$ACTION" in
     ;;
 
 'check')
+    is_true $NO_CHECK && exit 0
     if [ -b /dev/$DEVICE ] ; then
-	fuser -s -m /dev/${DEVICE}* && exit 1
+	do_fuser -s -m /dev/${DEVICE}* && exit 1
     else
-	fuser -s /dev/${DEVICE}* && exit 1
+	do_fuser -s /dev/${DEVICE}* && exit 1
     fi
     ;;
 

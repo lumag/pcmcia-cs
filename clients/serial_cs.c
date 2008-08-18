@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.118 2000/05/04 01:29:47
+    serial_cs.c 1.120 2000/06/05 23:02:12
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -61,7 +61,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.118 2000/05/04 01:29:47 (David Hinds)";
+"serial_cs.c 1.120 2000/06/05 23:02:12 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -245,12 +245,11 @@ static int setup_serial(serial_info_t *info, ioaddr_t port, int irq)
     memset(&serial, 0, sizeof(serial));
     serial.port = port;
     serial.irq = irq;
-    serial.flags = ASYNC_SKIP_TEST;
-    serial.flags |= (info->multi || info->slave) ? ASYNC_SHARE_IRQ : 0;
+    serial.flags = ASYNC_SKIP_TEST | ASYNC_SHARE_IRQ;
     line = register_serial(&serial);
     if (line < 0) {
-	printk(KERN_NOTICE "serial_cs: register_serial() at 0x%04x, "
-	       "irq %d failed\n", serial.port, serial.irq);
+	printk(KERN_NOTICE "serial_cs: register_serial() at 0x%04lx,"
+	       " irq %d failed\n", (u_long)serial.port, serial.irq);
 	return -1;
     }
     

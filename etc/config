@@ -1,7 +1,7 @@
 #
 # PCMCIA Card Configuration Database
 #
-# config 1.119 2000/05/15 19:28:14 (David Hinds)
+# config 1.120 2000/06/05 23:29:58 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -1336,6 +1336,10 @@ card "Rover ComboCard Ethernet/Modem"
   version "PCMCIAs", "ComboCard"
   bind "pcnet_cs", "serial_cs"
 
+card "Socket ES-1000 Ethernet/RS-232"
+  manfid 0x0104, 0x000a
+  bind "pcnet_cs", "serial_cs"
+ 
 card "TDK Global Networker Ethernet/Modem"
   version "TDK", "GlobalNetworker 3410/3412"
   bind "serial_cs"
@@ -1439,6 +1443,10 @@ card "IO DATA CBIDE"
   version "WIT", "IDE16"
   bind "ide_cs"
 
+card "IO DATA CBIDE2"
+  version "IO DATA", "CBIDE2      "
+  bind "ide_cs"
+
 card "MCD601p CD-ROM"
   version "CDROM", "IDE", "MCD-601p"
   bind "ide_cs"
@@ -1531,6 +1539,10 @@ card "Asante FriendlyNET 10/100 CardBus"
   version "Asante", "FriendlyNET 10/100 CardBus"
   bind "tulip_cb"
 
+card "Billionton LND-100B Fast Ethernet"
+  version "Billionton", "LND-100B"
+  bind "tulip_cb"
+
 card "D-Link DFE-660 Fast Ethernet"
   manfid 0x50c7, 0xcafe
   bind "tulip_cb"
@@ -1611,11 +1623,15 @@ card "Psion Gold Card Netglobal 56K+10/100Mb CardBus"
   manfid 0x016c, 0x0021
   bind "epic_cb" to 0, "serial_cb" to 1
 
-card "Xircom CardBus 10/100 Ethernet"
+card "Xircom CBEII-10/100 CardBus 10/100 Ethernet"
   version "Xircom", "*", "CBEII-10/100"
   bind "tulip_cb"
 
-card "Xircom CardBus 10/100 Ethernet + 56K Modem"
+card "Xircom R2BE-100BTX CardBus 10/100 Ethernet"
+  version "Xircom", "*", "R2BE-100BTX"
+  bind "tulip_cb"
+
+card "Xircom CBEM56G-100 CardBus 10/100 Ethernet + 56K Modem"
   version "Xircom", "*", "CBEM56G"
   bind "tulip_cb" to 0, "serial_cb" to 1
 

@@ -9,5 +9,8 @@ case "$ADDRESS" in
     #LINK="/dev/printer"
     # Options for 'tunelp'
     #LP_OPTS=""
+    # Card eject policy options
+    NO_CHECK=n
+    NO_FUSER=n
     ;;
 esac

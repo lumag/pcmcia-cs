@@ -41,5 +41,8 @@ case "$ADDRESS" in
     start_fn () { return; }
     # Extra stuff to do before shutting down the interface
     stop_fn () { return; }
+    # Card eject policy options
+    NO_CHECK=n
+    NO_FUSER=n
     ;;
 esac

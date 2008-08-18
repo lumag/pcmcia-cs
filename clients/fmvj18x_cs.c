@@ -315,7 +315,7 @@ static dev_link_t *fmvj18x_attach(void)
     dev->get_stats = &fjn_get_stats;
     dev->set_multicast_list = &set_rx_mode;
     ether_setup(dev);
-    dev->name = lp->node.dev_name;
+    init_dev_name(dev, lp->node);
     dev->open = &fjn_open;
     dev->stop = &fjn_close;
 #ifdef HAVE_NETIF_QUEUE
@@ -518,6 +518,7 @@ static void fmvj18x_config(dev_link_t *link)
 	break;
     }
 
+    copy_dev_name(lp->node, dev);
     link->dev = &lp->node;
     link->state &= ~DEV_CONFIG_PENDING;
 

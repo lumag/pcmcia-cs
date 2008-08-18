@@ -2,7 +2,7 @@
 
     A driver for CardBus serial devices
 
-    serial_cb.c 1.17 2000/05/04 00:24:56
+    serial_cb.c 1.18 2000/06/05 23:02:40
 
     Copyright 1998, 1999 by Donald Becker and David Hinds
     
@@ -42,7 +42,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cb.c 1.17 2000/05/04 00:24:56 (David Hinds)";
+"serial_cb.c 1.18 2000/06/05 23:02:40 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -115,8 +115,8 @@ static dev_node_t *serial_attach(dev_locator_t *loc)
 
     line = register_serial(&serial);
     if (line < 0) {
-	printk(KERN_NOTICE "serial_cb: register_serial() at 0x%04x, "
-	       "irq %d failed\n", serial.port, serial.irq);
+	printk(KERN_NOTICE "serial_cb: register_serial() at 0x%04lx,"
+	       " irq %d failed\n", (u_long)serial.port, serial.irq);
 	goto fail;
     }
     node = kmalloc(sizeof(dev_node_t), GFP_KERNEL);

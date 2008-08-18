@@ -1,4 +1,4 @@
-Known problems and limitations for the 3.1.15 PCMCIA release
+Known problems and limitations for the 3.1.16 PCMCIA release
 ============================================================
 
 Bug summaries:
@@ -21,6 +21,7 @@ o Tedious IDE probes for nonexistent slave devices
 o parport_cs doesn't work in 2.3.*
 o Xircom CardBus driver instability
 o epic_cb driver broken in 2.2.15pre
+o NE2000 compatible cards based on the Asix AX88190 are unsupported
 
 Bug details:
 
@@ -63,6 +64,11 @@ o Interrupt routing on O2Micro CardBus bridges seems to have problems.
   With ToPIC chipsets, some systems seem to work better if the bridge
   mode is changed to either "PCIC" or "CardBus", rather than "Auto",
   in the BIOS setup menu.
+
+  In some cases, ToPIC chipsets generate bogus eject/insert sequences
+  when a card is first powered up.  It may be useful to increase the
+  vcc_settle and/or setup_time parameters for the pcmcia_core module
+  to prevent this.
 
 o On the Sony VAIO PCG-N505VE, after a suspend, no interrupts are
   delivered by the CardBus bridge until the system is rebooted.
@@ -167,3 +173,12 @@ o Xircom CBEM support in the tulip_cb driver seems to be extremely
 
 o CardBus support got deleted from the epic100 driver in 2.2.15pre2.
 
+o A number of "NE2000 compatible" cards use the Asix AX88190 chipset,
+  which has several serious bugs and incompatibilities that render the
+  regular pcnet_cs driver unusable.  The pcnet_cs driver will identify
+  and refuse to deal with these cards.
+
+  Prognosis: a Linux driver is available from the Asix web site at
+  http://www.asix.com.tw/driver2.htm and I'm investigating how to best
+  deal with the issue in the regular pcnet_cs driver.  It is a tricky
+  issue and I'm not sure when a better fix will be available.

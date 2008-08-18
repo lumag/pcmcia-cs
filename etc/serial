@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serial 1.34 2000/04/18 01:50:17 (David Hinds)
+# serial 1.35 2000/06/06 21:02:09 (David Hinds)
 #
 # Initialize or shutdown a PCMCIA serial device
 #
@@ -59,11 +59,12 @@ case "$ACTION" in
     ;;
 
 'check')
+    is_true $NO_CHECK && exit 0
     if [ "$INITTAB" ] ; then
-	fuser -v /dev/$DEVICE /dev/$CALLOUT $LINK | grep -v getty \
+	do_fuser -v /dev/$DEVICE /dev/$CALLOUT $LINK | grep -v getty \
 	    | grep -q /dev/$DEVICE && exit 1
     else
-	fuser -s /dev/$DEVICE /dev/$CALLOUT $LINK && exit 1
+	do_fuser -s /dev/$DEVICE /dev/$CALLOUT $LINK && exit 1
     fi
     ;;
 
@@ -77,19 +78,19 @@ case "$ACTION" in
 	mv /etc/inittab.new /etc/inittab
 	telinit q
     fi
-    fuser -k /dev/$DEVICE /dev/$CALLOUT $LINK > /dev/null
+    do_fuser -k /dev/$DEVICE /dev/$CALLOUT $LINK > /dev/null
     rm -f $LINK ; mv -f $LINK.O $LINK 2>/dev/null
     ;;
 
 'suspend')
-    fuser -k -STOP /dev/$DEVICE /dev/$CALLOUT > /dev/null
+    do_fuser -k -STOP /dev/$DEVICE /dev/$CALLOUT > /dev/null
     ;;
 
 'resume')
     if [ "$SERIAL_OPTS" ] ; then
 	setserial /dev/$DEVICE $SERIAL_OPTS
     fi
-    fuser -k -CONT /dev/$DEVICE /dev/$CALLOUT $LINK > /dev/null
+    do_fuser -k -CONT /dev/$DEVICE /dev/$CALLOUT $LINK > /dev/null
     ;;
 
 *)

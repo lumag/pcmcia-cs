@@ -7,7 +7,7 @@
     card's attribute and common memory.  It includes character
     and block device support.
 
-    memory_cs.c 1.70 2000/05/04 01:29:47
+    memory_cs.c 1.71 2000/06/09 22:15:05
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -91,7 +91,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"memory_cs.c 1.70 2000/05/04 01:29:47 (David Hinds)";
+"memory_cs.c 1.71 2000/06/09 22:15:05 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -106,8 +106,12 @@ static int word_width = 1;
 /* Speed of memory accesses, in ns */
 static int mem_speed = 0;
 
+/* Force the size of an SRAM card */
+static int force_size = 0;
+
 MODULE_PARM(word_width, "i");
 MODULE_PARM(mem_speed, "i");
+MODULE_PARM(force_size, "i");
 
 /*====================================================================*/
 
@@ -146,7 +150,7 @@ typedef struct direct_dev_t {		/* For direct access */
     int			open;
     caddr_t		Base;
     u_int		Size;
-    u_long		cardsize;
+    u_int		cardsize;
 } direct_dev_t;
 
 typedef struct memory_dev_t {
@@ -327,59 +331,51 @@ static void memory_detach(dev_link_t *link)
     
 ======================================================================*/
 
-static void get_size(dev_link_t *link, direct_dev_t *direct)
+static u_int get_size(dev_link_t *link, direct_dev_t *direct)
 {
     modwin_t mod;
     memreq_t mem;
-    u_char buf[26];
-    int s, t, ret;
+    u_char b0, b1;
+    int s, ret;
 
     mod.Attributes = WIN_ENABLE | WIN_MEMORY_TYPE_CM;
-    mod.AccessSpeed = 0;
+    mod.AccessSpeed = mem_speed;
     ret = CardServices(ModifyWindow, link->win, &mod);
     if (ret != CS_SUCCESS)
 	cs_error(link->handle, ModifyWindow, ret);
 
     /* Look for wrap-around or dead end */
-    mem.Page = 0;
+    mem.Page = mem.CardOffset = 0;
+    CardServices(MapMemPage, link->win, &mem);
+    b0 = readb(direct->Base);
     for (s = 12; s < 26; s++) {
 	mem.CardOffset = 1<<s;
 	CardServices(MapMemPage, link->win, &mem);
-	buf[s] = readb(direct->Base);
-	writeb(~buf[s], direct->Base);
-	for (t = 12; t < s; t++) {
-	    mem.CardOffset = 1<<t;
-	    CardServices(MapMemPage, link->win, &mem);
-	    if (readb(direct->Base) != buf[t]) {
-		writeb(buf[t], direct->Base);
-		break;
-	    }
+	b1 = readb(direct->Base);
+	writeb(~b1, direct->Base);
+	mem.CardOffset = 0;
+	CardServices(MapMemPage, link->win, &mem);
+	if (readb(direct->Base) != b0) {
+	    writeb(b0, direct->Base);
+	    break;
 	}
-	if (t < s) break;
 	mem.CardOffset = 1<<s;
 	CardServices(MapMemPage, link->win, &mem);
-	if (readb(direct->Base) != (0xff & ~buf[s])) break;
-	writeb(buf[s], direct->Base);
+	if (readb(direct->Base) != (0xff & ~b1)) break;
+	writeb(b1, direct->Base);
     }
 
-    /* Restore that last byte on wrap-around */
-    if (t < s) {
-	mem.CardOffset = 1<<t;
-	CardServices(MapMemPage, link->win, &mem);
-	writeb(buf[t], direct->Base);
-    }
-
-    direct->cardsize = (t > 15) ? (1<<t) : 0;
+    return (s > 15) ? (1<<s) : 0;
 } /* get_size */
 
-static void print_size(u_long sz)
+static void print_size(u_int sz)
 {
     if (sz & 0x03ff)
-	printk("%ld bytes", sz);
+	printk("%d bytes", sz);
     else if (sz & 0x0fffff)
-	printk("%ld kb", sz >> 10);
+	printk("%d kb", sz >> 10);
     else
-	printk("%ld mb", sz >> 20);
+	printk("%d mb", sz >> 20);
 }
 
 /*======================================================================
@@ -450,7 +446,8 @@ static void memory_config(dev_link_t *link)
 	cisinfo_t cisinfo;
 	if ((CardServices(ValidateCIS, link->handle, &cisinfo)
 	     == CS_SUCCESS) && (cisinfo.Chains == 0)) {
-	    get_size(link, &dev->direct);
+	    dev->direct.cardsize =
+		force_size ? force_size : get_size(link,&dev->direct);
 	    printk(" anonymous: ");
 	    if (dev->direct.cardsize == 0) {
 		dev->direct.cardsize = HIGH_ADDR;
@@ -699,7 +696,7 @@ static ssize_t direct_read FOPS(struct inode *inode,
 
     mod.Attributes = WIN_ENABLE;
     mod.Attributes |= (REGION_AM(minor)) ? WIN_MEMORY_TYPE_AM : 0;
-    mod.AccessSpeed = 0;
+    mod.AccessSpeed = mem_speed;
     ret = CardServices(ModifyWindow, link->win, &mod);
     if (ret != CS_SUCCESS) {
 	cs_error(link->handle, ModifyWindow, ret);
@@ -849,7 +846,7 @@ static ssize_t direct_write FOPS(struct inode *inode,
 
     mod.Attributes = WIN_ENABLE;
     mod.Attributes |= (REGION_AM(minor)) ? WIN_MEMORY_TYPE_AM : 0;
-    mod.AccessSpeed = 0;
+    mod.AccessSpeed = mem_speed;
     ret = CardServices(ModifyWindow, link->win, &mod);
     if (ret != CS_SUCCESS) {
 	cs_error(link->handle, ModifyWindow, ret);
@@ -991,7 +988,6 @@ static int memory_ioctl(struct inode *inode, struct file *file,
     
 ======================================================================*/
 
-
 static void do_direct_request(dev_link_t *link)
 {
     memory_dev_t *dev = link->priv;
@@ -1010,8 +1006,8 @@ static void do_direct_request(dev_link_t *link)
 	return;
     }
     
-    mod.Attributes = WIN_ENABLE;
-    mod.AccessSpeed = 0;
+    mod.Attributes = WIN_ENABLE | WIN_MEMORY_TYPE_CM;
+    mod.AccessSpeed = mem_speed;
     ret = CardServices(ModifyWindow, link->win, &mod);
     if (ret != CS_SUCCESS) {
 	cs_error(link->handle, ModifyWindow, ret);

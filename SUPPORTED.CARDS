@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 2000/05/08 19:42:08
+		Last updated: 2000/06/07 18:17:22
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -104,7 +104,7 @@ Ethernet cards:
 	LanPro EP4000A
 	Lantech Ethernet
 	Level One EPC-0100TB
-	Linksys EtherCard, EC2T Combo
+	Linksys EtherCard, EC2T Combo, NP10T
 	Logitec LPM-LN10T, LPM-LN10BA, LPM-LN20T Ethernet
 	Longshine ShineNet LCS-8534TB Ethernet
 	Macnica ME-1 Ethernet
@@ -216,6 +216,7 @@ Fast Ethernet (10/100baseT) adapters:
 	AmbiCom AMB8100
 	Apollo FE2000
 	Asante FriendlyNET CardBus
+	Billionton LND-100B
 	Compex Linkport TX
 	D-Link DFE-660TX
 	Genius MF3000			[ some do not work?? ]
@@ -234,7 +235,7 @@ Fast Ethernet (10/100baseT) adapters:
 	[ Not recommended: support is experimental and unreliable ]
 	IBM 10/100 EtherJet CardBus
 	Intel EtherExpress PRO/100 CardBus Mobile Adapter32
-	Xircom CBEII-10/100, RBE-100
+	Xircom CBE2-100BTX, RBE-100BTX, R2BE-100BTX
 
 Token-ring adapters:
 
@@ -249,7 +250,8 @@ Token-ring adapters:
 Wireless network adapters:
 
 	[airo_cs driver]
-	Aironet PC4500, PC4800 wireless network adapters
+	Aironet PC4500, PC4800
+	Cisco 340
 
 	[netwave_cs driver] [x86]
 	Breezenet SA-PX
@@ -398,6 +400,7 @@ Multifunction ethernet/modem cards:
 	PREMAX LAN modem
 	Psion V.34 Gold Card
 	Rover ComboCard 33.6
+	Socket Communications ES-1000 (E-I/O) Ethernet/RS-232
 	TDK 3000/3400/5670
 	TDK DFL5610WS Fast Ethernet/Modem
 	Telecom Device SuperSocket LM336
@@ -473,7 +476,7 @@ ATA/IDE CD-ROM adapters:
 	Microtech International MicroCD
 	Microtech Mii Zip 100
 	NOVAC NV-CD410
-	Sony PCGA-CD5, PCGA-CD51 CD-ROM
+	Sony PCGA-CD5, PCGA-CD51, CRX50A CD-ROM
 	TEAC IDE Card/II
 
 The following cards have contributed drivers which are distributed as
@@ -487,9 +490,18 @@ ftp://sourceforge.org/pcmcia/contrib; some have their own web sites.
 	  http://ipoint.vlsi.uiuc.edu/wireless/asplus.html
 	  (Jay Moorman <jrmoorma@uiuc.edu>)
 
+	[brzcom_cs driver]
+	BreezeCOM BreezeNet SA-PCR Pro.11 Series wireless adapter
+	  http://www.breezecom.com, support@breezecom.com
+
 	[cs89x0_cs driver]
 	IBM EtherJet
 	  (Danilo Beuche <danili@cs.uni-magdeburg.de>)
+
+	[daqcard700_cs]
+	National Instruments DAQcard700
+	  ftp://fsmlabs.com/pub/rtlinux/
+	  (Steve Rosenbluth <stever@la.creatureshop.henson.com>)
 
 	[das16s driver]
 	Computer Boards PCM-DAS16s/16 ADC
@@ -522,6 +534,20 @@ ftp://sourceforge.org/pcmcia/contrib; some have their own web sites.
 	Sedlbauer Speed Star ISDN adapter
 	  (Marcus Niemann <niemann@www-bib.fh-bielefeld.de>)
 
+	[spectrum24_cs]
+	Symbol Technologies Spectrum24 2 Mbps wireless adapter
+	  (Lee Keyser-Allen <lkeyser@wpi.edu>)
+
+	[spectrum24t_cs]
+	Symbol Technologies Spectrum24 11 Mbps wireless adapter
+	3Com 3CRWE737A
+	  (Tim Gardner <timg@tpi.com>)
+
+	[ss5136dn_cs driver]
+	SST 5136-DN-PC DeviceNet Interface
+	  http://www.spectra-one.com/dn5136man.html
+	  (Mark Sutton <marksu@spectra-one.com>)
+
 	[sym53c500_cs driver]
 	New Media Bus Toaster SCSI [ new version ]
 	New Media BASICS SCSI
@@ -533,18 +559,12 @@ ftp://sourceforge.org/pcmcia/contrib; some have their own web sites.
 	  http://home.wtal.de/petig/ISDN/index.html
 	  (Christof Petig <ea0141@uni-wuppertal.de>)
 
-	[ss5136dn_cs driver]  
-	SST 5136-DN-PC DeviceNet Interface
-	  http://www.spectra-one.com/dn5136man.html
-	  (Mark Sutton <marksu@spectra-one.com>)
-
 	[wavelan2_cs driver]
 	Lucent WaveLAN/IEEE wireless network adapter
 	  http://www.wavelan.com
 	  (Lucent Technologies <betasupport@wavelan.com>)
 
-	BreezeCOM SA-PCR Pro.11
-	  [ a driver is available from BreezeCOM ]
+The following drivers have their own web sites:
 
 	GemPlus GPR400 Smart Card Reader
 	  http://www.linuxnet.com/smartcard/code.html
@@ -557,11 +577,6 @@ ftp://sourceforge.org/pcmcia/contrib; some have their own web sites.
 	Zoom Telephonics ZoomAir 4000
 	  http://www.absoval.com/linux-wlan
 	  (Mark Mathews <mark@absoval.com>)
-
-	National Instruments DAQcard700
-	  ftp://fsmlabs.com/pub/rtlinux/v1/drivers/daqcard700-1.02.tar.gz
-	  ftp://fsmlabs.com/pub/rtlinux/v2/new_drivers/daqcard700-1.04.tar.gz
-	  (Steve Rosenbluth <stever@la.creatureshop.henson.com>)
 
 	Proxim RangeLAN2 and Symphony wireless LAN cards
 	  http://www.komacke.com/distribution.html
@@ -582,7 +597,6 @@ People are working on the following cards:
 			  Cyrus Patel <cyrus@linuxfan.com>)
 	IO DATA PCSC-II (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)
 	Macnica mPS-1x0 (Katayama Nobuhiro <kata-n@po.iijnet.or.jp>)
-	TView Preso (Brenden Tuck <friar@zendragon.com>)
 	Proxim RangeLAN/2 (Jim Duchek <jimducheck@primary.net>
 	  http://students.ou.edu/D/James.R.Duchek-1/rangelan2.html
 

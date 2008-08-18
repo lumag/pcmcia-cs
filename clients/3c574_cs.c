@@ -327,7 +327,7 @@ static dev_link_t *tc574_attach(void)
 	dev->do_ioctl = &el3_ioctl;
 	dev->set_multicast_list = &set_rx_mode;
 	ether_setup(dev);
-	dev->name = lp->node.dev_name;
+	init_dev_name(dev, lp->node);
 	dev->open = &el3_open;
 	dev->stop = &el3_close;
 #ifdef HAVE_NETIF_QUEUE
@@ -461,6 +461,7 @@ static void tc574_config(dev_link_t *link)
 	}
 
 	ioaddr = dev->base_addr;
+	copy_dev_name(lp->node, dev);
 	link->dev = &lp->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 

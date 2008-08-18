@@ -51,7 +51,7 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/mem_op.h>
 
-#ifdef HAS_WIRELESS_EXTENSIONS
+#ifdef CONFIG_NET_PCMCIA_RADIO
 #include <linux/wireless.h>
 #if WIRELESS_EXT < 9
 #warning "Wireless extension v9 or newer required"
@@ -62,7 +62,7 @@
 typedef struct iw_statistics	iw_stats;
 typedef struct iw_quality	iw_qual;
 typedef u_char	mac_addr[ETH_ALEN];	/* Hardware address */
-#endif	/* HAS_WIRELESS_EXTENSIONS */
+#endif	/* CONFIG_NET_PCMCIA_RADIO */
 
 #include "rayctl.h"
 #include "ray_cs.h"
@@ -317,7 +317,7 @@ static char hop_pattern_length[] = { 1,
 	     JAPAN_TEST_HOP_MOD
 };
 
-static char rcsid[] = " ray_cs.c,v 1.17 2000/05/16 23:37:12 root Exp - Corey Thomas corey@world.std.com";
+static char rcsid[] = " ray_cs.c,v 1.19 2000/06/05 23:00:51 root Exp - Corey Thomas corey@world.std.com";
 
 /*===========================================================================*/
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -426,7 +426,7 @@ static dev_link_t *ray_attach(void)
 
     DEBUG(2,"ray_cs ray_attach calling ether_setup.)\n");
     ether_setup(dev);
-    dev->name = local->node.dev_name;
+    init_dev_name(dev, local->node);
     dev->init = &ray_dev_init;
     dev->open = &ray_open;
     dev->stop = &ray_dev_close;
@@ -612,6 +612,7 @@ static void ray_config(dev_link_t *link)
 	goto config_failed;
     }
 
+    copy_dev_name(local->node, dev);
     link->dev = &local->node;
 
     local->card_status = CARD_AWAITING_PARAM;

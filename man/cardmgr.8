@@ -1,7 +1,7 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" cardmgr.8 1.35 2000/03/15 02:00:44
+.\" cardmgr.8 1.36 2000/06/07 22:13:44
 .\"
-.TH CARDMGR 8 "2000/03/15 02:00:44" "pcmcia-cs"
+.TH CARDMGR 8 "2000/06/07 22:13:44" "pcmcia-cs"
 .SH NAME
 cardmgr \- PCMCIA device manager
 .SH SYNOPSIS
@@ -24,17 +24,16 @@ cardmgr \- PCMCIA device manager
 .RB [ "\-s\ "\c
 .I stabfile\c
 ]
+
 .SH DESCRIPTION
 .B Cardmgr
 monitors PCMCIA sockets for card insertion and removal events.  When a
-card is inserted,
-.B cardmgr
+card is inserted, \fBcardmgr\fR
 looks up the card in a database of known cards.  If the card can be
 identified, appropriate device drivers will be loaded and bound to the
 card.  When a card is ejected, that card's drivers will be shut down
 and unloaded if possible.  Based on the contents of the PCMCIA card
-configuration database,
-.B cardmgr
+configuration database, \fBcardmgr\fR
 may also execute arbitrary commands when appropriate cards are either
 inserted or removed.
 .PP
@@ -42,38 +41,28 @@ All insertion and removal events, device driver loads and unloads, and
 startup and shutdown commands are reported in the system log file.
 Warnings and errors will also be logged.  Current card and device
 information for each socket is recorded in
-.I /var/state/pcmcia/stab
-or
 .IR /var/lib/pcmcia/stab .
 .PP
-Normally, when a card is identified,
-.I cardmgr
+Normally, when a card is identified, \fBcardmgr\fR
 will send a beep to the console.  A beep is also generated when a card
 is successfully configured.  A beep of lower pitch is generated if
 either of these steps fails.  Ejecting a card produces a single beep.
 .PP
-When
-.B cardmgr
-receives a
-.B SIGHUP
-signal, it will reload its configuration file.  When
-.B cardmgr
-receives a
-.B SIGTERM
+When \fBcardmgr\fR
+receives a \fBSIGHUP\fR
+signal, it will reload its configuration file.  When \fBcardmgr\fR
+receives a \fBSIGTERM\fR
 signal, it will shut down all sockets that are not busy and then
 exit, but drivers for busy sockets will stay loaded.
 .PP
-If the
-.B PCMCIA_OPTS
+If the \fBPCMCIA_OPTS\fR
 environment variable is set, its contents will be parsed after the
 main card configuration file is read.
 .PP
-At startup,
-.B cardmgr
-requires that
-.I /tmp
+At startup, \fBcardmgr\fR requires that \fI/tmp\fR
 reside on a filesystem that permits special device files (i.e., a real
 linux filesystem, that is not mounted "nodev").
+
 .SH OPTIONS
 .TP
 .B \-V
@@ -88,16 +77,9 @@ operation.
 .TP
 .B \-d
 Follow module dependencies when loading driver modules, by defaulting
-to use
-.B modprobe
-instead of
-.BR insmod .
-Normally,
-.B cardmgr
-will try using
-.B modprobe
-only after an unsuccessful attempt with
-.BR insmod .
+to use \fBmodprobe\fR instead of \fBinsmod\fR.
+Normally, \fBcardmgr \fR will try using \fBmodprobe\fR only after an
+unsuccessful attempt with \fBinsmod\fR.
 .TP
 .B \-f
 Foreground: do not fork and run as a daemon until after configuring
@@ -105,27 +87,24 @@ any cards that are already present.
 .TP
 .B \-o
 One pass: configure cards that are present, then exit.  This flag
-also forces
-.B cardmgr
-to run in the foreground.
+also forces \fBcardmgr\fR to run in the foreground.
 .TP
 .BI "\-c " configpath
 Look for the card configuration database and card configuration
-scripts in the specified directory, instead of 
-.IR /etc/pcmcia .
+scripts in the specified directory, instead of \fI/etc/pcmcia\fR.
 .TP
 .BI "\-m " modpath
 Look for loadable kernel modules in the specified directory, instead
-of
-.IR /lib/modules/`uname -r` .
+of \fI/lib/modules/`uname -r`\fR.
 .TP
 .BI "\-p " pidfile
 Write the PID of the cardmgr process to the specified file, instead of
-.IR /var/run/cardmgr.pid .
+\fI/var/run/cardmgr.pid\fR.
 .TP
 .BI "\-s " stabfile
 Write current socket information to the specified file, instead of
-.IR /var/{state,lib}/pcmcia/stab .
+\fI/var/{state,lib}/pcmcia/stab\fR.
+
 .SH FILES
 .PD 0
 .TP \w'/etc/pcmcia/config.opts\ \ \ \|\|'u
@@ -140,6 +119,7 @@ PID of active cardmgr process
 .TP
 /var/{state,lib}/pcmcia/stab
 Current card and device information for each socket.
+
 .SH AUTHOR
 David Hinds \- dhinds@pcmcia.sourceforge.org
 .SH "SEE ALSO"

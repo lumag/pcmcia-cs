@@ -1,5 +1,5 @@
 /*
- * o2micro.h 1.15 2000/04/24 21:19:49
+ * o2micro.h 1.16 2000/06/09 21:25:52
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -133,5 +133,15 @@ typedef struct o2micro_state_t {
     u_char		fifo;		/* O2_FIFO_ENA */
     u_char		mode_e;		/* O2_MODE_E */
 } o2micro_state_t;
+
+#define O2MICRO_PCIC_ID \
+    IS_OZ6729, IS_OZ6730, IS_OZ6832, IS_OZ6836, IS_OZ6812
+
+#define O2MICRO_PCIC_INFO \
+    { "O2Micro OZ6729", IS_O2MICRO|IS_PCI|IS_VG_PWR, ID(O2, 6729) },	\
+    { "O2Micro OZ6730", IS_O2MICRO|IS_PCI|IS_VG_PWR, ID(O2, 6730) },	\
+    { "O2Micro OZ6832/33", IS_O2MICRO|IS_CARDBUS, ID(O2, 6832) },	\
+    { "O2Micro OZ6836/60", IS_O2MICRO|IS_CARDBUS, ID(O2, 6836) },	\
+    { "O2Micro OZ6812", IS_O2MICRO|IS_CARDBUS, ID(O2, 6812) }
 
 #endif /* _LINUX_O2MICRO_H */

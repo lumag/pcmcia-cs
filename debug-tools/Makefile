@@ -1,5 +1,5 @@
 #
-# debug-tools/Makefile 1.40 2000/05/11 17:47:44 (David Hinds)
+# debug-tools/Makefile 1.41 2000/05/23 02:52:35 (David Hinds)
 #
 
 # Include site dependent options
@@ -10,9 +10,9 @@ XFLAGS = -O -pipe
 CPPFLAGS += -I../modules
 CC += $(UFLAGS)
 
-SRCS  = dump_cis.c dump_cisreg.c pack_cis.c
+SRCS  = dump_cis.c dump_cisreg.c pack_cis.c dump_exca.c
 HDRS  = pack_cis.h
-TOOLS = dump_cis dump_cisreg pack_cis
+TOOLS = dump_cis dump_cisreg pack_cis dump_exca
 
 ifdef CONFIG_PNP_BIOS
 SRCS  += lspnp.c setpnp.c
@@ -20,8 +20,8 @@ TOOLS += lspnp setpnp
 endif
 
 ifdef CONFIG_ISA
-SRCS  += dump_tcic.c dump_exca.c 
-TOOLS += dump_tcic dump_exca
+SRCS  += dump_tcic.c
+TOOLS += dump_tcic
 endif
 
 ifdef CONFIG_PCI
