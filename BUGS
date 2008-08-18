@@ -1,4 +1,4 @@
-Known problems with the 3.1.5 PCMCIA release
+Known problems with the 3.1.7 PCMCIA release
 =============================================
 
 o Use of CardBus cards with 2.0.* kernels is discouraged.  It may work
@@ -99,3 +99,11 @@ o Recent 2.3.* kernels may make mistakes when autoconfiguring CardBus
   Prognosis: the PCI driver layer is taking on a job that it can't
   quite handle yet.  There is no trivial workaround, other than 
   reverting to a 2.2.* kernel.
+
+o The current serial driver seems to have a bug that results in a bad
+  interaction between Red Hat 6.1's "kudzu" hardware discovery tool,
+  and subsequent configuration of PCMCIA serial devices.
+
+  Prognosis: I'll try to track down the bug; the workaround is to
+  either disable kudzu, or adding a "-s" flag to its invocation in
+  /etc/rc.d/init.d/kudzu.

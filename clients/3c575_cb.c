@@ -1722,9 +1722,9 @@ static void vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			} else {
 				printk(KERN_WARNING "%s: Too much work in interrupt, status "
 					   "%4.4x.  Temporarily disabling functions (%4.4x).\n",
-					   dev->name, status, SetStatusEnb | ((~status) & 0x7FE));
+					   dev->name, status, (~status) & vp->status_enable);
 				/* Disable all pending interrupts. */
-				outw(SetStatusEnb | ((~status) & 0x7FE), ioaddr + EL3_CMD);
+				outw(SetStatusEnb | ((~status) & vp->status_enable), ioaddr + EL3_CMD);
 				outw(AckIntr | 0x7FF, ioaddr + EL3_CMD);
 				/* The timer will reenable interrupts. */
 				break;

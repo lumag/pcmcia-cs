@@ -8,7 +8,7 @@
 %DVIPSWebPage: (www.radicaleye.com)
 %DVIPSCommandLine: dvips -t letter PCMCIA-HOWTO.dvi -o PCMCIA-HOWTO.ps
 %DVIPSParameters: dpi=600, compressed
-%DVIPSSource:  TeX output 1999.12.10:2023
+%DVIPSSource:  TeX output 1999.12.16:1738
 %%BeginProcSet: texc.pro
 %!
 /TeXDict 300 dict def TeXDict begin/N{def}def/B{bind def}N/S{exch}N/X{S
@@ -1523,7 +1523,7 @@ letter
 y(X)h(L)398 145 y Fl(A)435 162 y Fm(T)481 180 y(E)527
 162 y(X)0 348 y Fk(Linux)54 b(PCMCIA)f(HO)l(WTO)p 0 461
 3900 24 v 0 575 a Fm(Da)n(vid)27 b(Hinds,)h Fj(dhinds@pcmcia.so)o(urc)o
-(ef)o(or)o(ge.)o(or)o(g)p Fm(.)1198 b(v2.47,)26 b(11)h(Decem)n(b)r(er)g
+(ef)o(or)o(ge.)o(or)o(g)p Fm(.)1198 b(v2.48,)26 b(17)h(Decem)n(b)r(er)g
 (1999)0 881 y Fi(This)j(do)r(cument)f(describ)r(es)h(ho)n(w)f(to)g
 (install)g(and)h(use)f(PCMCIA)i(Ca)n(rd)e(Services)h(fo)n(r)g(Linux,)h
 (and)f(answ)n(ers)f(some)g(frequently)0 994 y(ask)n(ed)38
@@ -1885,10 +1885,10 @@ b Fm(SMC)27 b(34C90)125 3407 y Fd(\017)41 b Fm(T)-7 b(exas)25
 b(Instrumen)n(ts)i(PCI1130,)e(PCI1131,)g(PCI1210,)h(PCI1220,)f
 (PCI1221,)g(PCI1225,)h(PCI1250A,)f(PCI1251A,)208 3521
 y(PCI1251B,)g(PCI1450)125 3698 y Fd(\017)41 b Fm(T)-7
-b(oshiba)26 b(T)-7 b(oPIC95,)27 b(T)-7 b(oPIC97)27 b(\(exp)r(erimen)n
-(tal,)g(incomplete\))125 3875 y Fd(\017)41 b Fm(V)-7
-b(adem)27 b(V)n(G465,)g(V)n(G468,)f(V)n(G469)125 4053
-y Fd(\017)41 b Fm(VLSI)27 b(T)-7 b(ec)n(hnologies)26
+b(oshiba)26 b(T)-7 b(oPIC95,)27 b(T)-7 b(oPIC97,)27 b(T)-7
+b(oPIC100)26 b(\(exp)r(erimen)n(tal,)h(incomplete\))125
+3875 y Fd(\017)41 b Fm(V)-7 b(adem)27 b(V)n(G465,)g(V)n(G468,)f(V)n
+(G469)125 4053 y Fd(\017)41 b Fm(VLSI)27 b(T)-7 b(ec)n(hnologies)26
 b(82C146,)f(V)n(CF94365)125 4230 y Fd(\017)41 b Fm(VIA)28
 b(VT83C469)125 4407 y Fd(\017)41 b Fm(Datab)r(o)r(ok)26
 b(DB86082,)g(DB86082A,)g(DB86084,)f(DB86084A,)h(DB86072,)f(DB86082B)0
@@ -2371,26 +2371,25 @@ i(from)f(6)g(\(the)h(default\))g(to)g(12)f(or)f(16.)125
 (has)i(the)g Fh(fast_pci)d Fm(\035ag,)i(whic)n(h)h(should)f(b)r(e)h
 (set)g(if)h(the)f(PCI)g(bus)g(sp)r(eed)g(is)208 1876
 y(greater)e(than)j(25)f(MHz.)125 2056 y Fd(\017)41 b
-Fm(F)-7 b(or)30 b(V)-7 b(adem)32 b(V)n(G-468)e(con)n(trollers)f(and)j
-(Datab)r(o)r(ok)f(TCIC-2)f(con)n(trollers,)h(the)h Fh(async_clock)27
-b Fm(\035ag)k(c)n(hanges)f(the)208 2170 y(relativ)n(e)25
-b(clo)r(c)n(king)g(of)h(PCMCIA)h(bus)g(and)f(host)g(bus)g(cycles.)36
-b(Setting)26 b(this)h(\035ag)f(adds)f(extra)h(w)n(ait)g(states)g(to)g
-(some)208 2283 y(op)r(erations.)35 b(Ho)n(w)n(ev)n(er,)26
-b(I)h(ha)n(v)n(e)g(y)n(et)g(to)g(hear)g(of)h(a)f(laptop)g(that)h(needs)
-f(this.)125 2463 y Fd(\017)41 b Fm(The)e Fh(pcmcia_core)c
-Fm(mo)r(dule)40 b(has)g(the)g Fh(cis_speed)c Fm(parameter)i(for)h(c)n
-(hanging)f(the)i(memory)f(sp)r(eed)h(used)g(for)208 2577
-y(accessing)23 b(a)h(card's)g(Card)f(Information)h(Structure)h
-(\(CIS\).)g(On)g(some)f(systems)g(with)h(fast)g(bus)f(clo)r(c)n(ks,)h
-(increasing)208 2690 y(this)i(parameter)f(\(i.e.,)i(slo)n(wing)f(do)n
-(wn)g(card)f(accesses\))h(ma)n(y)g(b)r(e)h(b)r(ene\034cial)f(for)g
-(card)g(recognition)f(problems.)125 2870 y Fd(\017)41
-b Fm(This)30 b(is)f(not)h(a)g(timing)g(issue,)h(but)f(if)h(y)n(ou)e(ha)
-n(v)n(e)g(more)g(than)h(one)g(ISA-to-PCMCIA)g(con)n(troller)e(in)j(y)n
-(our)d(system)208 2984 y(or)i(extra)h(so)r(c)n(k)n(ets)f(in)h(a)g(do)r
-(c)n(king)g(station,)h(the)g Fh(i82365)d Fm(mo)r(dule)i(should)g(b)r(e)
-h(loaded)f(with)h(the)g Fh(extra_sockets)208 3097 y Fm(parameter)22
+Fm(F)-7 b(or)32 b(V)-7 b(adem)33 b(V)n(G-468)e(con)n(trollers,)h(the)h
+Fh(async_clock)c Fm(\035ag)j(c)n(hanges)f(the)i(relativ)n(e)f(clo)r(c)n
+(king)g(of)g(PCMCIA)i(bus)208 2170 y(and)29 b(host)f(bus)i(cycles.)40
+b(Setting)30 b(this)f(\035ag)g(adds)f(extra)h(w)n(ait)f(states)h(to)g
+(some)g(op)r(erations.)40 b(Ho)n(w)n(ev)n(er,)27 b(I)i(ha)n(v)n(e)f(y)n
+(et)208 2283 y(to)f(hear)g(of)g(a)g(laptop)h(that)f(needs)h(this.)125
+2463 y Fd(\017)41 b Fm(The)e Fh(pcmcia_core)c Fm(mo)r(dule)40
+b(has)g(the)g Fh(cis_speed)c Fm(parameter)i(for)h(c)n(hanging)f(the)i
+(memory)f(sp)r(eed)h(used)g(for)208 2577 y(accessing)23
+b(a)h(card's)g(Card)f(Information)h(Structure)h(\(CIS\).)g(On)g(some)f
+(systems)g(with)h(fast)g(bus)f(clo)r(c)n(ks,)h(increasing)208
+2690 y(this)i(parameter)f(\(i.e.,)i(slo)n(wing)f(do)n(wn)g(card)f
+(accesses\))h(ma)n(y)g(b)r(e)h(b)r(ene\034cial)f(for)g(card)g
+(recognition)f(problems.)125 2870 y Fd(\017)41 b Fm(This)30
+b(is)f(not)h(a)g(timing)g(issue,)h(but)f(if)h(y)n(ou)e(ha)n(v)n(e)g
+(more)g(than)h(one)g(ISA-to-PCMCIA)g(con)n(troller)e(in)j(y)n(our)d
+(system)208 2984 y(or)i(extra)h(so)r(c)n(k)n(ets)f(in)h(a)g(do)r(c)n
+(king)g(station,)h(the)g Fh(i82365)d Fm(mo)r(dule)i(should)g(b)r(e)h
+(loaded)f(with)h(the)g Fh(extra_sockets)208 3097 y Fm(parameter)22
 b(set)j(to)f(1.)36 b(This)24 b(should)g(not)g(b)r(e)h(necessary)e(for)h
 (detection)g(of)h(PCI-to-PCMCIA)f(or)g(PCI-to-CardBus)208
 3211 y(bridges.)0 3451 y(Here)j(are)g(some)g(timing)h(settings)f(for)g

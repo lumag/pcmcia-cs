@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.47, 11 December 1999
+  v2.48, 17 December 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -197,7 +197,7 @@
   +o  Texas Instruments PCI1130, PCI1131, PCI1210, PCI1220, PCI1221,
      PCI1225, PCI1250A, PCI1251A, PCI1251B, PCI1450
 
-  +o  Toshiba ToPIC95, ToPIC97 (experimental, incomplete)
+  +o  Toshiba ToPIC95, ToPIC97, ToPIC100 (experimental, incomplete)
 
   +o  Vadem VG465, VG468, VG469
 
@@ -574,11 +574,10 @@
 
   +o  The Cirrus PD6729 PCI controller has the fast_pci flag, which
      should be set if the PCI bus speed is greater than 25 MHz.
-  +o  For Vadem VG-468 controllers and Databook TCIC-2 controllers, the
-     async_clock flag changes the relative clocking of PCMCIA bus and
-     host bus cycles.  Setting this flag adds extra wait states to some
-     operations.  However, I have yet to hear of a laptop that needs
-     this.
+  +o  For Vadem VG-468 controllers, the async_clock flag changes the
+     relative clocking of PCMCIA bus and host bus cycles.  Setting this
+     flag adds extra wait states to some operations.  However, I have
+     yet to hear of a laptop that needs this.
 
   +o  The pcmcia_core module has the cis_speed parameter for changing the
      memory speed used for accessing a card's Card Information Structure
@@ -637,6 +636,7 @@
 
   +o  On the IBM ThinkPad 600E and 770Z, change the high memory window to
      0x60000000-0x60ffffff.
+
   +o  On the Micron Millenia Transport, exclude irq 5, irq 9.
 
   +o  On the NEC Versa M, exclude irq 9, port 0x2e0-2ff.

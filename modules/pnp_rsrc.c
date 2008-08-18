@@ -236,6 +236,8 @@ static int pci_claim_resources(void)
     save_flags(flags);
     cli();
     for (dev=pci_devices; dev; dev=dev->next, name += 12) {
+	if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL)
+	    continue;
 	sprintf(name, "pci %02x:%02x.%1x", dev->bus->number,
 		PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 	if (dev->irq)

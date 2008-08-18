@@ -1,3 +1,13 @@
+[16-Dec-99] Version 3.1.7
+-- Took out some i82365 options that have turned out to probably never
+   be needed: has_clkrun, clkrun_sel, pci_latency, and cb_latency.
+-- Retired the (unsafe) PCI interrupt scan in i82365 module.
+-- Removed glibc dependency in 3.1.6 cardmgr update.
+-- Fixed a bug in 3c575_cb "too much work in interrupt" handler.
+-- Fixed bug in i82365 power selection code for CardBus bridges.
+-- Fixed a resource allocation bug in the PnP module that could
+   sometimes cause free resources to be marked as unavailable.
+
 [10-Dec-99] Version 3.1.6
 -- Added modinfo strings to basic modules.
 -- Added filename globbing to cardmgr's "source" command.

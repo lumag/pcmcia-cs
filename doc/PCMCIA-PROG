@@ -1,6 +1,6 @@
   Linux PCMCIA Programmer's Guide
   David Hinds, dhinds@pcmcia.sourceforge.org.
-  v2.21, 07 December 1999
+  v2.22, 17 December 1999
 
   This document describes how to write kernel device drivers for the
   Linux PCMCIA Card Services interface.  It also describes how to write
@@ -3888,27 +3888,26 @@
   is available from the usual Linux FTP sites, and is included in many
   compilations of Linux documentation.
 
-  The genuine PC Card standard is only available from the PCMCIA
-  association itself, and costs a significant amount of money.  To
-  contact PCMCIA:
+  The PC Card standard is only available from the PCMCIA association
+  itself, and is somewhat expensive for non-members.  The PCMCIA
+  association is at  <http://www.pc-card.com>, or:
 
        Personal Computer Memory Card International Association
        1030 East Duane Avenue, Suite G
        Sunnyvale, CA 94086 USA
        (408) 720-0107, (408) 720-9416 FAX, (408) 720-9388 BBS
-       http://www.pc-card.com
 
-  One alternative is the _P_C_M_C_I_A _D_e_v_e_l_o_p_e_r_'_s _G_u_i_d_e, written by Michael
-  Mori, available from Sycard Technology, ISBN 0-9640342-1-2, for
-  approximately $89.95:
+  An alternative is the _P_C_M_C_I_A _D_e_v_e_l_o_p_e_r_'_s _G_u_i_d_e, by Michael Mori, ISBN
+  0-9640342-1-2, available from Sycard Technology, at
+  <http://www.sycard.com> or:
 
   Sycard Technology
   1180-F Miraloma Way
   Sunnyvale, CA 94086 USA
   (408) 749-0130, (408) 749-1323 FAX
 
-  The _P_C_M_C_I_A _S_o_f_t_w_a_r_e _D_e_v_e_l_o_p_e_r_'_s _H_a_n_d_b_o_o_k by Dana Beatty, Steven
-  Kipisz, and Brian Moore includes an overview of the PC Card standard,
+  The _P_C_M_C_I_A _S_o_f_t_w_a_r_e _D_e_v_e_l_o_p_e_r_'_s _H_a_n_d_b_o_o_k by Steven Kipisz, Dana
+  Beatty, and Brian Moore includes an overview of the PC Card standard,
   and descriptions of how to write client drivers.  It also includes the
   Linux PCMCIA Programmer's Guide, as an appendix.  It is published by
   Peer-to-Peer Communications, ISBN 1-57398-010-2.
@@ -3920,5 +3919,6 @@
   Programming information for various PC Card host controllers is
   available from the corresponding chip vendors.  Generally, data sheets
   are either available on line or can be ordered from each company's web
-  site.
+  site.  A collection of datasheets can be found at
+  <http:/pcmcia.sourceforge.org/specs>.
 

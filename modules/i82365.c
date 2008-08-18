@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.273 1999/12/11 03:56:52
+    i82365.c 1.274 1999/12/14 00:23:37
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -81,7 +81,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-"i82365.c 1.273 1999/12/11 03:56:52 (David Hinds)";
+"i82365.c 1.274 1999/12/14 00:23:37 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -158,6 +158,9 @@ INT_MODULE_PARM(wakeup, 0);
 #endif
 
 #ifdef CONFIG_PCI
+/* PCI interrupt assignments */
+static int pci_irq_list[8] = { 0 };
+MODULE_PARM(pci_irq_list, "1-8i");
 /* Default memory base addresses for CardBus controllers */
 static u_int cb_mem_base[] = { 0x68000000, 0xf8000000 };
 MODULE_PARM(cb_mem_base, "i");
@@ -165,10 +168,6 @@ INT_MODULE_PARM(do_pci_probe, 1);	/* Scan for PCI bridges? */
 INT_MODULE_PARM(fast_pci, -1);
 INT_MODULE_PARM(hold_time, -1);
 INT_MODULE_PARM(irq_mode, -1);		/* Override BIOS routing? */
-INT_MODULE_PARM(has_clkrun, -1);
-INT_MODULE_PARM(clkrun_sel, -1);
-INT_MODULE_PARM(pci_latency, -1);
-INT_MODULE_PARM(cb_latency, -1);
 INT_MODULE_PARM(cb_bus_base, 0);
 INT_MODULE_PARM(cb_bus_step, 2);
 INT_MODULE_PARM(cb_write_post, -1);
@@ -240,12 +239,10 @@ typedef struct socket_info_t {
     union {
 	cirrus_state_t		cirrus;
 	vg46x_state_t		vg46x;
-#ifdef CONFIG_PCI
 	o2micro_state_t		o2micro;
 	ti113x_state_t		ti113x;
 	ricoh_state_t		ricoh;
 	topic_state_t		topic;
-#endif
     } state;
 } socket_info_t;
 
@@ -274,16 +271,9 @@ static spinlock_t isa_lock = SPIN_LOCK_UNLOCKED;
 
 static struct timer_list poll_timer;
 
-/* Time conversion functions */
-
-#define TO_CYCLES(ns) ((ns)/cycle_time)
-#define TO_NS(cycles) ((cycles)*cycle_time)
-
 #define flip(v,b,f) (v = ((f)<0) ? v : ((f) ? ((v)|(b)) : ((v)&(~b))))
 
 /*====================================================================*/
-
-#ifdef CONFIG_PCI
 
 #ifndef PCI_VENDOR_ID_INTEL
 #define PCI_VENDOR_ID_INTEL		0x8086
@@ -312,8 +302,6 @@ static struct timer_list poll_timer;
 #define cb_readl(s, r)		readl(socket[s].cb_virt + (r))
 #define cb_writeb(s, r, v)	writeb(v, socket[s].cb_virt + (r))
 #define cb_writel(s, r, v)	writel(v, socket[s].cb_virt + (r))
-
-#endif
 
 /*====================================================================*/
 
@@ -481,32 +469,24 @@ static void i365_set(u_short sock, u_short reg, u_char data)
 static void i365_bset(u_short sock, u_short reg, u_char mask)
 {
     u_char d = i365_get(sock, reg);
-    d |= mask;
-    i365_set(sock, reg, d);
+    i365_set(sock, reg, d | mask);
 }
 
 static void i365_bclr(u_short sock, u_short reg, u_char mask)
 {
     u_char d = i365_get(sock, reg);
-    d &= ~mask;
-    i365_set(sock, reg, d);
+    i365_set(sock, reg, d & ~mask);
 }
 
 static void i365_bflip(u_short sock, u_short reg, u_char mask, int b)
 {
     u_char d = i365_get(sock, reg);
-    if (b)
-	d |= mask;
-    else
-	d &= ~mask;
-    i365_set(sock, reg, d);
+    i365_set(sock, reg, (b) ? (d | mask) : (d & ~mask));
 }
 
 static u_short i365_get_pair(u_short sock, u_short reg)
 {
-    u_short a, b;
-    a = i365_get(sock, reg);
-    b = i365_get(sock, reg+1);
+    u_short a = i365_get(sock, reg), b = i365_get(sock, reg+1);
     return (a + (b<<8));
 }
 
@@ -736,8 +716,6 @@ static u_int __init ti113x_set_opts(u_short s, char *buf)
     u_int mask = 0xffff;
     int old = (t->type <= IS_TI1131);
     
-    flip(p->sysctl, TI113X_SCR_CLKRUN_ENA, has_clkrun);
-    flip(p->sysctl, TI113X_SCR_CLKRUN_SEL, clkrun_sel);
     flip(p->cardctl, TI113X_CCR_RIENB, has_ring);
     p->cardctl &= ~TI113X_CCR_ZVENABLE;
     p->cardctl |= TI113X_CCR_SPKROUTEN;
@@ -1083,8 +1061,6 @@ static int cb_set_irq_mode(u_short s, int pcsc, int pint)
     return 0;
 }
 
-static void __init pci_scan(u_short sock);
-
 static void __init cb_set_opts(u_short s, char *buf)
 {
     socket_info_t *t = &socket[s];
@@ -1094,12 +1070,10 @@ static void __init cb_set_opts(u_short s, char *buf)
 	 (cb_write_post < 0)) || (cb_write_post == 0))
 	t->bcr &= ~CB_BCR_WRITE_POST;
     if (t->cache == 0) t->cache = 8;
-    if (pci_latency >= 0) t->pci_lat = pci_latency;
     if (t->pci_lat == 0) t->pci_lat = 0xa8;
-    if (cb_latency >= 0) t->cb_lat = cb_latency;
     if (t->cb_lat == 0) t->cb_lat = 0xb0;
-    if ((t->cap.pci_irq == 0) && (pci_csc || pci_int) && do_scan)
-	pci_scan(s);
+    if ((t->cap.pci_irq == 0) && (pci_csc || pci_int))
+	t->cap.pci_irq = pci_irq_list[s];
     if (t->cap.pci_irq == 0)
 	strcat(buf, " [no pci irq]");
     else
@@ -1147,11 +1121,13 @@ static int cb_set_power(u_short sock, socket_state_t *state)
 {
     u_int reg = 0;
     switch (state->Vcc) {
+    case 0:		reg = 0; break;
     case 33:		reg = CB_SC_VCC_3V; break;
     case 50:		reg = CB_SC_VCC_5V; break;
     default:		return -EINVAL;
     }
     switch (state->Vpp) {
+    case 0:		break;
     case 33:		reg |= CB_SC_VPP_3V; break;
     case 50:		reg |= CB_SC_VPP_5V; break;
     case 120:		reg |= CB_SC_VPP_12V; break;
@@ -1400,26 +1376,6 @@ static u_int __init isa_scan(u_short sock, u_int mask0)
 }
 
 #endif /* CONFIG_ISA */
-
-#ifdef CONFIG_PCI
-
-static void __init pci_scan(u_short sock)
-{
-    u_int i;
-
-    cb_set_irq_mode(sock, 1, 0);
-    set_bridge_state(sock);
-    i365_set(sock, I365_CSCINT, 0);
-    /* Only probe irq's 9..11, to be conservative */
-    for (i = 9; i < 12; i++) {
-	if ((test_irq(sock, i, 1) == 0) &&
-	    (test_irq(sock, i, 1) == 0))
-	    break;
-    }
-    if (i < 12) socket[sock].cap.pci_irq = i;
-}
-
-#endif /* CONFIG_PCI */
 
 /*====================================================================*/
 
@@ -2261,7 +2217,7 @@ static int i365_get_io_map(u_short sock, struct pccard_io_map *io)
     io->stop = i365_get_pair(sock, I365_IO(map)+I365_W_STOP);
     ioctl = i365_get(sock, I365_IOCTL);
     addr = i365_get(sock, I365_ADDRWIN);
-    io->speed = TO_NS(ioctl & I365_IOCTL_WAIT(map)) ? 1 : 0;
+    io->speed = (ioctl & I365_IOCTL_WAIT(map)) ? cycle_time : 0;
     io->flags  = (addr & I365_ENA_IO(map)) ? MAP_ACTIVE : 0;
     io->flags |= (ioctl & I365_IOCTL_0WS(map)) ? MAP_0WS : 0;
     io->flags |= (ioctl & I365_IOCTL_16BIT(map)) ? MAP_16BIT : 0;
@@ -2322,7 +2278,7 @@ static int i365_get_mem_map(u_short sock, struct pccard_mem_map *mem)
     i = i365_get_pair(sock, base+I365_W_STOP);
     mem->speed  = (i & I365_MEM_WS0) ? 1 : 0;
     mem->speed += (i & I365_MEM_WS1) ? 2 : 0;
-    mem->speed = TO_NS(mem->speed);
+    mem->speed *= cycle_time;
     mem->sys_stop = ((u_long)(i & 0x0fff) << 12) + 0x0fff;
     
     i = i365_get_pair(sock, base+I365_W_OFF);
@@ -2387,7 +2343,7 @@ static int i365_set_mem_map(u_short sock, struct pccard_mem_map *mem)
     i365_set_pair(sock, base+I365_W_START, i);
     
     i = (mem->sys_stop >> 12) & 0x0fff;
-    switch (TO_CYCLES(mem->speed)) {
+    switch (mem->speed / cycle_time) {
     case 0:	break;
     case 1:	i |= I365_MEM_WS0; break;
     case 2:	i |= I365_MEM_WS1; break;
@@ -2616,9 +2572,7 @@ static int proc_read_pci(char *buf, char **start, off_t pos,
     }
     return (p - buf);
 }
-#endif
 
-#ifdef CONFIG_CARDBUS
 static int proc_read_cardbus(char *buf, char **start, off_t pos,
 			     int count, int *eof, void *data)
 {

@@ -1,9 +1,10 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@pcmcia.sourceforge.org
-.\" i82365.4 1.25 1999/10/25 19:50:46
+.\" i82365.4 1.28 1999/12/16 02:47:51
 .\"
-.TH I82365 4 "1999/10/25 19:50:46" "pcmcia-cs"
+.TH I82365 4 "1999/12/16 02:47:51" "pcmcia-cs"
 .SH NAME
 i82365 \- Intel i82365sl PCMCIA controller driver
+
 .SH SYNOPSIS
 .B insmod i82365.o
 .RB [ pc_debug=\c
@@ -22,7 +23,8 @@ i82365 \- Intel i82365sl PCMCIA controller driver
 .IR n ]
 .RB [ poll_interval=\c
 .IR n ]
-.RB [ cycle_time=n]
+.RB [ cycle_time=\c
+.IR n ]
 .RB [ do_pci_probe=\c
 .IR n ]
 .RB [ cb_mem_base=\c
@@ -37,6 +39,8 @@ i82365 \- Intel i82365sl PCMCIA controller driver
 .IR n ]
 .RB [ pci_int=\c
 .IR n ]
+.RB [ pci_irq_list=\c
+.IR i,j,... ]
 .RB [ has_dma=\c
 .IR n ]
 .RB [ has_led=\c
@@ -59,12 +63,9 @@ i82365 \- Intel i82365sl PCMCIA controller driver
 .IR n ]
 .RB [ cable_mode=\c
 .IR n ]
-.RB [ has_clkrun=\c
-.IR n ]
-.RB [ clkrun_sel=\c
-.IR n ]
 .RB [ irq_mode=\c
 .IR n ]
+
 .SH DESCRIPTION
 This is the low-level driver for the Intel i82365sl PCMCIA host
 controller, and many derivative controllers.  It also implements the
@@ -89,8 +90,8 @@ and
 .B has_led
 options are used to specify if these features are implemented.
 .PP
-An i82365-compatible controller normally sits at the IO addresses
-0x3e0-0x3e1.  Two controllers can cooperate to share the same IO
+An ISA i82365-compatible controller normally sits at the IO addresses
+0x3e0-0x3e1.  Two ISA controllers can cooperate to share the same IO
 ports, supporting a total of four sockets.  A second pair of
 controllers can be located at 0x3e2-0x3e3.  Probing at this position
 is controlled by the
@@ -106,7 +107,7 @@ enables debugging.
 .TP
 .BI i365_base= n
 Sets the base I/O port address of the i82365sl chip.  The default is
-0x3e0.
+0x3e0.  Applies only to ISA-to-PCMCIA bridges.
 .TP
 .BI ignore= n
 Causes the driver to ignore a single socket.  Sockets are numbered
@@ -115,9 +116,9 @@ already in, so it can be used for cards with point enablers that do
 not cooperate with Card Services.
 .TP
 .BI extra_sockets= n
-A flag indicating if the driver should probe for as many as eight
+A flag indicating if the driver should probe for as many as eight ISA
 sockets, or stop after checking for four sockets.  The default is
-0 (stop at four sockets).  Systems with two independent PCMCIA
+0 (stop at four sockets).  Systems with two independent ISA-to-PCMCIA
 controllers (say, one internal and one in a docking station) may
 require this flag to be set, even though they have a total of only
 four sockets.  If this flag is set, then
@@ -171,7 +172,7 @@ default is 2.
 .TP
 .BI cb_write_post= n
 A flag indicating if write posting (a performance feature) should be
-enabled.  The default is 1 (true), except on TI 1130 bridges.
+enabled.  The default is 1 (true), except on certain TI 1130 bridges.
 .TP
 .BI pci_csc= n
 Specifies that card status change interrupts should be routed to PCI
@@ -179,7 +180,14 @@ interrupts, for CardBus controllers.  The default is 0 (false).
 .TP
 .BI pci_int= n
 Specifies that functional interrupts for IO cards should be routed to
-PCI interrupts, for CardBus controllers.  The default is 0 (false).
+PCI interrupts, for CardBus controllers.  The default is 0 (false),
+except on systems that require use of PCI interrupts.
+.TP
+.BI pci_irq_list = i,j,...
+The Linux kernel sometimes cannot deduce the PCI interrupt assignments
+for CardBus sockets.  If this information can be determined some other
+way, it can be entered here.  The Nth socket will get the Nth
+interrupt number from the list. 
 
 .SH Options specific for Cirrus controllers
 .TP
@@ -239,6 +247,7 @@ Sets the bus hold time, in internal clock cycles. The default is 1.
 This flag specifies that PCMCIA bus cycles should be clocked
 asynchronously from host bus cycles.  It effectively adds a wait state
 to some operations.
+.TP
 .BI cable_mode= n
 For the VG469, this flag adjusts certain socket signals for driving a
 socket connected via a cable.
@@ -250,15 +259,6 @@ way the driver finds them.
 .TP
 .BI has_ring= n
 A flag indicating if the controller is wired for "ring indicate".
-The default is to read the current setting from the controller.
-.TP
-.BI has_clkrun= n
-A flag indicating if the controller is wired for PCI CLKRUN support.
-The default is to read the current setting from the controller.
-.TP
-.BI clkrun_sel= n
-A flag indicating if the CLKRUN signal is wired to the ISA interrupt
-12 pin, as opposed to ISA interrupt 10.
 The default is to read the current setting from the controller.
 .TP
 .BI irq_mode= n

@@ -1,6 +1,6 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/12/11 03:57:35
+		Last updated: 1999/12/17 01:35:41
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
@@ -199,7 +199,6 @@ Fast Ethernet (10/100baseT) adapters:
 	[epic_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
 	Ositech Seven of Spades CardBus
-	Psion Gold Card Netglobal 56K+10/100Mb CardBus
 
 	[tulip_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
@@ -386,7 +385,7 @@ Multifunction ethernet/modem cards:
 	[epic_cb driver] [x86]
 	[requires a 2.2 kernel, experimental!]
 	Ositech Jack of Spades CardBus
-	Psion Gold Card Netglobal 56K+10/100Mb [ ethernet only!! ]
+	Psion Gold Card Netglobal 56K+10/100Mb
 
 	[tulip_cb driver] [x86]
 	[ Not recommended: support is experimental and unreliable ]
@@ -419,7 +418,7 @@ ATA/IDE CD-ROM adapters:
 	[ide_cs driver] [x86]
 	Argosy EIDE CD-ROM
 	Caravelle CD-36N
-	CNF CARDport CD-ROM
+	CNF CARDport CD-ROM		[ 6/10/20/32X, but NOT 2X! ]
 	Creative Technology CD-ROM
 	Digital Mobile Media CD-ROM
 	EXP CD940 CD-ROM		[ Some work, some do NOT! ]

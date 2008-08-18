@@ -3,7 +3,7 @@
 
 %{
 /*
- * lex_config.l 1.36 1999/12/09 02:57:15
+ * lex_config.l 1.37 1999/12/14 01:55:40
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
@@ -162,14 +162,15 @@ static int get_glob(void)
 {
     struct source_stack *s = &source_stack[source_stack_ptr];
     while (s->fileno < s->glob.gl_pathc) {
-	s->file = fopen(s->glob.gl_pathv[s->fileno], "r");
+	char *fn = s->glob.gl_pathv[s->fileno];
+	s->file = fopen(fn, "r");
 	if (s->file == NULL) {
-	    syslog(LOG_INFO, "could not open '%s': %m",
-		   s->glob.gl_pathv[s->fileno]);
+	    if (strpbrk(fn, "?*[") == NULL)
+		syslog(LOG_INFO, "could not open '%s': %m", fn);
 	    s->fileno++;
 	} else {
 	    current_lineno = 1;
-	    current_file = strdup(s->glob.gl_pathv[s->fileno]);
+	    current_file = strdup(fn);
 	    yy_switch_to_buffer(yy_create_buffer(s->file, YY_BUF_SIZE));
 	    source_stack_ptr++;
 	    s->fileno++;
@@ -187,7 +188,7 @@ static void do_source(char *fn)
 	syslog(LOG_INFO, "source depth limit exceeded");
 	return;
     }
-    glob(fn, GLOB_NOMAGIC, NULL, &s->glob);
+    glob(fn, GLOB_NOCHECK, NULL, &s->glob);
     s->fileno = 0;
     s->buffer = YY_CURRENT_BUFFER;
     s->lineno = current_lineno;

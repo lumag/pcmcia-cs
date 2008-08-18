@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.242 1999/12/11 03:56:52
+    cs.c 1.243 1999/12/17 00:55:50
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
@@ -74,7 +74,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.242 1999/12/11 03:56:52 (David Hinds)";
+"cs.c 1.243 1999/12/17 00:55:50 (David Hinds)";
 #endif
 
 #ifdef CONFIG_PCI
@@ -749,8 +749,8 @@ static int alloc_io_space(socket_info_t *s, u_int attr, ioaddr_t *base,
     align = (*base) ? (1<<lines) : 1;
     if (align && (align < num)) {
 	if (*base) {
-	    printk(KERN_INFO "odd IO request: num %04x align %04x base %04x lines %d\n",
-		   num, align, *base, lines);
+	    printk(KERN_INFO "odd IO request: num %04x align %04x\n",
+		   num, align);
 	    align = 0;
 	} else
 	    while (align && (align < num)) align <<= 1;
