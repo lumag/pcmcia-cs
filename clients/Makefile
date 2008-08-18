@@ -1,7 +1,7 @@
 #
 # Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 #
-# Makefile 1.95 1998/11/18 07:37:47
+# Makefile 1.97 1999/02/13 06:47:03
 #
 
 # Include site dependent options and kernel configuration
@@ -35,13 +35,19 @@ MODULES = \
 EXTRA =
 
 ifdef CONFIG_CARDBUS
-SRCS := $(SRCS) 3c575_cb.c memory_cb.c
-MODULES := $(MODULES) 3c575_cb.o memory_cb.o
+SRCS := $(SRCS) 3c575_cb.c memory_cb.c serial_cb.c
+MODULES := $(MODULES) 3c575_cb.o memory_cb.o serial_cb.o
 ifdef CONFIG_SCSI
 ifdef DO_APA1480
 MODULES := ${MODULES} apa1480_cb.o
 SRCS := ${SRCS} apa1480_cb.c
 endif
+endif
+ifdef DO_TULIP_CB
+MODULES := ${MODULES} tulip_cb.o
+endif
+ifdef DO_EPIC_CB
+MODULES := ${MODULES} epic_cb.o
 endif
 endif
 
@@ -108,9 +114,13 @@ qlogic_cs.o: qlogic_cs.c qlogic.o
 	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS -o $@ $<
 	@mkdir -p .depfiles ; mv 3c575_cb.d .depfiles
 
-tulip_cb.o: tulip_cb.c
+tulip_cb.o: $(LINUX)/drivers/net/tulip.c
 	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS -o $@ $<
-	@mkdir -p .depfiles ; mv tulip_cb.d .depfiles
+	@mkdir -p .depfiles ; mv tulip.d .depfiles
+
+epic_cb.o: $(LINUX)/drivers/net/epic100.c
+	$(CC) -MD -c $(XFLAGS) -DMODULE -DCARDBUS -o $@ $<
+	@mkdir -p .depfiles ; mv epic100.d .depfiles
 
 aha152x.o: $(SCSI)/aha152x.c ../include/linux/config.h
 ifdef FIX_AHA152X

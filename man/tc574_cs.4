@@ -6,10 +6,14 @@
 3c574_cs \- 3Com 3c574 Etherlink XL 10/100 PC Card device driver
 .SH SYNOPSIS
 .B insmod 3c574_cs.o
-.RB [ pc_debug=n ]
-.RB [ tc574_debug=n ]
-.RB [ if_port=n ]
-.RB [ irq_list=i,j,... ]
+.RB [ pc_debug=\c
+.IR n ]
+.RB [ tc574_debug=\c
+.IR n ]
+.RB [ if_port=\c
+.IR n ]
+.RB [ irq_list=\c
+.IR i,j,... ]
 .SH DESCRIPTION
 .B 3c574_cs
 is the low-level Card Services driver for the 3Com 3c574 EtherLink XL
@@ -27,39 +31,38 @@ If the on-card EEPROM is programmed for a full-duplex (FD) link, only FD media
 types are advertised and the link is assumed to be full-duplex.
 .SH PARAMETERS
 .TP
-.B pc_debug=n
+.BI pc_debug= n
 Selects the PCMCIA debugging level.  This parameter is only available
 if the module is compiled with debugging enabled.  A non-zero value
 enables debugging.
 .TP
-.B if_port=n
+.BI if_port= n
 Selects the transceiver type.  Only 0, 1, and 4 are acceptable values, other
 values return an error.  This actual value specificed is ignored -- the
 autonegotiating transceiver selects the media speed and duplex used.
 .TP
-.B if_mask=bitmask
-.B irq_list=i,j,...
+.BI irq_list= i,j,...
 This option limits the set of interrupts that may be allocated by this driver.
 The default is all normally-usable IRQs.
 .TP
-.B max_interrupt_work=work-limit
+.BI max_interrupt_work= work-limit
 This option selects the maximum amount of work handled during each
 interrupt.  Each received packet counts as one unit of work, as does
 updating statistics counters and handling errors.  The default value is 10.
 .TP
-.B use_fifo_buffer=b
+.BI use_fifo_buffer= b
 A non-zero value enables an acceleration buffer in front of the transmit and
 receive data FIFOs.  This option may cause the system to silently hang if the
 system PCMCIA interface timing is not properly configured, and thus is
 normally disabled.
 .TP
-.B use_memory_ops=b
+.BI use_memory_ops= b
 A non-zero value specifies using memory operations instead of I/O operations
 when accessing the FIFO.  This results in faster data transfer in specific
 systems.  This option is normally disabled and should only be enabled if
 use_fifo_buffer is also enabled.
 .TP
-.B no_wait=b
+.BI no_wait= b
 A non-zero value specifies that no WAIT signal is gererated by the card.
 This option should only be used with already slow systems that be become
 even slower if the encounter a WAIT condition.  This option can cause data

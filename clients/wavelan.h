@@ -3,8 +3,8 @@
  *
  *		Jean II - HPLB '96
  *
- * Reorganisation and extension of the driver.
- * Original copyrigth follow. See wavelan_cs.h for details.
+ * Reorganization and extension of the driver.
+ * Original copyright follow. See wavelan_cs.h for details.
  *
  * This file contain the declarations of the Wavelan hardware. Note that
  * the Pcmcia Wavelan include a i82593 controler (see definitions in
@@ -22,7 +22,6 @@
  *   An Ethernet-like radio transceiver controlled by an Intel 82593
  *   coprocessor.
  *
- * /usr/src/pc/RCS/wavelan.h,v 1.1 1996/07/17 15:23:27 root Exp
  *
  ****************************************************************************
  *   Copyright 1995
@@ -41,17 +40,6 @@
  *   vided "as is" without express or implied warranty.         
  ****************************************************************************
  *
- * RCS revisions:
- * wavelan.h,v
- * Revision 1.1  1996/07/17 15:23:27  root
- * Initial revision
- *
- * Revision 1.10  1995/04/24  05:43:47  adj
- * Alpha release
- *
- * Revision 1.0  1995/04/05  15:17:46  adj
- * Initial revision
- *
  *
  * Credits:
  *     Special thanks to Jan Hoogendoorn of AT&T GIS Utrecht for
@@ -62,8 +50,6 @@
  *       Bruce Janson's Linux driver for the AT-bus WaveLAN adapter
  *	 Anders Klemets' PCMCIA WaveLAN adapter driver
  *       Robert Morris' BSDI driver for the PCMCIA WaveLAN adapter
- *
- *
  */
 
 #ifndef _WAVELAN_H
@@ -144,7 +130,6 @@ const unsigned char	MAC_ADDRESSES[][3] =
 #define RX_SIZE		(TX_BASE-RX_BASE)	/* Size of receive area */
 #define RX_SIZE_SHIFT	6		/* Bits to shift in stop register */
 
-/* Hum ??? */
 #define TRUE  1
 #define FALSE 0
 

@@ -1,20 +1,29 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" pcnet_cs.4 1.9 1998/05/04 23:28:20
+.\" pcnet_cs.4 1.10 1999/02/08 08:02:03
 .\"
-.TH PCNET_CS 4 "1998/05/04 23:28:20" "pcmcia-cs"
+.TH PCNET_CS 4 "1999/02/08 08:02:03" "pcmcia-cs"
 .SH NAME
 pcnet_cs \- Generic NS8390-based PCMCIA Ethernet Driver
 .SH SYNOPSIS
 .B insmod pcnet_cs.o
-.RB [ pc_debug=n ]
-.RB [ irq_list=i,j,... ]
-.RB [ if_port=n ]
-.RB [ use_shmem=n ]
-.RB [ use_big_buf=n ]
-.RB [ mem_speed=n ]
-.RB [ delay_output=n ]
-.RB [ delay_time=n ]
-.RB [ hw_addr=n,n,n,n,n,n ]
+.RB [ pc_debug=\c
+.IR n ]
+.RB [ irq_list=\c
+.IR i,j,... ]
+.RB [ if_port=\c
+.IR n ]
+.RB [ use_shmem=\c
+.IR n ]
+.RB [ use_big_buf=\c
+.IR n ]
+.RB [ mem_speed=\c
+.IR n ]
+.RB [ delay_output=\c
+.IR n ]
+.RB [ delay_time=\c
+.IR n ]
+.RB [ hw_addr=\c
+.IR n,n,n,n,n,n ]
 .SH DESCRIPTION
 .B Pcnet_cs
 is a driver for all NS8390-based PCMCIA ethernet cards.  It can use
@@ -31,44 +40,44 @@ device name will be reported in the kernel log file, and passed on to
 .BR cardmgr (8).
 .SH PARAMETERS
 .TP
-.B pc_debug=n
+.BI pc_debug= n
 Selects the PCMCIA debugging level.  This parameter is only available
 if the module is compiled with debugging enabled.  A non-zero value
 enables debugging.
 .TP
-.B irq_list=i,j,...
+.BI irq_list= i,j,...
 Specifies the set of interrupts that may be allocated by this driver.
 .TP
-.B if_port=n
+.BI if_port= n
 Selects the transceiver type, for Socket EA and IBM CCAE cards.  1 is
 10baseT (twisted pair), and 2 is 10base2 (BNC, or thin net).  The
 default is 1 (10baseT).
 .TP
-.B use_shmem=n
+.BI use_shmem= n
 Selects whether to use shared memory (if 1) or polled IO (if 0) to
 access the card.  If unset, then the default
 is to choose based on the card type (shared memory for IBM
 CCAE and friends, polled IO for all others).
 .TP
-.B use_big_buf=n
+.BI use_big_buf= n
 For Socket EA cards, a flag indicating if the driver should use the
 large (64K) packet buffer.  The default is 1 (true).
 .TP
-.B mem_speed=n
+.BI mem_speed= n
 Sets the access speed of the shared memory window, in nanoseconds.
 The default is 0 (i.e., no extra wait states).  Values of up to 1000
 are legal.
 .TP
-.B delay_output=n
+.BI delay_output= n
 Specifies that a delay should be inserted after a polled IO block
 output.  This is turned on by default for Accton and Socket EA cards.
 .TP
-.B delay_time=n
+.BI delay_time= n
 Specifies the length of the
 .B delay_output
 delay, in microseconds.  The default is 4.
 .TP
-.B hw_addr=n,n,n,n,n,n
+.BI hw_addr= n,n,n,n,n,n
 For cards whose hardware ethernet addresses can't be identified by the
 current driver, this is a hack for hardwiring a specific address.  The
 argument should consist of exactly six byte-sized numbers, separated

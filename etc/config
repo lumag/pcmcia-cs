@@ -1,5 +1,5 @@
 #
-# config.sample 1.86 1999/01/22 17:28:25 (David Hinds)
+# config.sample 1.87 1999/02/16 01:33:35 (David Hinds)
 #
 
 # config.opts is now included at the very end
@@ -67,6 +67,9 @@ device "iscc_cs"
 device "3c574_cs"
   class "network" module "3c574_cs"
 
+device "teles_cs"
+  class "teles" module "teles_cs"
+
 device "3c575_cb"
   class "network" module "cb_enabler", "3c575_cb"
 
@@ -79,8 +82,11 @@ device "tulip_cb"
 device "memory_cb"
   class "memory" module "cb_enabler", "memory_cb"
 
-device "teles_cs"
-  class "teles" module "teles_cs"
+device "epic_cb"
+  class "network" module "cb_enabler", "epic_cb"
+
+device "serial_cb"
+  class "serial" module "cb_enabler", "serial_cb"
 
 #
 # Ethernet adapter definitions
@@ -161,6 +167,10 @@ card "Compaq Netelligent 10/100 Ethernet"
   version "Compaq", "Netelligent 10/100 PC Card"
   bind "xirc2ps_cs"
 
+card "COMPU-SHACK BASEline Ethernet"
+  version "COMPU-SHACK", "BASEline PCMCIA 10 MBit Ethernetadapter"
+  bind "pcnet_cs"
+
 card "Connectware LANdingGear Ethernet"
   manfid 0x0057, 0x1004
   bind "pcnet_cs"
@@ -219,6 +229,10 @@ card "Edimax Ethernet Combo"
 
 card "Eiger Labs EPX-ET10T2 Ethernet"
   version "EIGER Labs Inc.", "Ethernet Combo card"
+  bind "pcnet_cs"
+
+card "Eiger Labs EPX-ET10BT Ethernet"
+  version "EIGER Labs Inc.", "Ethernet 10BaseT card"
   bind "pcnet_cs"
 
 card "Eiger Labs EPX-10BT Ethernet"
@@ -390,6 +404,10 @@ card "New Media BASICS Ethernet"
   version "BASICS by New Media Corporation", "Ethernet", "SMC91C94"
   bind "smc91c92_cs"
 
+card "New Media LanSurfer"
+  manfid 0x0057, 0x0021
+  bind "pcnet_cs"
+
 card "NextCom NC5310 Ethernet"
   version "NextComK.K.", "NC5310 Ver1.0        "
   bind "fmvj18x_cs"
@@ -478,6 +496,10 @@ card "SMC EtherEZ Ethernet"
   version "SMC", "EtherEZ Ethernet 8020"
   bind "smc91c92_cs"
 
+card "SMC EZCard-10 Ethernet"
+  version "SMC", "EZCard-10-PCMCIA"
+  bind "pcnet_cs"
+
 card "Socket EA Ethernet"
   version "Socket Communications Inc",
     "Socket EA PCMCIA LAN Adapter Revision D"
@@ -515,6 +537,10 @@ card "3Com 3c574TX Fast Ethernet"
   version "3Com", "3C574-TX Fast EtherLink PC Card"
   bind "3c574_cs"
 
+card "Abocom LinkMate FE1000 Fast Ethernet"
+  version "Fast Ethernet", "Adapter"
+  bind "pcnet_cs"
+
 card "AnyCom ECO 10/100 Fast Ethernet"
   version "AnyCom", "ECO Ethernet 10/100"
   bind "pcnet_cs"
@@ -538,6 +564,10 @@ card "Microcom C.E. Travel Card 10/100 Fast Ethernet"
 card "NetGear FA410TXC Fast Ethernet"
   version "NETGEAR", "FA410TX"
   bind "pcnet_cs"
+
+card "Toshiba Advanced Network Fast Ethernet"
+  version "Toshiba Information Systems", "*", "TPCENET"
+  bind "xirc2ps_cs"
 
 card "Xircom CE3-10/100 Fast Ethernet"
   version "Xircom", "*", "CE3-10/100"
@@ -885,6 +915,10 @@ card "D-Link DME336T Ethernet/Modem"
   version "D-Link", "DME336T"
   bind "pcnet_cs", "serial_cs"
 
+card "D-Link DMF560TX Ethernet/Modem"
+  manfid 0x0143, 0xc0ab
+  bind "pcnet_cs", "serial_cs"
+
 card "Gateway Telepath Ethernet/Modem"
   version "Gateway 2000", "XJEM3336"
   bind "smc91c92_cs", "serial_cs"
@@ -954,6 +988,14 @@ card "NSC DP83903-based Ethernet/Modem"
   version "*", "*", "*", "NSC MF LAN/Modem"
   cis "cis/DP83903.dat"
   bind "pcnet_cs" to 0, "serial_cs" to 1
+
+card "Olicom GoCard 28.8 Ethernet/Modem"
+  manfid 0x0121, 0x3122
+  bind "pcnet_cs", "serial_cs"
+
+card "Olicom GoCard 33.6 Ethernet/Modem"
+  manfid 0x0121, 0x3222
+  bind "pcnet_cs", "serial_cs"
 
 card "Ositech Jack of Diamonds Ethernet/Modem"
   version "Ositech", "Trumpcard:Jack of Diamonds Modem+Ethernet"
@@ -1114,5 +1156,14 @@ card "TDK NetworkFlyer LAK-CB100X"
   manfid 0x0105, 0x0500
   bind "tulip_cb"
 
+card "Trumpcard: Seven of Spades Ethernet"
+  manfid 0x0140, 0x0011
+  bind "epic_cb"
+
+card "Trumpcard: Jack of Spades Ethernet/Modem"
+  manfid 0x0140, 0x000F
+  bind "epic_cb" to 0, "serial_cb" to 1
+
 # Include local configuration settings
+
 source ./config.opts

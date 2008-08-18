@@ -1,5 +1,5 @@
 /*
- * ciscode.h 1.29 1999/01/15 07:40:29
+ * ciscode.h 1.31 1999/02/16 01:16:46
  *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.0 (the "License"); you may not use this file except in
@@ -60,6 +60,10 @@
 #define PRODID_MOTOROLA_MARINER		0x0501
 
 #define MANFID_NEW_MEDIA		0x0057
+
+#define MANFID_OLICOM			0x0121
+#define PRODID_OLICOM_OC2231		0x3122
+#define PRODID_OLICOM_OC2232		0x3222
 
 #define MANFID_OMEGA			0x0137
 #define PRODID_OMEGA_QSP_100		0x0025

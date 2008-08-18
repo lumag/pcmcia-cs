@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Configure 1.89 1999/01/22 17:30:46
+# Configure 1.93 1999/02/16 01:33:29
 #
 # The contents of this file are subject to the Mozilla Public License
 # Version 1.0 (the "License"); you may not use this file except in
@@ -39,6 +39,44 @@ else
     fi
     . ./config.in
 fi
+
+#=======================================================================
+
+PROMPT=y
+
+arg () {
+    eval $1=`echo $2 | sed -e 's/^--[a-zA-Z_]*=//'`
+}
+
+usage () {
+    echo "usage: $0 [-n|--noprompt] [--kernel=src-dir] [--target=dir]"
+    echo "    [--moddir=dir] [--cc=path] [--ld=path] [--debug=debug-flags]"
+    echo "    [--{no}trust] [--{no}cardbus] [--current] [--srctree] [--manual]"
+    exit 1
+}
+
+while [ $# -gt 0 ] ; do
+    case $1 in
+    -n|--noprompt)	PROMPT=n		;;
+    --kernel=*)		arg LINUX $1 		;;
+    --target=*)		arg PREFIX $1		;;
+    --moddir=*)		arg MODDIR $1		;;
+    --cc=*)		arg CC $1		;;
+    --ld=*)		arg LD $1		;;
+    --debug=*)		arg PCDEBUG $1		;;
+    --trust)		UNSAFE_TOOLS=y		;;
+    --notrust)		UNSAFE_TOOLS=n		;;
+    --cardbus)		CONFIG_CARDBUS=y	;;
+    --nocardbus)	CONFIG_CARDBUS=n	;;
+    --current)		CONF_SRC=1		;;
+    --srctree)		CONF_SRC=2		;;
+    --manual)		CONF_SRC=3		;;
+    *)			usage			;;
+    esac
+    shift
+done
+
+#=======================================================================
 
 CONFIG=config.new
 CONFIG_H=include/pcmcia/config.h
@@ -83,16 +121,14 @@ write_str () {
     echo "#define $1 \"$value\"" >> $CONFIG_H
 }
 
-write_num () {
-    value=`eval echo '$'$1`
-    if [ "$value" ] ; then
-	echo "$1=$value" >> $CONFIG
-	echo "$1=$value" >> $CONFIG_MK
-	echo "#define $1 $value" >> $CONFIG_H
+prompt () {
+    eval $3="$2"
+    if [ "$PROMPT" = "y" ] ; then
+	/bin/echo "$1 [$2]: \c"
+	read tmp
+	if [ -n "$tmp" ] ; then eval $3="$tmp" ; fi
     else
-	echo "# $1 is not defined" >> $CONFIG
-	echo "# $1 is not defined" >> $CONFIG_MK
-	echo "#undef  $1" >> $CONFIG_H
+	/bin/echo "$1 [$2]"
     fi
 }
 
@@ -101,9 +137,7 @@ ask_bool () {
     if [ "$default" = "" ] ; then default=n ; fi
     answer=""
     while [ "$answer" != n -a "$answer" != y ] ; do
-	/bin/echo "$1 (y/n) [$default]: \c"
-	read answer
-	if [ -z "$answer" ] ; then answer="$default" ; fi
+	prompt "$1 (y/n)" "$default" answer
     done
     eval "$2=$answer"
     write_bool $2
@@ -111,22 +145,9 @@ ask_bool () {
 
 ask_str () {
     default=`eval echo '$'$2`
-    answer=""
-    /bin/echo "$1 [$default]: \c"
-    read answer
-    if [ -z "$answer" ] ; then answer="$default" ; fi
-    eval "$2"=\"$answer\"
+    prompt "$1" "$default" answer
+    eval "$2=$answer"
     write_str $2
-}
-
-ask_num () {
-    default=`eval echo '$'$2`
-    answer=""
-    /bin/echo "$1 [$default]: \c"
-    read answer
-    if [ -z "$answer" ] ; then answer="$default" ; fi
-    eval "$2"=\"$answer\"
-    write_num $2
 }
 
 #=======================================================================
@@ -203,7 +224,6 @@ ask_str "Compiler flags for debugging" PCDEBUG
 
 ask_bool "Build 'trusting' versions of card utilities" UNSAFE_TOOLS
 ask_bool "Include 32-bit (CardBus) card support" CONFIG_CARDBUS
-ask_bool "Experimental interrupt probe code" CONFIG_NEW_PROBE
 
 echo ""
 echo "The PCMCIA drivers need to be compiled to match the kernel they"
@@ -215,12 +235,12 @@ echo "    1 - Read from the currently running kernel"
 echo "    2 - Read from the Linux source tree"
 echo "    3 - Set each option by hand (experts only!)"
 
-src=""
-while [ "$src" != 1 -a "$src" != 2 -a "$src" != 3 ] ; do
-    /bin/echo "Enter option (1-3) [1]: \c"
-    read src
-    if [ -z "$src" ] ; then src=1 ; fi
+ans=""
+while [ "$ans" != 1 -a "$ans" != 2 -a "$ans" != 3 ] ; do
+    prompt "Enter option (1-3)" "$CONF_SRC" ans
 done
+CONF_SRC=$ans
+echo "CONF_SRC=$CONF_SRC" >> $CONFIG
 echo ""
 
 #=======================================================================
@@ -235,8 +255,8 @@ symcheck () {
 
 modcheck () {
     if [ "$2" = "y" ] ; then return ; fi
-    insmod $1 > /dev/null 2>&1
-    if lsmod | grep -q "^$1 " ; then
+    /sbin/insmod $1 > /dev/null 2>&1
+    if /sbin/lsmod | grep -q "^$1 " ; then
 	eval "$2=y"
 	INSTALL_DEPMOD=y
     fi
@@ -264,21 +284,24 @@ printflag() {
     write_bool $2
 }
 
-printnum() {
-    value=`eval echo '$'$2`
-    /bin/echo "    $1 is $value"
-    write_num $2
-}
-
 printconfig () {
     echo "Kernel configuration options:"
     printflag "Symmetric multiprocessing support" CONFIG_SMP
     printflag "PCI BIOS support" CONFIG_PCI
-    printflag " PCI quirk support" CONFIG_PCI_QUIRKS
+    if [ $VERSION_CODE -ge `version 2 2 0` ] ; then
+	if [ $CONFIG_SMP = "y" ] ; then
+	    CONFIG_X86_LOCAL_APIC=y
+	    write_bool CONFIG_X86_LOCAL_APIC
+	fi
+	if [ $CONFIG_PCI = "y" ] ; then
+	    CONFIG_PCI_QUIRKS=y
+	    write_bool CONFIG_PCI_QUIRKS
+	fi
+    fi
     printflag "Advanced Power Management (APM) support" CONFIG_APM
     printflag "SCSI support" CONFIG_SCSI
     printflag "Networking support" CONFIG_INET
-    printflag " IPv6 support" CONFIG_IPV6
+    #printflag " IPv6 support" CONFIG_IPV6
     printflag " Radio network interface support" CONFIG_NET_RADIO
     printflag " Token Ring device support" CONFIG_TR
     printflag "Module version checking" CONFIG_MODVERSIONS
@@ -293,7 +316,7 @@ echo "" >> $CONFIG
 echo "" >> $CONFIG_MK
 echo "" >> $CONFIG_H
 
-case $src in
+case $CONF_SRC in
     1)
 	if [ -x /sbin/ksyms ] ; then
 	    KSYMS="/sbin/ksyms -a"
@@ -308,20 +331,19 @@ case $src in
 	echo "CKSUM=\"`cksum < /proc/version`\"" >> $CONFIG
 	symcheck smp_invalidate_needed CONFIG_SMP
 	symcheck pcibios CONFIG_PCI
-	symcheck isa_dma_bridge_buggy CONFIG_PCI_QUIRKS
 	symcheck apm_register_callback CONFIG_APM
 	symcheck scsi_register CONFIG_SCSI
 	modcheck scsi_mod CONFIG_SCSI
 	modcheck serial CONFIG_SERIAL
 	symcheck register_netdev CONFIG_INET
-	cc -o /tmp/has_ipv6 cardmgr/has_ipv6.c
-	if /tmp/has_ipv6 ; then
-	    CONFIG_IPV6=y
-	else
-	    CONFIG_IPV6=n
-	fi
-	rm /tmp/has_ipv6
-	symcheck inet_proto_ops CONFIG_IPV6_MODULE
+	#cc -o /tmp/has_ipv6 cardmgr/has_ipv6.c
+	#if /tmp/has_ipv6 ; then
+	#    CONFIG_IPV6=y
+	#else
+	#    CONFIG_IPV6=n
+	#fi
+	#rm /tmp/has_ipv6
+	#symcheck inet_proto_ops CONFIG_IPV6_MODULE
 	if [ -r /proc/net/wireless ] ; then
 	    CONFIG_NET_RADIO=y
 	else
@@ -335,9 +357,12 @@ case $src in
 	symcheck hwrpb CONFIG_ALPHA_LCA
 	symcheck proc_root CONFIG_PROC_FS
 	echo "Extracting kernel symbol versions..."
+	echo "#ifndef __LINUX_MODVERSIONS_H" > $MODVER
+	echo "#define __LINUX_MODVERSIONS_H" >> $MODVER
 	$KSYMS | sed -ne 's/.* \(.*\)_R\([0-9a-f]*\)/\1 \2/p' | \
 	    awk '{ printf "#define %s\t%s_R%s\n", $1, $1, $2 }' \
-	    > $MODVER
+	    >> $MODVER
+	echo "#endif" >> $MODVER
 	printconfig
 	;;
     2)
@@ -360,8 +385,8 @@ case $src in
 	if [ $VERSION_CODE -lt `version 2 1 7` ] ; then
 	    configcheck CONFIG_BLK_DEV_IDE_PCMCIA
 	fi
-	for C in CONFIG_PCI CONFIG_PCI_QUIRKS CONFIG_APM CONFIG_SCSI \
-	    CONFIG_INET CONFIG_IPV6 CONFIG_NET_RADIO CONFIG_TR \
+	for C in CONFIG_PCI CONFIG_APM CONFIG_SCSI \
+	    CONFIG_INET CONFIG_NET_RADIO CONFIG_TR \
 	    CONFIG_MODVERSIONS CONFIG_ALPHA_LCA CONFIG_PROC_FS \
 	    CONFIG_SERIAL ; do
 	    configcheck $C
@@ -377,7 +402,7 @@ case $src in
 	ask_bool "Advanced Power Management (APM) support" CONFIG_APM
 	ask_bool "SCSI support" CONFIG_SCSI
 	ask_bool "TCP/IP networking" CONFIG_INET
-	ask_bool " IPv6 protocol support" CONFIG_IPV6
+	#ask_bool " IPv6 protocol support" CONFIG_IPV6
 	ask_bool " Radio network interface support" CONFIG_NET_RADIO
 	ask_bool " Token Ring device support" CONFIG_TR
 	ask_bool "Set version information for module symbols" \
@@ -416,7 +441,7 @@ echo "AFLAGS=$AFLAGS" >> $CONFIG_MK
 if [ $ARCH = "ppc" ] ; then CONFIG_ISA=n ; else CONFIG_ISA=y ; fi
 write_bool CONFIG_ISA
 
-if [ $src != "1" -a "$CONFIG_MODVERSIONS" = "y" ] ; then
+if [ $CONF_SRC != "1" -a "$CONFIG_MODVERSIONS" = "y" ] ; then
     MODVER="$LINUX/$MODVER"
     if [ ! -r $MODVER ] ; then
 	echo "$MODVER does not exist!"
@@ -443,7 +468,7 @@ echo "" >> $CONFIG_H
 
 #=======================================================================
 
-if [ $src -eq 1 ] ; then UTS_VERSION=`uname -v` ; fi
+if [ $CONF_SRC -eq 1 ] ; then UTS_VERSION=`uname -v` ; fi
 
 HAS_PROC_BUS=n
 NEW_QLOGIC=n
@@ -511,11 +536,20 @@ if [ "$CONFIG_SCSI" = "y" ] ; then
     fi
 fi
 
+if [ "$CONFIG_CARDBUS" = "y" ] ; then
+    if grep -q CARDBUS ${LINUX}/drivers/net/tulip.c ; then
+	echo DO_TULIP_CB=y >> $CONFIG_MK
+    fi
+    if grep -q CARDBUS ${LINUX}/drivers/net/epic100.c ; then
+	echo DO_EPIC_CB=y >> $CONFIG_MK
+    fi
+fi
+
 #=======================================================================
 
 # Check out the module stuff
 
-if [ ! -x /sbin/insmod -o ! -x /sbin/rmmod ] ; then
+if [ ! -x /sbin/insmod -o ! -x /sbin/rmmod -o ! -x /sbin/lsmod ] ; then
     echo "Your module utilities (insmod, rmmod) are missing from /sbin!"
     echo "    To fix, you should build and install the latest set" \
          "of module tools,"
@@ -583,8 +617,8 @@ if [ "$PREFIX" = "" ] ; then
 	fi
     else
 	echo "It looks like you have a BSD-ish init file setup."
-	if ! grep -q rc.pcmcia /etc/rc.d/rc.M ; then
-	    echo "    You'll need to edit /etc/rc.d/rc.M to invoke" \
+	if ! grep -q rc.pcmcia /etc/rc.d/rc.S ; then
+	    echo "    You'll need to edit /etc/rc.d/rc.S to invoke" \
 		 "/etc/rc.d/rc.pcmcia"
 	    echo "    so that PCMCIA services will start at boot time."
 	fi

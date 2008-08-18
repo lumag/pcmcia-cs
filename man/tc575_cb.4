@@ -6,7 +6,8 @@
 3c575_cb \- 3Com 3c575 Etherlink XL 10/100 CardBus device driver
 .SH SYNOPSIS
 .B insmod 3c575_cb.o
-.RB [ pc_debug=n ]
+.RB [ pc_debug=\c
+.IR n ]
 .SH DESCRIPTION
 .B 3c575_cb
 is the low-level Card Services driver for the 3Com 3c575 EtherLink XL
@@ -25,11 +26,11 @@ If the on-card EEPROM is programmed for a full-duplex (FD) link, only FD media
 types are advertised and the link is assumed to be full-duplex.
 .SH PARAMETERS
 .TP
-.B rx_copybreak=n
+.BI rx_copybreak= n
 Set the breakpoint for copying incoming frames into reduced-sized
 packet buffers.  The default value of 200 bytes is reasonable for most systems.
 .TP
-.B max_interrupt_work=n
+.BI max_interrupt_work= n
 This option selects the maximum amount of work handled during each
 interrupt.  Each received packet counts as one unit of work, as does
 updating statistics counters and handling errors.  The default value of

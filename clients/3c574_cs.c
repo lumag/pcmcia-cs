@@ -912,7 +912,6 @@ static void tc574_reset(struct device *dev)
 
 static int el3_config(struct device *dev, struct ifmap *map)
 {
-	struct el3_private *lp = (struct el3_private *)dev->priv;
 	if ((map->port != (u_char)(-1)) && (map->port != dev->if_port)) {
 		if (map->port <= 3) {
 			dev->if_port = map->port;

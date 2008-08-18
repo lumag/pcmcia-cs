@@ -16,7 +16,7 @@
 /************************** DOCUMENTATION **************************/
 /*
  * This driver provide a Linux interface to the Wavelan Pcmcia hardware
- * The Wavelan is a product of Lucent ("http://wavelan.netland.nl/").
+ * The Wavelan is a product of Lucent (http://www.wavelan.com/).
  * This division was formerly part of NCR and then AT&T.
  * Wavelan are also distributed by DEC (RoamAbout DS)...
  *
@@ -84,9 +84,6 @@
 
 /* --------------------------- HISTORY --------------------------- */
 /*
- * (Made with information in drivers headers. It may not be accurate,
- * and I garantee nothing except my best effort...)
- *
  * The history of the Wavelan drivers is as complicated as history of
  * the Wavelan itself (NCR -> AT&T -> Lucent).
  *
@@ -99,7 +96,7 @@
  * and add specific Pcmcia support (there is currently no equivalent
  * of the PCMCIA package under BSD...).
  *
- * Jim Binkley <jrb@cs.pdx.edu> port both BSDI drivers to freeBSD.
+ * Jim Binkley <jrb@cs.pdx.edu> port both BSDI drivers to FreeBSD.
  *
  * Bruce Janson <bruce@cs.usyd.edu.au> port the BSDI ISA driver to Linux.
  *
@@ -118,10 +115,6 @@
  * reorganisation.
  * Loeke Brederveld <lbrederv@wavelan.com> from Lucent has given me
  * much needed informations on the Wavelan hardware.
- */
-
-/* The original copyrights and litteratures mention others names and
- * credits. I don't know what there part in this development was...
  */
 
 /* By the way : for the copyright & legal stuff :
@@ -291,9 +284,6 @@
  *	- increase timeout in config code for picky hardware
  *	- mask unused bits in status (Wireless Extensions)
  *
- * Wishes & dreams :
- * ---------------
- *	- Roaming
  */
 
 /***************************** INCLUDES *****************************/
@@ -338,6 +328,55 @@
 #include "i82593.h"	/* Definitions for the Intel chip */
 
 #include "wavelan.h"	/* Others bits of the hardware */
+
+/*************************** WaveLAN Roaming  **************************/
+#define WAVELAN_ROAMING_DEBUG	 2	/* 1 = Trace of handover decisions */
+					/* 2 = Info on each beacon rcvd... */
+#define MAX_WAVEPOINTS		7	/* Max visible at one time */
+#define WAVELAN_HIGH_COVERAGE         /* For environments with many stations */
+#define WAVEPOINT_HISTORY	5	/* SNR sample history slow search */
+#define WAVEPOINT_FAST_HISTORY	2	/* SNR sample history fast search */
+#define SEARCH_THRESH_LOW	10	/* SNR to enter cell search */
+#define SEARCH_THRESH_HIGH	13	/* SNR to leave cell search */
+#define WAVELAN_ROAMING_DELTA	1	/* Hysteresis value (+/- SNR) */
+#define CELL_TIMEOUT		2*HZ	/* in jiffies */
+
+#define FAST_CELL_SEARCH	1	/* Boolean values... */
+#define NWID_PROMISC		1	/* for code clarity. */
+
+typedef struct wavepoint_beacon
+{
+  unsigned char		dsap,		/* Unused */
+			ssap,		/* Unused */
+			ctrl,		/* Unused */
+			O,U,I,		/* Unused */
+			spec_id1,	/* Unused */
+			spec_id2,	/* Unused */
+			pdu_type,	/* Unused */
+			seq;		/* WavePoint beacon sequence number */
+  unsigned short	domain_id,	/* WavePoint Domain ID */
+			nwid;		/* WavePoint NWID */
+} wavepoint_beacon;
+
+typedef struct wavepoint_history
+{
+  unsigned short	nwid;		/* WavePoint's NWID */
+  int			average_slow;	/* SNR running average */
+  int			average_fast;	/* SNR running average */
+  unsigned char	  sigqual[WAVEPOINT_HISTORY]; /* Ringbuffer of recent SNR's */
+  unsigned char		qualptr;	/* Index into ringbuffer */
+  unsigned char		last_seq;	/* Last seq. no seen for WavePoint */
+  struct wavepoint_history *next;	/* Next WavePoint in table */
+  struct wavepoint_history *prev;	/* Previous WavePoint in table */
+  unsigned long		last_seen;	/* Time of last beacon recvd, jiffies */
+} wavepoint_history;
+
+struct wavepoint_table
+{
+  wavepoint_history	*head;		/* Start of ringbuffer */
+  int			num_wavepoints;	/* No. of WavePoints visible */
+  unsigned char		locked;		/* Table lock */
+};
 
 /****************************** DEBUG ******************************/
 
@@ -396,8 +435,8 @@ static const char *version = "wavelan_cs.c : v17 (wireless extensions) 20/5/97\n
 
 #define SIOCSIPQTHR	SIOCDEVPRIVATE		/* Set quality threshold */
 #define SIOCGIPQTHR	SIOCDEVPRIVATE + 1	/* Get quality threshold */
-#define SIOCSIPLTHR	SIOCDEVPRIVATE + 2	/* Set level threshold */
-#define SIOCGIPLTHR	SIOCDEVPRIVATE + 3	/* Get level threshold */
+#define SIOCSIPROAM     SIOCDEVPRIVATE + 2      /* Set roaming state */
+#define SIOCGIPROAM     SIOCDEVPRIVATE + 3      /* Get roaming state */
 
 #define SIOCSIPHISTO	SIOCDEVPRIVATE + 6	/* Set histogram ranges */
 #define SIOCGIPHISTO	SIOCDEVPRIVATE + 7	/* Get histogram values */
@@ -458,9 +497,26 @@ struct net_local
   u_char	his_range[16];		/* Boundaries of interval ]n-1; n] */
   u_long	his_sum[16];		/* Sum in interval */
 #endif	/* HISTOGRAM */
+ struct wavepoint_table	wavepoint_table;	/* Table of visible WavePoints*/
+  wavepoint_history *	curr_point;		/* Current wavepoint */
+  int			cell_search;		/* Searching for new cell? */
+  struct timer_list	cell_timer;		/* Garbage collection */
 };
 
 /**************************** PROTOTYPES ****************************/
+
+/* ---------------------- ROAMING SUBROUTINES -----------------------*/
+
+wavepoint_history *wl_roam_check(unsigned short nwid, net_local *lp);
+wavepoint_history *wl_new_wavepoint(unsigned short nwid, unsigned char seq, net_local *lp);
+void wl_del_wavepoint(wavepoint_history *wavepoint, net_local *lp);
+void wl_cell_expiry(unsigned long data);
+wavepoint_history *wl_best_sigqual(int fast_search, net_local *lp);
+void wl_update_history(wavepoint_history *wavepoint, unsigned char sigqual, unsigned char seq);
+void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp);
+void wv_nwid_filter(unsigned char mode, net_local *lp);
+void wv_roam_init(struct device *dev);
+void wv_roam_cleanup(struct device *dev);
 
 /* ----------------------- MISC SUBROUTINES ------------------------ */
 static inline unsigned long	/* flags */
@@ -606,15 +662,20 @@ static volatile int	wv_wait_completed = 0;
 
 /* Bit map of interrupts to choose from */
 /* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4 and 3 */
-static u_long	irq_mask = 0xdeb8;
+static int	irq_mask = 0xdeb8;
 static int 	irq_list[4] = { -1 };
 
 /* Shared memory speed, in ns */
 static int	mem_speed = 0;
 
+/* Enable roaming mode? */
+static int	do_roaming=1;
+
 /* New module interface */
-MODULE_PARM(irq_mask, "1l");
+MODULE_PARM(irq_mask, "i");
 MODULE_PARM(irq_list, "1-4i");
-MODULE_PARM(mem_speed, "1i");
+MODULE_PARM(mem_speed, "i");
+MODULE_PARM(do_roaming, "i");
 
 #endif	/* WAVELAN_CS_H */
+

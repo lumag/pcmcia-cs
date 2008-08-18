@@ -732,7 +732,7 @@ static int osi_setup(dev_link_t *link, u_short manfid)
     u_char buf[255];
     int i;
     
-    tuple.Attributes = 0;
+    tuple.Attributes = TUPLE_RETURN_COMMON;
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;

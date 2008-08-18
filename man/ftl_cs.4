@@ -1,13 +1,15 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" ftl_cs.4 1.8 1998/05/04 23:27:56
+.\" ftl_cs.4 1.9 1999/02/08 08:02:01
 .\"
-.TH FTL_CS 4 "1998/05/04 23:27:56" "pcmcia-cs"
+.TH FTL_CS 4 "1999/02/08 08:02:01" "pcmcia-cs"
 .SH NAME
 ftl_cs \- Flash Translation Layer driver for PCMCIA memory cards
 .SH SYNOPSIS
 .B insmod ftl_cs.o
-.RB [ pc_debug=n ]
-.RB [ major_dev=n ]
+.RB [ pc_debug=\c
+.IR n ]
+.RB [ major_dev=\c
+.IR n ]
 .SH DESCRIPTION
 Flash memory devices typically need to be erased before they are
 written, and most flash devices can only be erased on large block
@@ -38,12 +40,12 @@ needs to write to the corresponding raw memory device rather than the
 FTL device interface.
 .SH PARAMETERS
 .TP
-.B pc_debug=n
+.BI pc_debug= n
 Selects the PCMCIA debugging level.  This parameter is only available
 if the module is compiled with debugging enabled.  A non-zero value
 enables debugging.
 .TP
-.B major_dev=n
+.BI major_dev= n
 Selects the major device number to allocate for FTL devices.  The
 default is to pick any available major number.
 .SH AUTHOR

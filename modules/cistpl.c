@@ -2,7 +2,7 @@
 
     PCMCIA Card Information Structure parser
 
-    cistpl.c 1.58 1998/10/01 21:44:34
+    cistpl.c 1.59 1999/02/06 07:16:34
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -162,7 +162,7 @@ static int cis_readable(u_long base)
 /* Validation function for simple memory cards */
 static int checksum(u_long base)
 {
-    int i, a;
+    int i, a, b, d;
     vs->cis_mem.sys_start = base;
     vs->cis_mem.sys_stop = base+vs->cap.map_size-1;
     vs->cis_virt = ioremap(base, vs->cap.map_size);
@@ -170,15 +170,19 @@ static int checksum(u_long base)
     vs->cis_mem.flags = MAP_ACTIVE;
     vs->ss_entry(vs->sock, SS_SetMemMap, &vs->cis_mem);
     /* Don't bother checking every word... */
-    for (i = a = 0; i < vs->cap.map_size; i += 56)
-	a += (int)readl(vs->cis_virt+i);
+    a = 0; b = -1;
+    for (i = 0; i < vs->cap.map_size; i += 44) {
+	d = readl(vs->cis_virt+i);
+	a += d; b &= d;
+    }
     iounmap(vs->cis_virt);
-    return a;
+    return (b == -1) ? -1 : abs(a);
 }
 
 static int checksum_match(u_long base)
 {
-    return (checksum(base) == checksum(base+vs->cap.map_size));
+    int a = checksum(base), b = checksum(base+vs->cap.map_size);
+    return ((a == b) && (a >= 0));
 }
 
 int setup_cis_mem(socket_info_t *s)
@@ -190,8 +194,10 @@ int setup_cis_mem(socket_info_t *s)
 	s->cis_mem.sys_start = 0;
 	vs = NULL;
 	if (find_mem_region(&s->cis_mem.sys_start, s->cap.map_size,
-			    "card services", low) != 0)
+			    "card services", low) != 0) {
+	    printk(KERN_NOTICE "cs: unable to map card memory!\n");
 	    return CS_OUT_OF_RESOURCE;
+	}
 	s->cis_mem.sys_stop = s->cis_mem.sys_start+s->cap.map_size-1;
 	s->cis_virt = ioremap(s->cis_mem.sys_start, s->cap.map_size);
     }

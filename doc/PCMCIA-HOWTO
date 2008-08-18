@@ -1,6 +1,6 @@
   Linux PCMCIA HOWTO
   David Hinds, dhinds@hyper.stanford.edu.
-  v2.28, 19 January 1999
+  v2.30, 16 February 1999
 
   This document describes how to install and use PCMCIA Card Services
   for Linux, and answers some frequently asked questions.  The latest
@@ -249,8 +249,8 @@
 
   +o  SMC 34C90
 
-  +o  Texas Instruments PCI1130, PCI1131, PCI1220, PCI1221, PCI1250A,
-     PCI1221, PCI1210
+  +o  Texas Instruments PCI1130, PCI1131, PCI1210, PCI1220, PCI1221,
+     PCI1250A, PCI1251A, PCI1251B, PCI1450
 
   +o  Toshiba ToPIC95, ToPIC97 (experimental)
 
@@ -777,7 +777,7 @@
   Slackware uses a BSD boot script arrangement.  The PCMCIA startup
   script is installed as /etc/rc.d/rc.pcmcia, and boot options are
   specified in rc.pcmcia itself.  The PCMCIA startup script is invoked
-  from /etc/rc.d/rc.M.
+  from /etc/rc.d/rc.S.
 
 
   22..55..44..  SSuuSSEE
@@ -895,6 +895,10 @@
      driver to be enabled with CONFIG_SERIAL.  This driver may be built
      as a module.
 
+  +o  Support for multiport serial cards or multifunction cards that
+     include serial or modem devices requires CONFIG_SERIAL_SHARE_IRQ to
+     be enabled.
+
   +o  The SCSI client drivers require that CONFIG_SCSI be enabled, along
      with the appropriate top level driver options (CONFIG_BLK_DEV_SD,
      CONFIG_BLK_DEV_SR, etc for 2.1 kernels).  These may be built as
@@ -918,9 +922,11 @@
   driver, one would use:
 
 
-
        device "serial_cs"
          class "serial" module "misc/serial", "serial_cs"
+
+
+
 
   Module paths are specified relative to the top-level module directory
   for the current kernel version; if no relative path is given, then the
@@ -981,11 +987,19 @@
 
 
 
-       PCIC_OPTS="irq_list=5,9,10"
+
+  PCIC_OPTS="irq_list=5,9,10"
 
 
 
 
+  It should be noted that /proc/interrupts is completely useless when it
+  comes to diagnosing interrupt probe problems.  The probe is sensible
+  enough to never attempt to use an interrupt that is already in use by
+  another Linux driver.  So, the PCMCIA drivers are already using all
+  the information in /proc/interrupts.  Depending on system design, an
+  inactive device can still occupy an interrupt and cause trouble if it
+  is probed for PCMCIA.
 
 
   33..44..  IIOO ppoorrtt ssccaann ffaaiilluurreess
@@ -1039,6 +1053,7 @@
   +o  The system log reports that various memory ranges have been
      excluded.
 
+
   The core modules perform a memory scan at the time of first 16-bit
   card insertion.  This scan can potentially interfere with other memory
   mapped devices.  Also, pre-3.0.0 driver packages perform a more
@@ -1054,6 +1069,7 @@
   hex digit (so an absolute address of 0xd0000 might be given as
   0xd000).  Be sure to add the extra digit back when making changes to
   config.opts.
+
   In unusual cases, a memory probe failure can indicate a timing
   register setup problem with the host controller.  See the ``Startup
   options'' section for information about dealing with common timing
@@ -1074,6 +1090,10 @@
   0xa0000000-0xa0ffffff.  If you have a CardBus bridge and have upgraded
   from an older PCMCIA driver release, add this memory window if it is
   not already defined.
+
+  In some cases, the default high memory window is not usable.  On some
+  IBM Thinkpad models, a window of 0x60000000-0x60ffffff will work in
+  place of the default window.
 
 
   33..66..  FFaaiilluurree ttoo ddeetteecctt ccaarrdd iinnsseerrttiioonnss aanndd rreemmoovvaallss
@@ -1099,6 +1119,7 @@
   card status changes.  The cs_irq option can also be used to explicitly
   set the interrupt to be used for monitoring card status changes.
 
+
   If you can't find an interrupt number that works, there is also a
   polled status mode: both i82365 and tcic will accept a
   poll_interval=100 option, to poll for card status changes once per
@@ -1120,6 +1141,7 @@
 
   +o  When a card is inserted, it is identified correctly but cannot be
      configured (high/low beep pattern).
+
   +o  One of the following messages will appear in the system log:
 
 
@@ -1227,10 +1249,13 @@
 
 
 
-       Module                  Size  Used by
-       ds                      5640   2
-       i82365                 15452   2
-       pcmcia_core            30012   3  [ds i82365]
+
+
+
+  Module                  Size  Used by
+  ds                      5640   2
+  i82365                 15452   2
+  pcmcia_core            30012   3  [ds i82365]
 
 
 
@@ -1252,6 +1277,7 @@
   beep indicates that a card was identified, but could not be configured
   for some reason.  One low beep indicates that a card could not be
   identified.
+
   Cardmgr records device information for each socket in /var/run/stab.
   Here is a sample /var/run/stab listing:
 
@@ -1289,18 +1315,21 @@
 
 
 
-       Socket 0:
-         not configured
-       Socket 1:
-         Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
-         Card type is memory and I/O
-         IRQ 3 is dynamic shared, level mode, enabled
-         Speaker output is enabled
-         Function 0:
-           Config register base = 0x0800
-             Option = 0x63, status = 0x08
-           I/O window 1: 0x0280 to 0x02bf, auto sized
-           I/O window 2: 0x02f8 to 0x02ff, 8 bit
+
+
+
+  Socket 0:
+    not configured
+  Socket 1:
+    Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
+    Card type is memory and I/O
+    IRQ 3 is dynamic shared, level mode, enabled
+    Speaker output is enabled
+    Function 0:
+      Config register base = 0x0800
+        Option = 0x63, status = 0x08
+      I/O window 1: 0x0280 to 0x02bf, auto sized
+      I/O window 2: 0x02f8 to 0x02ff, 8 bit
 
 
 
@@ -1315,6 +1344,7 @@
          product info: "LINKSYS", "PCMLM336", "A", "0040052D6400"
          manfid: 0x0143, 0xc0ab
          function: 0 (multifunction)
+
 
 
 
@@ -1449,7 +1479,6 @@
   should be configured with the automatic tools, or by editing
   network.opts.
 
-
   The device address passed to network.opts consists of four comma-
   separated fields: the scheme, the socket number, the device instance,
   and the card's hardware ethernet address.  The device instance is used
@@ -1484,8 +1513,6 @@
        *,*,*,08:00:5A:44:80:01)
            # definitions for an IBM card
        esac
-
-
 
 
 
@@ -1542,19 +1569,32 @@
 
 
 
-       case "$ADDRESS" in
-       *,*,*,*)
-           IF_PORT="10base2"
-           BOOTP="n"
-           IPADDR="10.0.0.1"
-           NETMASK="255.255.255.0"
-           NETWORK="10.0.0.0"
-           BROADCAST="10.0.0.255"
-           GATEWAY="10.0.0.1"
-           DOMAIN="domain.org"
-           DNS_1="dns1.domain.org"
-           ;;
-       esac
+
+
+
+
+
+
+
+
+
+
+
+
+
+  case "$ADDRESS" in
+  *,*,*,*)
+      IF_PORT="10base2"
+      BOOTP="n"
+      IPADDR="10.0.0.1"
+      NETMASK="255.255.255.0"
+      NETWORK="10.0.0.0"
+      BROADCAST="10.0.0.255"
+      GATEWAY="10.0.0.1"
+      DOMAIN="domain.org"
+      DNS_1="dns1.domain.org"
+      ;;
+  esac
 
 
 
@@ -1582,6 +1622,9 @@
   default to either autodetect the interface if possible, or 10baseT
   otherwise.  The ifport command can be used to check or set the current
   transceiver type.  For example:
+
+
+
        # ifport eth0 10base2
        #
        # ifport eth0
@@ -1599,6 +1642,7 @@
 
 
        ifconfig eth0 down up
+
 
 
 
@@ -1802,7 +1846,6 @@
 
 
 
-
   44..44..22..  DDiiaaggnnoossiinngg pprroobblleemmss wwiitthh sseerriiaall ddeevviicceess
 
 
@@ -1935,8 +1978,6 @@
   the APS SCSI Sentry 2, which has an external power supply.  When
   configuring your SCSI device chain, be aware of whether or not any of
   your devices require or can provide termination power.
-
-
   44..55..11..  SSCCSSII ddeevviiccee ppaarraammeetteerrss
 
   The following parameters can be defined in scsi.opts:
@@ -1962,52 +2003,36 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  case "$ADDRESS" in
-  *,sd,*,0,3,0)
-      # This device has two partitions...
-      PARTS="1 2"
-      ;;
-  *,sd,*,0,3,0,1)
-      # Options for partition 1:
-      #  update /etc/fstab, and mount an ext2 fs on /usr1
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="ext2"
-      OPTS=""
-      MOUNTPT="/usr1"
-      ;;
-  *,sd,*,0,3,0,2)
-      # Options for partition 2:
-      #  update /etc/fstab, and mount an MS-DOS fs on /usr2
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="msdos"
-      OPTS=""
-      MOUNTPT="/usr2"
-      ;;
-  *,sr,*,0,6,0)
-      # Options for CD-ROM at SCSI ID 6
-      PARTS=""
-      DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
-      FSTYPE="iso9660"
-      OPTS="ro"
-      MOUNTPT="/cdrom"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,sd,*,0,3,0)
+           # This device has two partitions...
+           PARTS="1 2"
+           ;;
+       *,sd,*,0,3,0,1)
+           # Options for partition 1:
+           #  update /etc/fstab, and mount an ext2 fs on /usr1
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="ext2"
+           OPTS=""
+           MOUNTPT="/usr1"
+           ;;
+       *,sd,*,0,3,0,2)
+           # Options for partition 2:
+           #  update /etc/fstab, and mount an MS-DOS fs on /usr2
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="msdos"
+           OPTS=""
+           MOUNTPT="/usr2"
+           ;;
+       *,sr,*,0,6,0)
+           # Options for CD-ROM at SCSI ID 6
+           PARTS=""
+           DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
+           FSTYPE="iso9660"
+           OPTS="ro"
+           MOUNTPT="/cdrom"
+           ;;
+       esac
 
 
 
@@ -2044,7 +2069,7 @@
      ``feature,'' add the following to /etc/pcmcia/config.opts:
 
 
-  module "aha152x_cs" opts "reconnect=0"
+       module "aha152x_cs" opts "reconnect=0"
 
 
 
@@ -2150,6 +2175,7 @@
   flash memory region, so the region number will generally always be
   zero.
 
+
   To use a flash memory card as an ordinary disk-like block device,
   first create an FTL, or ``flash translation layer'', partition on the
   device with the ftl_format command.  This layer hides the device-
@@ -2171,7 +2197,6 @@
 
        mke2fs /dev/ftl0c0
        mount -t ext2 /dev/ftl0c0 /mnt
-
 
 
 
@@ -2214,6 +2239,9 @@
   called for each partition.
 
 
+
+
+
   44..77..11..  AATTAA//IIDDEE ffiixxeedd--ddiisskk ddeevviiccee ppaarraammeetteerrss
 
 
@@ -2241,18 +2269,17 @@
 
 
 
-
-  case "$ADDRESS" in
-  *,*,*,1)
-      DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
-      FSTYPE="msdos"
-      OPTS=""
-      MOUNTPT="/mnt"
-      ;;
-  *,*,*)
-      PARTS="1"
-      ;;
-  esac
+       case "$ADDRESS" in
+       *,*,*,1)
+           DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+           FSTYPE="msdos"
+           OPTS=""
+           MOUNTPT="/mnt"
+           ;;
+       *,*,*)
+           PARTS="1"
+           ;;
+       esac
 
 
 
@@ -2277,6 +2304,8 @@
      CONFIG_BLK_DEV_IDECD enabled.  This will normally be the case for
      standard kernels, however it is something to be aware of if you
      compile a custom kernel.
+
+
 
 
   44..88..  MMuullttiiffuunnccttiioonn ccaarrddss
@@ -2307,6 +2336,9 @@
        rmmod 3c589_cs
        setserial /dev/modem autoconfig auto_irq
        setserial /dev/modem
+
+
+
 
   The second setserial should verify that the port has been configured
   to use the interrupt previously used by the ethernet driver.
@@ -2342,7 +2374,6 @@
   options should be set in your /etc/pcmcia/config file.  For example:
 
 
-
        device "serial_cs"
          module "serial_cs" opts "irq_list=8,12"
          ...
@@ -2364,26 +2395,16 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-  case "$ADDRESS" in
-  work,*,*,*)
-      # definitions for network card in work scheme
-      ...
-      ;;
-  home,*,*,*|default,*,*,*)
-      # definitions for network card in home scheme
-      ...
-      ;;
-  esac
+       case "$ADDRESS" in
+       work,*,*,*)
+           # definitions for network card in work scheme
+           ...
+           ;;
+       home,*,*,*|default,*,*,*)
+           # definitions for network card in home scheme
+           ...
+           ;;
+       esac
 
 
 
@@ -2419,8 +2440,6 @@
 
   To find out the current scheme setting, run:
 
-
-
        cardctl scheme
 
 
@@ -2440,14 +2459,14 @@
 
 
 
-  root = /dev/hda1
-  read-only
-  image = /boot/vmlinuz
-    label  = home
-    append = "SCHEME=home"
-  image = /boot/vmlinuz
-    label  = work
-    append = "SCHEME=work"
+       root = /dev/hda1
+       read-only
+       image = /boot/vmlinuz
+         label  = home
+         append = "SCHEME=home"
+       image = /boot/vmlinuz
+         label  = work
+         append = "SCHEME=work"
 
 
 
@@ -2504,7 +2523,6 @@
   instructions should work, but deviations from the examples will
   quickly put you in uncharted and ``unsupported'' territory, and you
   will be on your own.
-
 
   This method absolutely requires that you use a PCMCIA driver release
   of 2.9.5 or later.  Older PCMCIA packages or individual components
@@ -2572,6 +2590,8 @@
 
   Create /mnt/etc/lilo.conf with the contents:
 
+
+
        boot=/dev/fd0
        compact
        image=/vmlinuz
@@ -2617,6 +2637,7 @@
 
 
 
+
   Once you can boot Linux on your target machine, you could then install
   lilo to allow booting Linux directly.  For example, say that /dev/hda1
   is the non-Linux target partition and /mnt can be used as a mount
@@ -2636,6 +2657,7 @@
   In this example, say that /dev/sda1 is the desired Linux root
   partition, a SCSI hard drive mounted via a PCMCIA SCSI adapter.  To
   install lilo, create a lilo.conf file with the contents:
+
 
 
        boot=/dev/hda
@@ -2679,6 +2701,9 @@
 
 
 
+
+
+
   66..11..  CCoonnffiigguurriinngg uunnrreeccooggnniizzeedd ccaarrddss
 
 
@@ -2703,13 +2728,23 @@
 
 
 
-
   The corresponding entry in /etc/pcmcia/config would be:
 
 
 
        card "Megahertz XJ2288 V.34 Fax Modem"
          version "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
+         bind "serial_cs"
+
+
+
+
+  or using the more compact product ID codes:
+
+
+
+       card "Megahertz XJ2288 V.34 Fax Modem"
+         manfid 0x0101, 0x1234
          bind "serial_cs"
 
 
@@ -2733,7 +2768,6 @@
 
   After editing /etc/pcmcia/config, you can signal cardmgr to reload the
   file with:
-
 
 
        kill -HUP `cat /var/run/cardmgr.pid`
@@ -2802,7 +2836,7 @@
 
 
 
-       module "pcnet_cs" opts "hw_addr=0x00,0x80,0xc8,0x01,0x02,0x03"
+  module "pcnet_cs" opts "hw_addr=0x00,0x80,0xc8,0x01,0x02,0x03"
 
 
 
@@ -2902,13 +2936,13 @@
 
 
 
-  Unable to handle kernel NULL pointer dereference
-  current->tss.cr3 = 014c9000, %cr3 = 014c9000
-  *pde = 00000000
-  Oops: 0002
-  CPU:    0
-  EIP:    0010:[<c2026081>]
-  EFLAGS: 00010282
+       Unable to handle kernel NULL pointer dereference
+       current->tss.cr3 = 014c9000, %cr3 = 014c9000
+       *pde = 00000000
+       Oops: 0002
+       CPU:    0
+       EIP:    0010:[<c2026081>]
+       EFLAGS: 00010282
 
 
 
@@ -2966,7 +3000,6 @@
   inserted, get the ksyms output before inserting the card, or with a
   different card inserted.  You can also manually load the card's driver
   modules with insmod and run ksyms before inserting the card.
-
 
   For more background, see ``man insmod'', ``man ksyms'', and ``man
   klogd''.  In the kernel source tree, Documentation/oops-tracing.txt is
@@ -3133,9 +3166,6 @@
   probably want to add a version number to the final package filename
   (for example, sample_cs-1.5.tar.gz).  A complete distribution could
   look like:
-
-
-
        sample_cs.mk
        README.sample_cs
        modules/sample_cs.c
@@ -3165,7 +3195,6 @@
   changes that require updates to their drivers.
 
 
-
   77..77..  GGuuiiddeelliinneess ffoorr LLiinnuuxx ddiissttrriibbuuttiioonn mmaaiinnttaaiinneerrss
 
 
@@ -3193,35 +3222,6 @@
   previous section.  The split between integral and separate drivers is
   somewhat arbitrary and partly historical, and should not imply a
   difference in quality.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

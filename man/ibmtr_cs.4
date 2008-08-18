@@ -1,16 +1,21 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" ibmtr_cs.4 1.2 1998/12/06 19:14:23
+.\" ibmtr_cs.4 1.3 1999/02/08 08:02:02
 .\"
-.TH IBMTR_CS 4 "1998/12/06 19:14:23" "pcmcia-cs"
+.TH IBMTR_CS 4 "1999/02/08 08:02:02" "pcmcia-cs"
 .SH NAME
 ibmtr_cs \- IBM Token Ring PCMCIA device driver
 .SH SYNOPSIS
 .B insmod ibmtr_cs.o
-.RB [ pc_debug=n ]
-.RB [ mmiobase=n ]
-.RB [ srambase=n ]
-.RB [ ringspeed=n ]
-.RB [ irq_list=i,j,... ]
+.RB [ pc_debug=\c
+.IR n ]
+.RB [ mmiobase=\c
+.IR n ]
+.RB [ srambase=\c
+.IR n ]
+.RB [ ringspeed=\c
+.IR n ]
+.RB [ irq_list=\c
+.IR i,j,... ]
 .SH DESCRIPTION
 .B ibmtr_cs
 is the low-level Card Services driver for the IBM Token Ring network
@@ -31,20 +36,20 @@ parameter may be required.  The memory-mapped IO window generally will
 not be a problem.
 .SH PARAMETERS
 .TP
-.B pc_debug=n
+.BI pc_debug= n
 Selects the PCMCIA debugging level.  This parameter is only available
 if the module is compiled with debugging enabled.  A non-zero value
 enables debugging.
 .TP
-.B mmiobase=n
+.BI mmiobase= n
 Specifies a fixed address for the card's memory mapped IO window.  The
 default is to select any available memory window.
 .TP
-.B srambase=n
+.BI srambase= n
 Specifies a fixed address for the card's shared packet memory.  The
 default is to select any available window below 1MB.
 .TP
-.B ringspeed=n
+.BI ringspeed= n
 Selects the network speed, in mb/sec.  Valid values are 4 or 16, and
 the default is 16.
 .SH AUTHOR

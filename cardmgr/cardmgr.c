@@ -2,7 +2,7 @@
 
     PCMCIA Card Manager daemon
 
-    cardmgr.c 1.120 1999/01/18 08:20:38
+    cardmgr.c 1.121 1999/02/06 07:16:17
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -393,6 +393,7 @@ static card_info_t *lookup_card(int ns)
     cistpl_vers_1_t *vers = NULL;
     cistpl_manfid_t manfid = { 0, 0 };
     cistpl_funcid_t funcid = { 0xff, 0xff };
+    cs_status_t status;
     int i, ret, match;
     int has_cis = 0;
 
@@ -479,8 +480,11 @@ static card_info_t *lookup_card(int ns)
 	    return card;
 	}
     }
-    
-    if (vers || (!blank_card)) {
+
+    status.Function = 0;
+    if ((ioctl(s->fd, DS_GET_STATUS, &status) != 0) ||
+	(status.CardState & CS_EVENT_CB_DETECT) ||
+	manfid.manf || manfid.card || vers || !blank_card) {
 	syslog(LOG_INFO, "unsupported card in socket %d", ns);
 	if (one_pass) return NULL;
 	beep(BEEP_TIME, BEEP_ERR);

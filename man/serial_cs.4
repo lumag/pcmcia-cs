@@ -1,14 +1,17 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" serial_cs.4 1.9 1998/05/04 23:28:22
+.\" serial_cs.4 1.10 1999/02/08 08:02:04
 .\"
-.TH SERIAL_CS 4 "1998/05/04 23:28:22" "pcmcia-cs"
+.TH SERIAL_CS 4 "1999/02/08 08:02:04" "pcmcia-cs"
 .SH NAME
 serial_cs \- PCMCIA serial port driver
 .SH SYNOPSIS
 .B insmod serial_cs.o
-.RB [ pc_debug=n ]
-.RB [ irq_list=i,j,... ]
-.RB [ do_sound=n ]
+.RB [ pc_debug=\c
+.IR n ]
+.RB [ irq_list=\c
+.IR i,j,... ]
+.RB [ do_sound=\c
+.IR n ]
 .SH DESCRIPTION
 .B Serial_cs
 is the Card Services driver for all PCMCIA serial devices, including
@@ -31,15 +34,15 @@ the dialout device to
 .IR /dev/modem .
 .SH PARAMETERS
 .TP
-.B pc_debug=n
+.BI pc_debug= n
 Selects the PCMCIA debugging level.  This parameter is only available
 if the module is compiled with debugging enabled.  A non-zero value
 enables debugging.
 .TP
-.B irq_list=i,j,...
+.BI irq_list= i,j,...
 Specifies the set of interrupts that may be allocated by this driver.
 .TP
-.B do_sound=n
+.BI do_sound= n
 A flag specifying if speaker output should be enabled.  The default is
 1 (true).  Set to 0 to disable speaker output.
 .SH AUTHOR

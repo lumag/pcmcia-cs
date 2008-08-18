@@ -86,9 +86,7 @@ static int rx_nocopy = 0, rx_copy = 0, queued_packet = 0, rx_csumhits;
 
 #include <linux/delay.h>
 
-#if (LINUX_VERSION_CODE >= 0x20100)
-char kernel_version[] = UTS_RELEASE;
-#else
+#if (LINUX_VERSION_CODE <= 0x20100)
 #ifndef __alpha__
 #define ioremap(a,b) \
 	(((a)<0x100000) ? (void *)((u_long)(a)) : vremap(a,b))
@@ -609,6 +607,9 @@ int init_module(void)
 #else
 int tc59x_probe(struct device *dev)
 {
+	static int scanned=0;
+	if(scanned++)
+		return -ENODEV;
 	printk(KERN_INFO "%s", version);
 	return vortex_scan(dev, pci_tbl);
 }
@@ -1484,6 +1485,9 @@ vortex_start_xmit(struct sk_buff *skb, struct device *dev)
 			outb(0x00, ioaddr + TxStatus); /* Pop the status stack. */
 		}
 	}
+#if (LINUX_VERSION_CODE >= 0x20125)
+	vp->stats.tx_bytes += skb->len;
+#endif
 	return 0;
 }
 
@@ -1543,6 +1547,9 @@ boomerang_start_xmit(struct sk_buff *skb, struct device *dev)
 			clear_bit(0, (void*)&dev->tbusy);
 		}
 		dev->trans_start = jiffies;
+#if (LINUX_VERSION_CODE >= 0x20125)
+		vp->stats.tx_bytes += skb->len;
+#endif
 		return 0;
 	}
 }
@@ -1731,6 +1738,9 @@ static int vortex_rx(struct device *dev)
 				netif_rx(skb);
 				dev->last_rx = jiffies;
 				vp->stats.rx_packets++;
+#if (LINUX_VERSION_CODE >= 0x20125)
+				vp->stats.rx_bytes += skb->len;
+#endif
 				/* Wait a limited time to go to next packet. */
 				for (i = 200; i >= 0; i--)
 					if ( ! (inw(ioaddr + EL3_STATUS) & CmdInProgress))
@@ -1782,6 +1792,9 @@ boomerang_rx(struct device *dev)
 			int pkt_len = rx_status & 0x1fff;
 			struct sk_buff *skb;
 
+#if (LINUX_VERSION_CODE >= 0x20125)
+			vp->stats.rx_bytes += pkt_len;
+#endif
 			if (vortex_debug > 4)
 				printk(KERN_DEBUG "Receiving packet size %d status %4.4x.\n",
 					   pkt_len, rx_status);

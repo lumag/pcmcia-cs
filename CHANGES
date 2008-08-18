@@ -1,3 +1,26 @@
+Version 3.0.9
+-- Moved cardinfo to /usr/X11R6/bin where it belongs.
+-- Added support for 4-socket configurations with I82092AA bridge.
+-- Added D-Link DMF560TX support.
+-- Added command-line options, noninteractive mode to Configure.
+-- Added Justin Seger's roaming support to wavelan_cs driver.
+-- Added do_pci_probe parameter to i82365 module.
+-- Added Configure and Makefile hooks to build tulip_cb and epic_cb
+   drivers using source files from the kernel tree, for 2.2 kernels.
+-- Changed power-up sequencing to use Vpp=Vcc until told otherwise,
+   and fixed serial_cs to handle cards that need Vpp.
+-- Changed memory probe to detect more types of failures.
+-- Changed cardmgr to not load memory card driver for unsupported
+   Cardbus cards, and fixed modules to report unsupported card types.
+   Also added some checks to prevent Cardbus drivers being bound to
+   16-bit cards, and vice-versa.
+-- Tweaked O2Micro bridge initialization to be sure DMA is off.
+-- Added fix for buggy PCI bus enumeration on some Toshiba laptops.
+-- Fixed an IO port allocation bug in pcnet_cs affecting configuration
+   for the Olicom GoCard.
+-- Fixed network script to handle net-tools-1.46 ifconfig output.
+-- Fixed SMP compilation with 2.2-pre9 and later kernels.
+
 Version 3.0.8
 -- Minor changes in TI and O2Micro Cardbus bridge initialization.
 -- Changed semantics of i82365 cb_bus_base parameter (and put it in

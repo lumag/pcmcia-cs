@@ -3,7 +3,7 @@
     Device driver for Intel 82365 and compatible PC Card controllers,
     and Yenta-compatible PCI-to-CardBus controllers.
 
-    i82365.c 1.226 1999/01/22 17:00:58
+    i82365.c 1.231 1999/02/16 01:35:09
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -72,7 +72,7 @@ MODULE_PARM(pc_debug, "i");
 #endif
 #define DEBUG(n, args) do { if (pc_debug>(n)) _printk args; } while (0)
 static const char *version =
-"i82365.c 1.226 1999/01/22 17:00:58 (David Hinds)";
+"i82365.c 1.231 1999/02/16 01:35:09 (David Hinds)";
 #else
 #define DEBUG(n, args) do { } while (0)
 #endif
@@ -165,6 +165,8 @@ MODULE_PARM(cmd_time, "i");
 MODULE_PARM(recov_time, "i");
 
 #ifdef CONFIG_PCI
+/* Scan PCI bus? */
+static int do_pci_probe = 1;
 /* Default memory base address for CardBus controllers */
 static u_int cb_mem_base = 0x68000000;
 static int fast_pci = -1;
@@ -177,6 +179,7 @@ static int pci_latency = -1;
 static int cb_latency = -1;
 static int cb_bus_base = 0;
 static int cb_bus_step = 2;
+MODULE_PARM(do_pci_probe, "i");
 MODULE_PARM(cb_mem_base, "i");
 MODULE_PARM(fast_pci, "i");
 MODULE_PARM(hold_time, "i");
@@ -936,11 +939,12 @@ static u_int o2micro_set_opts(u_short s, char *buf)
     u_int mask = 0xffff;
     
     flip(p->mode_b, O2_MODE_B_IRQ15_RI, has_ring);
-    p->mode_c &= ~O2_MODE_C_ZVIDEO;
+    p->mode_c &= ~(O2_MODE_C_ZVIDEO | O2_MODE_C_DREQ_MASK);
     if (t->flags & IS_CARDBUS) {
 	p->mode_d &= ~O2_MODE_D_W97_IRQ;
 	p->mode_e &= ~O2_MODE_E_MHPG_DMA;
 	p->mhpg |= O2_MHPG_CINT_ENA | O2_MHPG_CSC_ENA;
+	p->mhpg &= ~O2_MHPG_CHANNEL;
     } else {
 	if (p->mode_b & O2_MODE_B_IRQ15_RI) mask &= ~0x8000;
     }
@@ -1228,7 +1232,7 @@ static u_short irq_sock;
 
 static irq_ret_t irq_count IRQ(int irq, void *dev, struct pt_regs *regs)
 {
-#if defined(CONFIG_PCI) && defined(CONFIG_NEW_PROBE)
+#ifdef CONFIG_PCI
     if (socket[irq_sock].flags & IS_CARDBUS) {
 	cb_writel(irq_sock, CB_SOCKET_EVENT, -1);
     } else
@@ -1256,7 +1260,7 @@ static u_int test_irq(u_short sock, int irq, int pci)
     }
 
     /* Generate one interrupt */
-#if defined(CONFIG_PCI) && defined(CONFIG_NEW_PROBE)
+#ifdef CONFIG_PCI
     if (socket[sock].flags & IS_CARDBUS) {
 	cb_writel(sock, CB_SOCKET_EVENT, -1);
 	i365_set(sock, I365_CSCINT, I365_CSC_STSCHG | (csc << 4));
@@ -1629,7 +1633,7 @@ static void add_pci_bridge(int type, u_char bus, u_char devfn,
     pci_readl(bus, devfn, PCI_BASE_ADDRESS_0, &addr);
     addr &= ~0x1;
     pci_writew(bus, devfn, PCI_COMMAND, CMD_DFLT);
-    for (i = ns = 0; i < 2; i++) {
+    for (i = ns = 0; i < ((type == IS_I82092AA) ? 4 : 2); i++) {
 	if (is_active(addr, i)) continue;
 	s->bus = bus; s->devfn = devfn;
 	s->vendor = v; s->device = d;
@@ -1646,6 +1650,11 @@ static void add_cb_bridge(int type, u_char bus, u_char devfn,
     u_short d, ns;
     u_char a, b, max;
 
+    /* PCI bus enumeration is broken on some systems */
+    for (ns = 0; ns < sockets; ns++)
+	if ((socket[ns].bus == bus) && (socket[ns].devfn == devfn))
+	    return;
+    
     if (type == PCIC_COUNT) type = IS_UNK_CARDBUS;
     pci_readb(bus, devfn, PCI_HEADER_TYPE, &a);
     max = (a & 0x80) ? 8 : 1;
@@ -1787,7 +1796,7 @@ static int pcic_init(void)
     ACQUIRE_RESOURCE_LOCK;
     
 #ifdef CONFIG_PCI
-    if (pcibios_present()) {
+    if (do_pci_probe && pcibios_present()) {
 	pci_probe(PCI_CLASS_BRIDGE_CARDBUS, add_cb_bridge);
 	pci_probe(PCI_CLASS_BRIDGE_PCMCIA, add_pci_bridge);
     }
@@ -1990,6 +1999,9 @@ static int i365_get_status(u_short sock, u_int *value)
 #ifdef CONFIG_PCI
     if (socket[sock].flags & IS_CARDBUS) {
 	status = cb_readl(sock, CB_SOCKET_STATE);
+#ifndef CONFIG_CARDBUS
+	*value |= (status & CB_SS_32BIT) ? SS_CARDBUS : 0;
+#endif
 	*value |= (status & CB_SS_3VCARD) ? SS_3VCARD : 0;
 	*value |= (status & CB_SS_XVCARD) ? SS_XVCARD : 0;
     } else if (socket[sock].flags & IS_O2MICRO) {

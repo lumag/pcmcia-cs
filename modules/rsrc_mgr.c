@@ -2,7 +2,7 @@
 
     Resource management routines
 
-    rsrc_mgr.c 1.58 1999/01/07 03:52:53
+    rsrc_mgr.c 1.59 1999/02/08 07:04:30
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -505,7 +505,6 @@ void validate_mem(int (*is_valid)(u_long), int (*do_cksum)(u_long),
 {
     resource_map_t *m;
     static int done = 0;
-    int pass;
     
     if (!probe_mem || done++)
 	return;

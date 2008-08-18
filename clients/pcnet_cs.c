@@ -11,7 +11,7 @@
 
     Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
 
-    pcnet_cs.c 1.81 1999/01/22 16:58:06
+    pcnet_cs.c 1.85 1999/02/13 06:47:20
     
     The network driver code is based on Donald Becker's NE2000 code:
 
@@ -73,7 +73,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"pcnet_cs.c 1.81 1999/01/22 16:58:06 (David Hinds)";
+"pcnet_cs.c 1.85 1999/02/13 06:47:20 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -188,6 +188,8 @@ static hw_info_t hw_info[] = {
       USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
     { /* NSC DP83903 */ 0x0374, 0x00, 0xa0, 0xb0,
       USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+    { /* NSC DP83903 */ 0x0198, 0x00, 0x20, 0xe0,
+      USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
     { /* I-O DATA PCLA/T */ 0x0ff0, 0x00, 0xa0, 0xb0, 0 },
     { /* Katron PE-520 */ 0x0110, 0x00, 0x40, 0xf6, 0 },
     { /* Kingston KNE-PCM/x */ 0x0ff0, 0x00, 0xc0, 0xf0,
@@ -201,6 +203,7 @@ static hw_info_t hw_info[] = {
     { /* NE2000 Compatible */ 0x0ff0, 0x00, 0xa0, 0x0c, 0 },
     { /* Network General Sniffer */ 0x0ff0, 0x00, 0x00, 0x65,
       USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
+    { /* Olicom GoCard */ 0x00ae, 0x00, 0x00, 0x24, 0 },
     { /* Panasonic VEL211 */ 0x0ff0, 0x00, 0x80, 0x45, 
       USE_SHMEM | HAS_MISC_REG | HAS_IBM_MISC },
     { /* PreMax PE-200 */ 0x07f0, 0x00, 0x20, 0xe0, 0 },
@@ -569,7 +572,7 @@ static void pcnet_config(dev_link_t *link)
     pcnet_dev_t *info;
     struct device *dev;
     int i, last_ret, last_fn, start_pg, stop_pg, cm_offset;
-    int manfid = 0, prodid = 0;
+    int manfid = 0, prodid = 0, slave = 0;
     u_short buf[64];
     hw_info_t *hw_info;
 
@@ -599,6 +602,8 @@ static void pcnet_config(dev_link_t *link)
  	(CardServices(GetTupleData, handle, &tuple) == CS_SUCCESS)) {
 	manfid = le16_to_cpu(buf[0]);
 	prodid = le16_to_cpu(buf[1]);
+	slave = ((manfid == MANFID_OLICOM) &&
+		 (prodid == PRODID_OLICOM_OC2232));
     }
     
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
@@ -606,22 +611,31 @@ static void pcnet_config(dev_link_t *link)
     CS_CHECK(GetFirstTuple, handle, &tuple);
     while (last_ret == CS_SUCCESS) {
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
+	cistpl_io_t *io = &(parse.cftable_entry.io);
+	
 	CFG_CHECK(GetTupleData, handle, &tuple);
 	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
 	if ((cfg->index == 0) || (cfg->io.nwin == 0))
 	    goto next_entry;
-
+	if (slave && ((io->nwin != 2) || (io->win[1].len != 8)))
+	    goto next_entry;
+	
 	link->conf.ConfigIndex = cfg->index;
-	link->io.BasePort1 = cfg->io.win[0].base;
-	link->io.NumPorts1 = cfg->io.win[0].len;
-	if (cfg->io.nwin > 1) {
-	    link->io.BasePort2 = cfg->io.win[1].base;
-	    link->io.NumPorts2 = cfg->io.win[1].len;
+	/* For multifunction cards, by convention, we configure the
+	   network function with window 0, and serial with window 1 */
+	if (io->nwin > 1) {
+	    i = (io->win[1].len > io->win[0].len);
+	    link->io.BasePort2 = io->win[1-i].base;
+	    link->io.NumPorts2 = io->win[1-i].len;
 	} else {
-	    link->io.NumPorts2 = 0;
+	    i = link->io.NumPorts2 = 0;
 	}
-	last_ret = try_io_port(link);
-	if (last_ret == CS_SUCCESS) break;
+	link->io.BasePort1 = io->win[i].base;
+	link->io.NumPorts1 = io->win[i].len;
+	if (link->io.NumPorts1 + link->io.NumPorts2 >= 32) {
+	    last_ret = try_io_port(link);
+	    if (last_ret == CS_SUCCESS) break;
+	}
     next_entry:
 	last_ret = CardServices(GetNextTuple, handle, &tuple);
     }

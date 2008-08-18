@@ -12,7 +12,13 @@ wavelan_cs \- AT&T GIS WaveLAN PCMCIA device driver
 .\" SYNOPSIS part
 .\"
 .SH SYNOPSIS
-.BI "insmod wavelan_cs.o [irq_list=" i,j... "] [mem_speed=" n ]
+.B insmod wavelan_cs.o
+.RB [ irq_list=\c
+.IR i,j,... ]
+.RB [ mem_speed=\c
+.IR n ]
+.RB [ do_roaming=\c
+.IR n ]
 .\"
 .\" DESCRIPTION part
 .\"
@@ -33,12 +39,15 @@ the MAC address, NWID and frequency used by the card.
 .\"
 .SH PARAMETERS
 .TP
-.B irq_list=i,j,...
+.BI irq_list= i,j,...
 Specifies the set of interrupts that may be allocated by this driver.
 .TP
-.B mem_speed=n
+.BI mem_speed= n
 Sets the access speed of the shared memory window, in nanoseconds.
 The default is 0 (i.e., no extra wait states).
+.TP
+.BI do_roaming= n
+Enables or disables roaming mode.  The default is 1 (roam).
 .\"
 .\" WIRELESS part
 .\"
@@ -160,7 +169,7 @@ Jean Tourrilhes \- jt@hplb.hpl.hp.com
 .BR cardmgr (8),
 .BR pcmcia (5),
 .BR ifconfig (8),
-.BR insmod (8),
+.BR insmod (1),
 .BR iwconfig (8),
 .BR iwspy (8),
 .BR iwpriv (8).

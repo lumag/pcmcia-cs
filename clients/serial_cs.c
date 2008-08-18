@@ -2,7 +2,7 @@
 
     A driver for PCMCIA serial devices
 
-    serial_cs.c 1.101 1998/10/12 23:42:39
+    serial_cs.c 1.103 1999/02/13 06:47:03
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -48,7 +48,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"serial_cs.c 1.101 1998/10/12 23:42:39 (David Hinds)";
+"serial_cs.c 1.103 1999/02/13 06:47:03 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -237,9 +237,7 @@ static int setup_serial(serial_info_t *info, ioaddr_t port, int irq)
     serial.port = port;
     serial.irq = irq;
     serial.flags = ASYNC_SKIP_TEST;
-#ifdef ASYNC_SHARE_IRQ
     serial.flags |= (info->multi || info->slave) ? ASYNC_SHARE_IRQ : 0;
-#endif
     line = register_serial(&serial);
     if (line < 0) {
 	printk(KERN_NOTICE "serial_cs: register_serial() at 0x%04x, "
@@ -312,13 +310,17 @@ static int simple_config(dev_link_t *link)
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     i = first_tuple(handle, &tuple, &parse);
     while (i != CS_NO_MORE_ITEMS) {
-	if ((i == CS_SUCCESS) && (cf->io.nwin > 0) &&
-	    ((cf->io.win[0].base & 0xf) == 8)) {
+	if (i != CS_SUCCESS) goto next_entry;
+	if (cf->vpp1.present & (1<<CISTPL_POWER_VNOM))
+	    link->conf.Vpp1 = link->conf.Vpp2 =
+		cf->vpp1.param[CISTPL_POWER_VNOM]/10000;
+	if ((cf->io.nwin > 0) && ((cf->io.win[0].base & 0xf) == 8)) {
 	    link->conf.ConfigIndex = cf->index;
 	    link->io.BasePort1 = cf->io.win[0].base;
 	    i = CardServices(RequestIO, link->handle, &link->io);
 	    if (i == CS_SUCCESS) goto found_port;
 	}
+    next_entry:
 	i = next_tuple(handle, &tuple, &parse);
     }
     

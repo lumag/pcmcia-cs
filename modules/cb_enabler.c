@@ -2,7 +2,7 @@
 
     Cardbus device enabler
 
-    cb_enabler.c 1.12 1998/11/18 08:12:18
+    cb_enabler.c 1.13 1999/02/07 08:53:29
 
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -50,7 +50,7 @@ static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_enabler.c 1.12 1998/11/18 08:12:18 (David Hinds)";
+"cb_enabler.c 1.13 1999/02/07 08:53:29 (David Hinds)";
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif
@@ -127,8 +127,8 @@ struct dev_link_t *cb_attach(int n)
     link->release.function = &cb_release;
     link->release.data = (u_long)link;
 
+    link->conf.IntType = INT_CARDBUS;
     link->conf.Vcc = 33;
-    link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* Insert into instance chain for this driver */
     link->priv = &driver[n];
@@ -216,7 +216,7 @@ static void cb_config(dev_link_t *link)
 	    return;
 	}
 	b->flags |= DID_REQUEST;
-	i = CardServices(RequestConfiguration, handle, NULL);
+	i = CardServices(RequestConfiguration, handle, &link->conf);
 	if (i != CS_SUCCESS) {
 	    cs_error(handle, RequestConfiguration, i);
 	    return;

@@ -1,5 +1,5 @@
 #
-# cardmgr/Makefile 1.65 1998/09/14 08:50:21 (David Hinds)
+# cardmgr/Makefile 1.67 1999/02/16 01:35:25 (David Hinds)
 #
 
 # Include site dependent options
@@ -28,7 +28,7 @@ SRCS := ${SRCS} scsi_info.c
 TOOLS := ${TOOLS} scsi_info
 endif
 
-ifdef CONFIG_BLK_DEV_IDE_PCMCIA
+ifdef DO_IDE
 SRCS := ${SRCS} ide_info.c
 TOOLS := ${TOOLS} ide_info
 endif
@@ -83,9 +83,9 @@ install: $(TOOLS) $(EXTRA) $(PROBE)
 	    cp -f probe $(PREFIX)/sbin ;		\
 	fi
 	if [ -r cardinfo ] ; then			\
-	    mkdir -p $(PREFIX)/usr/bin/X11 ;		\
-	    cp -f cardinfo $(PREFIX)/usr/bin/X11 ;	\
-	    chmod u+s $(PREFIX)/usr/bin/X11/cardinfo ;	\
+	    mkdir -p $(PREFIX)/usr/X11R6/bin ;		\
+	    cp -f cardinfo $(PREFIX)/usr/X11R6/bin ;	\
+	    chmod u+s $(PREFIX)/usr/X11R6/bin/cardinfo ;\
 	fi
 
 # Stuff to automatically maintain dependency files

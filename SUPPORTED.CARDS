@@ -1,11 +1,17 @@
 		Linux PCMCIA Supported Device List
 
-		Last updated: 1999/01/22 17:28:19
+		Last updated: 1999/02/16 01:33:11
 
 The following cards are known to work in at least one actual system.
 Other cards may also work -- if you can get a card to work that is not
 on this list, please let me know.  This list is complete to the best
 of my knowledge.
+
+CardBus cards are listed at the end of each section.  At this time,
+all CardBus drivers should be treated as experimental.  Beware that
+some cards have 16-bit and CardBus versions with very similar names.
+If the CardBus version is not specifically listed as supported here,
+then you should not expect it to work.
 
 	-- David Hinds <dhinds@hyper.stanford.edu>
 
@@ -45,6 +51,7 @@ Ethernet cards:
 	CNet CN30BC, CN40BC Ethernet
 	Compex/ReadyLINK Ethernet Combo
 	Compex LinkPort Ethernet
+	COMPU-SHACK BASEline Ethernet
 	Connectware LANdingGear Adapter
 	Danpex EN-6200P2 Ethernet
 	Datatrek NetCard
@@ -87,6 +94,7 @@ Ethernet cards:
 	Melco LPC-TJ, LPC-TS
 	NDC Instant-Link
 	Network General "Sniffer"
+	New Media LanSurfer
 	Novell/National NE4100 InfoMover
 	OvisLink Ethernet
 	Panasonic CF-VEL211P-B
@@ -99,6 +107,7 @@ Ethernet cards:
 	RPTI EP400, EP401 Ethernet
 	SCM Ethernet		[ Yes, SCM != SMC ]
 	Sky Link Express
+	SMC 8022 EZCard-10
 	Socket Communications EA LAN Adapter
 	Socket Communications LPE Low Power Ethernet
 	SOHOware Ethernet
@@ -124,15 +133,14 @@ Fast Ethernet (10/100baseT) adapters:
 	[3c574_cs driver: driver is buggy]
 	3Com 3c574TX
 
-	[3c575_cb driver: driver has performance problem]
-	3Com 3c575TX, 3CCFE575B, 3CXFE575B CardBus
-
 	[pcnet_cs driver]
+	Abocom LinkMate FE1000
 	AnyCom ECO Ethernet 10/100
 	Apollo Fast Ethernet
 	COMPU-SHACK FASTline 10/100
 	D-Link DFE-650
 	EXP ThinLan 100
+	Fiberline Fast Ethernet
 	Level One EPC-0100TB
 	Linksys EtherFast 10/100
 	Microcom TravelCard 10/100
@@ -141,8 +149,19 @@ Fast Ethernet (10/100baseT) adapters:
 
 	[xirc2ps_cs driver]
 	Compaq Netelligent 10/100
-	Intel EtherExpress PRO/100
+	Intel EtherExpress PRO/100 [ 16-bit, NOT 32-bit ]
+	Toshiba Advanced Network 10/100
 	Xircom CreditCard CE3 [ beware: new cards may not work ]
+
+	[3c575_cb driver: experimental!]
+	3Com 3c575TX, 3CCFE575B, 3CXFE575B CardBus
+
+	[epic_cb driver: requires a 2.2 kernel, experimental!]
+	Ositech Seven of Spades CardBus
+
+	[tulip_cb driver: requires a 2.2 kernel, experimental!]
+	Linksys EtherFast CardBus
+	TDK NetworkFlyer LAK-CB100X CardBus
 
 Token-ring adapters:
 
@@ -165,11 +184,12 @@ Wireless network adapters:
 Modem and serial cards:
 
 	[ Virtually all modem cards, simple serial port cards, and
-	digital cellular modems should work.  The only known
+	digital cellular modems should work.  The only prominent
 	exceptions are the Compaq 192, the New Media WinSurfer, the
-	Megahertz XJ/CC2560, 3Com 3CXM356/3CCM356, and other so-called
-	"WinModems" that require special Windows drivers. ISDN modems
-	that emulate a standard UART are also supported. ] 
+	Megahertz XJ/CC2560, 3Com 3CXM356/3CCM356 and 3CXM656/3CCM656,
+	and other so-called "WinModems" that require special Windows
+	drivers.  ISDN modems that emulate a standard UART are also
+	supported. ]
 
 	Advantech COMpad-32/85 dual serial
 	Omega Engineering QSP-100
@@ -195,7 +215,7 @@ SCSI adapters:
 	they'll use a different product code, but not always: older
 	(supported) New Media Bus Toaster cards are not easily
 	distinguishable from the current Symbios-based cards, which
-	use the contributed 53c500 driver, distributed separately. ]
+	use the sym53c500_cs driver, distributed separately. ]
 
 	[aha152x_cs driver]
 	Adaptec APA-1460, APA-1450A, APA-1460A, APA-1460B SlimSCSI
@@ -220,10 +240,6 @@ SCSI adapters:
 	RATOC REX-9530 SCSI-2
 	Toshiba NWB0107ABK, SCSC200B
 
-	[apa1480_cb driver -- works for kernels 2.1.90-2.1.124, and
-	 2.1.132 and later.  Also experimental!!!]
-	Adaptec SlimSCSI 1480 CardBus
-
 	[not sure which driver]
 	Digital SCSI II adapter
 	IO-DATA PCSC-II, PCSC-II-L
@@ -234,7 +250,11 @@ SCSI adapters:
 	Pioneer PCP-PR1W CD-ROM
 	Taxan ICD-400PN
 
-Multifunction cards:
+	[apa1480_cb driver -- works for kernels 2.1.90-2.1.124, and
+	 2.1.132 and later.  Also experimental!]
+	Adaptec SlimSCSI 1480 CardBus
+
+Multifunction ethernet/modem cards:
 
 	[3c589_cs driver]
 	3Com 3c562, 3c562B/C/D, 3c563B/C/D
@@ -246,14 +266,16 @@ Multifunction cards:
 
 	[pcnet_cs driver]
 	Accton UE2218
+	ActionTec ComNet 33.6
 	Dayna Communicard
-	D-Link DME336T
+	D-Link DME336T, DMF560TX
 	Grey Cell GCS3400
 	GVC LAN modem
 	IBM Home and Away
 	IBM Home and Away 28.8
 	IO-Data PCEM-336T
 	Linksys LANmodem 28.8, 33.6
+	Olicom GoCard 33.6 Eth/Modem
 	PREMAX LAN modem
 	Psion V.34 Gold Card
 	Psion Gold Card Netglobal 56K+10Mb 
@@ -271,6 +293,9 @@ Multifunction cards:
 	Xircom CreditCard CEM28, CEM33, CEM56
 	Xircom RealPort REM10BT, REM56G-100
 
+	[epic_cb driver: requires a 2.2 kernel, experimental!]
+	Ositech Jack of Spades CardBus
+	
 ATA/IDE card drives:
 
 	Most cards should work fine, including adapters for external
@@ -394,9 +419,9 @@ documentation about their products.  It could be inferred that since
 these vendors support Linux development and have provided technical
 help, that their cards are likely to be better supported under Linux.
 
-	3Com/Megahertz 	[ ethernet, modem, and multifunction cards ]
+	3Com/Megahertz 	[ ethernet and multifunction cards ]
+	Adaptec		[ SCSI adapter cards ]
 	Intel		[ linear flash memory cards ]
 	Linksys		[ ethernet and multifunction cards ]
 	Ositech		[ ethernet/modem combo cards ]
-	Sandisk		[ ata/ide flash cards ]
-
+	Sandisk		[ ATA/IDE flash cards ]

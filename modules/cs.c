@@ -2,7 +2,7 @@
 
     PCMCIA Card Services -- core services
 
-    cs.c 1.210 1999/01/22 17:00:58
+    cs.c 1.213 1999/02/13 04:50:18
     
     The contents of this file are subject to the Mozilla Public
     License Version 1.0 (the "License"); you may not use this file
@@ -59,7 +59,7 @@ static int handle_apm_event(apm_event_t event);
 int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 static const char *version =
-"cs.c 1.210 1999/01/22 17:00:58 (David Hinds)";
+"cs.c 1.213 1999/02/13 04:50:18 (David Hinds)";
 #endif
 
 #ifdef __BEOS__
@@ -450,17 +450,20 @@ static void setup_socket(u_long i)
 	s->state |= SOCKET_PRESENT;
 	s->socket.flags = 0;
 	if (val & SS_3VCARD)
-	    s->socket.Vcc = 33;
+	    s->socket.Vcc = s->socket.Vpp = 33;
 	else if (!(val & SS_XVCARD))
-	    s->socket.Vcc = 50;
+	    s->socket.Vcc = s->socket.Vpp = 50;
 	else {
 	    printk(KERN_NOTICE "cs: socket %ld: unsupported "
 		   "voltage key\n", i);
 	    s->socket.Vcc = 0;
 	}
-#ifdef CONFIG_CARDBUS
-	if (val & SS_CARDBUS) s->state |= SOCKET_CARDBUS;
+	if (val & SS_CARDBUS) {
+	    s->state |= SOCKET_CARDBUS;
+#ifndef CONFIG_CARDBUS
+	    printk(KERN_NOTICE "cs: unsupported card type detected!\n");
 #endif
+	}
 	s->ss_entry(s->sock, SS_SetSocket, &s->socket);
 	s->setup.function = &reset_socket;
 	s->setup.expires = RUN_AT(vcc_settle);
@@ -927,14 +930,15 @@ static int get_configuration_info(client_handle_t handle,
     if (!(s->state & SOCKET_PRESENT))
 	return CS_NO_CARD;
 
+    if (handle->Function == BIND_FN_ALL) {
+	if (config->Function && (config->Function >= s->functions))
+	    return CS_BAD_ARGS;
+    } else
+	config->Function = handle->Function;
+    
 #ifdef CONFIG_CARDBUS
     if (s->state & SOCKET_CARDBUS) {
 	u_char fn = config->Function;
-	if (handle->Function == BIND_FN_ALL) {
-	    if (fn && (fn >= s->functions))
-		return CS_BAD_ARGS;
-	} else
-	    fn = handle->Function;
 	memset(config, 0, sizeof(config_info_t));
 	config->Function = fn;
 	config->Vcc = s->socket.Vcc;
@@ -953,12 +957,6 @@ static int get_configuration_info(client_handle_t handle,
     }
 #endif
     
-    if (handle->Function == BIND_FN_ALL) {
-	if (config->Function && (config->Function >= s->functions))
-	    return CS_BAD_ARGS;
-    } else {
-	config->Function = handle->Function;
-    }
     c = (s->config != NULL) ? &s->config[config->Function] : NULL;
     
     if ((c == NULL) || !(c->state & CONFIG_LOCKED)) {
@@ -1046,8 +1044,7 @@ static int get_next_client(client_handle_t *handle, client_req_t *req)
 /*======================================================================
 
     Get the current socket state bits.  We don't support the latched
-    SocketState yet.  We also don't support the Pin Replacement
-    Register.
+    SocketState yet: I haven't seen any point for it.
     
 ======================================================================*/
 
@@ -1063,9 +1060,7 @@ static int get_status(client_handle_t handle, cs_status_t *status)
     s->ss_entry(s->sock, SS_GetStatus, &val);
     status->CardState = status->SocketState = 0;
     status->CardState |= (val & SS_DETECT) ? CS_EVENT_CARD_DETECT : 0;
-#ifdef CONFIG_CARDBUS
     status->CardState |= (val & SS_CARDBUS) ? CS_EVENT_CB_DETECT : 0;
-#endif
     status->CardState |= (val & SS_3VCARD) ? CS_EVENT_3VCARD : 0;
     status->CardState |= (val & SS_XVCARD) ? CS_EVENT_XVCARD : 0;
     if (s->state & SOCKET_SUSPEND)
@@ -1267,10 +1262,8 @@ static int register_client(client_handle_t *handle, client_reg_t *req)
     client->event_callback_args = req->event_callback_args;
     client->event_callback_args.client_handle = client;
 
-#ifdef CONFIG_CARDBUS
     if (s->state & SOCKET_CARDBUS)
 	client->state |= CLIENT_CARDBUS;
-#endif
     
     if ((!(s->state & SOCKET_CARDBUS)) && (s->functions == 0) &&
 	(client->Function != BIND_FN_ALL)) {
@@ -1482,6 +1475,8 @@ static int request_configuration(client_handle_t handle,
     
 #ifdef CONFIG_CARDBUS
     if (handle->state & CLIENT_CARDBUS) {
+	if (!(req->IntType & INT_CARDBUS))
+	    return CS_UNSUPPORTED_MODE;
 	if (s->lock_count != 0)
 	    return CS_CONFIGURATION_LOCKED;
 	cb_enable(s);
@@ -1491,6 +1486,8 @@ static int request_configuration(client_handle_t handle,
     }
 #endif
     
+    if (req->IntType & INT_CARDBUS)
+	return CS_UNSUPPORTED_MODE;
     c = CONFIG(handle);
     if (c->state & CONFIG_LOCKED)
 	return CS_CONFIGURATION_LOCKED;
@@ -1612,14 +1609,16 @@ static int request_io(client_handle_t handle, io_req_t *req)
     if (!(s->state & SOCKET_PRESENT))
 	return CS_NO_CARD;
 
-#ifdef CONFIG_CARDBUS
     if (handle->state & CLIENT_CARDBUS) {
+#ifdef CONFIG_CARDBUS
 	int ret = cb_config(s);
 	if (ret == CS_SUCCESS)
 	    handle->state |= CLIENT_IO_REQ;
 	return ret;
-    }
+#else
+	return CS_UNSUPPORTED_FUNCTION;
 #endif
+    }
     
     c = CONFIG(handle);
     if (c->state & CONFIG_LOCKED)

@@ -1,9 +1,10 @@
-Known problems with the 3.0.8 PCMCIA release
+Known problems with the 3.0.9 PCMCIA release
 ============================================
 
 o The token ring driver tweaks a problem in the memory management
   code.  To work around the problem, remove all high memory windows
-  from /etc/pcmcia/config.opts.
+  from /etc/pcmcia/config.opts.  The driver is also completely broken
+  for late 2.1 and 2.2 kernels.
 
 o Megahertz EM3288 cards drop interrupts if the modem and ethernet are
   used simultaneously.  No known fix.
@@ -12,7 +13,8 @@ o The 3c574_cs driver is unstable.  Sometimes it works, sometimes
   cards do not respond at all.  This also affects the network side of
   3CCFEM556B cards.
 
-o None of the CardBus drivers implement suspend/resume handling.
+o None of the CardBus drivers or SCSI drivers implement suspend/resume
+  handling.
 
 o The apa1480_cb driver only works for 2.1.90-2.1.124, or 2.1.132 and
   later kernels.

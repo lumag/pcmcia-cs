@@ -1,15 +1,19 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" tc589_cs.4 1.11 1998/10/18 22:58:30
+.\" tc589_cs.4 1.12 1999/02/08 08:02:05
 .\"
-.TH 3C589_CS 4 "1998/10/18 22:58:30" "pcmcia-cs"
+.TH 3C589_CS 4 "1999/02/08 08:02:05" "pcmcia-cs"
 .SH NAME
 3c589_cs \- 3Com 3c589 Etherlink III device driver
 .SH SYNOPSIS
 .B insmod 3c589_cs.o
-.RB [ pc_debug=n ]
-.RB [ tc589_debug=n ]
-.RB [ if_port=n ]
-.RB [ irq_list=i,j,... ]
+.RB [ pc_debug=\c
+.IR n ]
+.RB [ tc589_debug=\c
+.IR n ]
+.RB [ if_port=\c
+.IR n ]
+.RB [ irq_list=\c
+.IR i,j,... ]
 .SH DESCRIPTION
 .B 3c589_cs
 is the low-level Card Services driver for the 3Com 3c589
@@ -29,22 +33,22 @@ type when the module is loaded or with the
 command.
 .SH PARAMETERS
 .TP
-.B pc_debug=n
+.BI pc_debug= n
 Selects the PCMCIA debugging level.  This parameter is only available
 if the module is compiled with debugging enabled.  A non-zero value
 enables debugging.
 .TP
-.B tc589_debug=n
+.BI tc589_debug= n
 Selects the network debugging level.  The current default is 3; values
 of up to six increase reporting verbosity.
 .TP
-.B if_port=n
+.BI if_port= n
 Selects the transceiver type.  0 is autodetect (10baseT or 10base2),
 1 is 10baseT (twisted pair), 2 is
 10base2 (BNC, or thin net). and 3 is AUI (thick ethernet).  The
 default is 0 (autodetect).
 .TP
-.B irq_list=i,j,...
+.BI irq_list= i,j,...
 Specifies the set of interrupts that may be allocated by this driver.
 .SH AUTHOR
 David Hinds \- dhinds@hyper.stanford.edu

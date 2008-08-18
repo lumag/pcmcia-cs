@@ -1,39 +1,68 @@
 .\" Copyright (C) 1998 David A. Hinds -- dhinds@hyper.stanford.edu
-.\" i82365.4 1.20 1999/01/14 17:30:26
+.\" i82365.4 1.22 1999/02/08 08:01:37
 .\"
-.TH I82365 4 "1999/01/14 17:30:26" "pcmcia-cs"
+.TH I82365 4 "1999/02/08 08:01:37" "pcmcia-cs"
 .SH NAME
 i82365 \- Intel i82365sl PCMCIA controller driver
 .SH SYNOPSIS
 .B insmod i82365.o
-.RB [ pc_debug=n ]
-.RB [ i365_base=n ]
-.RB [ cb_mem_base=n ]
-.RB [ cb_bus_base=n ]
-.RB [ cb_bus_step=n ]
-.RB [ ignore=n ]
-.RB [ extra_sockets=n ]
-.RB [ do_scan=n ]
-.RB [ irq_list=i,j,... ]
-.RB [ cs_irq=n ]
-.RB [ pci_csc=n ]
-.RB [ pci_int=n ]
-.RB [ poll_interval=n ]
-.RB [ has_dma=n ]
-.RB [ has_led=n ]
-.RB [ has_ring=n ]
+.RB [ pc_debug=\c
+.IR n ]
+.RB [ i365_base=\c
+.IR n ]
+.RB [ ignore=\c
+.IR n ]
+.RB [ extra_sockets=\c
+.IR n ]
+.RB [ do_scan=\c
+.IR n ]
+.RB [ irq_list=\c
+.IR i,j,... ]
+.RB [ cs_irq=\c
+.IR n ]
+.RB [ poll_interval=\c
+.IR n ]
 .RB [ cycle_time=n]
-.RB [ freq_bypass=n ]
-.RB [ setup_time=n ]
-.RB [ cmd_time=n ]
-.RB [ recov_time=n ]
-.RB [ wakeup=n ]
-.RB [ fast_pci=n ]
-.RB [ async_clock=n ]
-.RB [ cable_mode=n ]
-.RB [ has_clkrun=n ]
-.RB [ clkrun_sel=n ]
-.RB [ irq_mode=n ]
+.RB [ do_pci_probe=\c
+.IR n ]
+.RB [ cb_mem_base=\c
+.IR n ]
+.RB [ cb_bus_base=\c
+.IR n ]
+.RB [ cb_bus_step=\c
+.IR n ]
+.RB [ pci_csc=\c
+.IR n ]
+.RB [ pci_int=\c
+.IR n ]
+.RB [ has_dma=\c
+.IR n ]
+.RB [ has_led=\c
+.IR n ]
+.RB [ has_ring=\c
+.IR n ]
+.RB [ freq_bypass=\c
+.IR n ]
+.RB [ setup_time=\c
+.IR n ]
+.RB [ cmd_time=\c
+.IR n ]
+.RB [ recov_time=\c
+.IR n ]
+.RB [ wakeup=\c
+.IR n ]
+.RB [ fast_pci=\c
+.IR n ]
+.RB [ async_clock=\c
+.IR n ]
+.RB [ cable_mode=\c
+.IR n ]
+.RB [ has_clkrun=\c
+.IR n ]
+.RB [ clkrun_sel=\c
+.IR n ]
+.RB [ irq_mode=\c
+.IR n ]
 .SH DESCRIPTION
 This is the low-level driver for the Intel i82365sl PCMCIA host
 controller, and many derivative controllers.  It also implements the
@@ -68,140 +97,144 @@ parameter.  The driver will support a maximum of eight sockets.
 
 .SH PARAMETERS
 .TP
-.B pc_debug=n
+.BI pc_debug= n
 Selects the PCMCIA debugging level.  This parameter is only available
 if the module is compiled with debugging enabled.  A non-zero value
 enables debugging.
 .TP
-.B i365_base=n
+.BI i365_base= n
 Sets the base I/O port address of the i82365sl chip.  The default is
 0x3e0.
 .TP
-.B ignore=n
+.BI ignore= n
 Causes the driver to ignore a single socket.  Sockets are numbered
 starting at 0.  The socket will be left in whatever state it was
 already in, so it can be used for cards with point enablers that do
 not cooperate with Card Services.
 .TP
-.B extra_sockets=n
+.BI extra_sockets= n
 A flag indicating if the driver should probe for as many as eight
 sockets, or stop after checking for four sockets.  The default is
 0 (stop at four sockets).  Systems with two independent PCMCIA
 controllers (say, one internal and one in a docking station) may
 require this flag to be set, even though they have a total of only
 four sockets.  If this flag is set, then
-.BR poll_status
+.BR poll_interval
 will automatically be enabled.
 .TP
-.B do_scan=n
+.BI do_scan= n
 This flag specifies that all free interrupts should be tested to see
 if they can be triggered by the PCMCIA controller.  The default is 1
 (true). 
 .TP
-.B irq_list=i,j,...
+.BI irq_list= i,j,...
 Specifies the set of interrupts that may be allocated by this driver,
 if they are otherwise available.
 The default list is 3, 4, 5, 7, 9, 10, 11, 12, 14, and 15.
 .TP
-.B cs_irq=n
+.BI cs_irq= n
 Sets the interrupt line to use for monitoring card status changes.
 The default is 0, which means pick the highest-numbered legal
 interrupt not already in use.  Legal values are 15, 14, 12, 11,
 10, 9, 7, 5, 4, and 3.
 .TP
-.B poll_interval=n
+.BI poll_interval= n
 Sets the card status polling delay, in 1/100 second increments.  If
 this parameter is set, card status interrupts will be disabled.  A
 reasonable value is 100.
 .TP
-.B cycle_time=n
+.BI cycle_time= n
 Sets the length of a host bus cycle, in nanoseconds.  The default is
 210 ns, corresponding to a standard 4.77 MHz clock.
 
 .SH Options for CardBus controllers
 .TP
-.B cb_mem_base=n
+.BI do_pci_probe= n
+This flag indicates if the PCI bus should be probed for PCI-to-PCMCIA
+and/or PCI-to-CardBus bridges.  The default is 1 (true).
+.TP
+.BI cb_mem_base= n
 Sets the base address to use for memory mapping CardBus registers, if
 not set by the PCI BIOS.  The default is 0x68000000.
 .TP
-.B cb_bus_base=n
+.BI cb_bus_base= n
 Specifies that PCI bus numbers for CardBus busses should be renumbered
 starting with this value.  By default, bus values that are
 uninitialized at boot time will be numbered starting with bus 0x20.
 .TP
-.B cb_bus_step=n
+.BI cb_bus_step= n
 Specifies the number of bus slots to reserve for secondary PCI
 busses, for each CardBus socket, when busses are renumbered.  The
 default is 2.
 .TP
-.B pci_csc=n
+.BI pci_csc= n
 Specifies that card status change interrupts should be routed to PCI
 interrupts, for CardBus controllers.  The default is 0 (false).
 .TP
-.B pci_int=n
+.BI pci_int= n
 Specifies that functional interrupts for IO cards should be routed to
 PCI interrupts, for CardBus controllers.  The default is 0 (false).
 
 .SH Options specific for Cirrus controllers
 .TP
-.B has_dma=n
+.BI has_dma= n
 A flag (zero is false, non-zero is true) indicating if the controller
 has DMA support.
 .TP
-.B has_led=n
+.BI has_led= n
 A flag indicating if the controller is wired for a disk status LED.
 This is set by default.
 .TP
-.B has_ring=n
+.BI has_ring= n
 A flag indicating if the controller's "ring indicate" signal is
 implemented.  This is set by default.
 .TP
-.B freq_bypass=n
+.BI freq_bypass= n
 A flag indicating that the controller should be set up in "frequency
 bypass" mode.  This disables the normal 7/4 clock multiplier, and
 slows down all PCMCIA bus access, for systems with fast system clocks.
 .TP
-.B setup_time=n
+.BI setup_time= n
 Sets the bus setup time, in internal clock cycles. The default is 1.
 .TP
-.B cmd_time=n
+.BI cmd_time= n
 Sets the bus command time, in internal clock cycles. The default is 6.
 .TP
-.B recov_time=n
+.BI recov_time= n
 Sets the bus recovery time, in internal clock cycles. The default is 0.
 .TP
-.B wakeup=n
+.BI wakeup= n
 A flag indicating if the probe function should attempt to wake up a
 suspended controller chip.  The default is 0.
 .TP
-.B fast_pci=n
+.BI fast_pci= n
 A flag for the CL6729 PCI controller, indicating that the PCI bus
 speed exceeds 25 MHz.
 
 .SH Options specific for Ricoh CardBus controllers
 .TP
-.B irq_mode=n
+.BI irq_mode= n
 Selects the interrupt routing method.  A value of 1 selects ISA
 interrupt routing, and 2 selects interrupt routing via an external
 serial interrupt controller.  The default is to use whatever routing
 method is already enabled.
 .TP
-.B setup_time=n
+.BI setup_time= n
 Sets the bus setup time, in internal clock cycles. The default is 3.
 .TP
-.B cmd_time=n
+.BI cmd_time= n
 Sets the bus command time, in internal clock cycles. The default is 6.
 .TP
-.B hold_time=n
+.BI hold_time= n
 Sets the bus hold time, in internal clock cycles. The default is 1.
 
 .SH Options specific for Vadem controllers
 .TP
-.B async_clock=n
+.BI async_clock= n
 This flag specifies that PCMCIA bus cycles should be clocked
 asynchronously from host bus cycles.  It effectively adds a wait state
 to some operations.
-.B cable_mode=n
+.BI cable_mode= n
 For the VG469, this flag adjusts certain socket signals for driving a
 socket connected via a cable.
 
@@ -210,20 +243,20 @@ Normally, a system's BIOS will configure these options appropriately,
 so all these options default to leaving these features configured the
 way the driver finds them.
 .TP
-.B has_ring=n
+.BI has_ring= n
 A flag indicating if the controller is wired for "ring indicate".
 The default is to read the current setting from the controller.
 .TP
-.B has_clkrun=n
+.BI has_clkrun= n
 A flag indicating if the controller is wired for PCI CLKRUN support.
 The default is to read the current setting from the controller.
 .TP
-.B clkrun_sel=n
+.BI clkrun_sel= n
 A flag indicating if the CLKRUN signal is wired to the ISA interrupt
 12 pin, as opposed to ISA interrupt 10.
 The default is to read the current setting from the controller.
 .TP
-.B irq_mode=n
+.BI irq_mode= n
 Selects the interrupt routing method.  A value of 1 selects ISA
 interrupt routing, and 2 selects interrupt routing via an external
 serial interrupt controller.  The default is to use whatever routing
